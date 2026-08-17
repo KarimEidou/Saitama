@@ -175,7 +175,17 @@ const ROLL_HEEL_END = 0.18;
 const ROLL_TOE_START = 0.55;
 /** Ankle pitch at heel strike (toes up) and at toe-off (toes down), radians. */
 const HEEL_STRIKE_PITCH = 0.16;
-const TOE_OFF_PITCH = -0.68;
+/**
+ * Twenty-nine degrees, not the forty this started at.
+ *
+ * More plantar flexion buys reach — the ankle rides higher over the ball, so
+ * the leg can be further behind the body without over-extending — and it is
+ * tempting to spend that. But past about thirty degrees the trailing foot
+ * reads as a pointed ballet toe rather than a push-off, which is visible in a
+ * single frame. The reach it was buying is now provided by the standing
+ * crouch instead.
+ */
+const TOE_OFF_PITCH = -0.44;
 /** Step width as a fraction of hip half-width, walking then running. */
 const STANCE_WIDTH_WALK = 0.66;
 const STANCE_WIDTH_RUN = 0.24;
@@ -246,6 +256,7 @@ export class LocomotionSolver {
   private readonly model: THREE.Matrix4[] = [];
   private readonly initialPhase: number;
   private solution: GaitSolution;
+  private lastReport: LocomotionReport | undefined;
   private reachDrop = 0;
   private pelvisY = 0;
   /** Set when a foot touched down this frame; drained by the animator. */
@@ -362,7 +373,7 @@ export class LocomotionSolver {
     this.solveLeg(pose, this.left);
     this.solveLeg(pose, this.right);
 
-    return {
+    this.lastReport = {
       solution,
       phase: this.phase,
       left: this.report(this.left),
@@ -370,6 +381,20 @@ export class LocomotionSolver {
       reachDrop: this.reachDrop,
       pelvisY: this.pelvisY,
     };
+    return this.lastReport;
+  }
+
+  /**
+   * The last report, without re-solving.
+   *
+   * Exists because "just call `update(0)` again to read the state" is a trap:
+   * the solver writes INTO the pose it is handed, and a caller who passes a
+   * fresh pose rather than the rest pose gets a skeleton collapsed to the
+   * origin, a nonsense hip position, and a reach limit computed from it. The
+   * numbers look plausible and are entirely wrong.
+   */
+  get report_(): LocomotionReport | undefined {
+    return this.lastReport;
   }
 
   /** Current gait solution, for callers that need it without re-solving. */
@@ -520,7 +545,7 @@ export class LocomotionSolver {
     const outward = lerp(0.13, 0.2, run) + 0.09 * (1 - a) + slouch * 0.05;
     const adduct = Math.PI / 2 - droop - outward;
 
-    const swing = lerp(0.34, 0.95, run) * a;
+    const swing = lerp(0.38, 0.95, run) * a;
     const backBias = lerp(0.1, 0.02, run) * a;
     const elbow = lerp(0.22, 1.5, run) + 0.12 * a + slouch * 0.35;
 
@@ -545,7 +570,10 @@ export class LocomotionSolver {
       if (fore !== undefined) {
         // Elbow hinge is the bind-frame Y axis: the arm points sideways at
         // bind, so folding it forward is a yaw, and the sign mirrors.
-        const flex = elbow + Math.max(0, forward) * lerp(0.5, 0.35, run);
+        // The elbow flexes MORE on the forward swing than on the back swing.
+        // Symmetric elbows are the difference between an arm that swings and
+        // an arm that is being waved.
+        const flex = elbow + Math.max(0, forward) * lerp(0.85, 0.4, run);
         _q0.setFromAxisAngle(_Y_AXIS, -sign * flex);
         setRotation(pose, fore, _q0);
       }

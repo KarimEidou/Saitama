@@ -6,10 +6,10 @@
     "cadence": 1.0629232088170044,
     "strideLength": 1.3171224302818167,
     "duty": 0.6084511141923228,
-    "maxContactDrift": 0.000043208302348756285,
-    "maxFlatDrift": 0.000043208302348756285,
+    "maxContactDrift": 0.00004271634653376655,
+    "maxFlatDrift": 0.00004271634653376655,
     "naiveContactDrift": 0.10410627205252716,
-    "reachDrop": 0.03219244245438935,
+    "reachDrop": 0.005951507176208959,
     "stanceCounts": [
       2,
       1,
@@ -74,8 +74,8 @@
       81,
       128
     ],
-    "quantisationMax": 0.0010827726560218487,
-    "temporalMax": 0.012799541034503587,
+    "quantisationMax": 0.001114938242216041,
+    "temporalMax": 0.012610343318320283,
     "distinctOffsets": 250,
     "cpuReferences": 3
   }

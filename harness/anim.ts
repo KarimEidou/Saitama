@@ -292,11 +292,22 @@ function renderCell(cell: Cell, camera: THREE.Camera): void {
   renderer.render(scene, camera);
 }
 
-/** A side-on camera framing a character of the given height. */
+/**
+ * A near-profile camera, swung 24 degrees toward the front.
+ *
+ * A pure side view is the classic way to present a walk cycle and it is the
+ * best angle for judging the legs against the ground — but the far arm
+ * disappears behind the torso, and on a caped character the near arm vanishes
+ * against the cape whenever it swings back. The result reads as a character
+ * with no arm swing at all, which is a rendering artefact rather than an
+ * animation one. Twenty-four degrees keeps the legs legible and separates
+ * both arms.
+ */
 function profileCamera(cell: Cell, height: number, centerZ = 0): THREE.PerspectiveCamera {
   const camera = new THREE.PerspectiveCamera(26, cell.w / cell.h, 0.1, 60);
   const distance = height * 4.4;
-  camera.position.set(distance, height * 0.56, centerZ);
+  const yaw = (24 * Math.PI) / 180;
+  camera.position.set(distance * Math.cos(yaw), height * 0.56, centerZ - distance * Math.sin(yaw));
   camera.lookAt(0, height * 0.5, centerZ);
   return camera;
 }
@@ -359,9 +370,10 @@ function renderWalkCycle(): WalkStats {
     const pose = copyPose(actor.pose, probe);
     applyPose(pose, rig);
     actor.root.updateMatrixWorld(true);
-    report = solver.update(0, { speed }, createPose(rig.boneCount));
-    // Re-derive the report for the CURRENT state without advancing time, so
-    // the labels describe the frame actually drawn.
+    // The report from the update that PRODUCED this pose. Re-solving with
+    // `update(0)` to read the state would need the rest pose passed back in,
+    // and passing anything else silently collapses the skeleton.
+    report = solver.report_!;
     ground.setOffset(solver.rootPosition.z);
     markers.set(report, solver);
 
