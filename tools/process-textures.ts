@@ -85,6 +85,7 @@ import {
   TEX_DIR,
   VK_FORMAT_UNDEFINED,
   WORK_DIR,
+  cleanWorkDirs,
   checkKtx2,
   inspectKtx2,
   ktx,
@@ -241,7 +242,13 @@ function ktxArgsFor(spec: IEncodeSpec, threads: number, input: string, output: s
     if (spec.qlevel !== undefined) args.push('--qlevel', String(spec.qlevel));
     // basis-lz IS the supercompression; --zstd is rejected alongside it.
   } else {
-    args.push('--encode', 'uastc', '--uastc-quality', String(spec.uastcQuality ?? 2), '--uastc-rdo');
+    args.push(
+      '--encode',
+      'uastc',
+      '--uastc-quality',
+      String(spec.uastcQuality ?? 2),
+      '--uastc-rdo'
+    );
     if (spec.uastcRdoLambda !== undefined) {
       args.push('--uastc-rdo-l', String(spec.uastcRdoLambda));
     }
@@ -311,9 +318,7 @@ function makeTileableNoise(seed: number, basePeriod: number): (x: number, y: num
     const v10 = lattice(x0 + 1, y0, period);
     const v01 = lattice(x0, y0 + 1, period);
     const v11 = lattice(x0 + 1, y0 + 1, period);
-    return (
-      v00 * (1 - fx) * (1 - fy) + v10 * fx * (1 - fy) + v01 * (1 - fx) * fy + v11 * fx * fy
-    );
+    return v00 * (1 - fx) * (1 - fy) + v10 * fx * (1 - fy) + v01 * (1 - fx) * fy + v11 * fx * fy;
   };
 
   // x, y arrive in [0, 1); one tile.
@@ -471,11 +476,12 @@ function generateRoadMarkings(size: number, seed: number): IProceduralMaps {
   };
 }
 
-const PROCEDURAL_GENERATORS: Readonly<Record<string, (size: number, seed: number) => IProceduralMaps>> =
-  {
-    'mat.glass.window': generateGlass,
-    'mat.road.markings': generateRoadMarkings,
-  };
+const PROCEDURAL_GENERATORS: Readonly<
+  Record<string, (size: number, seed: number) => IProceduralMaps>
+> = {
+  'mat.glass.window': generateGlass,
+  'mat.road.markings': generateRoadMarkings,
+};
 
 /* -------------------------------------------------------------------------- */
 /* Work planning                                                              */
@@ -584,7 +590,10 @@ function planJobs(
         colorSpace,
         srcSha256: textureEntry.sha256,
         outFile: outFileFor(entry.id, role, tier),
-        target: { ...target, maxDimension: Math.min(target.maxDimension, PROCEDURAL_MAX_DIMENSION) },
+        target: {
+          ...target,
+          maxDimension: Math.min(target.maxDimension, PROCEDURAL_MAX_DIMENSION),
+        },
         procedural: true,
         synthetic: textureEntry,
       });
@@ -605,7 +614,10 @@ interface IEncodeOutcome {
   readonly cached: boolean;
 }
 
-async function writeSourcePng(job: ITextureJob, workDir: string): Promise<{
+async function writeSourcePng(
+  job: ITextureJob,
+  workDir: string
+): Promise<{
   file: string;
   width: number;
   height: number;
@@ -843,7 +855,7 @@ async function main(): Promise<void> {
       `${formatBytes(result.bytes)}, ${result.errors.length} error(s)`
   );
   for (const error of result.errors) console.error(`  ✗ ${error}`);
-  await rm(WORK_DIR, { recursive: true, force: true });
+  await cleanWorkDirs();
   if (result.errors.length > 0) process.exit(1);
 }
 

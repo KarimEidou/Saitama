@@ -209,7 +209,7 @@ describe('rank moves DOWN on reported collateral', () => {
     harness.tick(0.5);
     const afterSaves = harness.coordinator.progression.points;
 
-    harness.witnesses.clear();
+    harness.coordinator.witnesses.clear();
     harness.startEncounter('encounter.demolition', { threatTier: 'wolf' });
     harness.wreck(ORIGIN, 400000);
     harness.endEncounter('encounter.demolition', { collateralCost: 400000 });
@@ -318,11 +318,14 @@ describe('RankChanged', () => {
     const events: { promoted: boolean; rank: number }[] = [];
     harness.bus.on('RankChanged', (event) => events.push({ promoted: event.promoted, rank: event.rank }));
 
-    harness.crowd(ORIGIN, 12);
-    // One save is not a whole rank at the C-class step cost.
-    harness.saveCivilian(ORIGIN);
+    // An UNWITNESSED save is worth 0.4 points: real, recorded, and nowhere
+    // near a rank at the C-class step cost of 10.
+    for (let i = 0; i < 5; i++) harness.saveCivilian(ORIGIN);
     expect(events).toHaveLength(0);
+    expect(harness.coordinator.progression.state.civiliansSaved).toBe(5);
 
+    // With a crowd, the same act moves the ladder immediately.
+    harness.crowd(ORIGIN, 12);
     for (let i = 0; i < 10; i++) harness.saveCivilian(ORIGIN);
     expect(events.length).toBeGreaterThan(0);
     expect(events.every((e) => e.promoted)).toBe(true);

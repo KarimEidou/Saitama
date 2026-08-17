@@ -378,10 +378,10 @@
     "drawCalls": 2,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 1,
-      "stdDev": 0,
+      "distinctColors": 6578,
+      "stdDev": 53.2049432866495,
       "magentaPixels": 0,
-      "meanLuma": 0
+      "meanLuma": 43.37563536461233
     },
     "proximityFadeCurve": [
       0,

@@ -22,6 +22,11 @@ function makeLayer(capacity?: number): SpriteLayer {
 const eye = new THREE.Vector3(0, 0, 0);
 const forward = new THREE.Vector3(0, 0, -1);
 
+/** `getAttribute` returns a union; every attribute here is a plain buffer. */
+function attribute(layer: SpriteLayer, name: string): THREE.BufferAttribute {
+  return layer.mesh.geometry.getAttribute(name) as THREE.BufferAttribute;
+}
+
 describe('SpriteLayer', () => {
   it('refuses to grow past its capacity and counts the drops', () => {
     const layer = makeLayer(4);
@@ -108,7 +113,7 @@ describe('SpriteLayer', () => {
     layer.prepare(eye, forward);
     const geometry = layer.mesh.geometry as THREE.InstancedBufferGeometry;
     expect(geometry.instanceCount).toBe(5);
-    const range = geometry.getAttribute('iPosSize').updateRanges[0];
+    const range = attribute(layer, 'iPosSize').updateRanges[0];
     expect(range).toEqual({ start: 0, count: 20 });
   });
 
@@ -160,9 +165,9 @@ describe('SpriteLayer', () => {
     p.mode = SpriteMode.Billboard;
 
     const attributeNames = ['iPosSize', 'iColor', 'iParams', 'iMotion', 'iShade'] as const;
-    const before = attributeNames.map((n) => layer.mesh.geometry.getAttribute(n).array);
+    const before = attributeNames.map((n) => attribute(layer, n).array);
     layer.prepare(eye, forward);
-    const rangeIdentity = layer.mesh.geometry.getAttribute('iPosSize').updateRanges[0];
+    const rangeIdentity = attribute(layer, 'iPosSize').updateRanges[0];
 
     for (let frame = 0; frame < 240; frame++) {
       for (let i = 0; i < 3; i++) {
@@ -174,9 +179,9 @@ describe('SpriteLayer', () => {
       layer.prepare(eye, forward);
     }
 
-    const after = attributeNames.map((n) => layer.mesh.geometry.getAttribute(n).array);
+    const after = attributeNames.map((n) => attribute(layer, n).array);
     for (let i = 0; i < before.length; i++) expect(after[i]).toBe(before[i]);
-    expect(layer.mesh.geometry.getAttribute('iPosSize').updateRanges[0]).toBe(rangeIdentity);
+    expect(attribute(layer, 'iPosSize').updateRanges[0]).toBe(rangeIdentity);
     expect(layer.activeCount).toBeGreaterThan(0);
     expect(layer.activeCount).toBeLessThanOrEqual(256);
   });

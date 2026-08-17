@@ -64,14 +64,7 @@ import {
   MOOD_GAWK,
 } from './crowd-agents';
 import { RESCUE_RADIUS } from './constants';
-import {
-  BehaviourTree,
-  action,
-  guard,
-  selector,
-  type BtNode,
-  type BtStatus,
-} from './behaviour-tree';
+import { BehaviourTree, action, guard, selector, type BtNode } from './behaviour-tree';
 
 /** Seconds a civilian is off their feet after a solid hit. */
 const STAGGER_SECONDS = 0.85;
@@ -90,11 +83,11 @@ export interface ICivilianHost {
   damageAgent(index: number, amount: number, causedByPlayer: boolean, attacker?: EntityId): number;
 }
 
-/** Context the behaviour tree sees. */
+/** Context the behaviour tree sees. `index` moves when a body is recycled. */
 interface CivilianContext {
   readonly self: NearCivilian;
   readonly agents: CrowdAgents;
-  readonly index: number;
+  index: number;
   readonly host: ICivilianHost;
 }
 
@@ -117,6 +110,12 @@ export class NearCivilian implements IActor, INPCBehaviour {
   moveSpeed = 1.35;
   chunkKey?: string;
 
+  readonly radius: number;
+  readonly displayName = 'Civilian';
+  health: number;
+  maxHealth: number;
+
+  private entityId: EntityId;
   private readonly parts: CharacterParts;
   private readonly animator: ProceduralAnimator;
   private readonly tree: BehaviourTree<CivilianContext>;
@@ -139,7 +138,7 @@ export class NearCivilian implements IActor, INPCBehaviour {
     host: ICivilianHost,
     index: number
   ) {
-    this.id = id;
+    this.entityId = id;
     this.parts = parts;
     this.animator = animator;
     this.host = host;
@@ -147,22 +146,23 @@ export class NearCivilian implements IActor, INPCBehaviour {
     this.root = parts.root;
     this.transform = new ActorTransform(parts.root);
     this.stateMachine = new ActorStateMachine('idle');
-    this.character = { ...parts, animator } as ICharacterInstance;
+    // `CharacterParts` is field-for-field `ICharacterInstance` minus the
+    // animator; the mesh workstream shaped it that way precisely so the
+    // factory could spread it. Its methods are own properties of an object
+    // literal, so the spread carries them.
+    this.character = { ...parts, animator };
     this.clipPose = createPose(animator.rig.boneCount);
     this.radius = host.agents.radius[index] ?? 0.26;
     this.maxHealth = host.agents.maxHealth[index] ?? 12;
     this.health = host.agents.health[index] ?? this.maxHealth;
-    this.displayName = 'Civilian';
 
     this.context = { self: this, agents: host.agents, index, host };
     this.tree = new BehaviourTree(buildCivilianTree());
   }
 
-  readonly id: EntityId;
-  readonly radius: number;
-  readonly displayName: string;
-  health: number;
-  maxHealth: number;
+  get id(): EntityId {
+    return this.entityId;
+  }
 
   get isDead(): boolean {
     return this.health <= 0;
@@ -181,6 +181,11 @@ export class NearCivilian implements IActor, INPCBehaviour {
   /** Seconds of stagger remaining. */
   get stagger(): number {
     return this.staggerTimer;
+  }
+
+  /** True while the player's shepherd grab is still in effect. */
+  get shepherding(): boolean {
+    return this.shepherdTimer > 0;
   }
 
   /* ------------------------------------------------------------------ */
@@ -347,9 +352,10 @@ export class NearCivilian implements IActor, INPCBehaviour {
 
   /** Rebind this body to a different agent slot when recycled from the pool. */
   rebind(id: EntityId, index: number): void {
-    (this as { id: EntityId }).id = id;
+    this.entityId = id;
     this.agentIndex = index;
-    (this.context as { index: number }).index = index;
+    this.context.index = index;
+    this.root.visible = true;
     this.health = this.host.agents.health[index]!;
     this.maxHealth = this.host.agents.maxHealth[index]!;
     this.reset();
@@ -394,11 +400,11 @@ function buildCivilianTree(): BtNode<CivilianContext> {
     guard<CivilianContext>(
       'down',
       (c) => c.agents.health[c.index]! <= 0,
-      action('lie-still', (c) => {
+      action<CivilianContext>('lie-still', (c) => {
         c.agents.setMood(c.index, MOOD_DOWN);
         c.agents.velX[c.index] = 0;
         c.agents.velZ[c.index] = 0;
-        return 'running' as BtStatus;
+        return 'running';
       })
     ),
 
@@ -407,11 +413,11 @@ function buildCivilianTree(): BtNode<CivilianContext> {
     guard<CivilianContext>(
       'staggered',
       (c) => c.self.stagger > 0,
-      action('reel', (c, dt) => {
+      action<CivilianContext>('reel', (c, dt) => {
         const damp = Math.max(0, 1 - dt * 6);
         c.agents.velX[c.index] = c.agents.velX[c.index]! * damp;
         c.agents.velZ[c.index] = c.agents.velZ[c.index]! * damp;
-        return 'running' as BtStatus;
+        return 'running';
       })
     ),
 
@@ -424,26 +430,27 @@ function buildCivilianTree(): BtNode<CivilianContext> {
       (c) => {
         const player = c.host.player;
         if (player === undefined) return false;
+        if (c.self.shepherding) return true;
         const dx = player.x - c.agents.posX[c.index]!;
         const dz = player.z - c.agents.posZ[c.index]!;
         return dx * dx + dz * dz < RESCUE_RADIUS * RESCUE_RADIUS && c.agents.alarm[c.index]! > 0.2;
       },
-      action('follow-player', (c) => {
+      action<CivilianContext>('follow-player', (c) => {
         const player = c.host.player;
-        if (player === undefined) return 'failure' as BtStatus;
+        if (player === undefined) return 'failure';
         const dx = player.x - c.agents.posX[c.index]!;
         const dz = player.z - c.agents.posZ[c.index]!;
         const d = Math.sqrt(dx * dx + dz * dz);
         // Stand behind them, not on them.
-        if (d < 1.6) return 'running' as BtStatus;
+        if (d < 1.6) return 'running';
         const speed = 3.2;
         c.agents.velX[c.index] = (dx / d) * speed;
         c.agents.velZ[c.index] = (dz / d) * speed;
-        return 'running' as BtStatus;
+        return 'running';
       })
     ),
 
     // 4. Do what the field says. Deliberately empty.
-    action('follow-field', () => 'success' as BtStatus),
+    action<CivilianContext>('follow-field', () => 'success'),
   ]);
 }

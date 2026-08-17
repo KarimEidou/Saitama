@@ -61,6 +61,7 @@ import {
   ProcessCache,
   VK_FORMAT_R16G16B16A16_SFLOAT,
   WORK_DIR,
+  cleanWorkDirs,
   checkKtx2,
   fullMipLevels,
   inspectKtx2,
@@ -291,7 +292,9 @@ function boxDownsample(image: IHdrImage, outW: number, outH: number): IHdrImage 
   const fx = width / outW;
   const fy = height / outH;
   if (!Number.isInteger(fx) || !Number.isInteger(fy)) {
-    throw new Error(`box downsample needs integer ratios, got ${width}/${outW} × ${height}/${outH}`);
+    throw new Error(
+      `box downsample needs integer ratios, got ${width}/${outW} × ${height}/${outH}`
+    );
   }
   const out = new Float32Array(outW * outH * 3);
   const inv = 1 / (fx * fy);
@@ -817,11 +820,13 @@ async function main(): Promise<void> {
       `  ${id}  L0=[${env.sh9
         .slice(0, 3)
         .map((v) => v.toFixed(4))
-        .join(', ')}]  meanLum=${env.meanLuminance.toFixed(4)}  maxLum=${env.maxLuminance.toFixed(1)}`
+        .join(
+          ', '
+        )}]  meanLum=${env.meanLuminance.toFixed(4)}  maxLum=${env.maxLuminance.toFixed(1)}`
     );
   }
   for (const error of result.errors) console.error(`  ✗ ${error}`);
-  await rm(WORK_DIR, { recursive: true, force: true });
+  await cleanWorkDirs();
   if (result.errors.length > 0) process.exit(1);
 }
 
