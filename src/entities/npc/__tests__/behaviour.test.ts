@@ -12,6 +12,12 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+
+// These simulate hundreds of frames of a 250-agent crowd. Vitest's default
+// five-second budget is comfortable on an idle machine and not comfortable at
+// all when a dozen other workstreams are compiling on the same box, and a test
+// that fails on CPU contention is worse than no test.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 import * as THREE from 'three';
 import { EventBus } from '@/util';
 import {

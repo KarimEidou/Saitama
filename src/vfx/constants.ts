@@ -263,8 +263,8 @@ export const INTENT_POWER: Readonly<Record<string, number>> = {
 
 /** Concrete dust. Warm grey, deliberately DARKER than instinct suggests: the */
 /** shockwave edge only reads as white-hot if the dust around it is not white. */
-export const DUST_COLOR = 0xa9a59d;
-export const DUST_COLOR_DARK = 0x605d58;
+export const DUST_COLOR = 0xa39e95;
+export const DUST_COLOR_DARK = 0x55524d;
 /** The pressure edge and the impact flash. Slightly blue-white, like an arc. */
 export const SHOCK_COLOR = 0xdfeaff;
 export const SPARK_COLOR = 0xffd9a0;

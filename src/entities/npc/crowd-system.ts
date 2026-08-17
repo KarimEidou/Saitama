@@ -113,6 +113,9 @@ const DEFAULT_CROWD_SEED = 0xc17ce7;
 /** People per open 12 m cell, for the far-tier population estimate. */
 const FAR_PEOPLE_PER_CELL = 0.55;
 
+/** Seconds between far-tier headcounts. It feeds an ambience bed, not a hit test. */
+const FAR_POPULATION_INTERVAL = 1;
+
 /**
  * How lethal each intent is to a bystander.
  *
@@ -210,6 +213,9 @@ export class CrowdSystem implements ICrowdSink {
 
   private readonly player = { x: 0, z: 0 };
   private playerRegistered = false;
+  /** Cached far-tier headcount, and the countdown to recomputing it. */
+  private farCache = -1;
+  private farTimer = 0;
   private collateralTimer = 0;
   private elapsed = 0;
   private simMs = 0;
@@ -245,6 +251,9 @@ export class CrowdSystem implements ICrowdSink {
     this.player.x = x;
     this.player.z = z;
     this.playerRegistered = true;
+    // Force a recount on the next frame: a player who teleported across the
+    // city is standing somewhere with a different population.
+    this.farCache = -1;
   }
 
   /**
@@ -581,6 +590,12 @@ export class CrowdSystem implements ICrowdSink {
       for (const index of this.nearBodies.keys()) this.nearSkip.add(index);
       for (const body of this.nearBodies.values()) body.present(dt);
       this.renderer.update(this.agents, dt, this.nearSkip);
+    }
+
+    this.farTimer -= dt;
+    if (this.farTimer <= 0 || this.farCache < 0) {
+      this.farTimer = FAR_POPULATION_INTERVAL;
+      this.farCache = this.playerRegistered ? this.computeFarPopulation() : 0;
     }
 
     this.simMs = performance.now() - started;
@@ -970,9 +985,19 @@ export class CrowdSystem implements ICrowdSink {
    * bed scales its density by. Derived from open ground rather than invented:
    * a player standing in a park hears fewer people than one standing in a
    * downtown intersection, and that falls out of counting walkable cells.
+   *
+   * CACHED at 1 Hz. The count walks all 16,384 field cells, and doing that
+   * every frame to feed an ambience crossfade was costing more than the entire
+   * steering pass for 250 agents. The number it produces changes on the scale
+   * of a player walking a block.
    */
   get farPopulation(): number {
     if (!this.playerRegistered) return 0;
+    if (this.farCache < 0) this.farCache = this.computeFarPopulation();
+    return this.farCache;
+  }
+
+  private computeFarPopulation(): number {
     let open = 0;
     const inner = MID_RADIUS * MID_RADIUS;
     const outer = FAR_RADIUS * FAR_RADIUS;

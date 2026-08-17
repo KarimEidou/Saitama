@@ -464,7 +464,7 @@ function main(): void {
   // The multipliers put the dust in the same exposure bracket as the concrete
   // it is blowing off. Dust is translucent, so it takes a little under half the
   // scene's direct sun and a little over half its ambient.
-  vfx.setSun(lighting.sunDirection, 0xfff2e2, 0x93aed0, 1.3, 0.5);
+  vfx.setSun(lighting.sunDirection, 0xfff2e2, 0x8ba3c4, 1.08, 0.44);
   vfx.setFog(lighting.fogColor.getHex(), lighting.fogDensity);
   vfx.setViewport(window.innerWidth, window.innerHeight);
   scene.add(vfx.root);
