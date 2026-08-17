@@ -107,11 +107,7 @@ import {
 
 import { PlayerRig, createPhysicsCameraProbe } from '@/entities/player';
 import { CrowdSystem } from '@/entities/npc';
-import {
-  MonsterSystem,
-  monsterArchetype,
-  type IMonsterTarget,
-} from '@/entities/monster';
+import { MonsterSystem, monsterArchetype, type IMonsterTarget } from '@/entities/monster';
 
 import { createCombatSystem, type CombatSystem } from '@/gameplay/combat';
 import { DestructionSystem } from '@/gameplay/destruction';
@@ -514,7 +510,10 @@ export class Game {
     const physicsReady = initPhysics();
     step(0.14, 'Loading core assets');
     const corePreload = registry.preloadCore((progress) => {
-      step(0.14 + clamp01(progress.fraction) * 0.36, `Loading assets ${progress.loaded}/${progress.total}`);
+      step(
+        0.14 + clamp01(progress.fraction) * 0.36,
+        `Loading assets ${progress.loaded}/${progress.total}`
+      );
     });
 
     /* ---- 4. PHYSICS ---------------------------------------------------- */
@@ -970,7 +969,7 @@ export class Game {
     if (roster.failed.size > 0) {
       diagnostics.systems.skipped['characters.roster'] =
         `${roster.failed.size} baked atlas set(s) could not be loaded; those bodies ` +
-        'fall back to the mesh generator\'s vertex colours. Run ' +
+        "fall back to the mesh generator's vertex colours. Run " +
         '`npx tsx tools/build-characters.ts`.';
     }
 
@@ -1064,8 +1063,18 @@ export class Game {
    */
   private async loadRemainingCharacters(): Promise<void> {
     try {
+      // CIVILIAN FIRST, and not for looks. The allies are re-skinned in place
+      // by `upgradeCharacterSkins`, so a late atlas costs them nothing. A near-
+      // tier civilian is built by the crowd on promotion and then RECYCLED for
+      // the rest of the session — whatever material it was born with, it keeps.
+      // Loading the shared sheet first is what stops the first few pedestrians
+      // being permanently flatter than the ones behind them.
+      // `chr.saitama` is listed even though boot already loaded him: `load` is
+      // idempotent and returns immediately when the set is resident, so in the
+      // normal case this is a no-op — and in the case that matters, a boot-time
+      // fetch that failed, it is the retry that gets the protagonist his face.
       await this.roster.loadSequential(
-        ['chr.genos', 'chr.mumenRider', 'chr.civilian'],
+        ['chr.saitama', 'chr.civilian', 'chr.genos', 'chr.mumenRider'],
         async () => {
           this.upgradeCharacterSkins();
           await nextFrame();
@@ -1226,7 +1235,8 @@ export class Game {
         (window.devicePixelRatio || 1) * Math.max(0.5, settings.resolutionScale)
       );
       this.input.setTuning({
-        lookFullRateDegPerSec: DEFAULT_INPUT_TUNING.lookFullRateDegPerSec * settings.lookSensitivity,
+        lookFullRateDegPerSec:
+          DEFAULT_INPUT_TUNING.lookFullRateDegPerSec * settings.lookSensitivity,
         invertLookY: settings.invertLookY,
       });
     } catch (error) {
@@ -1569,7 +1579,8 @@ export class Game {
     const offDowned = this.bus.on('AllyDowned', () => {
       downedEvents++;
     });
-    const sampledOrigins: { x: number; z: number; range: number; power: number; intent: string }[] = [];
+    const sampledOrigins: { x: number; z: number; range: number; power: number; intent: string }[] =
+      [];
     const offWave = this.bus.on('ShockwaveFired', (event) => {
       if (event.sourceId === undefined || this.monsters.get(event.sourceId) === undefined) return;
       waves++;
@@ -1596,7 +1607,9 @@ export class Game {
       { scripted: true }
     );
 
-    const distanceOf = (hero: { transform: { position: { x: number; z: number } } } | undefined): number => {
+    const distanceOf = (
+      hero: { transform: { position: { x: number; z: number } } } | undefined
+    ): number => {
       if (hero === undefined) return -1;
       const dx = hero.transform.position.x - monster.brain.position.x;
       const dz = hero.transform.position.z - monster.brain.position.z;
@@ -1837,6 +1850,15 @@ export class Game {
     w.chunkIndex = this.spatial.currentChunk;
     w.residentChunks = this.cityStreamer.residentCount;
     w.pendingChunks = this.cityStreamer.pendingCount;
+    // The distant skyline. Constant after boot except `impostorDrift`, which
+    // only moves when a chunk becomes resident and disagrees with its
+    // silhouette — see `bakeSkyline` in `city-streamer.ts`.
+    const impostor = this.cityStreamer.impostorStats;
+    w.impostorBuildings = impostor.buildings;
+    w.impostorTriangles = impostor.triangles;
+    w.impostorBakeMs = impostor.generationTimeMs;
+    w.impostorUploadMs = impostor.uploadTimeMs;
+    w.impostorDrift = this.cityStreamer.impostorDrift;
     w.registeredStructures = this.destruction.structures.size;
     w.chunksDetached = this.chunksDetached;
     w.debrisLive = this.destruction.diagnostics.debrisLive;
@@ -1858,6 +1880,12 @@ export class Game {
     w.physicsBodies = this.physics.bodyCount;
     w.vfxEffects = this.vfx.activeCount;
     w.shaderPrograms = this.renderer.programCount;
+    // The one number the character pipeline adds to the boot path, reported on
+    // its own: a boot total measured on a contended machine cannot be
+    // differenced against a baseline measured on a quiet one, but this can.
+    w.rosterLoadMs = this.roster.loadMs;
+    w.rosterResident = this.roster.residentIds.length;
+    w.rosterBytes = this.roster.residentBytes;
     w.resolutionScale = this.renderer.governor.scale;
     w.timeScale = this.clock.timeScale;
     const registry = this.registry.diagnostics();
@@ -2022,10 +2050,7 @@ function buildSaitama(roster: RosterRuntime): {
     // collapsing into the body in an alley) that nobody else has.
     proximityFade: true,
   });
-  const parts = createCharacterParts(
-    body.build,
-    body.material ?? standInMaterial(0.68, 0.04)
-  );
+  const parts = createCharacterParts(body.build, body.material ?? standInMaterial(0.68, 0.04));
   parts.root.name = 'saitama';
   parts.root.castShadow = true;
   const animator = new ProceduralAnimator(parts, parts.root, {

@@ -92,6 +92,19 @@ export interface IWorldDiagnostics {
   chunksDetached: number;
   debrisLive: number;
 
+  /** Distant buildings in the impostor ring. Constant for the session. */
+  impostorBuildings: number;
+  impostorTriangles: number;
+  /** Milliseconds the skyline bake cost at BOOT. Never a frame cost. */
+  impostorBakeMs: number;
+  /** Main-thread milliseconds spent uploading it. Also a boot cost. */
+  impostorUploadMs: number;
+  /**
+   * Silhouettes that did not match the building generated in their place.
+   * Must be 0 — see `bakeSkyline` in `city-streamer.ts`.
+   */
+  impostorDrift: number;
+
   monsters: number;
   civilians: number;
   civiliansLost: number;
@@ -118,6 +131,19 @@ export interface IWorldDiagnostics {
   shaderPrograms: number;
   resolutionScale: number;
   timeScale: number;
+
+  /**
+   * Baked character atlases: milliseconds spent loading, how many are resident
+   * and what they cost on the GPU.
+   *
+   * `rosterLoadMs` is reported on its own because it is the only thing the
+   * character pipeline adds to the boot path. A boot TOTAL measured while
+   * something else is using the machine cannot be differenced against a
+   * baseline measured on a quiet one; this number can.
+   */
+  rosterLoadMs: number;
+  rosterResident: number;
+  rosterBytes: number;
 }
 
 /** The full object published on `window.__GAME_DIAG__`. */
@@ -202,6 +228,11 @@ export function createDiagnostics(quality: IQualityTier, build: string): IIntegr
       registeredStructures: 0,
       chunksDetached: 0,
       debrisLive: 0,
+      impostorBuildings: 0,
+      impostorTriangles: 0,
+      impostorBakeMs: 0,
+      impostorUploadMs: 0,
+      impostorDrift: 0,
       monsters: 0,
       civilians: 0,
       civiliansLost: 0,
@@ -224,6 +255,9 @@ export function createDiagnostics(quality: IQualityTier, build: string): IIntegr
       shaderPrograms: 0,
       resolutionScale: 1,
       timeScale: 1,
+      rosterLoadMs: 0,
+      rosterResident: 0,
+      rosterBytes: 0,
     },
   };
   window.__GAME_DIAG__ = diagnostics;

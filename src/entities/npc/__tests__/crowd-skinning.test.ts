@@ -129,8 +129,7 @@ describe('crowd skinning survives cascade-shadow registration', () => {
     adoptCsm(material, 'csm3');
     // `ShadowSystem.teardown` removes only its own hook, then `build`
     // re-attaches. The foreign injection must not be adopted twice.
-    const hooks = (material.userData as { engineShaderHooks: { key: string }[] })
-      .engineShaderHooks;
+    const hooks = (material.userData as { engineShaderHooks: { key: string }[] }).engineShaderHooks;
     hooks.splice(
       hooks.findIndex((h) => h.key === 'csm3'),
       1

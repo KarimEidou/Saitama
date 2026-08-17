@@ -36,12 +36,7 @@
  */
 
 import * as THREE from 'three';
-import type {
-  EntityId,
-  IEventBus,
-  IQualityTier,
-  Vec3,
-} from '@/types';
+import type { EntityId, IEventBus, IQualityTier, Vec3 } from '@/types';
 import type { ICrowdSink, ICrowdSlot, CrowdMode } from '@/world/streaming';
 import { clamp01, createRng, type IRandom } from '@/util';
 import { CHUNK_SIZE } from '@/spatial/constants';
@@ -208,8 +203,7 @@ export class CrowdSystem implements ICrowdSink {
   private readonly headless: boolean;
   private readonly spawnRng: IRandom;
   private readonly skinNearCivilian:
-    | ((build: HumanoidBuild, seed: number) => THREE.Material | undefined)
-    | undefined;
+    ((build: HumanoidBuild, seed: number) => THREE.Material | undefined) | undefined;
 
   private readonly threats: IThreatSource[] = [];
   private readonly heroes: HeroNpc[] = [];
@@ -401,7 +395,12 @@ export class CrowdSystem implements ICrowdSink {
         });
         if (this.debris.length > 64) this.debris.shift();
         const severity = clamp01(event.mass / 6000);
-        this.alarm.addImpulse(event.position.x, event.position.z, 0.25 + severity * 0.5, 22 + severity * 40);
+        this.alarm.addImpulse(
+          event.position.x,
+          event.position.z,
+          0.25 + severity * 0.5,
+          22 + severity * 40
+        );
         this.applyRadialDamage(
           event.position,
           4 + severity * 7,
@@ -414,14 +413,24 @@ export class CrowdSystem implements ICrowdSink {
         if (!event.createsCrater) return;
         this.collateralTimer = COLLATERAL_WINDOW;
         const severity = clamp01(event.impactSpeed / 90);
-        this.alarm.addImpulse(event.position.x, event.position.z, 0.4 + severity * 0.5, 30 + severity * 60);
+        this.alarm.addImpulse(
+          event.position.x,
+          event.position.z,
+          0.4 + severity * 0.5,
+          30 + severity * 60
+        );
       }),
 
       // An encounter is a threat with a position but no live entity yet. Seed
       // the field from it so a district starts emptying before the monster has
       // finished its entrance.
       bus.on('EncounterStarted', (event) => {
-        this.alarm.addImpulse(event.position.x, event.position.z, tierIntensity(event.threatTier), event.radius);
+        this.alarm.addImpulse(
+          event.position.x,
+          event.position.z,
+          tierIntensity(event.threatTier),
+          event.radius
+        );
       }),
 
       // Something died. If it was a monster and the player did it, everyone
@@ -655,7 +664,12 @@ export class CrowdSystem implements ICrowdSink {
       });
     }
     if (this.playerRegistered) {
-      this.avoidBodies.push({ x: this.player.x, z: this.player.z, radius: 0.55, layer: LAYER_PLAYER });
+      this.avoidBodies.push({
+        x: this.player.x,
+        z: this.player.z,
+        radius: 0.55,
+        layer: LAYER_PLAYER,
+      });
     }
 
     this.steering.update(this.agents, dt, this.alarm, this.flow, this.obstacles, this.avoidBodies);
@@ -806,7 +820,13 @@ export class CrowdSystem implements ICrowdSink {
       // shopping.
       variants: { idle: 'civilian' },
     });
-    const body = new NearCivilian(this.agents.idOf(index), parts, animator, this.civilianHost(), index);
+    const body = new NearCivilian(
+      this.agents.idOf(index),
+      parts,
+      animator,
+      this.civilianHost(),
+      index
+    );
     this.group.add(body.root);
     return body;
   }

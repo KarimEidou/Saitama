@@ -293,7 +293,9 @@ export class RosterRuntime {
     } catch (error) {
       this.loadMsTotal += performance.now() - started;
       this.failures.set(id, String(error));
-      log.warn(`${id}: baked atlas unavailable — falling back to vertex colours (${String(error)})`);
+      log.warn(
+        `${id}: baked atlas unavailable — falling back to vertex colours (${String(error)})`
+      );
       return false;
     }
   }

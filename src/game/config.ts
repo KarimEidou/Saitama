@@ -67,7 +67,25 @@ export const START_TIME_OF_DAY = 0.34;
  * 96 m ring reaches the far side of the next block, and the block itself
  * occludes everything behind it.
  *
- * This is the number to raise when the city gains an impostor ring.
+ * ── WHY THE IMPOSTOR RING DID NOT CHANGE IT ────────────────────────────────
+ * This used to read "the number to raise when the city gains an impostor
+ * ring". The impostor landed (`CityStreamer.impostor`) and the number stayed
+ * at 1, deliberately, in BOTH directions:
+ *
+ *   • It cannot go UP. Raising it was only ever a way to push the empty
+ *     horizon further away, and the horizon is no longer empty. Radius 2 buys
+ *     16 more chunks of parallax at 600 000 extra vertices and 6.4 s of
+ *     streaming (`STREAM_INTERVAL_SECONDS` x 16) for detail that the impostor
+ *     already stands in for, at one draw call, from the first frame.
+ *   • It cannot go DOWN. Radius 1 is the floor set by PHYSICS, not by looks:
+ *     `COLLIDER_RADIUS` is 1, so radius 0 would leave the player able to walk
+ *     off the collidable world about 50 m from spawn, and the impostor is a
+ *     silhouette with no colliders and no destructible layout to replace it
+ *     with. Buildings inside the resident ring are the ones a punch can take
+ *     apart; that ring has to reach past arm's length.
+ *
+ * So the impostor did not buy a smaller ring. It bought a CITY behind the one
+ * that is already there, which is a strictly better use of the same budget.
  */
 export const RESIDENT_RADIUS_BY_TIER: Readonly<Record<IQualityTier, number>> = {
   low: 1,
@@ -103,6 +121,51 @@ export const STREAM_INTERVAL_SECONDS = 0.4;
 
 /** Physics colliders are built for chunks within this Chebyshev radius. */
 export const COLLIDER_RADIUS = 1;
+
+/* -------------------------------------------------------------------------- */
+/* Distant skyline (the impostor ring)                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fraction of true plan size a silhouette box keeps.
+ *
+ * Two independent mechanisms stop the impostor drawing over real geometry, and
+ * this is the second one. The first — the residency test in the vertex shader,
+ * `StreamingMaterials.installResidencyTest` — is exact and keeps the single
+ * draw call. This one is the belt to that pair of braces: shrunk in plan and in
+ * height, a silhouette sits strictly INSIDE the building it stands for, so even
+ * with suppression disabled it cannot z-fight out through a façade. The numbers
+ * are the streaming workstream's, kept identical so the two bakes are
+ * comparable.
+ */
+export const IMPOSTOR_PLAN_SCALE = 0.94;
+
+/** Fraction of true height a silhouette box keeps. See `IMPOSTOR_PLAN_SCALE`. */
+export const IMPOSTOR_HEIGHT_SCALE = 0.97;
+
+/**
+ * Scalar the impostor material multiplies its vertex tints by.
+ *
+ * The resident city renders `facadeMap x vertexTint`; the impostor has no maps
+ * at all, so without this it renders every distant building at the brightness
+ * of bare plaster — a white city behind a grey one. 0.55 is the mean albedo of
+ * the wall set in `CITY_MATERIALS` and was picked by matching a distant façade
+ * against a near one in the same frame, not from the texture files.
+ */
+export const IMPOSTOR_ALBEDO = 0.55;
+
+/** Packed 0xRRGGBB of the world ground plane under the distant city. */
+export const IMPOSTOR_GROUND_COLOUR = 0x39383a;
+
+/**
+ * Metres the impostor's ground plane sits BELOW y=0.
+ *
+ * Enough that a resident chunk's own road surface always wins the depth test,
+ * small enough to stay invisible at grazing angles. 6 cm against ~2 mm of depth
+ * resolution at 100 m and ~2 cm at 300 m — and past 300 m there is no resident
+ * ground left to fight with.
+ */
+export const IMPOSTOR_GROUND_DEPTH = 0.06;
 
 /* -------------------------------------------------------------------------- */
 /* Population                                                                 */

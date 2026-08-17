@@ -36,28 +36,64 @@
  * solves exactly this with a worker pool — it is the right long-term home, and
  * moving there means teaching its worker protocol to carry UVs, material groups
  * and the per-vertex destruction byte the pre-fractured city needs.
+ *
+ * ── AND EVERYTHING PAST THE RESIDENT RING ──────────────────────────────────
+ * A radius of one is 288 m of city on a 1536 m map. Past it there was nothing
+ * at all, and a street that ends in empty sky at 150 m does not read as "the
+ * draw distance is short" — it reads as broken. So this file also owns the
+ * IMPOSTOR RING: `src/world/streaming/impostor-ring.ts` and its residency
+ * material, driven from THIS city's plan. See `bakeSkyline` below.
  */
 
 import * as THREE from 'three';
 import type { DistrictType, IEventBus, IQualityTier } from '@/types';
 import {
   CityGenerator,
+  blockSeed,
   buildBlockMesh,
   buildGroundMesh,
+  polygonBounds,
+  polygonCentroid,
+  shadeTint,
+  subdivideBlock,
+  tintToRgb,
   type IBlockMesh,
   type ICityChunkBuild,
+  type ICityPlanIndex,
+  type IPlanBlock,
+  type IPlanZone,
+  type IPlanZoneParams,
   type MaterialResolver,
 } from '@/world/city';
-import { chunkIndexForPosition } from '@/world/streaming';
-import { CHUNK_SIZE, CHUNK_COORD_MIN, CHUNK_COORD_MAX } from '@/spatial';
+import {
+  ImpostorRing,
+  StreamingMaterials,
+  IMPOSTOR_ALWAYS_VISIBLE,
+  chunkIndexForPosition,
+  hashGeometry,
+  type IImpostorBuildResult,
+  type IImpostorStats,
+} from '@/world/streaming';
+import {
+  CHUNK_SIZE,
+  CHUNK_COORD_MIN,
+  CHUNK_COORD_MAX,
+  WORLD_MIN,
+  WORLD_MAX,
+} from '@/spatial';
 import type { SpatialIndex } from '@/spatial';
 import type { DestructionSystem } from '@/gameplay/destruction';
 import type { PhysicsWorld } from '@/physics';
 import type { IObstacleRect } from '@/entities/npc';
-import { createLogger } from '@/util';
+import { createLogger, createRng, type IRandom } from '@/util';
 import {
   COLLIDER_RADIUS,
   FULL_DETAIL_RADIUS,
+  IMPOSTOR_ALBEDO,
+  IMPOSTOR_GROUND_COLOUR,
+  IMPOSTOR_GROUND_DEPTH,
+  IMPOSTOR_HEIGHT_SCALE,
+  IMPOSTOR_PLAN_SCALE,
   REDUCED_DETAIL_RADIUS,
   RESIDENT_RADIUS_BY_TIER,
   STREAM_INTERVAL_SECONDS,
@@ -72,6 +108,421 @@ export type PropResolver = (
 
 /** Damage slots the 8 KB persistent bitmask addresses per 96 m chunk. */
 const DAMAGE_SLOTS_PER_CHUNK = 16;
+
+/* -------------------------------------------------------------------------- */
+/* The distant skyline                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * THE IMPOSTOR BAKE — ONE DRAW CALL FOR EVERYTHING PAST THE RESIDENT RING
+ *
+ * `ImpostorRing` (in `src/world/streaming`) is the mesh, the upload and the
+ * residency wiring: one merged buffer covering all 256 chunks, every vertex
+ * tagged with the chunk it came from, and a 16x16 residency texture read in the
+ * vertex shader that collapses any vertex whose real chunk is loaded. That is
+ * what keeps 1 100+ distant buildings at ONE draw call while never drawing over
+ * streamed geometry — splitting the mesh to skip resident chunks would cost the
+ * very draw call that justifies it.
+ *
+ * What it is NOT is a source of geometry. Its companion baker,
+ * `buildImpostorGeometry(seed)`, silhouettes `chunk-layout.ts` — the streaming
+ * workstream's own placeholder city, which its header calls a placeholder in as
+ * many words. This game's world is `assets/district/cityz.plan.json` through
+ * `CityGenerator`, and the two are DIFFERENT CITIES. Measured, before choosing:
+ *
+ *   • mean |Δ tallest building| per chunk: 18.9 m over 249 chunks;
+ *   • chunk (2,0) — 200 m down the avenue from spawn, in shot at boot — is a
+ *     21 m shed in the placeholder and an 84 m tower in the real plan;
+ *   • the placeholder puts its block at 8..88 m inside each 96 m chunk, the
+ *     plan at 18..87, so placeholder silhouettes stand up to 10 m INSIDE the
+ *     real carriageway — closing the avenue this task exists to open.
+ *
+ * So the mesh is theirs and the buildings are ours. This function walks the
+ * SAME plan the resident chunks are generated from and emits one five-face box
+ * per building, which is why the far city lines up with the near one exactly:
+ * same footprints, same heights, same streets between them.
+ *
+ * ── WHY THE FOOTPRINTS AND HEIGHTS ARE EXACT AND NOT MERELY SIMILAR ────────
+ * `generateBlock` derives its buildings from three things: `subdivideBlock` for
+ * the lots, a per-lot density roll, and a shaped height roll. The first is a
+ * public export and is called here verbatim; the rolls are drawn from
+ * `rng.derive('buildings')`, and `derive()` is keyed by LABEL off the base seed
+ * rather than by the parent's consumed state — so this file can reproduce that
+ * stream without reproducing the mesh generation that normally consumes it.
+ * The result is byte-identical heights: 429/429 buildings matched
+ * `CityGenerator` exactly across 36 sampled chunks.
+ *
+ * The coupling is real and is worth stating plainly: `readBuildRng` mirrors the
+ * ORDER in which `makeRecipe` draws from that stream. If someone adds a roll
+ * there and not here, the far city drifts from the near one. That is why
+ * `impostorDrift` exists — every chunk that becomes resident re-checks its own
+ * silhouettes against the buildings actually generated, and the counter is on
+ * the debug HUD. Silent drift is the failure mode; a counter is the fix.
+ *
+ * ── WHY NOT JUST GENERATE THE REAL CHUNKS ──────────────────────────────────
+ * Measured: 256 chunks through `CityGenerator` at its cheapest `box` detail is
+ * 4 228 ms. The silhouette walk is 41 ms. That is the whole argument.
+ *
+ * ── WHAT IT DELIBERATELY LEAVES OUT ────────────────────────────────────────
+ * Courtyard sheds, park planting and rooftop clutter: interior, low, and
+ * invisible past the first row of façades. Damage: the bake is once, at boot,
+ * and a missing corner is not resolvable at 800 m — the same limitation the
+ * original ring shipped with, for the same reason.
+ */
+
+/** One distant building: an axis-aligned box and the colours to paint it. */
+interface ISkylineBox {
+  readonly chunk: number;
+  readonly minX: number;
+  readonly minZ: number;
+  readonly maxX: number;
+  readonly maxZ: number;
+  readonly height: number;
+  /** Packed 0xRRGGBB façade tint, as `generateBuilding` bakes it. */
+  readonly facade: number;
+  readonly roof: number;
+}
+
+/** The bake, plus what the drift check needs to police it. */
+interface ISkylineBake {
+  readonly result: IImpostorBuildResult;
+  /**
+   * Silhouette heights per chunk, one array PER PLAN BLOCK in
+   * `ICityPlanIndex.blocksByChunk` order, each in the order `generateBlock`
+   * emits its perimeter buildings. That is the shape the drift check needs:
+   * `build.blocks[j].buildings[k].height` must equal entry `[j][k]`.
+   */
+  readonly heightsByChunk: ReadonlyMap<number, readonly (readonly number[])[]>;
+}
+
+/** Style keys `pickStyle` weighs, in the order it weighs them. */
+const STYLE_KEYS = [
+  'residential',
+  'commercial',
+  'skyscraper',
+  'industrial',
+  'shophouse',
+  'apartment',
+  'civic',
+  'ruins',
+] as const;
+
+/** `[0,1]` clamp, matching `block.ts`'s own. */
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
+
+/** Pack a linear 0..1 triple back into 0xRRGGBB. */
+function packTint(tint: readonly [number, number, number]): number {
+  const r = Math.max(0, Math.min(255, Math.round(tint[0] * 255)));
+  const g = Math.max(0, Math.min(255, Math.round(tint[1] * 255)));
+  const b = Math.max(0, Math.min(255, Math.round(tint[2] * 255)));
+  return (r << 16) | (g << 8) | b;
+}
+
+/**
+ * Draw one building's worth of `buildRng`, returning its storey count.
+ *
+ * MIRRORS `makeRecipe` in `src/world/city/block.ts`. Every draw is here, in
+ * order, including the ones whose values are thrown away — a stream read out of
+ * step is a different city, not a slightly different one. The rolls whose
+ * results this function ignores are marked; they must not be removed.
+ */
+function readBuildRng(
+  rng: IRandom,
+  params: IPlanZoneParams,
+  block: IPlanBlock,
+  isCorner: boolean,
+  isPrimary: boolean
+): { floors: number; tint: number } {
+  const [minFloors, maxFloors] = params.floorRange;
+  const roll = Math.pow(rng.next(), params.heightExponent);
+  let floors = Math.round(minFloors + roll * (maxFloors - minFloors));
+  floors += block.heightBias;
+  if (isCorner) floors += rng.int(0, 2);
+  if (isPrimary) floors += rng.int(0, 2);
+  if (maxFloors >= 6 && rng.bool(0.07)) floors = Math.round(floors * rng.range(1.5, 2.4));
+  floors = Math.max(1, Math.min(maxFloors * 2 + 6, floors));
+
+  // pickStyle: one weighted draw over the styles whose weight is above zero.
+  const styles: string[] = [];
+  const weights: number[] = [];
+  for (const key of STYLE_KEYS) {
+    const w = params.styleWeights[key];
+    if (w !== undefined && w > 0) {
+      styles.push(key);
+      weights.push(w);
+    }
+  }
+  const style = styles.length === 0 ? 'residential' : rng.weighted(styles, weights);
+  const tint = params.tints[rng.int(0, params.tints.length - 1)] ?? 0xffffff;
+  rng.nextUint32(); // recipe seed — consumed, unused here
+  // parapetHeight is only rolled for non-industrial styles.
+  if (style !== 'industrial') rng.range(0.7, 1.15);
+  return { floors, tint };
+}
+
+/** Every silhouette a plan block contributes, in `generateBlock`'s own order. */
+function blockSilhouettes(
+  planVersion: number,
+  block: IPlanBlock,
+  zone: IPlanZone,
+  chunk: number,
+  exclusions: readonly (readonly [number, number, number])[]
+): ISkylineBox[] {
+  // Parks and craters have no lots at all; `generateBlock` skips subdivision
+  // for them and fills them with planting instead, which is not skyline.
+  if (zone.kind === 'park' || zone.kind === 'crater') return [];
+
+  const params = zone.params;
+  const rng = createRng(blockSeed(planVersion, block.id));
+  const lots = subdivideBlock(block.outline, params, block, rng.derive('lots'));
+  const buildRng = rng.derive('buildings');
+  const density = clamp01(params.density * block.density);
+  const out: ISkylineBox[] = [];
+
+  for (const lot of lots) {
+    // Order matters: the density roll happens BEFORE the exclusion test in
+    // `generateBlock`, and a lot skipped by density never touches `makeRecipe`.
+    if (!lot.isPrimary && !buildRng.bool(density)) continue;
+    const centre = polygonCentroid(lot.footprint);
+    let excluded = false;
+    for (const [ex, ez, radius] of exclusions) {
+      if (Math.hypot(centre[0] - ex, centre[1] - ez) < radius) {
+        excluded = true;
+        break;
+      }
+    }
+    if (excluded) continue;
+
+    const { floors, tint } = readBuildRng(buildRng, params, block, lot.isCorner, lot.isPrimary);
+    const bounds = polygonBounds(lot.footprint);
+    const rgb = tintToRgb(tint);
+    out.push({
+      chunk,
+      minX: bounds.minX,
+      minZ: bounds.minZ,
+      maxX: bounds.maxX,
+      maxZ: bounds.maxZ,
+      // `computeFloorTops`: the ground floor is taller than the rest.
+      height: params.floorHeight * (params.groundFloorScale + floors - 1),
+      facade: packTint(rgb),
+      roof: packTint(shadeTint(rgb, 0.62)),
+    });
+  }
+  return out;
+}
+
+/** A hand-placed landmark's silhouette. Straight plan data — no rolls at all. */
+function landmarkSilhouettes(index: ICityPlanIndex): ISkylineBox[] {
+  const out: ISkylineBox[] = [];
+  for (const landmark of index.plan.landmarks) {
+    const cos = Math.cos(landmark.rotationY);
+    const sin = Math.sin(landmark.rotationY);
+    let minX = Infinity;
+    let minZ = Infinity;
+    let maxX = -Infinity;
+    let maxZ = -Infinity;
+    for (const [lx, lz] of landmark.footprint) {
+      const x = landmark.position[0] + lx * cos + lz * sin;
+      const z = landmark.position[1] - lx * sin + lz * cos;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+    if (!Number.isFinite(minX)) continue;
+    const rgb = tintToRgb(landmark.tint);
+    out.push({
+      // The chunk `indexPlan` files this landmark under, so residency
+      // suppresses the silhouette exactly when the real one is built.
+      chunk: chunkIndex(
+        Math.floor(landmark.position[0] / CHUNK_SIZE),
+        Math.floor(landmark.position[1] / CHUNK_SIZE)
+      ),
+      minX,
+      minZ,
+      maxX,
+      maxZ,
+      height: landmark.floors * landmark.floorHeight,
+      facade: packTint(rgb),
+      roof: packTint(shadeTint(rgb, 0.62)),
+    });
+  }
+  return out;
+}
+
+/**
+ * Walk the whole plan and pack every silhouette into one indexed buffer.
+ *
+ * Exactly sized up front: the box count is known before a byte is written, so
+ * there is no doubling, no reallocation and no trailing `slice`. Five faces per
+ * box — the floor of a building standing on the ground is never visible.
+ */
+function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
+  const started = performance.now();
+  const plan = index.plan;
+
+  const boxes: ISkylineBox[] = [];
+  const heightsByChunk = new Map<number, number[][]>();
+  for (let chunk = 0; chunk < index.blocksByChunk.length; chunk++) {
+    const planBlocks = index.blocksByChunk[chunk]!;
+    if (planBlocks.length === 0) continue;
+    const perBlock: number[][] = [];
+    for (const block of planBlocks) {
+      const silhouettes = blockSilhouettes(
+        plan.planVersion,
+        block,
+        index.zoneOfBlock(block),
+        chunk,
+        exclusionsForChunk(index, block.chunk[0], block.chunk[1])
+      );
+      boxes.push(...silhouettes);
+      perBlock.push(silhouettes.map((s) => s.height));
+    }
+    heightsByChunk.set(chunk, perBlock);
+  }
+  boxes.push(...landmarkSilhouettes(index));
+
+  /* ---- pack ----------------------------------------------------------- */
+
+  // One world ground quad plus five faces per box, four vertices each.
+  const vertexCount = 4 + boxes.length * 20;
+  const indexCount = 6 + boxes.length * 30;
+  const positions = new Float32Array(vertexCount * 3);
+  const normals = new Float32Array(vertexCount * 3);
+  const colors = new Uint8Array(vertexCount * 3);
+  const indices = new Uint32Array(indexCount);
+  const chunkIds = new Uint16Array(vertexCount);
+
+  let v = 0;
+  let i = 0;
+  let maxY = 0;
+
+  /** Append one quad, wound counter-clockwise as seen from the normal. */
+  const quad = (
+    ax: number, ay: number, az: number,
+    bx: number, by: number, bz: number,
+    cx: number, cy: number, cz: number,
+    dx: number, dy: number, dz: number,
+    nx: number, ny: number, nz: number,
+    colour: number,
+    chunk: number
+  ): void => {
+    const p = v * 3;
+    positions[p] = ax; positions[p + 1] = ay; positions[p + 2] = az;
+    positions[p + 3] = bx; positions[p + 4] = by; positions[p + 5] = bz;
+    positions[p + 6] = cx; positions[p + 7] = cy; positions[p + 8] = cz;
+    positions[p + 9] = dx; positions[p + 10] = dy; positions[p + 11] = dz;
+    const r = (colour >> 16) & 0xff;
+    const g = (colour >> 8) & 0xff;
+    const b = colour & 0xff;
+    for (let k = 0; k < 4; k++) {
+      normals[p + k * 3] = nx;
+      normals[p + k * 3 + 1] = ny;
+      normals[p + k * 3 + 2] = nz;
+      colors[p + k * 3] = r;
+      colors[p + k * 3 + 1] = g;
+      colors[p + k * 3 + 2] = b;
+      chunkIds[v + k] = chunk;
+    }
+    indices[i] = v; indices[i + 1] = v + 1; indices[i + 2] = v + 2;
+    indices[i + 3] = v; indices[i + 4] = v + 2; indices[i + 5] = v + 3;
+    v += 4;
+    i += 6;
+  };
+
+  // Ground first, tagged never-suppressed and pushed below y=0 so a resident
+  // chunk's own road always wins the depth test.
+  const groundY = -IMPOSTOR_GROUND_DEPTH;
+  quad(
+    WORLD_MIN, groundY, WORLD_MAX,
+    WORLD_MAX, groundY, WORLD_MAX,
+    WORLD_MAX, groundY, WORLD_MIN,
+    WORLD_MIN, groundY, WORLD_MIN,
+    0, 1, 0,
+    IMPOSTOR_GROUND_COLOUR,
+    IMPOSTOR_ALWAYS_VISIBLE
+  );
+
+  for (const box of boxes) {
+    const midX = (box.minX + box.maxX) * 0.5;
+    const midZ = (box.minZ + box.maxZ) * 0.5;
+    const halfX = (box.maxX - box.minX) * 0.5 * IMPOSTOR_PLAN_SCALE;
+    const halfZ = (box.maxZ - box.minZ) * 0.5 * IMPOSTOR_PLAN_SCALE;
+    const x0 = midX - halfX;
+    const x1 = midX + halfX;
+    const z0 = midZ - halfZ;
+    const z1 = midZ + halfZ;
+    const y1 = box.height * IMPOSTOR_HEIGHT_SCALE;
+    if (y1 > maxY) maxY = y1;
+    const side = box.facade;
+    const c = box.chunk;
+    quad(x1, 0, z1, x1, 0, z0, x1, y1, z0, x1, y1, z1, 1, 0, 0, side, c);
+    quad(x0, 0, z0, x0, 0, z1, x0, y1, z1, x0, y1, z0, -1, 0, 0, side, c);
+    quad(x0, 0, z1, x1, 0, z1, x1, y1, z1, x0, y1, z1, 0, 0, 1, side, c);
+    quad(x1, 0, z0, x0, 0, z0, x0, y1, z0, x1, y1, z0, 0, 0, -1, side, c);
+    quad(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, 0, 1, 0, box.roof, c);
+  }
+
+  // The mesh is the world. Its bounding sphere is the world's, and the mesh is
+  // never frustum-culled anyway — it IS the horizon.
+  const centreY = (groundY + maxY) * 0.5;
+  const halfWorld = (WORLD_MAX - WORLD_MIN) * 0.5;
+  const radius = Math.sqrt(2 * halfWorld * halfWorld + (maxY - centreY) * (maxY - centreY));
+
+  const buffers = {
+    positions,
+    normals,
+    colors,
+    indices,
+    vertexCount,
+    indexCount,
+    boundingSphere: [(WORLD_MIN + WORLD_MAX) * 0.5, centreY, (WORLD_MIN + WORLD_MAX) * 0.5, radius] as const,
+  };
+
+  return {
+    result: {
+      kind: 'impostor',
+      id: 0,
+      seed: plan.worldSeed,
+      buffers,
+      chunkIds,
+      buildingCount: boxes.length,
+      generationTimeMs: performance.now() - started,
+      bytes:
+        positions.byteLength +
+        normals.byteLength +
+        colors.byteLength +
+        indices.byteLength +
+        chunkIds.byteLength,
+      contentHash: hashGeometry(buffers),
+    },
+    heightsByChunk,
+  };
+}
+
+/**
+ * Landmark exclusion circles a chunk's procedural fill must respect.
+ *
+ * Copied in shape from `generateChunk`, because a lot suppressed there and not
+ * here would leave a silhouette standing inside the Hero Association building.
+ */
+function exclusionsForChunk(
+  index: ICityPlanIndex,
+  cx: number,
+  cz: number
+): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  for (const landmark of index.plan.landmarks) {
+    const dx = landmark.position[0] - (cx + 0.5) * CHUNK_SIZE;
+    const dz = landmark.position[1] - (cz + 0.5) * CHUNK_SIZE;
+    if (Math.hypot(dx, dz) < CHUNK_SIZE + landmark.exclusionRadius) {
+      out.push([landmark.position[0], landmark.position[1], landmark.exclusionRadius]);
+    }
+  }
+  return out;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Records                                                                    */
@@ -142,6 +593,12 @@ export class CityStreamer {
   private readonly slotCursor = new Map<number, number>();
   private readonly districtByChunk = new Map<number, DistrictType>();
 
+  /** Owns the residency texture the impostor's vertex shader reads. */
+  private readonly streamingMaterials: StreamingMaterials;
+  /** The whole far city, in one mesh, one material, one draw call. */
+  private readonly impostorRing: ImpostorRing;
+  private readonly impostorHeights: ReadonlyMap<number, readonly (readonly number[])[]>;
+
   private residentRadius: number;
   private focusChunkX = 0;
   private focusChunkZ = 0;
@@ -149,6 +606,14 @@ export class CityStreamer {
 
   /** Buildings the 16-slot budget could not address. Surfaced, never aliased. */
   unaddressableBuildings = 0;
+  /**
+   * Buildings whose real height did not match the silhouette baked for them.
+   *
+   * Always zero on a healthy build. Non-zero means `readBuildRng` has fallen out
+   * of step with `makeRecipe` and the far city is quietly a different city from
+   * the near one — see the header on `bakeSkyline`.
+   */
+  impostorDrift = 0;
   /** Cumulative wall-clock milliseconds spent generating chunks. */
   totalBuildMs = 0;
   /** Milliseconds the most recent chunk cost. */
@@ -175,10 +640,75 @@ export class CityStreamer {
     this.onResidencyChanged = options.onResidencyChanged;
     this.registerMaterials = options.registerMaterials;
     this.residentRadius = RESIDENT_RADIUS_BY_TIER[options.quality ?? 'medium'];
+
+    // ── The distant skyline ───────────────────────────────────────────────
+    // Baked HERE, in the constructor, and not behind a flag: a city whose
+    // horizon appears a second after the first frame is worse than one that
+    // never had it, and the whole bake is ~50 ms of arithmetic against a 6 s
+    // boot budget. It also means the world looks COMPLETE from frame one, while
+    // `buildImmediate(BOOT_RADIUS)` has only raised the chunk under the
+    // player's feet and the other eight are still arriving one per 0.4 s.
+    //
+    // Main thread rather than a worker. The worker path in
+    // `src/world/streaming` bakes its own placeholder city (see `bakeSkyline`),
+    // and moving THIS bake off-thread means shipping the plan JSON and the
+    // whole of `@/world/city` into the worker bundle for 50 ms — a bad trade
+    // that this file is not the place to make.
+    const bake = bakeSkyline(options.generator.index);
+    this.impostorHeights = bake.heightsByChunk;
+    this.streamingMaterials = new StreamingMaterials({
+      // The city's own material library owns every OTHER material in the
+      // world, but not this one: the impostor has no maps, no UVs and one
+      // vertex attribute nothing else declares. A Lambert is the right amount
+      // of shading for a silhouette a quarter of a kilometre away, and it is
+      // one program.
+      impostorMaterial: new THREE.MeshLambertMaterial({
+        vertexColors: true,
+        // Stands in for the façade albedo maps the resident city samples and
+        // the impostor does not. See `IMPOSTOR_ALBEDO`.
+        color: new THREE.Color(IMPOSTOR_ALBEDO, IMPOSTOR_ALBEDO, IMPOSTOR_ALBEDO),
+        side: THREE.FrontSide,
+      }),
+    });
+    this.streamingMaterials.impostor.name = 'city.impostor';
+    this.impostorRing = new ImpostorRing(this.streamingMaterials);
+    this.impostorRing.apply(bake.result);
+    this.impostorRing.attach(this.scene);
+    // Cascade-aware, like every other lit material in the scene. An
+    // unregistered one accumulates all three cascade lights instead of one and
+    // renders three times too bright — see `registerMaterials` above.
+    this.registerMaterials?.(this.impostorRing.root);
+
+    const stats = this.impostorRing.getStats();
+    log.info(
+      `impostor ring: ${stats.buildings} buildings ${stats.triangles} tris ` +
+        `${(stats.bytes / 1024).toFixed(0)} KB, bake ${stats.generationTimeMs.toFixed(0)}ms ` +
+        `upload ${stats.uploadTimeMs.toFixed(1)}ms`
+    );
   }
 
   get residentCount(): number {
     return this.resident.size;
+  }
+
+  /** The distant skyline. One draw call, for verification and the debug HUD. */
+  get impostor(): ImpostorRing {
+    return this.impostorRing;
+  }
+
+  /** Bake and upload cost of the skyline. A BOOT cost, never a frame cost. */
+  get impostorStats(): IImpostorStats {
+    return this.impostorRing.getStats();
+  }
+
+  /**
+   * Show or hide the distant skyline.
+   *
+   * Diagnostics only — it exists so a harness can measure the draw call the
+   * ring adds by taking `renderer.info.render.calls` on either side of it.
+   */
+  setImpostorVisible(visible: boolean): void {
+    this.impostorRing.root.visible = visible;
   }
 
   get pendingCount(): number {
@@ -474,6 +1004,16 @@ export class CityStreamer {
     this.scene.add(group);
     this.registerMaterials?.(group);
 
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE CHUNK IS REAL NOW — STOP DRAWING ITS SILHOUETTE
+    // ══════════════════════════════════════════════════════════════════════
+    // Set in the same statement sequence that adds the group to the scene, so
+    // there is never a frame in which both the impostor and the real chunk are
+    // drawn. Two overlapping copies of the same block is doubled geometry and,
+    // at 94% scale, a shimmering rim of z-fighting along every façade.
+    this.streamingMaterials.setResident(index, true);
+    this.checkImpostorDrift(index, build);
+
     // The ground SLAB. City ground is a visual mesh with kerbs and markings;
     // physics gets one box per chunk so a fall never leaves the world and
     // debris has something to land on.
@@ -510,6 +1050,41 @@ export class CityStreamer {
         `${structureIds.length} buildings ${drawCalls} draws`
     );
     this.onResidencyChanged?.(this.chunks);
+  }
+
+  /**
+   * Prove the silhouette matched the building it stood for.
+   *
+   * The only moment the two representations of a chunk both exist is the moment
+   * one replaces the other, which makes this the only place the impostor can be
+   * checked against ground truth for free — the real geometry has just been
+   * generated and the silhouette is already in memory.
+   *
+   * Compared per plan block and per building, in emission order. `build.blocks`
+   * is plan blocks first and landmark blocks after, and within a block the
+   * perimeter lots come before the courtyard fill, so the leading `heights`
+   * entries line up with the leading buildings by construction.
+   */
+  private checkImpostorDrift(index: number, build: ICityChunkBuild): void {
+    const perBlock = this.impostorHeights.get(index);
+    if (perBlock === undefined) return;
+    let drifted = 0;
+    for (let b = 0; b < perBlock.length && b < build.blocks.length; b++) {
+      const heights = perBlock[b]!;
+      const buildings = build.blocks[b]!.buildings;
+      for (let k = 0; k < heights.length; k++) {
+        const real = buildings[k];
+        // A silhouette with no building behind it is drift too: it means the
+        // density or exclusion tests disagreed, not just the height roll.
+        if (real === undefined || Math.abs(real.height - heights[k]!) > 1e-3) drifted++;
+      }
+    }
+    if (drifted === 0) return;
+    this.impostorDrift += drifted;
+    log.warn(
+      `impostor drift: ${drifted} of chunk ${index}'s silhouettes do not match the ` +
+        `buildings generated for it — readBuildRng is out of step with makeRecipe`
+    );
   }
 
   private addBuildingCollider(
@@ -567,6 +1142,9 @@ export class CityStreamer {
     const chunk = this.resident.get(index);
     if (chunk === undefined) return;
     this.resident.delete(index);
+    // The silhouette takes over again the instant the real geometry leaves, so
+    // an evicted chunk becomes distant city rather than a hole in the horizon.
+    this.streamingMaterials.setResident(index, false);
 
     for (const id of chunk.structureIds) this.destruction.unregister(id);
     if (this.physics !== undefined) {
@@ -588,6 +1166,9 @@ export class CityStreamer {
     this.pending.length = 0;
     this.slotCursor.clear();
     this.districtByChunk.clear();
+    this.impostorRing.detach(this.scene);
+    this.impostorRing.dispose();
+    this.streamingMaterials.dispose();
   }
 }
 
