@@ -981,18 +981,18 @@ function mean(values: readonly number[]): number {
 /**
  * Knock Mumen Rider down six times and count how often he gets up.
  *
- * Run at the very end so it cannot perturb the measured simulation. The answer
- * has to be six. It is the game's thesis stated as an integer.
+ * A FRESH one, registered after every measurement is taken, because the Mumen
+ * Rider who fought through the panic run is quite often dead by the end of it —
+ * which is the system working, and which would otherwise make the assertion
+ * report zero for the most Mumen Rider reason imaginable.
  */
 function mumenKnockdownTest(): number {
-  const mumen = system.allies.find((a) => a.heroId === 'mumenRider');
-  if (mumen === undefined) return -1;
-  const before = mumen.reEngagements;
+  const mumen = system.addHero('mumenRider', STREET_X + 40, 80);
   for (let round = 0; round < 6; round++) {
     mumen.knockdown();
     for (let f = 0; f < 130; f++) mumen.update(DT);
   }
-  return mumen.reEngagements - before;
+  return mumen.reEngagements;
 }
 
 try {

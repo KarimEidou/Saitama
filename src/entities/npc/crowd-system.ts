@@ -117,6 +117,16 @@ const FAR_PEOPLE_PER_CELL = 0.55;
 const FAR_POPULATION_INTERVAL = 1;
 
 /**
+ * Peak damage a full-power hostile shockwave does to an ally.
+ *
+ * Tuned against `GENOS_HEALTH`: a dragon-level monster's wave at point blank
+ * takes about a third of him, so he loses a protracted fight rather than an
+ * instant one. Mumen Rider, on 95, is knocked down by a glancing one and can
+ * be killed by two — which is the correct answer for Mumen Rider.
+ */
+const ALLY_SHOCKWAVE_DAMAGE = 150;
+
+/**
  * How lethal each intent is to a bystander.
  *
  * `restrained` is nearly harmless by design: it is the setting where the
@@ -442,6 +452,49 @@ export class CrowdSystem implements ICrowdSink {
       const damage = power01 * 120 * lethality * Math.pow(falloff, 1.6);
       if (damage < 0.5) continue;
       this.damageAgent(i, damage, byPlayer, sourceId);
+    }
+
+    this.applyShockwaveToAllies(origin, direction, range, cos, power01, lethality, sourceId);
+  }
+
+  /**
+   * The same cone against the allies.
+   *
+   * They have hundreds of hit points rather than twelve, so the same wave that
+   * flattens a street bruises Genos — which is the point. He is supposed to
+   * survive the first few and lose anyway, slowly, in front of you.
+   *
+   * Friendly fire is OFF: a shockwave whose source is the player or another
+   * ally passes straight through them. Not because it would be unrealistic,
+   * but because the protagonist's whole problem is that he cannot hold back
+   * usefully, and a system where walking into a fight kills the person you
+   * came to help turns the allies into a hazard to route around instead of
+   * people to save.
+   */
+  private applyShockwaveToAllies(
+    origin: Vec3,
+    direction: Vec3,
+    range: number,
+    cos: number,
+    power01: number,
+    lethality: number,
+    sourceId: EntityId | undefined
+  ): void {
+    if (sourceId !== undefined && sourceId === this.playerId) return;
+    for (const hero of this.heroes) {
+      if (hero.isDead || hero.id === sourceId) continue;
+      const dx = hero.transform.position.x - origin.x;
+      const dz = hero.transform.position.z - origin.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      if (distance > range) continue;
+      if (distance > 1e-3 && cos > -1) {
+        const dot = (dx * direction.x + dz * direction.z) / distance;
+        if (dot < cos) continue;
+      }
+      const falloff = 1 - distance / range;
+      const damage = power01 * ALLY_SHOCKWAVE_DAMAGE * lethality * Math.pow(falloff, 1.4);
+      if (damage < 1) continue;
+      hero.takeDamage(damage);
     }
   }
 

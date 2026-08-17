@@ -486,6 +486,61 @@ describe('CrowdSystem allies', () => {
     system.dispose();
   });
 
+  it('lets a hostile shockwave hurt the allies, and eventually kill one', () => {
+    const bus = new EventBus();
+    const downed: string[] = [];
+    bus.on('AllyDowned', (e) => downed.push(e.displayName));
+    const system = makeSystem(bus);
+    const mumen = system.addHero('mumenRider', 3, 0);
+    const genos = system.addHero('genos', -3, 0);
+    run(system, 2);
+
+    const wave = {
+      origin: { x: 0, y: 2, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      range: 60,
+      angle: Math.PI,
+      intent: 'serious' as const,
+      punchKind: 'heavy' as const,
+      sourceId: 'monster',
+    };
+    bus.emit('ShockwaveFired', { ...wave, power: 200000 });
+    run(system, 0.2);
+    expect(genos.health).toBeLessThan(genos.maxHealth);
+    expect(mumen.health).toBeLessThan(mumen.maxHealth);
+    // Mumen is knocked flat by almost anything, and gets up.
+    expect(mumen.isDown || mumen.isDead).toBe(true);
+
+    // Keep hitting him. He does not retreat, so he runs out of hit points.
+    for (let i = 0; i < 6 && !mumen.isDead; i++) {
+      bus.emit('ShockwaveFired', { ...wave, power: 200000 });
+      run(system, 2);
+    }
+    expect(mumen.isDead).toBe(true);
+    expect(downed).toContain('Mumen Rider');
+    system.dispose();
+  });
+
+  it('does not let the player\'s own shockwave hurt an ally', () => {
+    const bus = new EventBus();
+    const system = makeSystem(bus);
+    const genos = system.addHero('genos', 3, 0);
+    run(system, 1);
+    bus.emit('ShockwaveFired', {
+      origin: { x: 0, y: 2, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 900000,
+      range: 80,
+      angle: Math.PI,
+      intent: 'full',
+      punchKind: 'serious',
+      sourceId: 'player',
+    });
+    run(system, 0.2);
+    expect(genos.health).toBe(genos.maxHealth);
+    system.dispose();
+  });
+
   it("scares civilians with an ally's attack", () => {
     const bus = new EventBus();
     const system = makeSystem(bus);

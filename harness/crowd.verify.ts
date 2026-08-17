@@ -325,6 +325,19 @@ function assertPanic(stats: CrowdStats): void {
   );
   check(stats.peakCower > 0, `${stats.peakCower} civilians cornered or exhausted enough to cower`);
 
+  /* ---- the allies ---- */
+  // The monster's shockwave hits them too. Somebody on your side should be on
+  // the ground by the end of a dragon-level encounter you were not present for.
+  check(
+    stats.allyDowned.length > 0,
+    `AllyDowned fired for ${stats.allyDowned.join(', ') || 'nobody'}`
+  );
+  const survivors = stats.allies.filter((a) => !a.dead);
+  check(
+    survivors.length < stats.allies.length,
+    `${stats.allies.length - survivors.length} of ${stats.allies.length} allies lost the fight`
+  );
+
   /* ---- the ledger ---- */
   check(stats.lost > 0, `${stats.lost} civilians killed by the monster's shockwave and debris`);
   check(

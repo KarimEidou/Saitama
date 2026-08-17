@@ -26,11 +26,12 @@
     "archetypeMeshes": 6,
     "distinctOffsets": 217,
     "paletteBytes": 746496,
-    "simMsMean": 2.1573333333391282,
-    "simMsP95": 8.699999999254942,
-    "simMsMax": 415.80000000074506,
-    "alarmMs": 4.199999999254942,
-    "flowMs": 0.19999999925494194,
+    "simMsMean": 0.8055000000074506,
+    "simMsMedian": 0.6000000014901161,
+    "simMsP95": 1.699999999254942,
+    "simMsMax": 37.600000001490116,
+    "alarmMs": 0.30000000074505806,
+    "flowMs": 0.09999999776482582,
     "frames": 1800,
     "frontSamples": [
       {
@@ -506,17 +507,17 @@
     "allies": [
       {
         "name": "Genos",
-        "health": 420,
+        "health": 296.70641876518374,
         "maxHealth": 420,
-        "reEngagements": 0,
+        "reEngagements": 1,
         "dead": false
       },
       {
         "name": "Mumen Rider",
-        "health": 95,
+        "health": 0,
         "maxHealth": 95,
         "reEngagements": 0,
-        "dead": false
+        "dead": true
       },
       {
         "name": "Tatsumaki",
@@ -526,10 +527,12 @@
         "dead": false
       }
     ],
-    "allyDowned": [],
+    "allyDowned": [
+      "Mumen Rider"
+    ],
     "mumenReEngagements": 6,
-    "determinismHash": 1829069853,
-    "determinismTwinHash": 1829069853,
+    "determinismHash": 3431532025,
+    "determinismTwinHash": 3431532025,
     "deterministic": true
   },
   "fields": {
@@ -559,9 +562,10 @@
     "archetypeMeshes": 6,
     "distinctOffsets": 217,
     "paletteBytes": 746496,
-    "simMsMean": 1.988277777760393,
-    "simMsP95": 7.699999999254942,
-    "simMsMax": 89,
+    "simMsMean": 0.8573333333060146,
+    "simMsMedian": 0.6000000014901161,
+    "simMsP95": 2.699999999254942,
+    "simMsMax": 34.30000000074506,
     "alarmMs": 0.19999999925494194,
     "flowMs": 0,
     "frames": 1800,
@@ -1039,17 +1043,17 @@
     "allies": [
       {
         "name": "Genos",
-        "health": 420,
+        "health": 296.70641876518374,
         "maxHealth": 420,
-        "reEngagements": 0,
+        "reEngagements": 1,
         "dead": false
       },
       {
         "name": "Mumen Rider",
-        "health": 95,
+        "health": 0,
         "maxHealth": 95,
         "reEngagements": 0,
-        "dead": false
+        "dead": true
       },
       {
         "name": "Tatsumaki",
@@ -1059,10 +1063,12 @@
         "dead": false
       }
     ],
-    "allyDowned": [],
+    "allyDowned": [
+      "Mumen Rider"
+    ],
     "mumenReEngagements": 6,
-    "determinismHash": 1829069853,
-    "determinismTwinHash": 1829069853,
+    "determinismHash": 3431532025,
+    "determinismTwinHash": 3431532025,
     "deterministic": true
   },
   "calm": {
@@ -1092,10 +1098,11 @@
     "archetypeMeshes": 6,
     "distinctOffsets": 217,
     "paletteBytes": 746496,
-    "simMsMean": 1.3052222222379513,
-    "simMsP95": 4.800000000745058,
-    "simMsMax": 147.80000000074506,
-    "alarmMs": 0.5,
+    "simMsMean": 0.7312777777864701,
+    "simMsMedian": 0.6000000014901161,
+    "simMsP95": 1.0999999977648258,
+    "simMsMax": 32.899999998509884,
+    "alarmMs": 0.30000000074505806,
     "flowMs": 0.09999999776482582,
     "frames": 1800,
     "frontSamples": [],
