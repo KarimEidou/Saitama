@@ -48,3 +48,8 @@ verification/*.tmp/
 verification/*.png
 verification/*.jpg
 verification/*.webm
+
+# Agent scratch/probe files (temporary; must never be tracked or trip lint)
+.probe*.mjs
+.audio-scratch/
+.*-scratch/
