@@ -161,6 +161,21 @@ export interface IRawPlacement {
   readonly destructible: boolean;
 }
 
+/**
+ * Model forward axis convention.
+ *
+ * Every model in the Poly Haven `hidden_alley` kit is authored glTF-style,
+ * pointing along its local +Z — `covered_car`, for instance, is 1.8 m across X
+ * and 4.4 m along Z. Placement yaw therefore aligns local +Z with the wanted
+ * direction: a yaw of theta sends +Z to `(sin theta, cos theta)` in (x, z), so
+ * the rotation is `atan2(dirX, dirZ)`. Aligning +X instead parks every car
+ * broadside across the carriageway, which is exactly what it did before this
+ * was written down.
+ */
+export function yawAlong(dirX: number, dirZ: number): number {
+  return Math.atan2(dirX, dirZ);
+}
+
 /** Nominal footprint radius per asset, used to keep scatter from overlapping. */
 export function propRadius(assetKey: string): number {
   if (assetKey.includes('covered_car')) return 2.4;

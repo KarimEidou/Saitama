@@ -404,7 +404,15 @@ export function emitShopfront(c: IPanelContext): void {
 
   // Signboard: lives in the emissive slot so shop signs glow at dusk.
   const signTint = SIGN_TINTS[c.rng.int(0, SIGN_TINTS.length - 1)];
-  wallQuad(c, MatSlot.Glass, 0.05, signBottom, c.width - 0.05, signTop, 0.06, 1, c.glassUv, signTint);
+  c.builder.quad(
+    MatSlot.Glass,
+    pt(c, c.width - 0.05, signBottom, 0.06),
+    pt(c, 0.05, signBottom, 0.06),
+    pt(c, 0.05, signTop, 0.06),
+    pt(c, c.width - 0.05, signTop, 0.06),
+    [0.5, 0.5, 0.502, 0.502],
+    signTint
+  );
   if (c.detail === 'full') emitFasciaLettering(c, signBottom, signTop, signTint);
   // Sign body, so it has thickness rather than floating on the wall.
   boxAlongWall(
@@ -514,12 +522,13 @@ function signFace(
   outward: 1 | -1,
   color: readonly [number, number, number]
 ): void {
-  const uv: [number, number, number, number] = [
-    0,
-    0,
-    (dHigh - dLow) * c.glassUv,
-    (v1 - v0) * c.glassUv,
-  ];
+  // A sign shares the glazing material, and the glazing texture has pane
+  // divisions in it. Sampling a whole tile would print window panes onto every
+  // shop board — which is precisely why the boards read as little windows
+  // before this. Collapsing the UVs onto a single texel makes the board a flat
+  // surface whose colour comes from the vertex tint, and the lettering from the
+  // glyph blocks standing proud of it.
+  const uv: [number, number, number, number] = [0.5, 0.5, 0.502, 0.502];
   if (outward > 0) {
     c.builder.quad(
       slot,
@@ -574,7 +583,7 @@ function emitGlyphs(
   if (vertical) {
     const count = c.rng.int(3, 6);
     const cell = height / count;
-    const size = Math.min(cell * 0.64, width * 0.7);
+    const size = Math.min(cell * 0.58, width * 0.62);
     for (let i = 0; i < count; i++) {
       emitGlyphBlock(c, u, (dLow + dHigh) * 0.5, v1 - cell * (i + 0.5), size, size, outward, ink);
     }
@@ -584,10 +593,10 @@ function emitGlyphs(
   const lines = c.rng.bool(0.45) ? 2 : 1;
   let cursorV = v1;
   for (let line = 0; line < lines; line++) {
-    const lineH = height * (lines === 1 ? 0.6 : line === 0 ? 0.46 : 0.26);
+    const lineH = height * (lines === 1 ? 0.52 : line === 0 ? 0.4 : 0.22);
     const cy = cursorV - lineH * 0.5 - height * 0.07;
     cursorV -= lineH + height * 0.12;
-    const count = c.rng.int(3, 6);
+    const count = c.rng.int(3, 5);
     const pad = width * 0.07;
     const span = width - pad * 2;
     let x = dLow + pad;
@@ -599,7 +608,14 @@ function emitGlyphs(
   }
 }
 
-/** One glyph block: a small plate standing a few millimetres off the face. */
+/**
+ * One character: two to four strokes inside its cell, not a solid block.
+ *
+ * A filled rectangle reads as a pixel; a few bars inside a square read as a
+ * character. That distinction is the whole difference between signage and
+ * confetti at the distance a player stands from a shop front, and it costs a
+ * handful of quads on the few dozen boards actually in frame.
+ */
 function emitGlyphBlock(
   c: IPanelContext,
   u: number,
@@ -610,7 +626,60 @@ function emitGlyphBlock(
   outward: 1 | -1,
   ink: readonly [number, number, number]
 ): void {
-  signFace(c, MatSlot.Glass, u, d - w * 0.5, d + w * 0.5, v - h * 0.5, v + h * 0.5, outward, ink);
+  // Thin strokes: at 19% of the cell the ink averaged out to the board's
+  // colour at street distance and every sign went pale. Lettering has to read
+  // as marks ON a coloured board, not as a second colour.
+  const stroke = Math.max(0.011, Math.min(w, h) * 0.12);
+  const bars = c.rng.int(2, 3);
+  // Horizontal strokes, spread down the cell.
+  for (let i = 0; i < bars; i++) {
+    const t = bars === 1 ? 0.5 : i / (bars - 1);
+    const cy = v - h * 0.5 + stroke * 0.5 + t * (h - stroke);
+    const inset = c.rng.range(0, w * 0.18);
+    emitStroke(c, u, d - w * 0.5 + inset, d + w * 0.5 - inset, cy - stroke * 0.5, cy + stroke * 0.5, outward, ink);
+  }
+  // One or two vertical strokes crossing them.
+  const uprights = 1;
+  for (let i = 0; i < uprights; i++) {
+    const t = uprights === 1 ? 0.5 : 0.28 + i * 0.44;
+    const cx = d - w * 0.5 + t * w;
+    emitStroke(c, u, cx - stroke * 0.5, cx + stroke * 0.5, v - h * 0.5, v + h * 0.5, outward, ink);
+  }
+}
+
+/** A single stroke of a character. */
+function emitStroke(
+  c: IPanelContext,
+  u: number,
+  dLow: number,
+  dHigh: number,
+  v0: number,
+  v1: number,
+  outward: 1 | -1,
+  ink: readonly [number, number, number]
+): void {
+  signFace(c, MatSlot.Glass, u, dLow, dHigh, v0, v1, outward, ink);
+}
+
+/** A flat-coloured quad on the wall plane, sampling a single texel. */
+function wallFlat(
+  c: IPanelContext,
+  u0: number,
+  v0: number,
+  u1: number,
+  v1: number,
+  d: number,
+  color: readonly [number, number, number]
+): void {
+  c.builder.quad(
+    MatSlot.Glass,
+    pt(c, u1, v0, d),
+    pt(c, u0, v0, d),
+    pt(c, u0, v1, d),
+    pt(c, u1, v1, d),
+    [0.5, 0.5, 0.502, 0.502],
+    color
+  );
 }
 
 /**
@@ -629,7 +698,7 @@ function emitFasciaLettering(
   const luma = board[0] * 0.299 + board[1] * 0.587 + board[2] * 0.114;
   const ink: readonly [number, number, number] =
     luma > 0.5 ? [0.1, 0.09, 0.1] : [0.96, 0.95, 0.92];
-  const height = (v1 - v0) * 0.56;
+  const height = (v1 - v0) * 0.48;
   const cy = (v0 + v1) * 0.5;
   const count = c.rng.int(3, 6);
   const pad = c.width * 0.12;
@@ -637,18 +706,18 @@ function emitFasciaLettering(
   let x = pad;
   for (let i = 0; i < count; i++) {
     const w = (span / count) * c.rng.range(0.5, 0.88);
-    wallQuad(
-      c,
-      MatSlot.Glass,
-      x + (span / count - w) * 0.5,
-      cy - height * 0.5,
-      x + (span / count - w) * 0.5 + w,
-      cy + height * 0.5,
-      0.075,
-      1,
-      c.glassUv,
-      ink
-    );
+    // Strokes rather than a filled block, and flat colour rather than the
+    // glazing texture: this is paint on a board.
+    const left = x + (span / count - w) * 0.5;
+    const stroke = Math.max(0.012, Math.min(w, height) * 0.13);
+    const bars = c.rng.int(2, 3);
+    for (let b = 0; b < bars; b++) {
+      const t = bars === 1 ? 0.5 : b / (bars - 1);
+      const by = cy - height * 0.5 + stroke * 0.5 + t * (height - stroke);
+      wallFlat(c, left, by - stroke * 0.5, left + w, by + stroke * 0.5, 0.075, ink);
+    }
+    const midX = left + w * 0.5;
+    wallFlat(c, midX - stroke * 0.5, cy - height * 0.5, midX + stroke * 0.5, cy + height * 0.5, 0.075, ink);
     x += span / count;
   }
 }

@@ -81,13 +81,13 @@ function emit(key: string, b: MeshBuilder): boolean {
       b.box(0, 0, 0.55, 0, 0.9, 0.2, 0.16, u, CONCRETE);
       return true;
     case 'model.prop.covered_car': {
-      // Tapered shell: cabin over a longer, wider body. Reads as a car under a
-      // tarpaulin from any angle that matters.
-      b.box(0, 0, 0.62, 0, 2.15, 0.38, 0.84, u, TARP);
-      b.box(0, 0, 1.18, -0.15, 1.1, 0.3, 0.74, u, TARP);
-      b.box(0, 1.35, 0.34, 0, 0.5, 0.26, 0.86, u, [0.24, 0.25, 0.26]);
+      // Tapered shell: cabin over a longer body, LONG AXIS ALONG +Z to match
+      // the real Poly Haven model — see `yawAlong` in props.ts.
+      b.box(0, 0, 0.62, 0, 0.84, 0.38, 2.15, u, TARP);
+      b.box(0, 0, 1.18, 0.15, 0.74, 0.3, 1.1, u, TARP);
+      b.box(0, 0, 0.34, 1.35, 0.86, 0.26, 0.5, u, [0.24, 0.25, 0.26]);
       // Wheel line: a shadow band at axle height stops it reading as a crate.
-      b.box(0, 0, 0.2, 0, 2.16, 0.2, 0.9, u, [0.12, 0.12, 0.13]);
+      b.box(0, 0, 0.2, 0, 0.9, 0.2, 2.16, u, [0.12, 0.12, 0.13]);
       return true;
     }
     case 'model.prop.exterior_aircon_unit':

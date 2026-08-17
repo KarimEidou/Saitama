@@ -311,9 +311,8 @@ async function main(): Promise<void> {
       }
       if (view.name === 'street') {
         if (stats.buildings < 60) failures.push(`street: only ${stats.buildings} buildings in view`);
-        if (stats.propsResolved < 8) {
-          failures.push(`street: only ${stats.propsResolved} prop models resolved`);
-        }
+        const models = stats.realModels + stats.propsResolved;
+        if (models < 8) failures.push(`street: only ${models} prop models resolved`);
       }
       if (view.name === 'map') {
         if (stats.chunks !== 256) failures.push(`map: built ${stats.chunks} chunks, expected 256`);

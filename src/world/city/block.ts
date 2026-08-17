@@ -37,7 +37,7 @@ import {
 import { CITY_MATERIALS, type IBlockMaterialSet } from './materials';
 import { generateBuilding, type BuildingDetail, type IBuildingBuild } from './building';
 import { rebaseLayout, type IFractureLayout } from './fracture';
-import { pickProp, propDestructible, propRadius, type IRawPlacement } from './props';
+import { pickProp, propDestructible, propRadius, yawAlong, type IRawPlacement } from './props';
 import type { IPlanBlock, IPlanZone, IPlanZoneParams, ZoneKind } from './plan-types';
 import { blockSeed } from './plan';
 import {
@@ -890,7 +890,7 @@ function parkAtKerb(
   out: IRawPlacement[]
 ): void {
   if (zone.kind === 'park' || zone.kind === 'crater') return;
-  const chance = zone.kind === 'downtown' || zone.kind === 'shopping' ? 0.45 : 0.32;
+  const chance = zone.kind === 'downtown' || zone.kind === 'shopping' ? 0.4 : 0.28;
   const outline = block.outline;
   for (let i = 0; i < outline.length; i++) {
     const a = outline[i];
@@ -905,18 +905,17 @@ function parkAtKerb(
     const nx = uz;
     const nz = -ux;
     const offset = block.sidewalk + 1.9;
-    const spacing = 6.4;
-    for (let t = 5; t < len - 5; t += spacing) {
+    const spacing = 9.5;
+    // Keep clear of the corners: a bay 5 m from the junction puts the nose of
+    // the car across the crossing and up onto the opposite pavement.
+    for (let t = 11; t < len - 11; t += spacing) {
       if (!rng.bool(chance)) continue;
       out.push({
         assetKey: 'model.prop.covered_car',
         x: a[0] + ux * t + nx * offset,
         y: 0,
         z: a[1] + uz * t + nz * offset,
-        // A yaw of theta maps a model's local +X to (cos, -sin) in (x, z), so
-        // aligning the car's long axis with the kerb needs atan2(-uz, ux).
-        // atan2(ux, uz) parks it broadside across the carriageway.
-        rotationY: Math.atan2(-uz, ux),
+        rotationY: yawAlong(ux, uz),
         scale: 1,
         destructible: true,
       });

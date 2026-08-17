@@ -84,7 +84,15 @@ export type { IBlockMaterialSet } from './materials';
 export { PANEL_KINDS, emitPanel, panelSupport } from './facade';
 export type { FacadeDetail, IFacadeAttachment, IPanelContext, PanelKind } from './facade';
 
-export { PROP_ASSETS, allPropAssetKeys, batchProps, pickProp, propDestructible, propRadius } from './props';
+export {
+  PROP_ASSETS,
+  allPropAssetKeys,
+  batchProps,
+  pickProp,
+  propDestructible,
+  propRadius,
+  yawAlong,
+} from './props';
 export type { IRawPlacement } from './props';
 
 export { blockSeed, indexPlan, landmarkSeed, loadPlan, validatePlan } from './plan';

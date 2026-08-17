@@ -53,7 +53,10 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+// Real Poly Haven albedos are far darker than the synthesised stand-ins —
+// asphalt sits near 0.15 luminance — so the exposure that suited stand-ins
+// under-exposes the real set by about a stop.
+renderer.toneMappingExposure = 1.5;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -115,10 +118,10 @@ function makeScene(fogNear: number, fogFar: number): THREE.Scene {
   const scene = new THREE.Scene();
   scene.background = sky.texture;
   scene.environment = sky.environment;
-  scene.environmentIntensity = 0.85;
+  scene.environmentIntensity = 1.15;
   scene.fog = new THREE.Fog(0xb9c6d4, fogNear, fogFar);
 
-  const sun = new THREE.DirectionalLight(0xfff2dd, 2.6);
+  const sun = new THREE.DirectionalLight(0xfff2dd, 3.1);
   // Low-ish afternoon sun: long shadows down the street, which is what makes a
   // row of buildings read as separate volumes rather than one wall.
   sun.position.set(-160, 190, -120);
@@ -131,7 +134,7 @@ function makeScene(fogNear: number, fogFar: number): THREE.Scene {
   scene.add(sun);
   scene.add(sun.target);
 
-  const hemi = new THREE.HemisphereLight(0xa9c6e8, 0x5b5348, 0.65);
+  const hemi = new THREE.HemisphereLight(0xa9c6e8, 0x6b6355, 0.85);
   scene.add(hemi);
   return scene;
 }
@@ -165,7 +168,7 @@ function focusShadows(scene: THREE.Scene, at: THREE.Vector3, extent: number): vo
 function buildRegion(
   focusChunk: readonly [number, number],
   radii: { full: number; reduced: number; box: number },
-  options: { props: boolean; fog: [number, number] }
+  options: { props: boolean; fog: [number, number]; propRadius: number }
 ): IBuiltScene {
   const scene = makeScene(options.fog[0], options.fog[1]);
   const t0 = performance.now();
@@ -176,7 +179,14 @@ function buildRegion(
       const distance = Math.max(Math.abs(cx - focusChunk[0]), Math.abs(cz - focusChunk[1]));
       const detail = distance <= radii.full ? 'full' : distance <= radii.reduced ? 'reduced' : 'box';
       chunks.push(
-        generator.generate(cx, cz, { detail, includeProps: options.props && distance <= radii.reduced })
+        generator.generate(cx, cz, {
+          detail,
+          // Props only inside the resident ring. The real GLB kit is 2k-13k
+          // triangles a model; instancing it across a 15 x 15 backdrop puts
+          // 100 M triangles through a software rasteriser for detail that is
+          // three pixels tall.
+          includeProps: options.props && distance <= RESIDENT_RADIUS,
+        })
       );
     }
   }
@@ -210,14 +220,27 @@ function buildRegion(
     }
   }
   const matrix = new THREE.Matrix4();
+  const focusX = (focusChunk[0] + 0.5) * 96;
+  const focusZ = (focusChunk[1] + 0.5) * 96;
   for (const key of [...byKey.keys()].sort()) {
     const flat = byKey.get(key)!;
     const model = resolveModel(key);
     if (!model) continue;
-    const count = flat.length / 16;
+    // Keep the instances nearest the focus and drop the rest. Real streaming
+    // does this with an LOD band; here it is a flat radius, which is enough to
+    // keep the triangle count of a 12k-triangle car model sane.
+    const all = flat.length / 16;
+    const kept: number[] = [];
+    for (let i = 0; i < all; i++) {
+      const dx = flat[i * 16 + 12] - focusX;
+      const dz = flat[i * 16 + 14] - focusZ;
+      if (dx * dx + dz * dz <= options.propRadius * options.propRadius) kept.push(i);
+    }
+    const count = kept.length;
+    if (count === 0) continue;
     const instanced = new THREE.InstancedMesh(model.geometry, model.material, count);
     for (let i = 0; i < count; i++) {
-      matrix.fromArray(flat, i * 16);
+      matrix.fromArray(flat, kept[i] * 16);
       instanced.setMatrixAt(i, matrix);
     }
     instanced.instanceMatrix.needsUpdate = true;
@@ -269,6 +292,7 @@ function makeStreetView(): IView {
   const built = buildRegion([0, -3], { full: 2, reduced: 4, box: 6 }, {
     props: true,
     fog: [180, 1100],
+    propRadius: 120,
   });
   focusShadows(built.scene, STREET_EYE, 110);
   const camera = new THREE.PerspectiveCamera(58, aspect(), 0.2, 1400);
@@ -285,6 +309,7 @@ function makeMapView(): IView {
   const built = buildRegion([0, 0], { full: -1, reduced: 0, box: 8 }, {
     props: false,
     fog: [2000, 4000],
+    propRadius: 0,
   });
   built.scene.background = new THREE.Color(0x1a2130);
   focusShadows(built.scene, new THREE.Vector3(0, 0, 0), 820);
@@ -300,6 +325,7 @@ function makeSkylineView(): IView {
   const built = buildRegion([1, 0], { full: 1, reduced: 3, box: 7 }, {
     props: true,
     fog: [200, 1100],
+    propRadius: 90,
   });
   focusShadows(built.scene, new THREE.Vector3(0, 20, 0), 320);
   const camera = new THREE.PerspectiveCamera(46, aspect(), 0.5, 2200);
@@ -312,6 +338,7 @@ function makeFractureView(): IView {
   const built = buildRegion([1, -4], { full: 1, reduced: 2, box: 3 }, {
     props: true,
     fog: [180, 900],
+    propRadius: 130,
   });
   focusShadows(built.scene, new THREE.Vector3(96, 12, -330), 120);
 

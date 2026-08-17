@@ -66,6 +66,8 @@ interface IRuntimeIndex {
 export interface ILoadedModel {
   readonly geometry: THREE.BufferGeometry;
   readonly material: THREE.Material;
+  /** Triangles in the merged geometry, for instance budgeting. */
+  readonly triangles?: number;
 }
 
 /** Loads and caches real materials and models from the processed asset set. */
@@ -180,6 +182,9 @@ export class RealAssetLibrary {
         side: spec.side === 'double' ? THREE.DoubleSide : THREE.FrontSide,
       });
       if (normalMap) material.normalScale = new THREE.Vector2(1, 1);
+      // Poly Haven AO is baked for offline renders and is heavy for a sunlit
+      // street; at full strength it closes every crevice to black.
+      material.aoMapIntensity = 0.55;
       if (isGlass) {
         // Opaque on purpose — see the note at the top of this file.
         material.roughness = 0.18;
@@ -237,31 +242,89 @@ export class RealAssetLibrary {
     }
     try {
       const gltf = await this.gltf.loadAsync(`${this.baseUrl}/${output.file}`);
-      // Instancing needs ONE geometry and ONE material. Take the largest mesh
-      // in the file and bake its world transform in: a lamp post split across
-      // five sub-meshes would otherwise need five InstancedMeshes, and the
-      // whole point of a prop batch is that it costs one draw call.
-      let best: THREE.Mesh | undefined;
-      let bestCount = 0;
+      // Instancing needs ONE geometry and ONE material, and a Poly Haven prop
+      // is usually several parts sharing one material — `covered_car` is a
+      // body plus four wheels. Taking the biggest part would ship a car with
+      // no wheels, so every part is concatenated into a single buffer instead.
+      const parts: THREE.Mesh[] = [];
       gltf.scene.updateMatrixWorld(true);
       gltf.scene.traverse((child) => {
-        if (!(child as THREE.Mesh).isMesh) return;
-        const mesh = child as THREE.Mesh;
-        const count = mesh.geometry.getAttribute('position')?.count ?? 0;
-        if (count > bestCount) {
-          bestCount = count;
-          best = mesh;
-        }
+        if ((child as THREE.Mesh).isMesh) parts.push(child as THREE.Mesh);
       });
-      if (!best) {
+      if (parts.length === 0) {
         this.models.set(key, undefined);
         return;
       }
-      const geometry = best.geometry.clone();
-      geometry.applyMatrix4(best.matrixWorld);
-      const source = Array.isArray(best.material) ? best.material[0] : best.material;
-      const material = (source as THREE.Material).clone();
-      this.models.set(key, { geometry, material: this.decorate(material) });
+
+      // Only position/normal/uv survive. A GLTF mesh can arrive carrying
+      // uv1/uv2/tangent sets its material references, and binding a program
+      // that expects one against a geometry that lost it is a hard crash
+      // inside WebGLAttributes.update.
+      const positions: number[] = [];
+      const normals: number[] = [];
+      const uvs: number[] = [];
+      const indices: number[] = [];
+      const v = new THREE.Vector3();
+      const normalMatrix = new THREE.Matrix3();
+
+      for (const part of parts) {
+        const src = part.geometry;
+        const position = src.getAttribute('position');
+        if (!position) continue;
+        const normal = src.getAttribute('normal');
+        const uv = src.getAttribute('uv');
+        const base = positions.length / 3;
+        normalMatrix.getNormalMatrix(part.matrixWorld);
+        for (let i = 0; i < position.count; i++) {
+          v.fromBufferAttribute(position, i).applyMatrix4(part.matrixWorld);
+          positions.push(v.x, v.y, v.z);
+          if (normal) {
+            v.fromBufferAttribute(normal, i).applyMatrix3(normalMatrix).normalize();
+            normals.push(v.x, v.y, v.z);
+          } else {
+            normals.push(0, 1, 0);
+          }
+          uvs.push(uv ? uv.getX(i) : 0, uv ? uv.getY(i) : 0);
+        }
+        const index = src.index;
+        if (index) {
+          for (let i = 0; i < index.count; i++) indices.push(base + index.getX(i));
+        } else {
+          for (let i = 0; i < position.count; i++) indices.push(base + i);
+        }
+      }
+
+      if (positions.length === 0) {
+        this.models.set(key, undefined);
+        return;
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeBoundingSphere();
+
+      // Likewise the material: take the maps, drop everything else. Props are
+      // NOT destructible geometry, so they deliberately do not get the
+      // per-vertex destruction hook — its `aDestroyed` attribute does not
+      // exist on a GLB.
+      const src = (Array.isArray(parts[0].material) ? parts[0].material[0] : parts[0].material) as
+        | THREE.MeshStandardMaterial
+        | undefined;
+      const material = new THREE.MeshStandardMaterial({
+        map: src?.map ?? null,
+        normalMap: src?.normalMap ?? null,
+        roughnessMap: src?.roughnessMap ?? null,
+        metalnessMap: src?.metalnessMap ?? null,
+        color: src?.color ? src.color.clone() : new THREE.Color(0xffffff),
+        roughness: src?.roughness ?? 0.85,
+        metalness: src?.metalness ?? 0,
+        transparent: src?.transparent ?? false,
+        alphaTest: src?.alphaTest ?? 0,
+        side: src?.side ?? THREE.FrontSide,
+      });
+      this.models.set(key, { geometry, material, triangles: indices.length / 3 });
     } catch (error) {
       this.failures.push(`${key}: ${(error as Error).message}`);
       this.models.set(key, undefined);
