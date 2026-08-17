@@ -107,17 +107,18 @@ function sampleLocomotive(
 
   // Warm up: the first cycle starts from an artificial "both feet just landed"
   // state. Four cycles is well past the point where the locks and the pelvis
-  // settle into their steady loop.
+  // settle into their steady loop. The step count is an exact multiple of the
+  // cycle, so the solver finishes warmup at phase zero.
   for (let i = 0; i < frames * substeps * WARMUP_CYCLES; i++) {
     copyPose(probe, rig.rest);
     solver.update(dt, { speed }, probe);
   }
 
+  // Capture BEFORE advancing, so frame i lands on phase exactly i / frames.
+  // Advancing first shifts every frame by one sub-step, which is invisible in
+  // isolation and shows up as a large apparent error the moment anything
+  // compares two bakes at different frame counts.
   for (let i = 0; i < frames; i++) {
-    for (let s = 0; s < substeps; s++) {
-      copyPose(probe, rig.rest);
-      solver.update(dt, { speed }, probe);
-    }
     const pose = out[i]!;
     copyPose(pose, probe);
     if (mask !== undefined) {
@@ -126,6 +127,10 @@ function sampleLocomotive(
       blendPoseMasked(pose, scratch, 1, mask);
     } else {
       entry.evaluate({ rig, params }, i / frames, pose);
+    }
+    for (let s = 0; s < substeps; s++) {
+      copyPose(probe, rig.rest);
+      solver.update(dt, { speed }, probe);
     }
   }
 }

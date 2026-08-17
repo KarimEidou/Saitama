@@ -300,7 +300,10 @@ export interface ClipDefinition {
   readonly markers: readonly ClipMarker[];
   /** True when the slot is driven by the locomotion solver, not a pose fn. */
   readonly locomotive: boolean;
-  /** Reference ground speed for locomotive slots, in leg-lengths per second. */
+  /**
+   * Reference speed for locomotive slots, Froude-normalised (`v/sqrt(g·L)`).
+   * See `clips.ts` for why this unit and not metres per second.
+   */
   readonly referenceSpeed?: number;
   /** Which bones the clip is intended to drive. */
   readonly region: 'full' | 'upper' | 'lower';

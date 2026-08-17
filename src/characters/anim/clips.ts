@@ -32,6 +32,7 @@
 import type { ClipName } from '@/types';
 import { clamp01, lerp, smoothstep, TAU } from '@/util';
 import { poseArm, poseHead, poseLeg, posePelvis, poseSpine, springDecay, strikeCurve } from './posture';
+import { solveGait } from './locomotion';
 import { REFERENCE_LEG } from './rig';
 import type { AnimRig, ClipDefinition, ClipParams, ClipVariant, Pose } from './types';
 
@@ -171,29 +172,31 @@ const idleBored: ClipFn = (ctx, t, pose) => {
     pose,
     rig,
     shift * m.legLength * 0.03 * b,
-    m.hipHeight - m.legLength * (0.03 * b + 0.006 * breath) + y * m.legLength * 0.03,
+    m.hipHeight - m.legLength * (0.05 * b + 0.006 * breath) + y * m.legLength * 0.05,
     m.legLength * 0.02 * b,
     // Posterior tilt: the pelvis tucks under, which is what flattens the back.
-    -0.14 * b + y * 0.1,
+    -0.22 * b + y * 0.14,
     shift * 0.05,
     shift * 0.06 * b
   );
   poseSpine(pose, rig, {
-    bend: 0.3 * b - y * 0.62,
+    bend: 0.48 * b - y * 0.86,
     twist: -shift * 0.05,
     side: -shift * 0.05 * b,
   });
-  poseHead(pose, rig, 0.34 * b - y * 0.95, shift * 0.14, shift * 0.05 + 0.04 * b);
+  poseHead(pose, rig, 0.52 * b - y * 1.2, shift * 0.14, shift * 0.05 + 0.04 * b);
 
   for (const side of SIDES) {
     poseArm(pose, rig, side, {
       // Hands drift forward and inward — the dead-arm hang, not a soldier's.
-      abduct: 0.06 + 0.02 * b + y * 1.9,
-      elbow: 0.3 + 0.35 * b + y * 0.55,
-      flex: 0.12 * b + y * 0.5,
-      twist: 0.42 * b - y * 0.5,
+      // The yawn straightens the elbows as it lifts: a stretch is an EXTENSION,
+      // and folding the arms while raising them reads as a shrug instead.
+      abduct: 0.06 + 0.02 * b + y * 2.55,
+      elbow: 0.3 + 0.35 * b - y * 0.42,
+      flex: 0.12 * b + y * 0.34,
+      twist: 0.42 * b - y * 0.6,
       // Protracted, depressed scapulae: shoulders rolled forward and dropped.
-      shrug: -0.09 * b + y * 0.26,
+      shrug: -0.09 * b + y * 0.4,
     });
   }
   for (const side of SIDES) {
@@ -517,7 +520,7 @@ const heavyAttackClip: ClipFn = (ctx, t, pose) => {
 /** Guard: both forearms up, shoulders rolled in, weight back. */
 const blockClip: ClipFn = (ctx, t, pose) => {
   const { rig } = ctx;
-  const set = smoothstep(0, 0.25, t);
+  const set = smoothstep(0, 0.45, t);
   const phi = 0.24 + set * 0.14;
   squat(pose, rig, phi, 0.12, 0.16 * set);
   poseSpine(pose, rig, { bend: 0.2 * set, twist: 0.1 * set, side: 0 });
@@ -747,15 +750,23 @@ function def(
 }
 
 /**
- * Reference speeds are in LEG LENGTHS PER SECOND, not m/s.
+ * Reference speeds are FROUDE-NORMALISED: `u = v / sqrt(g · L)`.
  *
- * `play('run')` on a child and on a monster must produce a run, not the same
- * number of metres per second — which for the child would be a sprint and for
- * the monster an amble.
+ * Not m/s, and — less obviously — not leg-lengths per second either. Dynamic
+ * similarity says two bodies are doing the same gait when their Froude numbers
+ * match, and Froude goes as v²/(gL), so equal leg-lengths-per-second still
+ * leaves a small body strolling while a large one strides. `play('run')` has
+ * to mean "run" for a 1.22 m child and a 2.45 m monster alike, so u is the
+ * only unit that works.
+ *
+ *   u = 0.47  comfortable walk   (1.36 m/s for an adult)
+ *   u = 1.15  running            (3.33 m/s)
+ *   u = 2.10  sprint             (6.08 m/s)
  */
-const WALK_SPEED = 1.65;
-const RUN_SPEED = 3.6;
-const SPRINT_SPEED = 6.4;
+const WALK_SPEED = 0.47;
+const RUN_SPEED = 1.15;
+const SPRINT_SPEED = 2.1;
+const GRAVITY = 9.81;
 
 /** Every clip in the library, in a stable order. */
 export const CLIP_LIBRARY: readonly ClipEntry[] = [
@@ -794,7 +805,7 @@ export const CLIP_LIBRARY: readonly ClipEntry[] = [
   },
 
   {
-    def: def('attack', 'default', 0.54, false, 'upper', [
+    def: def('attack', 'default', 0.66, false, 'upper', [
       { name: 'windup', at: 0.22, strength: 0.4 },
       { name: 'whoosh', at: 0.4, strength: 0.6 },
       { name: 'impact', at: 0.47, strength: 1, bone: 'RightHand' },
@@ -811,7 +822,7 @@ export const CLIP_LIBRARY: readonly ClipEntry[] = [
     ]),
     evaluate: heavyAttackClip,
   },
-  { def: def('block', 'default', 0.34, false, 'upper'), evaluate: blockClip },
+  { def: def('block', 'default', 0.45, false, 'upper'), evaluate: blockClip },
   {
     def: def('dodge', 'default', 0.52, false, 'full', [
       { name: 'whoosh', at: 0.2, strength: 0.5 },
@@ -873,11 +884,17 @@ export function hasClip(slot: ClipName, variant: ClipVariant = 'default'): boole
   return BY_KEY.has(`${slot}:${variant}`) || BY_KEY.has(`${slot}:default`);
 }
 
-/** Clip duration for a specific body, in seconds. */
+/**
+ * Clip duration for a specific body, in seconds.
+ *
+ * For a locomotive slot this is the GAIT CYCLE PERIOD, taken from the same
+ * solver the runtime uses, so a style overlay keyed to normalised clip time
+ * stays locked to the stride instead of drifting against it.
+ */
 export function clipDuration(entry: ClipEntry, rig: AnimRig): number {
   if (entry.def.locomotive) {
-    const speed = (entry.def.referenceSpeed ?? WALK_SPEED) * rig.metrics.legLength;
-    return 1 / Math.max(0.05, speed);
+    const gait = solveGait(clipSpeed(entry, rig), rig.metrics.legLength);
+    return 1 / Math.max(1e-3, gait.cycleFrequency);
   }
   return entry.def.duration * Math.sqrt(Math.max(rig.metrics.legLength, 0.05) / REFERENCE_LEG);
 }
@@ -885,7 +902,8 @@ export function clipDuration(entry: ClipEntry, rig: AnimRig): number {
 /** Ground speed a locomotive slot means for this body, in m/s. */
 export function clipSpeed(entry: ClipEntry, rig: AnimRig): number {
   if (!entry.def.locomotive) return 0;
-  return (entry.def.referenceSpeed ?? 0) * rig.metrics.legLength;
+  const L = Math.max(rig.metrics.legLength, 0.05);
+  return (entry.def.referenceSpeed ?? 0) * Math.sqrt(GRAVITY * L);
 }
 
 /** Default clip parameters. */

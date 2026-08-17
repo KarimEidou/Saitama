@@ -181,6 +181,8 @@ const STANCE_WIDTH_WALK = 0.66;
 const STANCE_WIDTH_RUN = 0.24;
 /** Leg extension ceiling. Never fully straight; a locked knee reads as a stilt. */
 const MAX_EXTENSION = 0.985;
+/** How far a planted foot's heading may lag the body's before it lets go. */
+const FOOT_YAW_LIMIT = 0.62;
 
 /* -------------------------------------------------------------------------- */
 /* Per-foot state                                                             */
@@ -197,8 +199,6 @@ interface FootState {
   plantYaw: number;
   /** World position the lift-off ankle occupied, so swing drift is exact. */
   readonly liftWorld: THREE.Vector3;
-  /** This foot's ankle target from the previous frame, in model space. */
-  readonly prevAnkle: THREE.Vector3;
   pitch: number;
   slip: number;
   /** Bones. */
@@ -273,7 +273,6 @@ export class LocomotionSolver {
       plantWorld: new THREE.Vector3(),
       plantYaw: 0,
       liftWorld: new THREE.Vector3(),
-      prevAnkle: new THREE.Vector3(),
       pitch: 0,
       slip: 0,
       // A knee folds BACKWARDS: negative rotation about the bone's local X.
@@ -298,7 +297,6 @@ export class LocomotionSolver {
       foot.plantWorld.set(0, 0, 0);
       foot.plantYaw = 0;
       foot.liftWorld.set(0, 0, 0);
-      foot.prevAnkle.set(0, 0, 0);
       foot.pitch = 0;
       foot.slip = 0;
     }
@@ -577,7 +575,17 @@ export class LocomotionSolver {
       // model cover both a walking heel strike and a running forefoot strike:
       // the ball is the pivot that both gaits actually load, and the heel is
       // derived from it.
+      //
+      // The crossing is resolved to SUB-FRAME accuracy. Touchdown happens at
+      // local phase zero, and this frame has already overshot it by `local`;
+      // the root has therefore already travelled past the true footprint. Not
+      // correcting for that plants the foot up to `speed × dt` too far back,
+      // which is invisible at a fixed time step and turns into a frame-rate
+      // dependent gait the moment anything runs at a different one — including
+      // the offline baker.
+      const overshoot = local / Math.max(1e-6, g.cycleFrequency);
       this.touchdownAnkle(g, groundY, halfWidth, foot.sign, zTouchdown, _v0);
+      _v0.z += g.speed * overshoot;
       this.ankleToBall(_v0, this.strikePitch(g), _v1);
       this.modelToWorld(_v1, foot.plantWorld);
       foot.plantYaw = this.rootYaw;
@@ -588,10 +596,16 @@ export class LocomotionSolver {
     }
 
     if (!isStance && wasStance) {
-      // Toe-off. Pin where this foot's ankle left, so the swing starts from a
-      // world anchor rather than from a model-space position that the root has
-      // already moved out from under.
-      this.modelToWorld(foot.prevAnkle, foot.liftWorld);
+      // Toe-off. Anchor the swing's origin in WORLD space, computed from the
+      // plant at exactly full stance progress rather than snapshotted from
+      // last frame's ankle. Snapshotting works, but it quantises the swing's
+      // starting point to the time step; deriving it keeps the whole gait a
+      // function of phase alone.
+      this.worldToModel(foot.plantWorld, _ballModel);
+      _ballModel.y = groundY;
+      const yaw = clamp(wrapPi(foot.plantYaw - this.rootYaw), -FOOT_YAW_LIMIT, FOOT_YAW_LIMIT);
+      this.ballToAnkle(_ballModel, this.toeOffPitch(g), _v0, yaw);
+      this.modelToWorld(_v0, foot.liftWorld);
     }
 
     if (isStance) {
@@ -600,7 +614,6 @@ export class LocomotionSolver {
       this.swingAnkle(foot, g, groundY, halfWidth, zTouchdown, _ankleTarget);
     }
     _footTargets[foot.side].copy(_ankleTarget);
-    foot.prevAnkle.copy(_ankleTarget);
   }
 
   /**
@@ -618,7 +631,7 @@ export class LocomotionSolver {
   ): void {
     const r = foot.progress;
     const strikePitch = this.strikePitch(g);
-    const offPitch = TOE_OFF_PITCH * lerp(1, 0.92, g.runBlend) * g.activity;
+    const offPitch = this.toeOffPitch(g);
 
     let pitch: number;
     if (r < ROLL_HEEL_END) {
@@ -636,7 +649,20 @@ export class LocomotionSolver {
     // locomotion normally starts to skate.
     this.worldToModel(foot.plantWorld, _ballModel);
     _ballModel.y = groundY;
-    this.ballToAnkle(_ballModel, pitch, out);
+    this.ballToAnkle(_ballModel, pitch, out, this.retainedYaw(foot));
+  }
+
+  /**
+   * Ankle pitch at the instant of toe-off, for this gait.
+   *
+   * A function of the GAIT, never of the last frame sampled. Carrying the
+   * pitch across the stance/swing boundary as state instead makes the whole
+   * pose depend on where the time step happened to fall — the same walk run at
+   * 60 Hz and at 240 Hz then differs by up to twenty degrees at the ankle,
+   * which is exactly what the offline baker and the runtime must not do.
+   */
+  private toeOffPitch(g: GaitSolution): number {
+    return TOE_OFF_PITCH * lerp(1, 0.92, g.runBlend) * g.activity;
   }
 
   /** Ankle pitch at the instant of touchdown, for this gait. */
@@ -654,20 +680,29 @@ export class LocomotionSolver {
    * agree exactly at pitch zero — the foot is flat there — so the handover is
    * continuous without any blending.
    */
-  private ballToAnkle(ball: THREE.Vector3, pitch: number, out: THREE.Vector3): void {
+  private ballToAnkle(
+    ball: THREE.Vector3,
+    pitch: number,
+    out: THREE.Vector3,
+    yaw = 0
+  ): void {
     const m = this.rig.metrics;
     if (pitch > 0) {
       _pivotLocal.set(0, -m.ankleHeight, m.heelBack);
       rotateAboutX(_pivotLocal, pitch, _rotated);
-      out.set(ball.x, ball.y, ball.z + m.heelBack + m.footForward).sub(_rotated);
+      _heelOffset.set(0, 0, m.heelBack + m.footForward);
+      rotateAboutY(_heelOffset, yaw, _heelOffset);
+      rotateAboutY(_rotated, yaw, _rotated);
+      out.copy(ball).add(_heelOffset).sub(_rotated);
     } else {
       _pivotLocal.set(0, -m.ankleHeight, -m.footForward);
       rotateAboutX(_pivotLocal, pitch, _rotated);
+      rotateAboutY(_rotated, yaw, _rotated);
       out.copy(ball).sub(_rotated);
     }
   }
 
-  /** Inverse of `ballToAnkle`. */
+  /** Inverse of `ballToAnkle`, at zero retained yaw (touchdown only). */
   private ankleToBall(ankle: THREE.Vector3, pitch: number, out: THREE.Vector3): void {
     const m = this.rig.metrics;
     if (pitch > 0) {
@@ -680,6 +715,22 @@ export class LocomotionSolver {
       rotateAboutX(_pivotLocal, pitch, _rotated);
       out.copy(ankle).add(_rotated);
     }
+  }
+
+  /**
+   * How much the planted foot's heading lags the body's, in model space.
+   *
+   * A planted foot keeps its WORLD heading while the body turns over it — you
+   * pivot on the foot, you do not sweep it round. Retaining the yaw is what
+   * makes that true; without it the whole foot rotates about its ball every
+   * frame and a character walking a curve leaves a smeared footprint. The lag
+   * is capped, because past about 35° the ankle has run out of range and the
+   * foot has to give up and re-place, which is also what a person does.
+   */
+  private retainedYaw(foot: FootState): number {
+    if (foot.phase !== 'stance') return 0;
+    const lag = wrapPi(foot.plantYaw - this.rootYaw);
+    return clamp(lag, -FOOT_YAW_LIMIT, FOOT_YAW_LIMIT);
   }
 
   /**
@@ -743,10 +794,11 @@ export class LocomotionSolver {
     out.y += g.swingLift * bump;
 
     // Toe pitch through the swing: plantar-flexed leaving the ground, toes up
-    // in mid-swing for clearance, neutral-to-heel-first arriving.
+    // in mid-swing for clearance, neutral-to-heel-first arriving. Both ends
+    // come from the gait, so the trajectory is a pure function of phase.
     const pitch =
       s < 0.35
-        ? lerp(foot.pitch, 0.2 * g.activity, smootherstep(0, 0.35, s))
+        ? lerp(this.toeOffPitch(g), 0.2 * g.activity, smootherstep(0, 0.35, s))
         : lerp(0.2 * g.activity, strikePitch, smootherstep(0.35, 1, s));
     foot.pitch = pitch;
 
@@ -851,15 +903,25 @@ export class LocomotionSolver {
     });
     foot.slip = result.slip;
 
-    // Foot orientation: pitch only, in model space, so the sole stays parallel
-    // to the ground plane regardless of what the leg had to do to get there.
-    _q0.setFromAxisAngle(_X_AXIS, foot.pitch);
+    // Foot orientation in MODEL space, so the sole stays parallel to the
+    // ground whatever the leg had to do to get there: retained yaw first (a
+    // planted foot keeps its world heading), then ankle pitch.
+    _q0.setFromAxisAngle(_Y_AXIS, this.retainedYaw(foot));
+    _q1.setFromAxisAngle(_X_AXIS, foot.pitch);
+    _q0.multiply(_q1);
     setModelRotation(pose, foot.footBone, _q0, this.model[foot.chain.mid]!);
 
     // The toe joint extends as the heel lifts — the metatarsal break. Without
     // it the foot leaves the ground as a rigid plank.
+    //
+    // The fade matters more than it looks. Snapping the extension to zero the
+    // frame a foot leaves the ground puts a ~29 degree step change on the toe,
+    // which pops on screen and, worse, makes the whole pose frame-rate
+    // dependent: two runs at different time steps classify the transition on
+    // different frames and disagree by that entire step.
     if (foot.toeBone !== foot.footBone) {
-      const extend = foot.phase === 'stance' ? Math.max(0, -foot.pitch) * 0.75 : 0;
+      const release = foot.phase === 'stance' ? 1 : 1 - smoothstep(0, 0.25, foot.progress);
+      const extend = Math.max(0, -foot.pitch) * 0.75 * release;
       _q0.identity();
       setRotation(pose, foot.toeBone, _q0);
       rotateBone(pose, foot.toeBone, 'x', extend);
@@ -903,6 +965,19 @@ function rotateAboutX(v: THREE.Vector3, angle: number, out: THREE.Vector3): THRE
   return out.set(v.x, v.y * c - v.z * s, v.y * s + v.z * c);
 }
 
+/** Rotate a vector about the Y axis into `out`. */
+function rotateAboutY(v: THREE.Vector3, angle: number, out: THREE.Vector3): THREE.Vector3 {
+  if (angle === 0) return out.copy(v);
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return out.set(v.x * c + v.z * s, v.y, -v.x * s + v.z * c);
+}
+
+/** Wrap to (-PI, PI]. */
+function wrapPi(angle: number): number {
+  return mod(angle + Math.PI, TAU) - Math.PI;
+}
+
 /**
  * Set a bone's rotation from pitch/yaw/roll applied in that order.
  *
@@ -937,6 +1012,7 @@ const _heelModel = new THREE.Vector3();
 const _ballModel = new THREE.Vector3();
 const _pivotLocal = new THREE.Vector3();
 const _rotated = new THREE.Vector3();
+const _heelOffset = new THREE.Vector3();
 const _footTargets: Record<'left' | 'right', THREE.Vector3> = {
   left: new THREE.Vector3(),
   right: new THREE.Vector3(),
