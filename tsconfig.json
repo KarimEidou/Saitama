@@ -1,0 +1,56 @@
+{
+  "compilerOptions": {
+    /* Language and environment */
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker.ImportScripts"],
+    "useDefineForClassFields": true,
+
+    /* Modules — bundler (Vite) resolution */
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+
+    /* Emit — Vite/esbuild does the transpiling, tsc is typecheck-only */
+    "noEmit": true,
+    "sourceMap": true,
+
+    /* Strictness. `strict` is ON for all 17 workstreams.
+       noUnusedLocals/noUnusedParameters are intentionally OFF: they break
+       in-progress stubs during parallel development. ESLint reports them
+       as warnings instead (see eslint.config.js). */
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    /* Interop */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+
+    /* Path aliases — must stay in sync with vite.config.ts `resolve.alias` */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
+    /* Ambient types */
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "tools/**/*.ts",
+    "verification/**/*.ts",
+    "vite.config.ts",
+    "capacitor.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", "android", "assets"]
+}

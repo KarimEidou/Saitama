@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover -> lets the canvas extend under notches/home indicator.
+         user-scalable=no + maximum-scale=1 -> kill pinch-zoom & double-tap-zoom. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>One Punch Man</title>
+    <style>
+      :root {
+        /* Safe-area inset vars. Consumed by the HUD layer (Task 12/13).
+           Always reference these, never env() directly, so the values can be
+           overridden for testing / desktop preview. */
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+
+        --bg: #000000;
+        --accent: #ffd230;
+        --text: #f2f2f2;
+        --muted: #8a8a8a;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        /* No browser gesture handling: the game owns every touch. */
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Fullscreen render surface. Uses dvh so mobile URL-bar collapse
+         does not letterbox the scene. */
+      #app {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100dvh;
+        background: var(--bg);
+      }
+
+      #game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        outline: none;
+        touch-action: none;
+      }
+
+      /* UI overlay root — HUD/menus mount here, above the canvas.
+         pointer-events:none so stray containers never eat camera drags;
+         individual controls opt back in with pointer-events:auto. */
+      #ui-root {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10;
+        padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+      }
+
+      /* ---- Boot / loading screen ---- */
+      #boot-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        background: var(--bg);
+        transition: opacity 400ms ease;
+      }
+
+      #boot-screen.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #boot-title {
+        font-size: clamp(22px, 7vw, 44px);
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+        text-align: center;
+        margin: 0;
+      }
+
+      #boot-bar {
+        width: min(62vw, 320px);
+        height: 3px;
+        border-radius: 2px;
+        background: #1f1f1f;
+        overflow: hidden;
+      }
+
+      #boot-bar-fill {
+        width: 0%;
+        height: 100%;
+        background: var(--accent);
+        transition: width 220ms ease;
+      }
+
+      #boot-status {
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        min-height: 1em;
+        text-align: center;
+        padding: 0 16px;
+      }
+
+      #boot-error {
+        display: none;
+        max-width: min(88vw, 560px);
+        font-size: 12px;
+        line-height: 1.5;
+        color: #ff6b6b;
+        white-space: pre-wrap;
+        text-align: left;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot-screen,
+        #boot-bar-fill {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+    </div>
+
+    <div id="ui-root"></div>
+
+    <div id="boot-screen">
+      <h1 id="boot-title">One Punch Man</h1>
+      <div id="boot-bar"><div id="boot-bar-fill"></div></div>
+      <div id="boot-status">Initialising</div>
+      <pre id="boot-error"></pre>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
