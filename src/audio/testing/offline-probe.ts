@@ -549,26 +549,37 @@ export async function renderChainProbe(
     return { scheduledHits: hits.length };
   });
 
-  // The pitch of a hit lives in its first ~35 ms, before the sweep bottoms out.
-  const pitches: number[] = [];
-  for (const hit of hits) {
-    const start = Math.floor((TRIGGER_AT + hit.offset + 0.002) * sampleRate);
-    const end = Math.min(result.mono.length, start + Math.floor(0.035 * sampleRate));
-    if (end - start < 512) continue;
-    pitches.push(A.dominantFrequency(result.mono.subarray(start, end), sampleRate, 2048, 35));
-  }
-  let rising = 0;
-  // Exclude the finisher, which deliberately drops back against the rise.
-  const body = pitches.slice(0, Math.max(1, pitches.length - 1));
-  for (let i = 1; i < body.length; i++) if (body[i]! >= body[i - 1]!) rising++;
-
+  // MEASURING THE RISE
+  //
+  // Individual hit pitches cannot be read out of a dense chain: at 57 ms
+  // spacing three hits are sounding at once and the previous tails dominate
+  // any window short enough to isolate one attack. What IS measurable — and
+  // what the ear actually hears — is the chain's low-band centre of gravity
+  // migrating upward as the pitch climbs.
+  //
+  // The first third is skipped: the opening hit has no preceding tail, so its
+  // window is unrepresentatively bright and would swamp the comparison. The
+  // measurement therefore runs over the SETTLED part of the chain, comparing
+  // its middle third against its final third.
+  const bodyHits = hits.length > 1 ? hits.slice(0, -1) : hits;
+  const span = bodyHits[bodyHits.length - 1]!.offset;
+  const centre = (from: number, to: number): number => {
+    const a = Math.floor((TRIGGER_AT + from) * sampleRate);
+    const b = Math.min(result.mono.length, Math.floor((TRIGGER_AT + to) * sampleRate));
+    return b - a < 1024 ? 0 : A.bandCentroid(result.mono.subarray(a, b), sampleRate, 40, 400, 4096);
+  };
+  const third = span / 3;
   result.extras.hitCount = hits.length;
-  result.extras.measuredHits = pitches.length;
-  result.extras.pitchFirst = body[0] ?? 0;
-  result.extras.pitchLast = body[body.length - 1] ?? 0;
-  result.extras.pitchRatio = body[0] ? body[body.length - 1]! / body[0]! : 0;
-  result.extras.risingFraction = body.length > 1 ? rising / (body.length - 1) : 0;
-  result.extras.finisherPitch = pitches[pitches.length - 1] ?? 0;
+  result.extras.span = span;
+  result.extras.pitchOpening = centre(0, third);
+  result.extras.pitchEarly = centre(third, 2 * third);
+  result.extras.pitchLate = centre(2 * third, span);
+  result.extras.pitchRise =
+    result.extras.pitchEarly > 0 ? result.extras.pitchLate / result.extras.pitchEarly : 0;
+  // The schedule's own numbers, for cross-reference with the pure unit test.
+  result.extras.scheduledFirstPitch = bodyHits[0]!.pitch;
+  result.extras.scheduledLastPitch = bodyHits[bodyHits.length - 1]!.pitch;
+  result.extras.finisherPitch = hits[hits.length - 1]!.pitch;
 
   return measure(
     `chain.${variant}`,

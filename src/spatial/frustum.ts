@@ -29,6 +29,19 @@
  * IEEE-754 (products of a fixed-sign factor, and additions), PROVIDED both
  * sides evaluate the dot product in the same order. That is why
  * `dotPlane()` exists and why nothing in this file inlines it differently.
+ *
+ * ── THREE BOX REPRESENTATIONS, ON PURPOSE ──────────────────────────────────
+ *   testBox / classifyBox              six scalars — the readable API
+ *   testPacked / classifyPacked        six floats at an offset, corner choice
+ *                                      resolved through precomputed indices
+ *   classifyCentreExtent               centre + half-extent, one dot product
+ *                                      per plane instead of two
+ *
+ * They are not redundant. `testPacked` is bit-identical to `testBox` and is
+ * what BOTH the quadtree and its brute-force reference use per item, which is
+ * what keeps their outputs provably equal. `classifyCentreExtent` rounds
+ * differently and is therefore restricted to NODE bounds, where callers store
+ * an inflated extent so every conclusion stays conservative.
  */
 
 import type * as THREE from 'three';

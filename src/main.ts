@@ -116,7 +116,11 @@ function boot(): void {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = quality !== 'low';
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // PCFSoftShadowMap is deprecated in r185: WebGLShadowMap.render() silently
+  // rewrites it to PCFShadowMap on the first shadow render, which happens after
+  // materials have already compiled against the old type — so every material
+  // recompiles. Set the real type up front.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   setStatus('Building scene', 0.35);
 

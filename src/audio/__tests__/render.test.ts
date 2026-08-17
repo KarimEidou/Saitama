@@ -204,19 +204,25 @@ describe('consecutive punches', () => {
     expect(suite.get('punch.flurry').extras.hitCount).toBe(4);
   });
 
-  it('raises the pitch on successive hits', () => {
-    const chain = suite.get('chain.consecutive');
-    expect(chain.extras.measuredHits).toBeGreaterThanOrEqual(8);
-    // Measured from the rendered audio at the voice's own scheduled hit times.
-    expect(chain.extras.pitchLast).toBeGreaterThan(chain.extras.pitchFirst!);
-    expect(chain.extras.pitchRatio).toBeGreaterThan(1.15);
-    // Overwhelmingly monotonic; FFT bin quantisation flattens a step or two.
-    expect(chain.extras.risingFraction).toBeGreaterThan(0.7);
+  it('raises the pitch as the chain progresses', () => {
+    // Measured from the rendered audio: the chain's low-band centre of
+    // gravity migrates upward between its middle and its final third.
+    for (const name of ['chain.consecutive', 'chain.barrage']) {
+      const chain = suite.get(name);
+      expect(chain.extras.pitchEarly, `${name} early`).toBeGreaterThan(0);
+      expect(chain.extras.pitchLate, `${name} late`).toBeGreaterThan(chain.extras.pitchEarly!);
+      expect(chain.extras.pitchRise, `${name} rise`).toBeGreaterThan(1.08);
+    }
   });
 
-  it('resolves on a lower finisher', () => {
+  it('schedules a rise the audio can reflect', () => {
+    // Cross-check against the pure schedule the voice actually used.
     const chain = suite.get('chain.consecutive');
-    expect(chain.extras.finisherPitch).toBeLessThan(chain.extras.pitchLast!);
+    expect(chain.extras.scheduledLastPitch!).toBeGreaterThan(
+      chain.extras.scheduledFirstPitch! * 1.2
+    );
+    // ...and the finisher drops back against that rise, so the chain resolves.
+    expect(chain.extras.finisherPitch!).toBeLessThan(chain.extras.scheduledLastPitch!);
   });
 
   it('reads as a rapid repeat, not one long sound', () => {

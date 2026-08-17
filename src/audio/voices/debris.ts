@@ -55,17 +55,22 @@ interface DebrisMaterial {
 }
 
 const MATERIALS: Record<string, DebrisMaterial> = {
+  // Concrete is the DULL, heavy end of the range: low bandpass centres, a
+  // thump on most grains. Wood sits an octave above it with almost no thump,
+  // which is what keeps the two materials telling apart by ear (and by
+  // fingerprint distance — an earlier pass had them at 0.02 apart, i.e.
+  // effectively the same sound).
   concrete: {
-    loHz: 300,
-    hiHz: 3000,
-    qLo: 1.5,
-    qHi: 5,
+    loHz: 180,
+    hiHz: 1800,
+    qLo: 1.2,
+    qHi: 4,
     decayLo: 0.012,
     decayHi: 0.07,
-    thumpChance: 0.55,
-    thumpLo: 55,
-    thumpHi: 130,
-    gain: 0.5,
+    thumpChance: 0.7,
+    thumpLo: 48,
+    thumpHi: 115,
+    gain: 0.52,
   },
   rubble: {
     loHz: 220,
@@ -104,16 +109,16 @@ const MATERIALS: Record<string, DebrisMaterial> = {
     gain: 0.46,
   },
   wood: {
-    loHz: 220,
-    hiHz: 2200,
-    qLo: 2,
-    qHi: 7,
-    decayLo: 0.01,
-    decayHi: 0.045,
-    thumpChance: 0.4,
-    thumpLo: 70,
-    thumpHi: 190,
-    gain: 0.42,
+    loHz: 500,
+    hiHz: 3600,
+    qLo: 3.5,
+    qHi: 10,
+    decayLo: 0.008,
+    decayHi: 0.032,
+    thumpChance: 0.12,
+    thumpLo: 130,
+    thumpHi: 300,
+    gain: 0.44,
   },
   glassAndSteel: {
     loHz: 900,

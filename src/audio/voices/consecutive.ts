@@ -78,7 +78,7 @@ class HitUnit {
     const subEnd = percussive(this.subGain.gain, t, 0.6 * gain, 0.0012, decay);
 
     sweep(this.bodyFilter.frequency, t, 1100 * pitch, 260 * pitch, decay * 0.35, nyquist);
-    const bodyEnd = percussive(this.bodyGain.gain, t, 0.3 * gain, 0.0015, decay * 0.6);
+    const bodyEnd = percussive(this.bodyGain.gain, t, 0.3 * gain, 0.0015, decay * 0.55);
 
     sweep(this.tick.frequency, t, 3400 * pitch, 900 * pitch, 0.006, nyquist);
     const tickEnd = percussive(this.tickGain.gain, t, 0.17 * gain, 0.0004, 0.012);
@@ -147,6 +147,17 @@ export interface IChainHit {
   /** Pitch multiplier applied to this hit's layers. */
   readonly pitch: number;
   readonly gain: number;
+  /**
+   * Amplitude decay for this hit.
+   *
+   * CAPPED AGAINST THE CHAIN SPACING. Left uncapped, a 100 ms decay at 57 ms
+   * spacing means each hit's sub is re-triggered before the previous one has
+   * gone, and the chain accumulates into a continuous low drone that buries
+   * the rising pitch entirely — the offline probe measured the chain's
+   * low-band centre FALLING across the chain instead of rising. Capping the
+   * decay just under the spacing keeps the hits separate, which is what makes
+   * the rise audible and the chain read as distinct punches.
+   */
   readonly decay: number;
   readonly isFinisher: boolean;
 }
@@ -166,6 +177,8 @@ export function chainSchedule(variant: string, intensity: number, rate = 1): ICh
   const count = Math.round(lerp(shape.minHits, shape.maxHits, power));
   const interval = shape.interval - shape.intervalTighten * power;
   const hits: IChainHit[] = [];
+  // The finisher rings out; every other hit must clear before the next lands.
+  const bodyDecay = Math.min(shape.decay, interval * 0.8);
   for (let i = 0; i < count; i++) {
     const isFinisher = i === count - 1;
     const rise = Math.pow(shape.pitchStep, i);
@@ -175,7 +188,7 @@ export function chainSchedule(variant: string, intensity: number, rate = 1): ICh
       // resolve, not just stop.
       pitch: clamp(rate * (isFinisher ? rise * 0.82 : rise), 0.25, 4),
       gain: isFinisher ? 1.15 : lerp(0.7, 1, i / Math.max(count - 1, 1)),
-      decay: shape.decay * (isFinisher ? 2.6 : 1),
+      decay: isFinisher ? shape.decay * 2.6 : bodyDecay,
       isFinisher,
     });
   }

@@ -158,26 +158,6 @@ export function median(values: number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
 }
 
-/**
- * Time `fn` over `rounds` timed runs after `warmup` untimed ones, returning
- * the FASTEST round in milliseconds.
- *
- * Best-of, not mean: on a shared box the noise is one-sided — a round can be
- * slowed by a neighbouring process but never sped up — so the minimum is the
- * most stable estimate of the code's actual cost.
- */
-export function benchmark(fn: () => void, rounds = 7, warmup = 3): number {
-  for (let i = 0; i < warmup; i++) fn();
-  let best = Infinity;
-  for (let i = 0; i < rounds; i++) {
-    const started = performance.now();
-    fn();
-    const elapsed = performance.now() - started;
-    if (elapsed < best) best = elapsed;
-  }
-  return best;
-}
-
 /** Result of an A/B timing comparison. */
 export interface IComparison {
   /** Fastest round of `a`, in milliseconds. */

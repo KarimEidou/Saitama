@@ -74,26 +74,28 @@ const SURFACES: Record<string, SurfaceShape> = {
     ringGain: 0,
   },
   metal: {
-    scuffHz: 3200,
-    scuffQ: 2.4,
+    // Deliberately the brightest surface: a wide, loud scuff high up and only
+    // a token body thump, so the plate rings rather than thuds.
+    scuffHz: 3400,
+    scuffQ: 1.1,
     scuffDecay: 0.03,
-    scuffGain: 0.24,
-    bodyHz: 120,
-    bodyDecay: 0.05,
-    bodyGain: 0.18,
-    ringHz: 2400,
-    ringQ: 24,
+    scuffGain: 0.34,
+    bodyHz: 130,
+    bodyDecay: 0.04,
+    bodyGain: 0.07,
+    ringHz: 2800,
+    ringQ: 22,
     ringDecay: 0.35,
-    ringGain: 0.12,
+    ringGain: 0.17,
   },
   grass: {
-    scuffHz: 900,
-    scuffQ: 0.7,
+    scuffHz: 700,
+    scuffQ: 1,
     scuffDecay: 0.07,
     scuffGain: 0.2,
-    bodyHz: 70,
+    bodyHz: 65,
     bodyDecay: 0.05,
-    bodyGain: 0.12,
+    bodyGain: 0.14,
     ringHz: 0,
     ringQ: 1,
     ringDecay: 0,
@@ -547,6 +549,7 @@ export class WhooshVoice extends SynthVoice {
 export class WindVoice extends SustainedVoice {
   private readonly trim: GainNode;
   private readonly buffetNoise: AudioBufferSourceNode;
+  private readonly buffetHp: BiquadFilterNode;
   private readonly buffetLp: BiquadFilterNode;
   private readonly buffetGain: GainNode;
   private readonly bodyNoise: AudioBufferSourceNode;
@@ -570,12 +573,23 @@ export class WindVoice extends SustainedVoice {
     this.trim.connect(this.output);
 
     this.buffetNoise = createNoiseSource(ctx, 'brown', noiseOffset, 4);
+    // Brown noise is -6 dB/octave all the way down, so most of its energy is
+    // BELOW hearing. Left in, it eats headroom the audible band needs and
+    // turns into distortion on a phone speaker, which cannot move that far.
+    this.buffetHp = ctx.createBiquadFilter();
+    this.buffetHp.type = 'highpass';
+    this.buffetHp.frequency.value = 32;
+    this.buffetHp.Q.value = 0.7;
     this.buffetLp = ctx.createBiquadFilter();
     this.buffetLp.type = 'lowpass';
     this.buffetLp.frequency.value = 200;
     this.buffetGain = ctx.createGain();
     this.buffetGain.gain.value = 0;
-    this.buffetNoise.connect(this.buffetLp).connect(this.buffetGain).connect(this.trim);
+    this.buffetNoise
+      .connect(this.buffetHp)
+      .connect(this.buffetLp)
+      .connect(this.buffetGain)
+      .connect(this.trim);
 
     this.bodyNoise = createNoiseSource(ctx, 'pink', (noiseOffset + 0.41) % 1, 4);
     this.bodyBp = ctx.createBiquadFilter();
@@ -632,6 +646,7 @@ export class WindVoice extends SustainedVoice {
     SynthVoice.stopSource(this.bodyNoise);
     SynthVoice.stopSource(this.gustLfo);
     this.trim.disconnect();
+    this.buffetHp.disconnect();
     this.buffetLp.disconnect();
     this.buffetGain.disconnect();
     this.bodyBp.disconnect();
