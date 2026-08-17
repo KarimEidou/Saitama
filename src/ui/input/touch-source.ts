@@ -64,6 +64,8 @@ export interface ITouchInputSource extends IInputBackend {
   debugPointers(): PointerDebug[];
   /** 0..1 punch charge ring fill. */
   readonly chargeRatio: number;
+  /** Current context prompt label, or null when no target is in range. */
+  readonly interactPrompt: string | null;
   readonly lastGesture: GestureEvent | null;
   /** Force the dash toggle (e.g. gameplay cancels a dash). */
   setDashToggle(on: boolean): void;
@@ -79,7 +81,9 @@ export function createTouchSource(
   options: ITouchSourceOptions = {}
 ): ITouchInputSource {
   const hasDom = typeof document !== 'undefined' && typeof window !== 'undefined';
-  const now = options.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000);
+  const now =
+    options.now ??
+    (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000);
   const haptics = options.haptics;
 
   let activeTuning = tuning;
@@ -101,8 +105,7 @@ export function createTouchSource(
   });
 
   const mount = options.mount ?? (hasDom ? document.body : null);
-  const overlay =
-    !options.headless && mount ? createTouchOverlay(mount, activeTuning) : null;
+  const overlay = !options.headless && mount ? createTouchOverlay(mount, activeTuning) : null;
 
   const listenerRoot: HTMLElement | null = overlay?.root ?? null;
   let disposed = false;
@@ -331,6 +334,10 @@ export function createTouchSource(
       return core.chargeRatio;
     },
 
+    get interactPrompt(): string | null {
+      return interactPrompt;
+    },
+
     get lastGesture(): GestureEvent | null {
       return core.lastRecognisedGesture;
     },
@@ -343,9 +350,6 @@ export function createTouchSource(
       return core.isDashOn;
     },
   };
-
-  // Keep the accessor honest for anyone reading it back.
-  void interactPrompt;
 
   return source;
 }

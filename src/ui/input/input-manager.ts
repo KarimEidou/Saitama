@@ -17,13 +17,7 @@
  *  • SYNTHETIC, when enabled, is exclusive: every other backend is skipped.
  */
 
-import type {
-  IInputSource,
-  InputDevice,
-  InputState,
-  PointerSample,
-  SafeAreaInsets,
-} from '@/types';
+import type { IInputSource, InputDevice, InputState, PointerSample, SafeAreaInsets } from '@/types';
 import { createLogger } from '@/util';
 import { axisFromVector, NEUTRAL_AXIS } from './axis';
 import { InputContribution, type IInputBackend } from './backend';
@@ -121,7 +115,8 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
     (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000);
 
   const haptics =
-    options.haptics ?? (headless ? createNullHaptics() : createHaptics({ enabled: tuning.hapticsEnabled }));
+    options.haptics ??
+    (headless ? createNullHaptics() : createHaptics({ enabled: tuning.hapticsEnabled }));
 
   let lastGesture: GestureEvent | null = null;
 
@@ -172,6 +167,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
   let activeDevice: InputDevice = hasDom ? 'touch' : 'synthetic';
   let enabled = true;
   let disposed = false;
+  let uninstallBridge: (() => void) | null = null;
 
   /** Applied to whichever backend is winning the axis race this frame. */
   interface AxisPick {
@@ -319,6 +315,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      uninstallBridge?.();
       for (const backend of backends) backend.dispose();
       synthetic.dispose();
       haptics.dispose();
@@ -377,7 +374,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
   // Downstream E2E and the final integration playthrough depend on it being
   // there unconditionally; a build flavour that differs from the tested one is
   // worth less than the ~1 KB it saves.
-  if (options.exposeTestBridge !== false) installInputTestBridge(manager);
+  if (options.exposeTestBridge !== false) uninstallBridge = installInputTestBridge(manager);
 
   log.info(
     `input manager ready — backends: ${backends.map((b) => b.device).join(', ') || 'none'}` +

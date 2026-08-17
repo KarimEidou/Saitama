@@ -26,13 +26,7 @@ const log = createLogger('input.haptics');
 
 /** Named game cues. Kept semantic so the mapping can be re-tuned in one place. */
 export type HapticCue =
-  | 'chargeComplete'
-  | 'kill'
-  | 'landing'
-  | 'hit'
-  | 'gesture'
-  | 'uiTap'
-  | 'error';
+  'chargeComplete' | 'kill' | 'landing' | 'hit' | 'gesture' | 'uiTap' | 'error';
 
 /** Minimum gap between two identical cues; stops a rumble from machine-gunning. */
 const CUE_COOLDOWN_MS: Readonly<Record<HapticCue, number>> = {
@@ -110,8 +104,9 @@ export function createHaptics(options: IHapticsOptions = {}): IHaptics {
     typeof (navigator as Navigator & { vibrate?: unknown }).vibrate === 'function';
   const isNative =
     typeof globalThis !== 'undefined' &&
-    (globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
-      ?.isNativePlatform?.() === true;
+    (
+      globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }
+    ).Capacitor?.isNativePlatform?.() === true;
 
   const supported = options.forceSupported ?? (options.impl != null || hasVibrate || isNative);
 

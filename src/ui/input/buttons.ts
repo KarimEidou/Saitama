@@ -51,9 +51,8 @@ export function neutralButtons(): Record<InputAction, ButtonState> {
 }
 
 /** Shared frozen neutral record — safe because every ButtonState is frozen. */
-export const NEUTRAL_BUTTONS: Readonly<Record<InputAction, ButtonState>> = Object.freeze(
-  neutralButtons()
-);
+export const NEUTRAL_BUTTONS: Readonly<Record<InputAction, ButtonState>> =
+  Object.freeze(neutralButtons());
 
 interface Slot {
   /** Value accumulated by backends since the last commit. */

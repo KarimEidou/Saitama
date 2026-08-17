@@ -58,9 +58,7 @@ export function axisFromVector(x: number, y: number, active?: boolean): AxisStat
     magnitude = 1;
   }
   if (magnitude < EPSILON) {
-    return active === true
-      ? { x: 0, y: 0, magnitude: 0, angle: 0, active: true }
-      : NEUTRAL_AXIS;
+    return active === true ? { x: 0, y: 0, magnitude: 0, angle: 0, active: true } : NEUTRAL_AXIS;
   }
   return {
     x: mx,

@@ -49,16 +49,8 @@
         background:
           radial-gradient(circle at 22% 68%, rgba(255, 210, 48, 0.1), transparent 42%),
           radial-gradient(circle at 78% 30%, rgba(120, 220, 255, 0.09), transparent 46%),
-          repeating-linear-gradient(
-            0deg,
-            rgba(255, 255, 255, 0.028) 0 1px,
-            transparent 1px 44px
-          ),
-          repeating-linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.028) 0 1px,
-            transparent 1px 44px
-          ),
+          repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.028) 0 1px, transparent 1px 44px),
+          repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.028) 0 1px, transparent 1px 44px),
           var(--bg);
       }
 
@@ -324,11 +316,15 @@
       <div class="row"><span class="k">twistDelta</span><span class="v" id="v-twist">0</span></div>
       <div class="row"><span class="k">charge</span><span class="v" id="v-charge">0</span></div>
       <div class="bar"><i id="v-charge-bar"></i></div>
-      <div class="row"><span class="k">dash toggle</span><span class="v" id="v-dash">off</span></div>
+      <div class="row">
+        <span class="k">dash toggle</span><span class="v" id="v-dash">off</span>
+      </div>
       <div class="row">
         <span class="k">interact</span><span class="v" id="v-interact">hidden</span>
       </div>
-      <div class="row"><span class="k">haptics</span><span class="v" id="v-haptics">none</span></div>
+      <div class="row">
+        <span class="k">haptics</span><span class="v" id="v-haptics">none</span>
+      </div>
     </section>
 
     <section class="panel" id="panel-scope">
@@ -355,10 +351,10 @@
     </section>
 
     <div id="hint">
-      <b>Left half</b> drag = floating stick (origin lands under your thumb).
-      <b>Right half</b> drag = camera, two fingers = pinch/twist.<br />
-      <b>Punch</b> tap = light, hold = charge ring, swipe up = uppercut.
-      <b>Dash</b> toggles. <b>Double tap</b> = jump. <b>Two-finger tap</b> = lock on.
+      <b>Left half</b> drag = floating stick (origin lands under your thumb). <b>Right half</b> drag
+      = camera, two fingers = pinch/twist.<br />
+      <b>Punch</b> tap = light, hold = charge ring, swipe up = uppercut. <b>Dash</b> toggles.
+      <b>Double tap</b> = jump. <b>Two-finger tap</b> = lock on.
     </div>
 
     <script type="module" src="./input.ts"></script>

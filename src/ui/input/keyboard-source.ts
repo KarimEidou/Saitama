@@ -108,7 +108,6 @@ export function createKeyboardSource(
   const charge = new ChargeTracker();
   const look = new LookSmoother();
   const pendingPulses = new Map<InputAction, number>();
-  const pendingSilent = new Set<InputAction>();
   let mouseDx = 0;
   let mouseDy = 0;
   let enabled = true;
@@ -187,7 +186,6 @@ export function createKeyboardSource(
     charge.reset();
     look.reset();
     pendingPulses.clear();
-    pendingSilent.clear();
     mouseDx = 0;
     mouseDy = 0;
   }
@@ -263,8 +261,6 @@ export function createKeyboardSource(
 
       for (const [action, value] of pendingPulses) out.pulse(action, value);
       pendingPulses.clear();
-      for (const action of pendingSilent) out.clearSilently(action);
-      pendingSilent.clear();
 
       if (held.size > 0) out.active = true;
     },

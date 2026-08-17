@@ -274,7 +274,9 @@ async function main(): Promise<void> {
     const config = await page.evaluate(() => window.__INPUT__!.config());
     const DEAD = config.stickDeadZonePx;
     const FULL = config.stickFullDeflectionPx;
-    console.log(`tuning: deadZone=${DEAD}px fullDeflection=${FULL}px degPerPx=${config.cameraDegPerPx}`);
+    console.log(
+      `tuning: deadZone=${DEAD}px fullDeflection=${FULL}px degPerPx=${config.cameraDegPerPx}`
+    );
 
     /* Anchor for stick gestures: left half, in the clear lane below the
        readout panels, so the ring is visible in the evidence screenshots. */
@@ -391,7 +393,11 @@ async function main(): Promise<void> {
     await touch.dragTo(2, CX + 240, CY, 12);
     await h.frames(3);
     let peaks = await h.peaks();
-    check(peaks.lookAbsX > 0.02, 'rightward drag produces a look rate', `peak |look.x|=${peaks.lookAbsX.toFixed(4)}`);
+    check(
+      peaks.lookAbsX > 0.02,
+      'rightward drag produces a look rate',
+      `peak |look.x|=${peaks.lookAbsX.toFixed(4)}`
+    );
     s = await h.snapshot();
     check(s.look.x > 0, 'rightward drag -> positive look.x', `look.x=${s.look.x.toFixed(4)}`);
     await touch.up(2);
@@ -405,7 +411,11 @@ async function main(): Promise<void> {
     await touch.dragTo(2, CX, CY - 120, 12);
     await h.frames(3);
     s = await h.snapshot();
-    check(s.look.y > 0, 'upward drag -> positive look.y (looks up)', `look.y=${s.look.y.toFixed(4)}`);
+    check(
+      s.look.y > 0,
+      'upward drag -> positive look.y (looks up)',
+      `look.y=${s.look.y.toFixed(4)}`
+    );
     await touch.up(2);
     await h.frames(20);
 
@@ -423,11 +433,7 @@ async function main(): Promise<void> {
     await h.frames(3);
 
     const roles = (await h.pointers()).map((p) => `${p.role}${p.button ? `:${p.button}` : ''}`);
-    check(
-      roles.length === 3,
-      'three pointers tracked at once',
-      `roles=[${roles.join(', ')}]`
-    );
+    check(roles.length === 3, 'three pointers tracked at once', `roles=[${roles.join(', ')}]`);
     check(
       roles.includes('stick') && roles.includes('camera') && roles.includes('button:punch'),
       'roles assigned correctly and independently',
@@ -442,9 +448,17 @@ async function main(): Promise<void> {
     peaks = await h.peaks();
     close(s.move.magnitude, 1, 0.03, 'stick still reads full deflection while the camera pans');
     close(s.move.y, 1, 0.03, 'stick direction unaffected by the other two fingers');
-    check(peaks.lookAbsX > 0.02, 'camera pans while the stick is deflected', `peak |look.x|=${peaks.lookAbsX.toFixed(4)}`);
+    check(
+      peaks.lookAbsX > 0.02,
+      'camera pans while the stick is deflected',
+      `peak |look.x|=${peaks.lookAbsX.toFixed(4)}`
+    );
     check(s.buttons.punch.held, 'punch stays held throughout');
-    check(s.pointers.length === 3, 'InputState.pointers reports all three', `n=${s.pointers.length}`);
+    check(
+      s.pointers.length === 3,
+      'InputState.pointers reports all three',
+      `n=${s.pointers.length}`
+    );
     check(peaks.pointerCount === 3, 'peak pointer count is 3');
 
     /* Lift only the camera finger; the other two must be untouched. */
@@ -527,20 +541,32 @@ async function main(): Promise<void> {
     await touch.moveTo(2, CX + 220, CY); // span 320px
     await h.frames(3);
     peaks = await h.peaks();
-    check(peaks.pinchMax > 1.05, 'spreading two fingers reports pinchDelta > 1', `max=${peaks.pinchMax.toFixed(4)}`);
+    check(
+      peaks.pinchMax > 1.05,
+      'spreading two fingers reports pinchDelta > 1',
+      `max=${peaks.pinchMax.toFixed(4)}`
+    );
 
     await h.clearPeaks();
     await touch.moveTo(2, CX + 20, CY); // span 120px
     await h.frames(3);
     peaks = await h.peaks();
-    check(peaks.pinchMin < 0.95, 'closing two fingers reports pinchDelta < 1', `min=${peaks.pinchMin.toFixed(4)}`);
+    check(
+      peaks.pinchMin < 0.95,
+      'closing two fingers reports pinchDelta < 1',
+      `min=${peaks.pinchMin.toFixed(4)}`
+    );
 
     await h.clearPeaks();
     await touch.moveTo(1, CX - 100, CY - 60);
     await touch.moveTo(2, CX + 20, CY + 60);
     await h.frames(3);
     peaks = await h.peaks();
-    check(peaks.twistAbs > 0.01, 'rotating two fingers reports a twist', `|twist|=${peaks.twistAbs.toFixed(4)}`);
+    check(
+      peaks.twistAbs > 0.01,
+      'rotating two fingers reports a twist',
+      `|twist|=${peaks.twistAbs.toFixed(4)}`
+    );
 
     /* Let the look smoother fully settle first, otherwise the decay tail of
        the rotation above would be mistaken for a snap. */
@@ -580,10 +606,16 @@ async function main(): Promise<void> {
     await touch.down(3, punchCentre.x, punchCentre.y);
     await page.waitForTimeout((config.chargeFullSec + 0.25) * 1000);
     await h.frames(3);
-    const chargeRatio = await page.evaluate(() => window.__INPUT_HARNESS__!.manager.touch!.chargeRatio);
+    const chargeRatio = await page.evaluate(
+      () => window.__INPUT_HARNESS__!.manager.touch!.chargeRatio
+    );
     close(chargeRatio, 1, 0.001, 'charge ring fills to 1.0 on a long hold');
     const haptics = await h.haptics();
-    check((haptics.chargeComplete ?? 0) >= 1, 'charge-complete haptic cue fired', JSON.stringify(haptics));
+    check(
+      (haptics.chargeComplete ?? 0) >= 1,
+      'charge-complete haptic cue fired',
+      JSON.stringify(haptics)
+    );
     const hapticCalls = await h.hapticCalls();
     check(
       hapticCalls.includes('notification:SUCCESS'),
@@ -626,7 +658,11 @@ async function main(): Promise<void> {
       check(ring.full === 'true', 'charge ring is marked full at ratio 1');
       close(ring.dashOffset, 0, 0.5, 'charge ring is fully closed (COMPUTED dashoffset 0)');
       check(Number(ring.opacity) > 0.9, 'charge ring is visible', `opacity=${ring.opacity}`);
-      check(ring.radiusPx > 30, 'charge ring has a real painted radius', `${ring.radiusPx.toFixed(1)}px`);
+      check(
+        ring.radiusPx > 30,
+        'charge ring has a real painted radius',
+        `${ring.radiusPx.toFixed(1)}px`
+      );
       check(
         ring.stroke.replace(/\s/g, '') === 'rgb(255,90,60)',
         'charge ring turns red at full charge',
@@ -816,7 +852,12 @@ async function main(): Promise<void> {
     await page.keyboard.up('w');
     await h.frames(3);
 
-    close(keyNorth.move.magnitude, touchNorth.move.magnitude, 0.02, 'keyboard W == touch north (magnitude)');
+    close(
+      keyNorth.move.magnitude,
+      touchNorth.move.magnitude,
+      0.02,
+      'keyboard W == touch north (magnitude)'
+    );
     close(keyNorth.move.y, touchNorth.move.y, 0.02, 'keyboard W == touch north (y)');
     close(keyNorth.move.x, touchNorth.move.x, 0.02, 'keyboard W == touch north (x)');
     check(keyNorth.device === 'keyboard', 'device switches to keyboard', keyNorth.device);
@@ -837,7 +878,12 @@ async function main(): Promise<void> {
     await page.keyboard.up('w');
     await page.keyboard.up('d');
     await h.frames(3);
-    close(keyNE.move.magnitude, touchNE.move.magnitude, 0.02, 'keyboard W+D == touch diagonal (magnitude)');
+    close(
+      keyNE.move.magnitude,
+      touchNE.move.magnitude,
+      0.02,
+      'keyboard W+D == touch diagonal (magnitude)'
+    );
     close(keyNE.move.x, touchNE.move.x, 0.02, 'keyboard W+D == touch diagonal (x)');
     close(keyNE.move.y, touchNE.move.y, 0.02, 'keyboard W+D == touch diagonal (y)');
 
@@ -877,14 +923,24 @@ async function main(): Promise<void> {
     await page.evaluate(`window.__PAD__.axes[1] = -1`);
     await h.frames(4);
     const padNorth = await h.snapshot();
-    close(padNorth.move.magnitude, touchNorth.move.magnitude, 0.02, 'gamepad stick north == touch north (magnitude)');
+    close(
+      padNorth.move.magnitude,
+      touchNorth.move.magnitude,
+      0.02,
+      'gamepad stick north == touch north (magnitude)'
+    );
     close(padNorth.move.y, touchNorth.move.y, 0.02, 'gamepad stick north == touch north (y)');
     check(padNorth.device === 'gamepad', 'device switches to gamepad', padNorth.device);
 
     await page.evaluate(`(() => { window.__PAD__.axes[0] = 1; window.__PAD__.axes[1] = -1; })()`);
     await h.frames(4);
     const padNE = await h.snapshot();
-    close(padNE.move.magnitude, touchNE.move.magnitude, 0.02, 'gamepad diagonal == touch diagonal (magnitude)');
+    close(
+      padNE.move.magnitude,
+      touchNE.move.magnitude,
+      0.02,
+      'gamepad diagonal == touch diagonal (magnitude)'
+    );
     close(padNE.move.x, touchNE.move.x, 0.02, 'gamepad diagonal == touch diagonal (x)');
     close(padNE.move.y, touchNE.move.y, 0.02, 'gamepad diagonal == touch diagonal (y)');
 
@@ -895,11 +951,12 @@ async function main(): Promise<void> {
     await h.frames(4);
     check((await h.snapshot()).buttons.punch.held, 'gamepad X holds punch');
 
-    await page.evaluate(
-      `(() => { window.__PAD__.buttons[10] = { pressed: true, value: 1 }; })()`
-    );
+    await page.evaluate(`(() => { window.__PAD__.buttons[10] = { pressed: true, value: 1 }; })()`);
     await h.frames(4);
-    check((await h.snapshot()).buttons.sprint.held, 'gamepad L3 holds sprint (matches dash toggle)');
+    check(
+      (await h.snapshot()).buttons.sprint.held,
+      'gamepad L3 holds sprint (matches dash toggle)'
+    );
 
     await page.evaluate(`(() => { window.__PAD__ = null; })()`);
     await h.frames(4);
@@ -951,8 +1008,18 @@ async function main(): Promise<void> {
     await h.frames(2);
     const afterInsets = await h.buttonCentre('punch');
     if (beforeInsets && afterInsets) {
-      close(beforeInsets.x - afterInsets.x, 44, 1.5, 'right inset pushes the arc left by exactly 44px');
-      close(beforeInsets.y - afterInsets.y, 34, 1.5, 'bottom inset pushes the arc up by exactly 34px');
+      close(
+        beforeInsets.x - afterInsets.x,
+        44,
+        1.5,
+        'right inset pushes the arc left by exactly 44px'
+      );
+      close(
+        beforeInsets.y - afterInsets.y,
+        34,
+        1.5,
+        'bottom inset pushes the arc up by exactly 34px'
+      );
     } else {
       fail('safe-area insets move the thumb arc', 'punch button not measurable');
     }

@@ -105,17 +105,17 @@
  */
 
 /* -- composition ---------------------------------------------------------- */
-export {
-  createInputManager,
-  type IInputManager,
-  type IInputManagerOptions,
-} from './input-manager';
+export { createInputManager, type IInputManager, type IInputManagerOptions } from './input-manager';
 
 /* -- tuning --------------------------------------------------------------- */
 export { DEFAULT_INPUT_TUNING, resolveTuning, type IInputTuning } from './config';
 
 /* -- synthetic driver (THE test entry point) ------------------------------ */
-export { createSyntheticSource, type ISyntheticInput, type IInputScriptStep } from './synthetic-source';
+export {
+  createSyntheticSource,
+  type ISyntheticInput,
+  type IInputScriptStep,
+} from './synthetic-source';
 export {
   createInputTestBridge,
   installInputTestBridge,
@@ -178,7 +178,11 @@ export {
   type TouchButtonId,
   type TouchHit,
 } from './touch-core';
-export { createTouchSource, type ITouchInputSource, type ITouchSourceOptions } from './touch-source';
+export {
+  createTouchSource,
+  type ITouchInputSource,
+  type ITouchSourceOptions,
+} from './touch-source';
 export {
   createTouchOverlay,
   THUMB_ARC,

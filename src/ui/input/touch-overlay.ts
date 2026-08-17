@@ -278,7 +278,10 @@ export function createTouchOverlay(
   if (interactSlot) {
     const offset = thumbArcOffset(interactSlot);
     promptEl.style.setProperty('--opm-prompt-x', `${offset.right.toFixed(1)}px`);
-    promptEl.style.setProperty('--opm-prompt-y', `${(offset.bottom + slotRadius(interactSlot) + 22).toFixed(1)}px`);
+    promptEl.style.setProperty(
+      '--opm-prompt-y',
+      `${(offset.bottom + slotRadius(interactSlot) + 22).toFixed(1)}px`
+    );
   }
   root.appendChild(promptEl);
 

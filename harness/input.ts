@@ -227,7 +227,8 @@ function drawScope(state: InputState, pointerSamples: readonly PointerSample[]):
   ctx.fillRect(0, 0, w, h);
 
   // Full-deflection ring and dead-zone ring, to scale.
-  const deadFraction = DEFAULT_INPUT_TUNING.stickDeadZonePx / DEFAULT_INPUT_TUNING.stickFullDeflectionPx;
+  const deadFraction =
+    DEFAULT_INPUT_TUNING.stickDeadZonePx / DEFAULT_INPUT_TUNING.stickFullDeflectionPx;
   ctx.strokeStyle = 'rgba(255,210,48,0.35)';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -327,7 +328,10 @@ function render(state: InputState, pointerDebug: PointerDebug[]): void {
      down and re-creating rows every frame is the single most expensive thing
      this page can do and it skews the very input latency we are measuring. */
   const pointerSignature = pointerDebug
-    .map((p) => `${p.id}:${p.role}:${p.button ?? ''}:${p.x.toFixed(0)}:${p.y.toFixed(0)}:${p.travelPx.toFixed(0)}`)
+    .map(
+      (p) =>
+        `${p.id}:${p.role}:${p.button ?? ''}:${p.x.toFixed(0)}:${p.y.toFixed(0)}:${p.travelPx.toFixed(0)}`
+    )
     .join('|');
   if (pointerSignature !== lastPointerSignature) {
     lastPointerSignature = pointerSignature;
@@ -359,8 +363,15 @@ function render(state: InputState, pointerDebug: PointerDebug[]): void {
     const b = state.buttons[action];
     const flags = `${b.pressed ? 'P' : '.'}${b.held ? 'H' : '.'}${b.released ? 'R' : '.'}`;
     cell.flags.textContent = flags;
-    cell.meta.textContent = b.held || b.released ? `${b.value.toFixed(2)} ${b.holdTime.toFixed(2)}s` : '';
-    cell.row.dataset.state = b.pressed ? 'pressed' : b.held ? 'held' : b.released ? 'released' : 'idle';
+    cell.meta.textContent =
+      b.held || b.released ? `${b.value.toFixed(2)} ${b.holdTime.toFixed(2)}s` : '';
+    cell.row.dataset.state = b.pressed
+      ? 'pressed'
+      : b.held
+        ? 'held'
+        : b.released
+          ? 'released'
+          : 'idle';
   }
 
   /* gestures — only when the log changed */

@@ -165,8 +165,7 @@ export function createInputTestBridge(manager: IInputManager): IInputTestBridge 
     step(frame?: number, time?: number): InputState {
       stepFrame = frame ?? stepFrame + 1;
       const t =
-        time ??
-        (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+        time ?? (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
       return cloneInputState(manager.poll(stepFrame, t));
     },
 

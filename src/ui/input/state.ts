@@ -207,8 +207,7 @@ export function applyInputPatch(base: InputState, patch: InputStatePatch): Input
     pinchDelta,
     twistDelta,
     anyActive:
-      patch.anyActive ??
-      deriveAnyActive({ move, look, buttons, pointers, pinchDelta, twistDelta }),
+      patch.anyActive ?? deriveAnyActive({ move, look, buttons, pointers, pinchDelta, twistDelta }),
   });
 }
 

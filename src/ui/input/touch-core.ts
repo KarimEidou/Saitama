@@ -642,8 +642,7 @@ export class TouchCore {
       const other = this.recentTaps[i]!;
       if (other.consumed) continue;
       const overlapped = other.downTime <= tap.upTime && tap.downTime <= other.upTime;
-      const together =
-        Math.abs(other.downTime - tap.downTime) <= this.tuning.twoFingerTapWindowSec;
+      const together = Math.abs(other.downTime - tap.downTime) <= this.tuning.twoFingerTapWindowSec;
       if (overlapped && together) {
         other.consumed = true;
         tap.consumed = true;
