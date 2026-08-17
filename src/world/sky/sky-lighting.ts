@@ -28,15 +28,21 @@ import * as THREE from 'three';
 import type { DayPhase, IDayNightState, ILightingState } from '@/types';
 import { clamp, clamp01, lerp, smoothstep } from '@/util';
 import {
+  AMBIENT_CHROMA_GAIN,
+  EVENING_LENGTH,
+  EVENING_START,
   EXPOSURE_ADAPTATION,
   EXPOSURE_MAX,
   EXPOSURE_MIN,
   EXPOSURE_REFERENCE,
+  FOG_CHROMA_GAIN,
   FOG_DENSITY_DAY,
   FOG_DENSITY_NIGHT,
   MOON_COLOR,
   MOON_PEAK_INTENSITY,
   PHASE_BOUNDARIES,
+  SCOTOPIC_BLEND,
+  SCOTOPIC_TINT,
   SHADOW_RADIUS_DAY,
   SHADOW_RADIUS_NIGHT,
   STREET_LIGHT_ON_LUMINANCE,
@@ -48,12 +54,12 @@ import {
   WINDOW_LIT_FRACTION_EVENING,
   WINDOW_LIT_FRACTION_NIGHT,
 } from './constants';
-import { irradianceTowards, normaliseHue, type ISkyBlend } from './environment-blend';
+import { boostChroma, irradianceTowards, normaliseHue, type ISkyBlend } from './environment-blend';
 import { moonIllumination, moonPosition, sunPosition, type ISolarOptions } from './solar';
 
 /** Named phase for a normalised time. `midnight` wraps through t = 0. */
 export function phaseForTime(timeOfDay: number): DayPhase {
-  const t = timeOfDay % 1 < 0 ? (timeOfDay % 1) + 1 : timeOfDay % 1;
+  const t = wrapUnit(timeOfDay);
   let phase: DayPhase = 'midnight';
   for (const boundary of PHASE_BOUNDARIES) {
     if (t >= boundary.start) phase = boundary.phase;
@@ -120,11 +126,24 @@ export class MutableDayNightState implements IDayNightState {
 
 /* Scratch. This runs every frame; it must not allocate. --------------------- */
 const SCRATCH_UP = new THREE.Vector3(0, 1, 0);
-const SCRATCH_DOWN = new THREE.Vector3(0, -1, 0);
 const SCRATCH_HORIZON = new THREE.Vector3(0, 0, 1);
+
+/**
+ * Diffuse albedo of City Z's streets, as a tint. Weathered asphalt and
+ * concrete: mid grey, very slightly warm. The magnitude does not matter — only
+ * the ratio survives `normaliseHue`.
+ */
+const CITY_ALBEDO = new THREE.Color(0.46, 0.42, 0.36);
 const SUN_ZENITH = new THREE.Color(SUN_COLOR_ZENITH);
 const SUN_HORIZON = new THREE.Color(SUN_COLOR_HORIZON);
 const MOON_TINT = new THREE.Color(MOON_COLOR);
+const SCOTOPIC = new THREE.Color(SCOTOPIC_TINT);
+
+/** Wrap into [0, 1). Shared by the phase lookup and the evening ramp. */
+function wrapUnit(t: number): number {
+  const w = t % 1;
+  return w < 0 ? w + 1 : w;
+}
 
 export interface IDeriveLightingInput {
   readonly timeOfDay: number;
@@ -188,24 +207,58 @@ export function deriveLighting(
 
   /* Ambient, ground and fog colour — read out of the sky itself ---------- */
 
+  const nightFactor = clamp01(
+    1 -
+      smoothstep(
+        STREET_LIGHT_ON_LUMINANCE - STREET_LIGHT_RAMP,
+        STREET_LIGHT_ON_LUMINANCE + STREET_LIGHT_RAMP,
+        blend.luminance
+      )
+  );
+
   if (sh) {
-    normaliseHue(irradianceTowards(sh, SCRATCH_UP, lighting.ambientColor));
-    normaliseHue(irradianceTowards(sh, SCRATCH_DOWN, lighting.groundColor));
-    normaliseHue(irradianceTowards(sh, SCRATCH_HORIZON, lighting.fogColor));
-    // Ground bounce is dimmer than sky ambient and picks up the city's own
-    // asphalt-and-concrete cast; the SH's downward lobe is mostly that already,
-    // so only the magnitude needs pulling down.
-    lighting.groundColor.multiplyScalar(0.45);
+    normaliseHue(
+      boostChroma(irradianceTowards(sh, SCRATCH_UP, lighting.ambientColor), AMBIENT_CHROMA_GAIN)
+    );
+    normaliseHue(
+      boostChroma(irradianceTowards(sh, SCRATCH_HORIZON, lighting.fogColor), FOG_CHROMA_GAIN)
+    );
+
+    // GROUND BOUNCE IS NOT READ FROM THE SH's DOWNWARD LOBE, on purpose.
+    // These are `_puresky` captures: the lower hemisphere is empty, so what
+    // the downward lobe actually measures at noon is (0.089, 0.187, 0.366) —
+    // 4% of the upward lobe and violently blue, because with no ground in the
+    // image the only thing lighting a downward-facing surface is scattered
+    // sky. Normalising that to a usable magnitude produces a saturated cyan
+    // bounce under a white sun, which is unmistakably wrong.
+    //
+    // Bounce light is sky light reflected off the CITY, so it is derived that
+    // way below, once ambient has its final hue.
   } else {
     lighting.ambientColor.setRGB(0.62, 0.72, 0.92);
-    lighting.groundColor.setRGB(0.22, 0.2, 0.17);
     lighting.fogColor.setRGB(0.6, 0.68, 0.8);
   }
 
-  // Fog is the horizon colour, but the eye expects it lighter than the raw
-  // irradiance hue, and at night it must not be a bright band across a dark
-  // skyline. Scale it by the same curve everything else uses.
-  const fogLift = clamp01(0.35 + 0.65 * blend.luminance);
+  // Rod-dominated vision is blue-shifted. Applying it to the DERIVED ambient
+  // hue (never to the radiance) is what makes a moonlit street read as
+  // moonlit rather than as an underexposed afternoon.
+  lighting.ambientColor.lerp(SCOTOPIC, nightFactor * SCOTOPIC_BLEND);
+  lighting.fogColor.lerp(SCOTOPIC, nightFactor * SCOTOPIC_BLEND * 0.8);
+
+  // Ground bounce: the finished ambient hue, filtered through concrete and
+  // asphalt, so it inherits both the sky's colour and the night shift.
+  lighting.groundColor.copy(lighting.ambientColor).multiply(CITY_ALBEDO);
+  normaliseHue(lighting.groundColor).multiplyScalar(0.45);
+  // Near the horizon the sun paints the haze it is shining through. This is
+  // the sunset glow, and deriving it from the sun colour keeps it in step with
+  // the reddening above instead of drifting into a separate palette. The
+  // exponent concentrates it into the last hour, where it belongs — a linear
+  // ramp tints the fog orange from mid-afternoon.
+  lighting.fogColor.lerp(lighting.sunColor, Math.pow(horizonMix, 1.6) * sunAbove * 0.8);
+
+  // Fog must not be a bright band across a dark skyline: scale it by the same
+  // curve everything else uses, with a floor so distant geometry still reads.
+  const fogLift = clamp01(0.3 + 0.7 * blend.luminance);
   lighting.fogColor.multiplyScalar(fogLift);
 
   /* Magnitudes ----------------------------------------------------------- */
@@ -221,16 +274,16 @@ export function deriveLighting(
     EXPOSURE_MAX
   );
 
-  const nightFactor = clamp01(
-    1 - smoothstep(STREET_LIGHT_ON_LUMINANCE - STREET_LIGHT_RAMP, STREET_LIGHT_ON_LUMINANCE + STREET_LIGHT_RAMP, blend.luminance)
-  );
   lighting.streetLightsOn = nightFactor > 0.5;
   lighting.fogDensity = lerp(FOG_DENSITY_DAY, FOG_DENSITY_NIGHT, nightFactor);
   lighting.shadowRadius = lerp(SHADOW_RADIUS_DAY, SHADOW_RADIUS_NIGHT, nightFactor);
 
-  // Evening windows are busy; by 03:00 most of the city is asleep. Drive it off
-  // the clock rather than off `nightFactor`, which is symmetric about midnight.
-  const eveningness = 1 - smoothstep(0.79, 0.99, timeOfDay % 1);
+  // Evening windows are busy; by the small hours most of the city is asleep.
+  // The ramp is measured FORWARD FROM SUNSET and wrapped, because it crosses
+  // t = 0 — a plain `smoothstep(0.79, 0.99, t)` reads 03:00 as "early evening"
+  // and lights the whole city up at four in the morning.
+  const sinceEvening = wrapUnit(timeOfDay - EVENING_START);
+  const eveningness = 1 - smoothstep(0, EVENING_LENGTH, sinceEvening);
   const windowLitFraction =
     nightFactor * lerp(WINDOW_LIT_FRACTION_NIGHT, WINDOW_LIT_FRACTION_EVENING, eveningness);
 
@@ -269,5 +322,4 @@ export function fillDayNightState(
   state.ambientColor.copy(lighting.ambientColor);
   state.sunColor.copy(lighting.sunColor);
   state.streetLightsOn = lighting.streetLightsOn;
-  SCRATCH_COLOR.setRGB(0, 0, 0);
 }

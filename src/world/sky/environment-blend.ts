@@ -291,3 +291,29 @@ export function normaliseHue(color: THREE.Color): THREE.Color {
   else color.setRGB(1, 1, 1);
   return color;
 }
+
+/**
+ * Expand chroma about the luminance axis, preserving hue and overall
+ * brightness.
+ *
+ * Hemispherical irradiance is nearly achromatic even under a vividly coloured
+ * sky, because integrating over the whole dome averages the colour out — the
+ * night sky's SH DC term sits 9% off neutral. Rendering that literally means
+ * ambient light carries no time of day. The gain is applied where the colour
+ * is DERIVED, never to the radiance itself, so the exposure normalisation this
+ * module exists for is untouched.
+ */
+export function boostChroma(color: THREE.Color, gain: number): THREE.Color {
+  const luma = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+  if (luma <= 1e-6) return color;
+  // MULTIPLICATIVE, not additive. The obvious `luma + (c - luma) * gain` drives
+  // the weakest channel negative for any gain above ~1/(1-ratio) and clips it
+  // to zero, which turns a faintly blue sky into saturated cyan the moment the
+  // gain is raised far enough to be useful. Raising the RATIO to a power can
+  // never leave the positive orthant, so hue survives any gain.
+  return color.setRGB(
+    luma * Math.pow(color.r / luma, gain),
+    luma * Math.pow(color.g / luma, gain),
+    luma * Math.pow(color.b / luma, gain)
+  );
+}

@@ -140,17 +140,28 @@ export interface ISkyKeyframe {
  * brightness. First and last must both be at the same sky so the loop is
  * seamless across midnight.
  */
+/**
+ * The times below are pinned to the SOLAR MODEL, not to intuition. At 35.6°N
+ * on day 172 the sun rises at 04:30 (t = 0.1875) and sets at 18:58
+ * (t = 0.790) — see `solar.ts`. Authoring a 06:00 sunrise here would put a
+ * bright directional light in a twilight-dark sky for ninety minutes, which is
+ * a subtler version of exactly the mismatch this system exists to prevent.
+ */
 export const TIME_KEYFRAMES: readonly ISkyKeyframe[] = [
   { t: 0.0, sky: 'night', luminance: 0.014 }, // 00:00 deep night
-  { t: 0.1875, sky: 'night', luminance: 0.016 }, // 04:30 astronomical dawn
-  { t: 0.235, sky: 'dawn', luminance: 0.1 }, // 05:38 civil twilight
-  { t: 0.2917, sky: 'dawn', luminance: 0.34 }, // 07:00 sunrise done
-  { t: 0.38, sky: 'day', luminance: 0.8 }, // 09:07 mid-morning
+  { t: 0.145, sky: 'night', luminance: 0.015 }, // 03:29 nautical twilight
+  { t: 0.175, sky: 'dawn', luminance: 0.055 }, // 04:12 civil twilight
+  { t: 0.2, sky: 'dawn', luminance: 0.2 }, // 04:48 just past sunrise
+  { t: 0.235, sky: 'dawn', luminance: 0.42 }, // 05:38 low golden light
+  { t: 0.3, sky: 'day', luminance: 0.72 }, // 07:12 morning
+  { t: 0.42, sky: 'day', luminance: 0.94 }, // 10:05
   { t: 0.5, sky: 'day', luminance: 1.0 }, // 12:00 noon reference
-  { t: 0.625, sky: 'day', luminance: 0.82 }, // 15:00 afternoon
-  { t: 0.72, sky: 'dusk', luminance: 0.28 }, // 17:17 golden hour
-  { t: 0.78, sky: 'dusk', luminance: 0.085 }, // 18:43 sunset
-  { t: 0.85, sky: 'night', luminance: 0.02 }, // 20:24 nightfall
+  { t: 0.62, sky: 'day', luminance: 0.9 }, // 14:53
+  { t: 0.7, sky: 'dusk', luminance: 0.55 }, // 16:48 golden hour
+  { t: 0.755, sky: 'dusk', luminance: 0.22 }, // 18:07 low sun
+  { t: 0.795, sky: 'dusk', luminance: 0.06 }, // 19:05 just past sunset
+  { t: 0.825, sky: 'night', luminance: 0.022 }, // 19:48 nightfall
+  { t: 0.87, sky: 'night', luminance: 0.016 }, // 20:53
   { t: 1.0, sky: 'night', luminance: 0.014 }, // 24:00 wraps to the first entry
 ];
 
@@ -230,13 +241,46 @@ export const SHADOW_RADIUS_NIGHT = 60;
  * ramp. Photocell behaviour: lamps come on during dusk, well before it is
  * actually dark, and go off after dawn has clearly arrived.
  */
-export const STREET_LIGHT_ON_LUMINANCE = 0.22;
-export const STREET_LIGHT_RAMP = 0.16;
+export const STREET_LIGHT_ON_LUMINANCE = 0.115;
+export const STREET_LIGHT_RAMP = 0.085;
 
 /** Fraction of window panes lit at deep night. The rest of the city sleeps. */
-export const WINDOW_LIT_FRACTION_NIGHT = 0.34;
+export const WINDOW_LIT_FRACTION_NIGHT = 0.3;
 /** Fraction lit during the evening, when everyone is still up. */
-export const WINDOW_LIT_FRACTION_EVENING = 0.62;
+export const WINDOW_LIT_FRACTION_EVENING = 0.66;
+
+/**
+ * Normalised time the evening begins, and how long the city takes to go to
+ * bed. Used to ramp window occupancy DOWN through the small hours; the ramp
+ * has to be wrap-aware because it crosses t = 0.
+ */
+export const EVENING_START = 0.79; // 18:58, sunset
+export const EVENING_LENGTH = 0.28; // ~6.7 h, so ~01:40 before the city sleeps
+
+/* -------------------------------------------------------------------------- */
+/* Colour derivation                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Chroma gain applied to colours read out of the sky's spherical harmonics.
+ *
+ * Irradiance integrated over a hemisphere is nearly achromatic even under a
+ * strongly coloured sky — the night map's SH DC term is (2.35, 2.57, 2.55),
+ * which is 9% off neutral. Rendered literally, ambient light carries no time
+ * of day at all. The gain expands chroma about the luminance axis, keeping the
+ * HUE the measurement gives and making it legible.
+ */
+export const AMBIENT_CHROMA_GAIN = 2.8;
+export const FOG_CHROMA_GAIN = 2.2;
+
+/**
+ * Scotopic (Purkinje) tint, and how far ambient is pushed towards it at full
+ * night. Rod-dominated vision genuinely is blue-shifted — this is a real
+ * perceptual effect, not a colour grade, and it is why moonlight "looks blue"
+ * despite being reflected sunlight.
+ */
+export const SCOTOPIC_TINT = 0x6f8cff;
+export const SCOTOPIC_BLEND = 0.55;
 
 /* -------------------------------------------------------------------------- */
 /* Environment blending                                                       */
