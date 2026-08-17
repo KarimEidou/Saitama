@@ -1,0 +1,3975 @@
+{
+  "version": 1,
+  "kind": "material",
+  "generator": "tools/manifest/textures.json (hand-curated; URLs+md5 from api.polyhaven.com)",
+  "description": "City Z PBR material set. Every entry is Poly Haven CC0 and pulls three maps at 4k: Diffuse (sRGB albedo), nor_gl (OpenGL-convention tangent normal) and arm (AO in R, roughness in G, metalness in B). The packed `arm` map is deliberate: Three.js MeshStandardMaterial reads aoMap/roughnessMap/metalnessMap from R/G/B of one texture, so one upload serves three slots.",
+  "sourceResolution": "4k",
+  "entries": [
+    {
+      "id": "mat.road.asphalt.worn",
+      "kind": "material",
+      "name": "Asphalt 02",
+      "provider": "polyhaven",
+      "providerAssetId": "asphalt_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/asphalt_02",
+        "attributionUrl": "https://polyhaven.com/a/asphalt_02",
+        "year": 2020
+      },
+      "sourceUrl": "https://polyhaven.com/a/asphalt_02",
+      "tags": ["z-city", "road", "ground", "tileable"],
+      "preload": true,
+      "description": "Free 8K texture of weathered grey asphalt: gritty coarse aggregate, subtle tar cracks, rough matte surface with uneven wear.",
+      "tileSizeMeters": 3,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.road.asphalt.worn",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.road.asphalt.worn.albedo",
+        "normalMapKey": "mat.road.asphalt.worn.normal",
+        "ormMapKey": "mat.road.asphalt.worn.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.road.asphalt.worn.albedo",
+        "normal": "mat.road.asphalt.worn.normal",
+        "orm": "mat.road.asphalt.worn.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/asphalt_02/asphalt_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_diff_4k.jpg",
+          "md5": "c77ab7e6b6ffc7f50d572cd3fc4ffeb5",
+          "bytes": 11654128,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/asphalt_02/asphalt_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_nor_gl_4k.jpg",
+          "md5": "10f5f0a3cab9d4714dedd524687aea6c",
+          "bytes": 17407651,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/asphalt_02/asphalt_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_02/asphalt_02_arm_4k.jpg",
+          "md5": "7f46f10e49a0beb1b0e39b167907b01b",
+          "bytes": 5168440,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.road.asphalt.rough",
+      "kind": "material",
+      "name": "Asphalt 01",
+      "provider": "polyhaven",
+      "providerAssetId": "asphalt_01",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dario Barresi, Charlotte Baglioni",
+        "sourceUrl": "https://polyhaven.com/a/asphalt_01",
+        "attributionUrl": "https://polyhaven.com/a/asphalt_01",
+        "year": 2022
+      },
+      "sourceUrl": "https://polyhaven.com/a/asphalt_01",
+      "tags": ["z-city", "road", "ground", "tileable"],
+      "preload": false,
+      "description": "Free 8K asphalt texture: worn, dirty road surface with a coarse, rough aggregate, compacted bumps and subtle grime discoloration.",
+      "tileSizeMeters": 2.08,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.road.asphalt.rough",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.road.asphalt.rough.albedo",
+        "normalMapKey": "mat.road.asphalt.rough.normal",
+        "ormMapKey": "mat.road.asphalt.rough.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.road.asphalt.rough.albedo",
+        "normal": "mat.road.asphalt.rough.normal",
+        "orm": "mat.road.asphalt.rough.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/asphalt_01/asphalt_01_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_01/asphalt_01_diff_4k.jpg",
+          "md5": "a6931dfbdc94a066606b915b6cda5704",
+          "bytes": 12674373,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/asphalt_01/asphalt_01_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_01/asphalt_01_nor_gl_4k.jpg",
+          "md5": "ecbe6717f12f074585d70197cbbe7366",
+          "bytes": 16658470,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/asphalt_01/asphalt_01_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/asphalt_01/asphalt_01_arm_4k.jpg",
+          "md5": "45c6bc5e93b1b1dc170c546212047edc",
+          "bytes": 14655296,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.road.asphalt.damaged",
+      "kind": "material",
+      "name": "Road Damaged",
+      "provider": "polyhaven",
+      "providerAssetId": "road_damaged",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva",
+        "sourceUrl": "https://polyhaven.com/a/road_damaged",
+        "attributionUrl": "https://polyhaven.com/a/road_damaged",
+        "year": 2026
+      },
+      "sourceUrl": "https://polyhaven.com/a/road_damaged",
+      "tags": ["z-city", "road", "ground", "destruction", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of damaged road: cracked, patchy asphalt with potholes, rough aggregate, dark stains, matte and dusty wear.",
+      "tileSizeMeters": 2.2,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.road.asphalt.damaged",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.road.asphalt.damaged.albedo",
+        "normalMapKey": "mat.road.asphalt.damaged.normal",
+        "ormMapKey": "mat.road.asphalt.damaged.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.road.asphalt.damaged.albedo",
+        "normal": "mat.road.asphalt.damaged.normal",
+        "orm": "mat.road.asphalt.damaged.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/road_damaged/road_damaged_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/road_damaged/road_damaged_diff_4k.jpg",
+          "md5": "5aae539a9c5a750eaf23a6630f55c700",
+          "bytes": 13820980,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/road_damaged/road_damaged_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/road_damaged/road_damaged_nor_gl_4k.jpg",
+          "md5": "ccd8af5c74675e91fbf8ac76d88ec795",
+          "bytes": 14691109,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/road_damaged/road_damaged_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/road_damaged/road_damaged_arm_4k.jpg",
+          "md5": "d607f48765ec80e4722effee43c544c9",
+          "bytes": 12700111,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.road.asphalt.clean",
+      "kind": "material",
+      "name": "Clean Asphalt",
+      "provider": "polyhaven",
+      "providerAssetId": "clean_asphalt",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva",
+        "sourceUrl": "https://polyhaven.com/a/clean_asphalt",
+        "attributionUrl": "https://polyhaven.com/a/clean_asphalt",
+        "year": 2026
+      },
+      "sourceUrl": "https://polyhaven.com/a/clean_asphalt",
+      "tags": ["z-city", "road", "ground", "tileable"],
+      "preload": false,
+      "description": "Free 8k asphalt texture: clean dark-gray surface with fine rough grain, subtle micro-roughness and faint seam line, low sheen and even tonality.",
+      "tileSizeMeters": 2.1,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.road.asphalt.clean",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.road.asphalt.clean.albedo",
+        "normalMapKey": "mat.road.asphalt.clean.normal",
+        "ormMapKey": "mat.road.asphalt.clean.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.road.asphalt.clean.albedo",
+        "normal": "mat.road.asphalt.clean.normal",
+        "orm": "mat.road.asphalt.clean.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/clean_asphalt/clean_asphalt_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/clean_asphalt/clean_asphalt_diff_4k.jpg",
+          "md5": "2557f0739fe3f379167b9911843115eb",
+          "bytes": 14073027,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/clean_asphalt/clean_asphalt_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/clean_asphalt/clean_asphalt_nor_gl_4k.jpg",
+          "md5": "e30d79324422bb09c8f9a5983d3602a8",
+          "bytes": 17605037,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/clean_asphalt/clean_asphalt_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/clean_asphalt/clean_asphalt_arm_4k.jpg",
+          "md5": "e7929e6785b7013bd185d94aec4e263d",
+          "bytes": 14872217,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.ground.sidewalk.slabs",
+      "kind": "material",
+      "name": "Concrete Pavement 02",
+      "provider": "polyhaven",
+      "providerAssetId": "concrete_pavement_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Charlotte Baglioni",
+        "sourceUrl": "https://polyhaven.com/a/concrete_pavement_02",
+        "attributionUrl": "https://polyhaven.com/a/concrete_pavement_02",
+        "year": 2024
+      },
+      "sourceUrl": "https://polyhaven.com/a/concrete_pavement_02",
+      "tags": ["z-city", "sidewalk", "ground", "tileable"],
+      "preload": true,
+      "description": "Free 8K concrete pavement material: square sidewalk slabs with fine gritty texture, shallow grout lines, light staining and a matte, slightly worn urban finish.",
+      "tileSizeMeters": 1.8,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.ground.sidewalk.slabs",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.ground.sidewalk.slabs.albedo",
+        "normalMapKey": "mat.ground.sidewalk.slabs.normal",
+        "ormMapKey": "mat.ground.sidewalk.slabs.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.ground.sidewalk.slabs.albedo",
+        "normal": "mat.ground.sidewalk.slabs.normal",
+        "orm": "mat.ground.sidewalk.slabs.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/concrete_pavement_02/concrete_pavement_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_pavement_02/concrete_pavement_02_diff_4k.jpg",
+          "md5": "68b0264dc659381ca0e73cc26dd9e8e3",
+          "bytes": 15603885,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_pavement_02/concrete_pavement_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_pavement_02/concrete_pavement_02_nor_gl_4k.jpg",
+          "md5": "721384cfb930e10a08ac1ee871e4a625",
+          "bytes": 20861912,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_pavement_02/concrete_pavement_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_pavement_02/concrete_pavement_02_arm_4k.jpg",
+          "md5": "7780b2cd9eba0e4a49de5261cfcefb08",
+          "bytes": 10738595,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.ground.sidewalk.concrete",
+      "kind": "material",
+      "name": "Pavement 02",
+      "provider": "polyhaven",
+      "providerAssetId": "pavement_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dario Barresi, Charlotte Baglioni",
+        "sourceUrl": "https://polyhaven.com/a/pavement_02",
+        "attributionUrl": "https://polyhaven.com/a/pavement_02",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/pavement_02",
+      "tags": ["z-city", "sidewalk", "ground", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of worn concrete paving stones with coarse, weathered surfaces in warm gray and terracotta tones, defined grout lines and light dirt.",
+      "tileSizeMeters": 2.12,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.ground.sidewalk.concrete",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.ground.sidewalk.concrete.albedo",
+        "normalMapKey": "mat.ground.sidewalk.concrete.normal",
+        "ormMapKey": "mat.ground.sidewalk.concrete.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.ground.sidewalk.concrete.albedo",
+        "normal": "mat.ground.sidewalk.concrete.normal",
+        "orm": "mat.ground.sidewalk.concrete.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/pavement_02/pavement_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/pavement_02/pavement_02_diff_4k.jpg",
+          "md5": "a4d21cec790680f2d99829b07cb0a3f9",
+          "bytes": 20567828,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/pavement_02/pavement_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/pavement_02/pavement_02_nor_gl_4k.jpg",
+          "md5": "63b5233ecf92b70c14913d336a2410a0",
+          "bytes": 13404242,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/pavement_02/pavement_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/pavement_02/pavement_02_arm_4k.jpg",
+          "md5": "5a433317ed71b268eb1c743674766c95",
+          "bytes": 17174734,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.ground.cobblestone.alley",
+      "kind": "material",
+      "name": "Cobblestone Floor 08",
+      "provider": "polyhaven",
+      "providerAssetId": "cobblestone_floor_08",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/cobblestone_floor_08",
+        "attributionUrl": "https://polyhaven.com/a/cobblestone_floor_08",
+        "year": 2020
+      },
+      "sourceUrl": "https://polyhaven.com/a/cobblestone_floor_08",
+      "tags": ["z-city", "alley", "ground", "tileable"],
+      "preload": false,
+      "description": "Free 8K cobblestone texture: smooth, worn rectangular stones with rounded edges, dirt-filled joints and patches of green moss, muted grey-beige tones and subtle wear sheen.",
+      "tileSizeMeters": 2,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.ground.cobblestone.alley",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.ground.cobblestone.alley.albedo",
+        "normalMapKey": "mat.ground.cobblestone.alley.normal",
+        "ormMapKey": "mat.ground.cobblestone.alley.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.ground.cobblestone.alley.albedo",
+        "normal": "mat.ground.cobblestone.alley.normal",
+        "orm": "mat.ground.cobblestone.alley.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/cobblestone_floor_08/cobblestone_floor_08_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/cobblestone_floor_08/cobblestone_floor_08_diff_4k.jpg",
+          "md5": "af2a0e9b91b4f544c4eab44a8bc1c354",
+          "bytes": 7857231,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/cobblestone_floor_08/cobblestone_floor_08_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/cobblestone_floor_08/cobblestone_floor_08_nor_gl_4k.jpg",
+          "md5": "149e98bdaa640bb26f271f4725635a52",
+          "bytes": 14731782,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/cobblestone_floor_08/cobblestone_floor_08_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/cobblestone_floor_08/cobblestone_floor_08_arm_4k.jpg",
+          "md5": "e81989b6f1dfbbb4a538313df44e9b7c",
+          "bytes": 3185723,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.ground.plaza.tiles",
+      "kind": "material",
+      "name": "Large Floor Tiles 02",
+      "provider": "polyhaven",
+      "providerAssetId": "large_floor_tiles_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/large_floor_tiles_02",
+        "attributionUrl": "https://polyhaven.com/a/large_floor_tiles_02",
+        "year": 2019
+      },
+      "sourceUrl": "https://polyhaven.com/a/large_floor_tiles_02",
+      "tags": ["z-city", "plaza", "ground", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of large square concrete floor tiles, matte and weathered with recessed grout, subtle surface roughness, dirt, and worn edges.",
+      "tileSizeMeters": 3,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.ground.plaza.tiles",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.ground.plaza.tiles.albedo",
+        "normalMapKey": "mat.ground.plaza.tiles.normal",
+        "ormMapKey": "mat.ground.plaza.tiles.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.ground.plaza.tiles.albedo",
+        "normal": "mat.ground.plaza.tiles.normal",
+        "orm": "mat.ground.plaza.tiles.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/large_floor_tiles_02/large_floor_tiles_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/large_floor_tiles_02/large_floor_tiles_02_diff_4k.jpg",
+          "md5": "120566f1e895f7fd1dc2dd05584a29d4",
+          "bytes": 9422099,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/large_floor_tiles_02/large_floor_tiles_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/large_floor_tiles_02/large_floor_tiles_02_nor_gl_4k.jpg",
+          "md5": "0fa0f823544786f239dd85b8e5e68f52",
+          "bytes": 4505749,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/large_floor_tiles_02/large_floor_tiles_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/large_floor_tiles_02/large_floor_tiles_02_arm_4k.jpg",
+          "md5": "88021adbe63cfe8239ddb3b50ec3c281",
+          "bytes": 3897683,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.concrete.dirty",
+      "kind": "material",
+      "name": "Concrete Wall 003",
+      "provider": "polyhaven",
+      "providerAssetId": "concrete_wall_003",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva, Rico Cilliers",
+        "sourceUrl": "https://polyhaven.com/a/concrete_wall_003",
+        "attributionUrl": "https://polyhaven.com/a/concrete_wall_003",
+        "year": 2021
+      },
+      "sourceUrl": "https://polyhaven.com/a/concrete_wall_003",
+      "tags": ["z-city", "wall", "building", "tileable"],
+      "preload": true,
+      "description": "Free 16K texture of a worn painted concrete wall: rough plaster surface with yellow-white discoloration, cracks, chips, scratches and weathered dirt.",
+      "tileSizeMeters": 3,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.wall.concrete.dirty",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.concrete.dirty.albedo",
+        "normalMapKey": "mat.wall.concrete.dirty.normal",
+        "ormMapKey": "mat.wall.concrete.dirty.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.concrete.dirty.albedo",
+        "normal": "mat.wall.concrete.dirty.normal",
+        "orm": "mat.wall.concrete.dirty.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/concrete_wall_003/concrete_wall_003_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_wall_003/concrete_wall_003_diff_4k.jpg",
+          "md5": "4a0e2fa5a96db003954a59398371204d",
+          "bytes": 4314531,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_wall_003/concrete_wall_003_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_wall_003/concrete_wall_003_nor_gl_4k.jpg",
+          "md5": "7f2a962c837920d936694587ac9505b3",
+          "bytes": 3940745,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_wall_003/concrete_wall_003_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_wall_003/concrete_wall_003_arm_4k.jpg",
+          "md5": "e7a7103c8837712d104cb4606cf8abae",
+          "bytes": 3383720,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.concrete.plain",
+      "kind": "material",
+      "name": "Concrete Wall 007",
+      "provider": "polyhaven",
+      "providerAssetId": "concrete_wall_007",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dario Barresi, Rico Cilliers, Charlotte Baglioni",
+        "sourceUrl": "https://polyhaven.com/a/concrete_wall_007",
+        "attributionUrl": "https://polyhaven.com/a/concrete_wall_007",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/concrete_wall_007",
+      "tags": ["z-city", "wall", "building", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of weathered concrete wall with plaster patches: rough, pitted surface, horizontal formboard lines, cracks, chips, stains and dirty grey tones.",
+      "tileSizeMeters": 2.16,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.wall.concrete.plain",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.concrete.plain.albedo",
+        "normalMapKey": "mat.wall.concrete.plain.normal",
+        "ormMapKey": "mat.wall.concrete.plain.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.concrete.plain.albedo",
+        "normal": "mat.wall.concrete.plain.normal",
+        "orm": "mat.wall.concrete.plain.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/concrete_wall_007/concrete_wall_007_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_wall_007/concrete_wall_007_diff_4k.jpg",
+          "md5": "760c5be734f7c9655a893ebbd5cbcbe2",
+          "bytes": 13202982,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_wall_007/concrete_wall_007_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_wall_007/concrete_wall_007_nor_gl_4k.jpg",
+          "md5": "8861de1b2df5bd212f192e023be1383d",
+          "bytes": 9476659,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_wall_007/concrete_wall_007_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_wall_007/concrete_wall_007_arm_4k.jpg",
+          "md5": "5b8bf36a7374024ba9b56b7b8dfe3df5",
+          "bytes": 11582367,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.concrete.cracked",
+      "kind": "material",
+      "name": "Cracked Concrete Wall",
+      "provider": "polyhaven",
+      "providerAssetId": "cracked_concrete_wall",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva, Rico Cilliers",
+        "sourceUrl": "https://polyhaven.com/a/cracked_concrete_wall",
+        "attributionUrl": "https://polyhaven.com/a/cracked_concrete_wall",
+        "year": 2022
+      },
+      "sourceUrl": "https://polyhaven.com/a/cracked_concrete_wall",
+      "tags": ["z-city", "wall", "destruction", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of a weathered beige concrete/plaster wall with rough, cracked and chipped surface, dry discoloration, stains and gritty dirt.",
+      "tileSizeMeters": 1,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.wall.concrete.cracked",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.concrete.cracked.albedo",
+        "normalMapKey": "mat.wall.concrete.cracked.normal",
+        "ormMapKey": "mat.wall.concrete.cracked.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.concrete.cracked.albedo",
+        "normal": "mat.wall.concrete.cracked.normal",
+        "orm": "mat.wall.concrete.cracked.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/cracked_concrete_wall/cracked_concrete_wall_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/cracked_concrete_wall/cracked_concrete_wall_diff_4k.jpg",
+          "md5": "af1aaf03c04db4a030ef2c36093f2da1",
+          "bytes": 16804282,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/cracked_concrete_wall/cracked_concrete_wall_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/cracked_concrete_wall/cracked_concrete_wall_nor_gl_4k.jpg",
+          "md5": "6ac07c353be050b32e79736102c8f42f",
+          "bytes": 14978896,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/cracked_concrete_wall/cracked_concrete_wall_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/cracked_concrete_wall/cracked_concrete_wall_arm_4k.jpg",
+          "md5": "527f9ad0f7fb61c6ccb8ad76a1caf052",
+          "bytes": 12190120,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.concrete.layers",
+      "kind": "material",
+      "name": "Concrete Layers 02",
+      "provider": "polyhaven",
+      "providerAssetId": "concrete_layers_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/concrete_layers_02",
+        "attributionUrl": "https://polyhaven.com/a/concrete_layers_02",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/concrete_layers_02",
+      "tags": ["z-city", "wall", "building", "tileable"],
+      "preload": false,
+      "description": "Free 16K concrete texture showing rough, weathered grey plaster with chipped layers, cracks, stains and dry dirt streaks; board lines and surface pitting.",
+      "tileSizeMeters": 2,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.wall.concrete.layers",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.concrete.layers.albedo",
+        "normalMapKey": "mat.wall.concrete.layers.normal",
+        "ormMapKey": "mat.wall.concrete.layers.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.concrete.layers.albedo",
+        "normal": "mat.wall.concrete.layers.normal",
+        "orm": "mat.wall.concrete.layers.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/concrete_layers_02/concrete_layers_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_layers_02/concrete_layers_02_diff_4k.jpg",
+          "md5": "ea922d4610e96db99da12d915c6ad5f0",
+          "bytes": 10675943,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_layers_02/concrete_layers_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_layers_02/concrete_layers_02_nor_gl_4k.jpg",
+          "md5": "2f2d3cf99d7e67333ffd7f4ac74eaa13",
+          "bytes": 14261682,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/concrete_layers_02/concrete_layers_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/concrete_layers_02/concrete_layers_02_arm_4k.jpg",
+          "md5": "002f3b310386858f044faef797905a53",
+          "bytes": 9337185,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.concrete.painted",
+      "kind": "material",
+      "name": "Painted Concrete 02",
+      "provider": "polyhaven",
+      "providerAssetId": "painted_concrete_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/painted_concrete_02",
+        "attributionUrl": "https://polyhaven.com/a/painted_concrete_02",
+        "year": 2024
+      },
+      "sourceUrl": "https://polyhaven.com/a/painted_concrete_02",
+      "tags": ["z-city", "wall", "building", "tileable"],
+      "preload": false,
+      "description": "Free 16K texture of painted concrete: dark matte, weatherbeaten paint over rough cement with fine scratches, scuffs, small pits and subtle surface variation.",
+      "tileSizeMeters": 4,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.wall.concrete.painted",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.concrete.painted.albedo",
+        "normalMapKey": "mat.wall.concrete.painted.normal",
+        "ormMapKey": "mat.wall.concrete.painted.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.concrete.painted.albedo",
+        "normal": "mat.wall.concrete.painted.normal",
+        "orm": "mat.wall.concrete.painted.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/painted_concrete_02/painted_concrete_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/painted_concrete_02/painted_concrete_02_diff_4k.jpg",
+          "md5": "9e7d1135a5b797300dc61b446aa37aa3",
+          "bytes": 9033505,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/painted_concrete_02/painted_concrete_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/painted_concrete_02/painted_concrete_02_nor_gl_4k.jpg",
+          "md5": "5b6c989b246b65d3034a192cdc894e1e",
+          "bytes": 12960126,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/painted_concrete_02/painted_concrete_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/painted_concrete_02/painted_concrete_02_arm_4k.jpg",
+          "md5": "96bb025e8c828a7f6f780bef0c4cf0af",
+          "bytes": 13878235,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.brick.red",
+      "kind": "material",
+      "name": "Red Brick 03",
+      "provider": "polyhaven",
+      "providerAssetId": "red_brick_03",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/red_brick_03",
+        "attributionUrl": "https://polyhaven.com/a/red_brick_03",
+        "year": 2018
+      },
+      "sourceUrl": "https://polyhaven.com/a/red_brick_03",
+      "tags": ["z-city", "wall", "brick", "building", "tileable"],
+      "preload": true,
+      "description": "Free 8K red brick texture with weathered industrial bricks, rough matte surface, defined mortar joints, slight soot and brownish color variation.",
+      "tileSizeMeters": 1,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.wall.brick.red",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.brick.red.albedo",
+        "normalMapKey": "mat.wall.brick.red.normal",
+        "ormMapKey": "mat.wall.brick.red.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.brick.red.albedo",
+        "normal": "mat.wall.brick.red.normal",
+        "orm": "mat.wall.brick.red.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/red_brick_03/red_brick_03_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/red_brick_03/red_brick_03_diff_4k.jpg",
+          "md5": "0c257e296a367319d81600490626d0f5",
+          "bytes": 11437615,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/red_brick_03/red_brick_03_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/red_brick_03/red_brick_03_nor_gl_4k.jpg",
+          "md5": "6dada14dc227b6593f4c2b78d16a1a59",
+          "bytes": 11123969,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/red_brick_03/red_brick_03_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/red_brick_03/red_brick_03_arm_4k.jpg",
+          "md5": "09771801637d6acabe5406497c6edf4f",
+          "bytes": 2967975,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.brick.weathered",
+      "kind": "material",
+      "name": "Brick Wall 006",
+      "provider": "polyhaven",
+      "providerAssetId": "brick_wall_006",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Jan Burghardt",
+        "sourceUrl": "https://polyhaven.com/a/brick_wall_006",
+        "attributionUrl": "https://polyhaven.com/a/brick_wall_006",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/brick_wall_006",
+      "tags": ["z-city", "wall", "brick", "building", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of a weathered red brick wall: chipped, cracked and uneven bricks with dry, rough surfaces and discolored, scratched mortar.",
+      "tileSizeMeters": 3,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.wall.brick.weathered",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.brick.weathered.albedo",
+        "normalMapKey": "mat.wall.brick.weathered.normal",
+        "ormMapKey": "mat.wall.brick.weathered.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.brick.weathered.albedo",
+        "normal": "mat.wall.brick.weathered.normal",
+        "orm": "mat.wall.brick.weathered.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/brick_wall_006/brick_wall_006_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/brick_wall_006/brick_wall_006_diff_4k.jpg",
+          "md5": "723df02d64dc7c48c97c641111de0f10",
+          "bytes": 15851748,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/brick_wall_006/brick_wall_006_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/brick_wall_006/brick_wall_006_nor_gl_4k.jpg",
+          "md5": "d596f26721a124eb2b1f5d8dd38c2263",
+          "bytes": 10182572,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/brick_wall_006/brick_wall_006_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/brick_wall_006/brick_wall_006_arm_4k.jpg",
+          "md5": "65b6a0b0ad4df1caf17d9c8539f31cfe",
+          "bytes": 8904127,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.brick.broken",
+      "kind": "material",
+      "name": "Broken Brick Wall",
+      "provider": "polyhaven",
+      "providerAssetId": "broken_brick_wall",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Amal Kumar",
+        "sourceUrl": "https://polyhaven.com/a/broken_brick_wall",
+        "attributionUrl": "https://polyhaven.com/a/broken_brick_wall",
+        "year": 2025
+      },
+      "sourceUrl": "https://polyhaven.com/a/broken_brick_wall",
+      "tags": ["z-city", "wall", "brick", "destruction", "tileable"],
+      "preload": false,
+      "description": "Free 16K texture of a broken red brick wall: crumbling, timeworn bricks with rough, chipped surfaces, recessed mortar joints and dark weathered staining.",
+      "tileSizeMeters": 1.8,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.wall.brick.broken",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.brick.broken.albedo",
+        "normalMapKey": "mat.wall.brick.broken.normal",
+        "ormMapKey": "mat.wall.brick.broken.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.brick.broken.albedo",
+        "normal": "mat.wall.brick.broken.normal",
+        "orm": "mat.wall.brick.broken.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/broken_brick_wall/broken_brick_wall_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/broken_brick_wall/broken_brick_wall_diff_4k.jpg",
+          "md5": "2558d9f8d0306166549e50a7c6a46ff1",
+          "bytes": 11959324,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/broken_brick_wall/broken_brick_wall_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/broken_brick_wall/broken_brick_wall_nor_gl_4k.jpg",
+          "md5": "e6dc9023aa5a5ae13740c5bed0bda727",
+          "bytes": 15859000,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/broken_brick_wall/broken_brick_wall_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/broken_brick_wall/broken_brick_wall_arm_4k.jpg",
+          "md5": "e20f16e944f84ef3a7dff4ca044ccffc",
+          "bytes": 8513208,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.plaster.beige",
+      "kind": "material",
+      "name": "Beige Wall 001",
+      "provider": "polyhaven",
+      "providerAssetId": "beige_wall_001",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva, Rico Cilliers",
+        "sourceUrl": "https://polyhaven.com/a/beige_wall_001",
+        "attributionUrl": "https://polyhaven.com/a/beige_wall_001",
+        "year": 2021
+      },
+      "sourceUrl": "https://polyhaven.com/a/beige_wall_001",
+      "tags": ["z-city", "wall", "plaster", "building", "tileable"],
+      "preload": true,
+      "description": "Free 16K texture of smooth beige painted plaster with subtle grain and a matte finish, showing soft color variation and surface blemishes.",
+      "tileSizeMeters": 3,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.wall.plaster.beige",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.plaster.beige.albedo",
+        "normalMapKey": "mat.wall.plaster.beige.normal",
+        "ormMapKey": "mat.wall.plaster.beige.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.plaster.beige.albedo",
+        "normal": "mat.wall.plaster.beige.normal",
+        "orm": "mat.wall.plaster.beige.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/beige_wall_001/beige_wall_001_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/beige_wall_001/beige_wall_001_diff_4k.jpg",
+          "md5": "626521ffbdb51ec8bb35b089b22d2e84",
+          "bytes": 1103790,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/beige_wall_001/beige_wall_001_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/beige_wall_001/beige_wall_001_nor_gl_4k.jpg",
+          "md5": "42c3e5549ab9abd76e2fa0351a812455",
+          "bytes": 3386993,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/beige_wall_001/beige_wall_001_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/beige_wall_001/beige_wall_001_arm_4k.jpg",
+          "md5": "9f340f882a53794201c821620edce48c",
+          "bytes": 1829770,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.plaster.white",
+      "kind": "material",
+      "name": "White Plaster 02",
+      "provider": "polyhaven",
+      "providerAssetId": "white_plaster_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/white_plaster_02",
+        "attributionUrl": "https://polyhaven.com/a/white_plaster_02",
+        "year": 2018
+      },
+      "sourceUrl": "https://polyhaven.com/a/white_plaster_02",
+      "tags": ["z-city", "wall", "plaster", "building", "tileable"],
+      "preload": false,
+      "description": "Free 8K plaster texture: smooth, flat white plaster with a soft matte finish, fine micro-roughness and subtle dirt speckling across the surface.",
+      "tileSizeMeters": 1,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.wall.plaster.white",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.plaster.white.albedo",
+        "normalMapKey": "mat.wall.plaster.white.normal",
+        "ormMapKey": "mat.wall.plaster.white.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.plaster.white.albedo",
+        "normal": "mat.wall.plaster.white.normal",
+        "orm": "mat.wall.plaster.white.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/white_plaster_02/white_plaster_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/white_plaster_02/white_plaster_02_diff_4k.jpg",
+          "md5": "29028c8a2e961c5d3527e54bebb0ece4",
+          "bytes": 10554018,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/white_plaster_02/white_plaster_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/white_plaster_02/white_plaster_02_nor_gl_4k.jpg",
+          "md5": "9668d08922d25d7d6bf81e7fb34fac8e",
+          "bytes": 13443163,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/white_plaster_02/white_plaster_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/white_plaster_02/white_plaster_02_arm_4k.jpg",
+          "md5": "c79427869908973e5a054e9d0f9ba5bf",
+          "bytes": 3971894,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wall.plaster.broken",
+      "kind": "material",
+      "name": "Rough Plaster Broken",
+      "provider": "polyhaven",
+      "providerAssetId": "rough_plaster_broken",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/rough_plaster_broken",
+        "attributionUrl": "https://polyhaven.com/a/rough_plaster_broken",
+        "year": 2018
+      },
+      "sourceUrl": "https://polyhaven.com/a/rough_plaster_broken",
+      "tags": ["z-city", "wall", "plaster", "destruction", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of rough, weathered brown plaster - uneven, peeling patches over cement, scratched and dirty with pronounced chipped and damaged surface detail.",
+      "tileSizeMeters": 1.5,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.wall.plaster.broken",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wall.plaster.broken.albedo",
+        "normalMapKey": "mat.wall.plaster.broken.normal",
+        "ormMapKey": "mat.wall.plaster.broken.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wall.plaster.broken.albedo",
+        "normal": "mat.wall.plaster.broken.normal",
+        "orm": "mat.wall.plaster.broken.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/rough_plaster_broken/rough_plaster_broken_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rough_plaster_broken/rough_plaster_broken_diff_4k.jpg",
+          "md5": "4c53d9070ac2c71e91555aca6c4f0c48",
+          "bytes": 10280564,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/rough_plaster_broken/rough_plaster_broken_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rough_plaster_broken/rough_plaster_broken_nor_gl_4k.jpg",
+          "md5": "364837d6c6e49450f694c50590acfcfb",
+          "bytes": 3636174,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/rough_plaster_broken/rough_plaster_broken_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rough_plaster_broken/rough_plaster_broken_arm_4k.jpg",
+          "md5": "25dc89f73aebc401c5e16ed0056b671e",
+          "bytes": 4814393,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.rust.fine",
+      "kind": "material",
+      "name": "Rusty Metal 02",
+      "provider": "polyhaven",
+      "providerAssetId": "rusty_metal_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/rusty_metal_02",
+        "attributionUrl": "https://polyhaven.com/a/rusty_metal_02",
+        "year": 2018
+      },
+      "sourceUrl": "https://polyhaven.com/a/rusty_metal_02",
+      "tags": ["z-city", "metal", "industrial", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of weathered painted metal with orange-brown rust speckles, flaking paint, subtle pitting and a rough, slightly matte finish.",
+      "tileSizeMeters": 1,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.metal.rust.fine",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.rust.fine.albedo",
+        "normalMapKey": "mat.metal.rust.fine.normal",
+        "ormMapKey": "mat.metal.rust.fine.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.rust.fine.albedo",
+        "normal": "mat.metal.rust.fine.normal",
+        "orm": "mat.metal.rust.fine.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/rusty_metal_02/rusty_metal_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rusty_metal_02/rusty_metal_02_diff_4k.jpg",
+          "md5": "6a91641fad92a869d9c262837169f84a",
+          "bytes": 6794718,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/rusty_metal_02/rusty_metal_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rusty_metal_02/rusty_metal_02_nor_gl_4k.jpg",
+          "md5": "e7fb5ed66d0901cc2ed0eaf6fd11991b",
+          "bytes": 3569260,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/rusty_metal_02/rusty_metal_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rusty_metal_02/rusty_metal_02_arm_4k.jpg",
+          "md5": "f6dd623552e2ca66bd1618b86644b1a5",
+          "bytes": 3648302,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.rust.coarse",
+      "kind": "material",
+      "name": "Rust Coarse 01",
+      "provider": "polyhaven",
+      "providerAssetId": "rust_coarse_01",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva, Rico Cilliers",
+        "sourceUrl": "https://polyhaven.com/a/rust_coarse_01",
+        "attributionUrl": "https://polyhaven.com/a/rust_coarse_01",
+        "year": 2021
+      },
+      "sourceUrl": "https://polyhaven.com/a/rust_coarse_01",
+      "tags": ["z-city", "metal", "industrial", "tileable"],
+      "preload": false,
+      "description": "Free 16K texture of coarse, weathered rust - red-brown stained, pitted and gritty iron/steel with a rough, grungy surface and subtle scuffs.",
+      "tileSizeMeters": 2.2,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.metal.rust.coarse",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.rust.coarse.albedo",
+        "normalMapKey": "mat.metal.rust.coarse.normal",
+        "ormMapKey": "mat.metal.rust.coarse.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.rust.coarse.albedo",
+        "normal": "mat.metal.rust.coarse.normal",
+        "orm": "mat.metal.rust.coarse.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/rust_coarse_01/rust_coarse_01_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rust_coarse_01/rust_coarse_01_diff_4k.jpg",
+          "md5": "db56905cc140ab087a49f3e1ae2ae496",
+          "bytes": 13786098,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/rust_coarse_01/rust_coarse_01_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rust_coarse_01/rust_coarse_01_nor_gl_4k.jpg",
+          "md5": "a819ed9452294462f3eb0ef209a9f12b",
+          "bytes": 15951464,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/rust_coarse_01/rust_coarse_01_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/rust_coarse_01/rust_coarse_01_arm_4k.jpg",
+          "md5": "6283d391940ffb4589b7ba7d51bd082d",
+          "bytes": 13944752,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.corrugated",
+      "kind": "material",
+      "name": "Corrugated Iron",
+      "provider": "polyhaven",
+      "providerAssetId": "corrugated_iron",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Jenelle van Heerden, Dimitrios Savva",
+        "sourceUrl": "https://polyhaven.com/a/corrugated_iron",
+        "attributionUrl": "https://polyhaven.com/a/corrugated_iron",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/corrugated_iron",
+      "tags": ["z-city", "metal", "roof", "industrial", "tileable"],
+      "preload": false,
+      "description": "Free 16K corrugated iron texture - weathered galvanized steel roofing with deep ridges, subtle rust, gritty surface, metallic sheen for roofs/walls.",
+      "tileSizeMeters": 1.12,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.metal.corrugated",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.corrugated.albedo",
+        "normalMapKey": "mat.metal.corrugated.normal",
+        "ormMapKey": "mat.metal.corrugated.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.corrugated.albedo",
+        "normal": "mat.metal.corrugated.normal",
+        "orm": "mat.metal.corrugated.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/corrugated_iron/corrugated_iron_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/corrugated_iron/corrugated_iron_diff_4k.jpg",
+          "md5": "d8d7e0e9874d1bd1294e5030afdd7b75",
+          "bytes": 8533000,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/corrugated_iron/corrugated_iron_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/corrugated_iron/corrugated_iron_nor_gl_4k.jpg",
+          "md5": "bd86e7661b0acfde61f6f53825a505ee",
+          "bytes": 14393488,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/corrugated_iron/corrugated_iron_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/corrugated_iron/corrugated_iron_arm_4k.jpg",
+          "md5": "8f7fa2376e8694e6564b5a8befe1a3ab",
+          "bytes": 6463877,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.corrugated.worn",
+      "kind": "material",
+      "name": "Worn Corrugated Iron",
+      "provider": "polyhaven",
+      "providerAssetId": "worn_corrugated_iron",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Jenelle van Heerden, Dimitrios Savva",
+        "sourceUrl": "https://polyhaven.com/a/worn_corrugated_iron",
+        "attributionUrl": "https://polyhaven.com/a/worn_corrugated_iron",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/worn_corrugated_iron",
+      "tags": ["z-city", "metal", "roof", "industrial", "tileable"],
+      "preload": false,
+      "description": "Free 16K material: worn corrugated iron with rough, weathered surface, peeling and cracked paint, chipped galvanized steel and realistic metallic roofing corrugation.",
+      "tileSizeMeters": 1.8,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.metal.corrugated.worn",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.corrugated.worn.albedo",
+        "normalMapKey": "mat.metal.corrugated.worn.normal",
+        "ormMapKey": "mat.metal.corrugated.worn.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.corrugated.worn.albedo",
+        "normal": "mat.metal.corrugated.worn.normal",
+        "orm": "mat.metal.corrugated.worn.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/worn_corrugated_iron/worn_corrugated_iron_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/worn_corrugated_iron/worn_corrugated_iron_diff_4k.jpg",
+          "md5": "bcd0d751c0e63b4be949e1aafc3f3737",
+          "bytes": 11758690,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/worn_corrugated_iron/worn_corrugated_iron_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/worn_corrugated_iron/worn_corrugated_iron_nor_gl_4k.jpg",
+          "md5": "376c87f6db06492d952e232d041f8726",
+          "bytes": 17043043,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/worn_corrugated_iron/worn_corrugated_iron_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/worn_corrugated_iron/worn_corrugated_iron_arm_4k.jpg",
+          "md5": "65d189bfb08ca7d2b3e6b487d030a7eb",
+          "bytes": 11520347,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.shutter.painted",
+      "kind": "material",
+      "name": "Painted Metal Shutter",
+      "provider": "polyhaven",
+      "providerAssetId": "painted_metal_shutter",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dario Barresi, Rico Cilliers, Charlotte Baglioni",
+        "sourceUrl": "https://polyhaven.com/a/painted_metal_shutter",
+        "attributionUrl": "https://polyhaven.com/a/painted_metal_shutter",
+        "year": 2022
+      },
+      "sourceUrl": "https://polyhaven.com/a/painted_metal_shutter",
+      "tags": ["z-city", "metal", "shopfront", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of a painted corrugated metal shutter, weathered and worn with scratches, dirt, stains and subtle discoloration across ridged painted metal.",
+      "tileSizeMeters": 2,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.metal.shutter.painted",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.shutter.painted.albedo",
+        "normalMapKey": "mat.metal.shutter.painted.normal",
+        "ormMapKey": "mat.metal.shutter.painted.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.shutter.painted.albedo",
+        "normal": "mat.metal.shutter.painted.normal",
+        "orm": "mat.metal.shutter.painted.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/painted_metal_shutter/painted_metal_shutter_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/painted_metal_shutter/painted_metal_shutter_diff_4k.jpg",
+          "md5": "368eea07dd65e67356da570127a76584",
+          "bytes": 9072625,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/painted_metal_shutter/painted_metal_shutter_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/painted_metal_shutter/painted_metal_shutter_nor_gl_4k.jpg",
+          "md5": "8b45fe8d521647859dd0d61fb7d459ad",
+          "bytes": 12037178,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/painted_metal_shutter/painted_metal_shutter_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/painted_metal_shutter/painted_metal_shutter_arm_4k.jpg",
+          "md5": "bfcc7c82cd568873d1193a63d2d30d92",
+          "bytes": 10095668,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.plate.industrial",
+      "kind": "material",
+      "name": "Metal Plate",
+      "provider": "polyhaven",
+      "providerAssetId": "metal_plate",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/metal_plate",
+        "attributionUrl": "https://polyhaven.com/a/metal_plate",
+        "year": 2018
+      },
+      "sourceUrl": "https://polyhaven.com/a/metal_plate",
+      "tags": ["z-city", "metal", "industrial", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of worn diamond-plate steel with chipped green paint, rust, pitting and dark oily highlights. Rough, dirty industrial metal surface.",
+      "tileSizeMeters": 0.5,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.metal.plate.industrial",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.plate.industrial.albedo",
+        "normalMapKey": "mat.metal.plate.industrial.normal",
+        "ormMapKey": "mat.metal.plate.industrial.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.plate.industrial.albedo",
+        "normal": "mat.metal.plate.industrial.normal",
+        "orm": "mat.metal.plate.industrial.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/metal_plate/metal_plate_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/metal_plate/metal_plate_diff_4k.jpg",
+          "md5": "4d1ed5c168014dab33fe21e42feb3ebe",
+          "bytes": 9734135,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/metal_plate/metal_plate_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/metal_plate/metal_plate_nor_gl_4k.jpg",
+          "md5": "68556e8b215cf5b0a02d1ccc8e9b4225",
+          "bytes": 7515712,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/metal_plate/metal_plate_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/metal_plate/metal_plate_arm_4k.jpg",
+          "md5": "1c6e43bd9cc6e202f997057b849c3b6f",
+          "bytes": 15540661,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.panel.factory",
+      "kind": "material",
+      "name": "Factory Wall",
+      "provider": "polyhaven",
+      "providerAssetId": "factory_wall",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/factory_wall",
+        "attributionUrl": "https://polyhaven.com/a/factory_wall",
+        "year": 2019
+      },
+      "sourceUrl": "https://polyhaven.com/a/factory_wall",
+      "tags": ["z-city", "metal", "wall", "industrial", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture: green corrugated metal wall with painted finish, subtle weathering, fine scratches and rivets, soft specular sheen and moderate roughness.",
+      "tileSizeMeters": 3,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.metal.panel.factory",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.panel.factory.albedo",
+        "normalMapKey": "mat.metal.panel.factory.normal",
+        "ormMapKey": "mat.metal.panel.factory.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.panel.factory.albedo",
+        "normal": "mat.metal.panel.factory.normal",
+        "orm": "mat.metal.panel.factory.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/factory_wall/factory_wall_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/factory_wall/factory_wall_diff_4k.jpg",
+          "md5": "d73641ac4a0499ec2b75e52782f2ea85",
+          "bytes": 4123366,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/factory_wall/factory_wall_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/factory_wall/factory_wall_nor_gl_4k.jpg",
+          "md5": "b14a06115f5ca135cb3ec2175d5e331c",
+          "bytes": 1940506,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/factory_wall/factory_wall_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/factory_wall/factory_wall_arm_4k.jpg",
+          "md5": "bc97a584c9a4a38e8c841db7a3abf4cc",
+          "bytes": 3297562,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.grate.rusty",
+      "kind": "material",
+      "name": "Metal Grate Rusty",
+      "provider": "polyhaven",
+      "providerAssetId": "metal_grate_rusty",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel, Dimitrios Savva",
+        "sourceUrl": "https://polyhaven.com/a/metal_grate_rusty",
+        "attributionUrl": "https://polyhaven.com/a/metal_grate_rusty",
+        "year": 2022
+      },
+      "sourceUrl": "https://polyhaven.com/a/metal_grate_rusty",
+      "tags": ["z-city", "metal", "drain", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of a rusty metal grate, with raised tread pattern, pitted, rough iron, orange-brown corrosion and darker crevice grime.",
+      "tileSizeMeters": 0.5,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.metal.grate.rusty",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.grate.rusty.albedo",
+        "normalMapKey": "mat.metal.grate.rusty.normal",
+        "ormMapKey": "mat.metal.grate.rusty.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.grate.rusty.albedo",
+        "normal": "mat.metal.grate.rusty.normal",
+        "orm": "mat.metal.grate.rusty.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/metal_grate_rusty/metal_grate_rusty_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/metal_grate_rusty/metal_grate_rusty_diff_4k.jpg",
+          "md5": "1c283b8d541b2e0680bf5d10bc50836d",
+          "bytes": 13965915,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/metal_grate_rusty/metal_grate_rusty_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/metal_grate_rusty/metal_grate_rusty_nor_gl_4k.jpg",
+          "md5": "ce4006c9a767fb78fae4bc8bfa91822f",
+          "bytes": 10391996,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/metal_grate_rusty/metal_grate_rusty_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/metal_grate_rusty/metal_grate_rusty_arm_4k.jpg",
+          "md5": "cbb214cc137bda086cb5a5443d332835",
+          "bytes": 15769620,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.metal.container.side",
+      "kind": "material",
+      "name": "Container Side",
+      "provider": "polyhaven",
+      "providerAssetId": "container_side",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva",
+        "sourceUrl": "https://polyhaven.com/a/container_side",
+        "attributionUrl": "https://polyhaven.com/a/container_side",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/container_side",
+      "tags": ["z-city", "metal", "industrial", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of green corrugated metal container side, worn, chipped paint with subtle dents, scratches and light grime on an industrial, battered surface.",
+      "tileSizeMeters": 1.94,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.metal.container.side",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.metal.container.side.albedo",
+        "normalMapKey": "mat.metal.container.side.normal",
+        "ormMapKey": "mat.metal.container.side.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.metal.container.side.albedo",
+        "normal": "mat.metal.container.side.normal",
+        "orm": "mat.metal.container.side.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/container_side/container_side_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/container_side/container_side_diff_4k.jpg",
+          "md5": "1f17d787392f5fffaa69e408ac3b7545",
+          "bytes": 6399564,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/container_side/container_side_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/container_side/container_side_nor_gl_4k.jpg",
+          "md5": "a41f51b80eca701d71685fd3002e898a",
+          "bytes": 12739590,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/container_side/container_side_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/container_side/container_side_arm_4k.jpg",
+          "md5": "da8bcb2280f3c9af04bd1524745885ea",
+          "bytes": 9014766,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.roof.tiles.grey",
+      "kind": "material",
+      "name": "Grey Roof Tiles 02",
+      "provider": "polyhaven",
+      "providerAssetId": "grey_roof_tiles_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/grey_roof_tiles_02",
+        "attributionUrl": "https://polyhaven.com/a/grey_roof_tiles_02",
+        "year": 2019
+      },
+      "sourceUrl": "https://polyhaven.com/a/grey_roof_tiles_02",
+      "tags": ["z-city", "roof", "building", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of weathered grey slate roof tiles with moss and lichen in seams, chipped rough surfaces and subtle storm clips and fastening details.",
+      "tileSizeMeters": 1.5,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.roof.tiles.grey",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.roof.tiles.grey.albedo",
+        "normalMapKey": "mat.roof.tiles.grey.normal",
+        "ormMapKey": "mat.roof.tiles.grey.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.roof.tiles.grey.albedo",
+        "normal": "mat.roof.tiles.grey.normal",
+        "orm": "mat.roof.tiles.grey.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/grey_roof_tiles_02/grey_roof_tiles_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/grey_roof_tiles_02/grey_roof_tiles_02_diff_4k.jpg",
+          "md5": "00a97e062d7cbd8c11af0e323224958e",
+          "bytes": 5795946,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/grey_roof_tiles_02/grey_roof_tiles_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/grey_roof_tiles_02/grey_roof_tiles_02_nor_gl_4k.jpg",
+          "md5": "dfb0e6a4590687f07732235e6b179655",
+          "bytes": 12012895,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/grey_roof_tiles_02/grey_roof_tiles_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/grey_roof_tiles_02/grey_roof_tiles_02_arm_4k.jpg",
+          "md5": "ff67c159e0f46d0826538b4716ee0afd",
+          "bytes": 2950980,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.roof.tiles.ceramic",
+      "kind": "material",
+      "name": "Ceramic Roof 01",
+      "provider": "polyhaven",
+      "providerAssetId": "ceramic_roof_01",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/ceramic_roof_01",
+        "attributionUrl": "https://polyhaven.com/a/ceramic_roof_01",
+        "year": 2020
+      },
+      "sourceUrl": "https://polyhaven.com/a/ceramic_roof_01",
+      "tags": ["z-city", "roof", "building", "tileable"],
+      "preload": false,
+      "description": "Free 8K material. Weathered ceramic roof tiles with chipped orange-red glaze, green moss patches, dirt-filled seams and subtle surface roughness.",
+      "tileSizeMeters": 3.5,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.roof.tiles.ceramic",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.roof.tiles.ceramic.albedo",
+        "normalMapKey": "mat.roof.tiles.ceramic.normal",
+        "ormMapKey": "mat.roof.tiles.ceramic.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.roof.tiles.ceramic.albedo",
+        "normal": "mat.roof.tiles.ceramic.normal",
+        "orm": "mat.roof.tiles.ceramic.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/ceramic_roof_01/ceramic_roof_01_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/ceramic_roof_01/ceramic_roof_01_diff_4k.jpg",
+          "md5": "25fbc25e109b484e94edac9166626a41",
+          "bytes": 5014101,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/ceramic_roof_01/ceramic_roof_01_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/ceramic_roof_01/ceramic_roof_01_nor_gl_4k.jpg",
+          "md5": "b524a0406cae09ed58798622743b529b",
+          "bytes": 7302956,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/ceramic_roof_01/ceramic_roof_01_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/ceramic_roof_01/ceramic_roof_01_arm_4k.jpg",
+          "md5": "16b441edb3cd055a3d13605691ff0fcd",
+          "bytes": 2074309,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.roof.bitumen.flat",
+      "kind": "material",
+      "name": "Bitumen",
+      "provider": "polyhaven",
+      "providerAssetId": "bitumen",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/bitumen",
+        "attributionUrl": "https://polyhaven.com/a/bitumen",
+        "year": 2024
+      },
+      "sourceUrl": "https://polyhaven.com/a/bitumen",
+      "tags": ["z-city", "roof", "building", "traversal", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture: dark, gritty bitumen roofing with rough, cracked tar surface, subtle horizontal streaks and weathered dirt.",
+      "tileSizeMeters": 20,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.roof.bitumen.flat",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.roof.bitumen.flat.albedo",
+        "normalMapKey": "mat.roof.bitumen.flat.normal",
+        "ormMapKey": "mat.roof.bitumen.flat.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.roof.bitumen.flat.albedo",
+        "normal": "mat.roof.bitumen.flat.normal",
+        "orm": "mat.roof.bitumen.flat.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 512,
+          "codec": "etc1s",
+          "quality": 50,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 1024,
+          "codec": "uastc",
+          "quality": 75,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 90,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/bitumen/bitumen_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/bitumen/bitumen_diff_4k.jpg",
+          "md5": "d3a3f3353edc3c69b5ea18df8e94c73b",
+          "bytes": 8439176,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/bitumen/bitumen_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/bitumen/bitumen_nor_gl_4k.jpg",
+          "md5": "cb5d003a91a4ba12fe4092d3aefc1cd8",
+          "bytes": 15509950,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/bitumen/bitumen_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/bitumen/bitumen_arm_4k.jpg",
+          "md5": "6d2226a5502834b578bf30099fdc966e",
+          "bytes": 5465230,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wood.planks.weathered",
+      "kind": "material",
+      "name": "Weathered Brown Planks",
+      "provider": "polyhaven",
+      "providerAssetId": "weathered_brown_planks",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Dimitrios Savva, Rico Cilliers",
+        "sourceUrl": "https://polyhaven.com/a/weathered_brown_planks",
+        "attributionUrl": "https://polyhaven.com/a/weathered_brown_planks",
+        "year": 2021
+      },
+      "sourceUrl": "https://polyhaven.com/a/weathered_brown_planks",
+      "tags": ["z-city", "wood", "hoarding", "tileable"],
+      "preload": false,
+      "description": "Free 16K material of weathered brown wooden planks with chipped aged finish, deep grain, dirt and stain marks, worn edges and discolored, aged surfaces.",
+      "tileSizeMeters": 1.8,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.wood.planks.weathered",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wood.planks.weathered.albedo",
+        "normalMapKey": "mat.wood.planks.weathered.normal",
+        "ormMapKey": "mat.wood.planks.weathered.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wood.planks.weathered.albedo",
+        "normal": "mat.wood.planks.weathered.normal",
+        "orm": "mat.wood.planks.weathered.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/weathered_brown_planks/weathered_brown_planks_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/weathered_brown_planks/weathered_brown_planks_diff_4k.jpg",
+          "md5": "96998aac49d0d3a734222191d580d0c7",
+          "bytes": 3640250,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/weathered_brown_planks/weathered_brown_planks_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/weathered_brown_planks/weathered_brown_planks_nor_gl_4k.jpg",
+          "md5": "8b54393227403078517c274079b5577d",
+          "bytes": 4088011,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/weathered_brown_planks/weathered_brown_planks_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/weathered_brown_planks/weathered_brown_planks_arm_4k.jpg",
+          "md5": "f148e0dd99cdc2ab148fae3724b21250",
+          "bytes": 3270331,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.wood.planks.dirty",
+      "kind": "material",
+      "name": "Wood Planks Dirt",
+      "provider": "polyhaven",
+      "providerAssetId": "wood_planks_dirt",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/wood_planks_dirt",
+        "attributionUrl": "https://polyhaven.com/a/wood_planks_dirt",
+        "year": 2020
+      },
+      "sourceUrl": "https://polyhaven.com/a/wood_planks_dirt",
+      "tags": ["z-city", "wood", "hoarding", "tileable"],
+      "preload": false,
+      "description": "Free 8K wood planks texture: even, weathered boards with worn paint patches, dirt streaks, visible grain and subtle surface roughness.",
+      "tileSizeMeters": 2,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.wood.planks.dirty",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.wood.planks.dirty.albedo",
+        "normalMapKey": "mat.wood.planks.dirty.normal",
+        "ormMapKey": "mat.wood.planks.dirty.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.wood.planks.dirty.albedo",
+        "normal": "mat.wood.planks.dirty.normal",
+        "orm": "mat.wood.planks.dirty.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/wood_planks_dirt/wood_planks_dirt_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/wood_planks_dirt/wood_planks_dirt_diff_4k.jpg",
+          "md5": "f25f73cb3185e50bd4dbb556a7d22793",
+          "bytes": 14364491,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/wood_planks_dirt/wood_planks_dirt_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/wood_planks_dirt/wood_planks_dirt_nor_gl_4k.jpg",
+          "md5": "5635da1a7941c41b5587d0f0adf4dd29",
+          "bytes": 7633626,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/wood_planks_dirt/wood_planks_dirt_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/wood_planks_dirt/wood_planks_dirt_arm_4k.jpg",
+          "md5": "1bc8f48a7a461d966414829a48602cd2",
+          "bytes": 9603044,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.ground.grass.leafy",
+      "kind": "material",
+      "name": "Leafy Grass",
+      "provider": "polyhaven",
+      "providerAssetId": "leafy_grass",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Charlotte Baglioni",
+        "sourceUrl": "https://polyhaven.com/a/leafy_grass",
+        "attributionUrl": "https://polyhaven.com/a/leafy_grass",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/leafy_grass",
+      "tags": ["z-city", "park", "nature", "ground", "tileable"],
+      "preload": false,
+      "description": "Free 8K leafy grass texture: trampled green blades with scattered brown leaves and twigs, low-relief rough soil surface with a natural matte finish.",
+      "tileSizeMeters": 2,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.ground.grass.leafy",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.ground.grass.leafy.albedo",
+        "normalMapKey": "mat.ground.grass.leafy.normal",
+        "ormMapKey": "mat.ground.grass.leafy.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.ground.grass.leafy.albedo",
+        "normal": "mat.ground.grass.leafy.normal",
+        "orm": "mat.ground.grass.leafy.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/leafy_grass/leafy_grass_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/leafy_grass/leafy_grass_diff_4k.jpg",
+          "md5": "d991caaf9c2e333a5a684faab488cbb9",
+          "bytes": 18554565,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/leafy_grass/leafy_grass_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/leafy_grass/leafy_grass_nor_gl_4k.jpg",
+          "md5": "de86cbc9e3fad8674b007b3c5d0c34cb",
+          "bytes": 23240822,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/leafy_grass/leafy_grass_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/leafy_grass/leafy_grass_arm_4k.jpg",
+          "md5": "916b87840bd6f53fe78c99ce8370162b",
+          "bytes": 15718493,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.terrain.grass.aerial",
+      "kind": "material",
+      "name": "Aerial Grass Rock",
+      "provider": "polyhaven",
+      "providerAssetId": "aerial_grass_rock",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/aerial_grass_rock",
+        "attributionUrl": "https://polyhaven.com/a/aerial_grass_rock",
+        "year": 2020
+      },
+      "sourceUrl": "https://polyhaven.com/a/aerial_grass_rock",
+      "tags": ["terrain", "nature", "ground", "distant", "tileable"],
+      "preload": false,
+      "description": "Free 8K aerial rock texture with moss and grass, rough weathered stone with fine gravel and earthy green-brown tones.",
+      "tileSizeMeters": 15,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.terrain.grass.aerial",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.terrain.grass.aerial.albedo",
+        "normalMapKey": "mat.terrain.grass.aerial.normal",
+        "ormMapKey": "mat.terrain.grass.aerial.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.terrain.grass.aerial.albedo",
+        "normal": "mat.terrain.grass.aerial.normal",
+        "orm": "mat.terrain.grass.aerial.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 512,
+          "codec": "etc1s",
+          "quality": 50,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 1024,
+          "codec": "uastc",
+          "quality": 75,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 90,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/aerial_grass_rock/aerial_grass_rock_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/aerial_grass_rock/aerial_grass_rock_diff_4k.jpg",
+          "md5": "dc4dbd56d49f3278d1fcde8e58159a84",
+          "bytes": 9067116,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/aerial_grass_rock/aerial_grass_rock_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/aerial_grass_rock/aerial_grass_rock_nor_gl_4k.jpg",
+          "md5": "06db3e600acd612587f31573b02875d5",
+          "bytes": 16425331,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/aerial_grass_rock/aerial_grass_rock_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/aerial_grass_rock/aerial_grass_rock_arm_4k.jpg",
+          "md5": "9240c4cbe69b8d8c8931ad533adf1f78",
+          "bytes": 4053803,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.ground.dirt.dry",
+      "kind": "material",
+      "name": "Brown Mud Dry",
+      "provider": "polyhaven",
+      "providerAssetId": "brown_mud_dry",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/brown_mud_dry",
+        "attributionUrl": "https://polyhaven.com/a/brown_mud_dry",
+        "year": 2018
+      },
+      "sourceUrl": "https://polyhaven.com/a/brown_mud_dry",
+      "tags": ["z-city", "ground", "lot", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of dry brown mud with coarse granules and small stones, rough, crumbly surface, dusty highlights and uneven compacted soil.",
+      "tileSizeMeters": 1.3,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.ground.dirt.dry",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.ground.dirt.dry.albedo",
+        "normalMapKey": "mat.ground.dirt.dry.normal",
+        "ormMapKey": "mat.ground.dirt.dry.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.ground.dirt.dry.albedo",
+        "normal": "mat.ground.dirt.dry.normal",
+        "orm": "mat.ground.dirt.dry.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/brown_mud_dry/brown_mud_dry_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/brown_mud_dry/brown_mud_dry_diff_4k.jpg",
+          "md5": "38e71eb35e2ab4100f7e9f3cd4e16e66",
+          "bytes": 11945038,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/brown_mud_dry/brown_mud_dry_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/brown_mud_dry/brown_mud_dry_nor_gl_4k.jpg",
+          "md5": "21fe49d99239246bbdd90833845b249b",
+          "bytes": 13584018,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/brown_mud_dry/brown_mud_dry_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/brown_mud_dry/brown_mud_dry_arm_4k.jpg",
+          "md5": "2088c2af15f00a507a699da2e733e684",
+          "bytes": 3591525,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.ground.gravel",
+      "kind": "material",
+      "name": "Gravel Floor 02",
+      "provider": "polyhaven",
+      "providerAssetId": "gravel_floor_02",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Jenelle van Heerden, Dimitrios Savva",
+        "sourceUrl": "https://polyhaven.com/a/gravel_floor_02",
+        "attributionUrl": "https://polyhaven.com/a/gravel_floor_02",
+        "year": 2024
+      },
+      "sourceUrl": "https://polyhaven.com/a/gravel_floor_02",
+      "tags": ["z-city", "ground", "lot", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of coarse gray driveway gravel, a rough, stony floor material with dense small rocks ideal for outdoor driveways, paths, and gravelly ground.",
+      "tileSizeMeters": 2,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.ground.gravel",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.ground.gravel.albedo",
+        "normalMapKey": "mat.ground.gravel.normal",
+        "ormMapKey": "mat.ground.gravel.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.ground.gravel.albedo",
+        "normal": "mat.ground.gravel.normal",
+        "orm": "mat.ground.gravel.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/gravel_floor_02/gravel_floor_02_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/gravel_floor_02/gravel_floor_02_diff_4k.jpg",
+          "md5": "bbe0e57e29eae935ec6e4de6954510da",
+          "bytes": 17244260,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/gravel_floor_02/gravel_floor_02_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/gravel_floor_02/gravel_floor_02_nor_gl_4k.jpg",
+          "md5": "4e683b7ddd1429eec9edb00d7b7d9059",
+          "bytes": 21555387,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/gravel_floor_02/gravel_floor_02_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/gravel_floor_02/gravel_floor_02_arm_4k.jpg",
+          "md5": "f9554d653598e372a84f0d8ebb34ebf2",
+          "bytes": 15794079,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.debris.gravel.stones",
+      "kind": "material",
+      "name": "Gravel Stones",
+      "provider": "polyhaven",
+      "providerAssetId": "gravel_stones",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Amal Kumar",
+        "sourceUrl": "https://polyhaven.com/a/gravel_stones",
+        "attributionUrl": "https://polyhaven.com/a/gravel_stones",
+        "year": 2023
+      },
+      "sourceUrl": "https://polyhaven.com/a/gravel_stones",
+      "tags": ["z-city", "destruction", "debris", "tileable"],
+      "preload": false,
+      "description": "Free 16K texture of coarse grey gravel: rough, uneven pebbles with a gritty, stony surface and jagged dark stones.",
+      "tileSizeMeters": 2,
+      "sourceResolution": [16384, 16384],
+      "spec": {
+        "id": "mat.debris.gravel.stones",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.debris.gravel.stones.albedo",
+        "normalMapKey": "mat.debris.gravel.stones.normal",
+        "ormMapKey": "mat.debris.gravel.stones.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.debris.gravel.stones.albedo",
+        "normal": "mat.debris.gravel.stones.normal",
+        "orm": "mat.debris.gravel.stones.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/gravel_stones/gravel_stones_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/gravel_stones/gravel_stones_diff_4k.jpg",
+          "md5": "88c21757d0e8213cf20f3c23601b6027",
+          "bytes": 12777115,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/gravel_stones/gravel_stones_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/gravel_stones/gravel_stones_nor_gl_4k.jpg",
+          "md5": "b32ad461df00d74596438239c255ad00",
+          "bytes": 19292345,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/gravel_stones/gravel_stones_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/gravel_stones/gravel_stones_arm_4k.jpg",
+          "md5": "14f25b6a224134562c8e8f8bbef9d232",
+          "bytes": 13573378,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.debris.rubble.wall",
+      "kind": "material",
+      "name": "Broken Wall",
+      "provider": "polyhaven",
+      "providerAssetId": "broken_wall",
+      "providerType": "textures",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Rob Tuytel",
+        "sourceUrl": "https://polyhaven.com/a/broken_wall",
+        "attributionUrl": "https://polyhaven.com/a/broken_wall",
+        "year": 2020
+      },
+      "sourceUrl": "https://polyhaven.com/a/broken_wall",
+      "tags": ["z-city", "destruction", "debris", "tileable"],
+      "preload": false,
+      "description": "Free 8K texture of a rough, broken stacked stone wall: weathered, uneven stones with chipped edges, mortar gaps, cool grays, warm browns and subtle lichen.",
+      "tileSizeMeters": 3,
+      "sourceResolution": [8192, 8192],
+      "spec": {
+        "id": "mat.debris.rubble.wall",
+        "kind": "standard",
+        "color": 16777215,
+        "roughness": 1,
+        "metalness": 1,
+        "mapKey": "mat.debris.rubble.wall.albedo",
+        "normalMapKey": "mat.debris.rubble.wall.normal",
+        "ormMapKey": "mat.debris.rubble.wall.orm",
+        "normalScale": 1,
+        "uvRepeat": [1, 1],
+        "castShadow": true,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {
+        "albedo": "mat.debris.rubble.wall.albedo",
+        "normal": "mat.debris.rubble.wall.normal",
+        "orm": "mat.debris.rubble.wall.orm"
+      },
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "etc1s",
+          "quality": 55,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 80,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "Diffuse",
+          "role": "albedo",
+          "colorSpace": "srgb",
+          "path": "polyhaven/textures/broken_wall/broken_wall_diff_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/broken_wall/broken_wall_diff_4k.jpg",
+          "md5": "69105017172c2dad21d5948622b0d073",
+          "bytes": 7718005,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "nor_gl",
+          "role": "normal",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/broken_wall/broken_wall_nor_gl_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/broken_wall/broken_wall_nor_gl_4k.jpg",
+          "md5": "825938fbb4d1ec67a8e1d83c94ca8c70",
+          "bytes": 13022728,
+          "resolution": "4k",
+          "format": "jpg"
+        },
+        {
+          "key": "arm",
+          "role": "orm",
+          "colorSpace": "linear",
+          "path": "polyhaven/textures/broken_wall/broken_wall_arm_4k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/broken_wall/broken_wall_arm_4k.jpg",
+          "md5": "3483c4844e40aee087599a32909b0974",
+          "bytes": 2643821,
+          "resolution": "4k",
+          "format": "jpg"
+        }
+      ]
+    },
+    {
+      "id": "mat.glass.window",
+      "kind": "material",
+      "name": "Window Glass (procedural)",
+      "provider": "procedural",
+      "providerAssetId": "mat.glass.window",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Saitama asset pipeline",
+        "sourceUrl": "https://github.com/one-punch/saitama#procedural-materials"
+      },
+      "sourceUrl": "https://github.com/one-punch/saitama#procedural-materials",
+      "tags": ["z-city", "glass", "building", "procedural"],
+      "preload": true,
+      "notes": "Poly Haven publishes no glass texture (verified against all 849 texture ids). Window glass is a shader-parameter material: it needs the scene environment map (see hdris.json) and no albedo/normal/orm maps at all.",
+      "spec": {
+        "id": "mat.glass.window",
+        "kind": "physical",
+        "color": 10466495,
+        "roughness": 0.08,
+        "metalness": 0,
+        "opacity": 0.35,
+        "transparent": true,
+        "side": "double",
+        "castShadow": false,
+        "receiveShadow": false,
+        "instanced": true
+      },
+      "textureKeys": {},
+      "tiers": {},
+      "files": []
+    },
+    {
+      "id": "mat.road.markings",
+      "kind": "material",
+      "name": "Road Markings (procedural)",
+      "provider": "procedural",
+      "providerAssetId": "mat.road.markings",
+      "targetFormat": "json",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Saitama asset pipeline",
+        "sourceUrl": "https://github.com/one-punch/saitama#procedural-materials"
+      },
+      "sourceUrl": "https://github.com/one-punch/saitama#procedural-materials",
+      "tags": ["z-city", "road", "decal", "procedural"],
+      "preload": true,
+      "notes": "Poly Haven publishes no lane-marking / painted-tarmac texture (verified against all 849 texture ids; asphalt_pit_lane and asphalt_track are unmarked tarmac). Lane lines are generated as an alpha decal atlas by the processing workstream.",
+      "spec": {
+        "id": "mat.road.markings",
+        "kind": "standard",
+        "color": 15921382,
+        "roughness": 0.85,
+        "metalness": 0,
+        "transparent": true,
+        "alphaTest": 0.4,
+        "side": "front",
+        "castShadow": false,
+        "receiveShadow": true,
+        "instanced": true
+      },
+      "textureKeys": {},
+      "tiers": {},
+      "files": []
+    }
+  ]
+}

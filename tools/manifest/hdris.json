@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "kind": "hdri",
+  "generator": "tools/manifest/hdris.json (hand-curated; URLs+md5 from api.polyhaven.com)",
+  "description": "Four day phases shot at one location (Qwantani) so the day/night cycle cross-fades between coherent skies. All four are \"puresky\" captures: sky only, with no baked ground plane to fight the real world geometry.",
+  "sourceResolution": "4k",
+  "entries": [
+    {
+      "id": "hdri.sky.dawn",
+      "kind": "hdri",
+      "name": "Qwantani Dawn (Pure Sky)",
+      "provider": "polyhaven",
+      "providerAssetId": "qwantani_dawn_puresky",
+      "providerType": "hdris",
+      "targetFormat": "hdr",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Greg Zaal, Jarod Guest",
+        "sourceUrl": "https://polyhaven.com/a/qwantani_dawn_puresky",
+        "attributionUrl": "https://polyhaven.com/a/qwantani_dawn_puresky",
+        "year": 2025
+      },
+      "sourceUrl": "https://polyhaven.com/a/qwantani_dawn_puresky",
+      "tags": ["sky", "ibl", "puresky", "dawn"],
+      "preload": false,
+      "description": "Free 24K unclipped HDRI - pure-sky dawn with a clear, low-contrast atmosphere: soft warm horizon and cool blue overhead for gentle outdoor natural lighting.",
+      "timeOfDay": "dawn",
+      "resolution": 4096,
+      "hasIrradiance": false,
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "uastc",
+          "quality": 70,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 85,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "hdri",
+          "role": "environment",
+          "colorSpace": "linear",
+          "path": "polyhaven/hdris/qwantani_dawn_puresky_4k.hdr",
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/qwantani_dawn_puresky_4k.hdr",
+          "md5": "72ff80818581b8c72817295b1b0a6321",
+          "bytes": 16973138,
+          "resolution": "4k",
+          "format": "hdr",
+          "root": true
+        }
+      ]
+    },
+    {
+      "id": "hdri.sky.day",
+      "kind": "hdri",
+      "name": "Qwantani Noon (Pure Sky)",
+      "provider": "polyhaven",
+      "providerAssetId": "qwantani_noon_puresky",
+      "providerType": "hdris",
+      "targetFormat": "hdr",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Greg Zaal, Jarod Guest",
+        "sourceUrl": "https://polyhaven.com/a/qwantani_noon_puresky",
+        "attributionUrl": "https://polyhaven.com/a/qwantani_noon_puresky",
+        "year": 2025
+      },
+      "sourceUrl": "https://polyhaven.com/a/qwantani_noon_puresky",
+      "tags": ["sky", "ibl", "puresky", "day"],
+      "preload": true,
+      "description": "Free 24K HDRI, unclipped - clear midday pure sky with a bright sun and high-contrast natural light, ideal for outdoor renders, reflections and crisp shadows.",
+      "timeOfDay": "day",
+      "resolution": 4096,
+      "hasIrradiance": false,
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "uastc",
+          "quality": 70,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 85,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "hdri",
+          "role": "environment",
+          "colorSpace": "linear",
+          "path": "polyhaven/hdris/qwantani_noon_puresky_4k.hdr",
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/qwantani_noon_puresky_4k.hdr",
+          "md5": "bc1b8591bb17f5e3896729ff92b2e74d",
+          "bytes": 17857544,
+          "resolution": "4k",
+          "format": "hdr",
+          "root": true
+        }
+      ]
+    },
+    {
+      "id": "hdri.sky.dusk",
+      "kind": "hdri",
+      "name": "Qwantani Dusk 1 (Pure Sky)",
+      "provider": "polyhaven",
+      "providerAssetId": "qwantani_dusk_1_puresky",
+      "providerType": "hdris",
+      "targetFormat": "hdr",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Greg Zaal, Jarod Guest",
+        "sourceUrl": "https://polyhaven.com/a/qwantani_dusk_1_puresky",
+        "attributionUrl": "https://polyhaven.com/a/qwantani_dusk_1_puresky",
+        "year": 2025
+      },
+      "sourceUrl": "https://polyhaven.com/a/qwantani_dusk_1_puresky",
+      "tags": ["sky", "ibl", "puresky", "dusk"],
+      "preload": false,
+      "description": "Free, 24K unclipped HDRI: soft dusk light with low-contrast cool blues, a gentle sunset glow and sparse clouds for calm outdoor/nature renders.",
+      "timeOfDay": "dusk",
+      "resolution": 4096,
+      "hasIrradiance": false,
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "uastc",
+          "quality": 70,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 85,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "hdri",
+          "role": "environment",
+          "colorSpace": "linear",
+          "path": "polyhaven/hdris/qwantani_dusk_1_puresky_4k.hdr",
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/qwantani_dusk_1_puresky_4k.hdr",
+          "md5": "efb42f6bb2e82b59dcba13eab44500f1",
+          "bytes": 15803347,
+          "resolution": "4k",
+          "format": "hdr",
+          "root": true
+        }
+      ]
+    },
+    {
+      "id": "hdri.sky.night",
+      "kind": "hdri",
+      "name": "Qwantani Night (Pure Sky)",
+      "provider": "polyhaven",
+      "providerAssetId": "qwantani_night_puresky",
+      "providerType": "hdris",
+      "targetFormat": "hdr",
+      "attribution": {
+        "license": "CC0-1.0",
+        "author": "Greg Zaal, Jarod Guest",
+        "sourceUrl": "https://polyhaven.com/a/qwantani_night_puresky",
+        "attributionUrl": "https://polyhaven.com/a/qwantani_night_puresky",
+        "year": 2025
+      },
+      "sourceUrl": "https://polyhaven.com/a/qwantani_night_puresky",
+      "tags": ["sky", "ibl", "puresky", "night"],
+      "preload": false,
+      "description": "Free 24K unclipped HDRI - clear, low-contrast night sky with Milky Way and cool distant glows, great for subtle night lighting.",
+      "timeOfDay": "night",
+      "resolution": 4096,
+      "hasIrradiance": false,
+      "tiers": {
+        "mobile": {
+          "maxDimension": 1024,
+          "codec": "uastc",
+          "quality": 70,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "high": {
+          "maxDimension": 2048,
+          "codec": "uastc",
+          "quality": 85,
+          "zstd": true,
+          "zstdLevel": 18
+        },
+        "ultra": {
+          "maxDimension": 4096,
+          "codec": "uastc",
+          "quality": 95,
+          "zstd": true,
+          "zstdLevel": 18
+        }
+      },
+      "files": [
+        {
+          "key": "hdri",
+          "role": "environment",
+          "colorSpace": "linear",
+          "path": "polyhaven/hdris/qwantani_night_puresky_4k.hdr",
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/qwantani_night_puresky_4k.hdr",
+          "md5": "acd645e92308841aa0c82eada9830f2d",
+          "bytes": 21221482,
+          "resolution": "4k",
+          "format": "hdr",
+          "root": true
+        }
+      ]
+    }
+  ]
+}
