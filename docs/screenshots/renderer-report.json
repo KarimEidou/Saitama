@@ -1,0 +1,229 @@
+{
+  "generatedAt": "2026-08-17T04:31:44.137Z",
+  "viewport": {
+    "width": 960,
+    "height": 540
+  },
+  "programBudget": 24,
+  "tiers": {
+    "low": {
+      "programs": 14,
+      "programsByShader": "physical x7, depth x5, 0 x1, 4 x1",
+      "drawCalls": 76,
+      "triangles": 97920,
+      "materials": 31,
+      "materialSignatures": [
+        "standard/T-D/mnrla/O/-/F/-",
+        "standard/--D/mnrla/O/-/F/-",
+        "standard/-ID/mnrla/O/-/F/-",
+        "standard/-I-/-/O/-/F/V",
+        "standard/---/-/O/-/F/-"
+      ],
+      "warmup": {
+        "materials": 7,
+        "meshes": 8,
+        "compiled": 14,
+        "programsAfter": 14,
+        "durationMs": 351.6000000005588,
+        "destinations": [
+          "direct"
+        ]
+      },
+      "post": {
+        "mode": "off",
+        "direct": true,
+        "passCount": 0,
+        "passNames": [],
+        "msaaSamples": 0,
+        "bloomScale": 0
+      },
+      "shadows": {
+        "cascades": 1,
+        "mapSize": 1024,
+        "maxDistance": 45,
+        "shadowMapBytes": 4194304,
+        "blobShadows": 67,
+        "registeredMaterials": 31
+      },
+      "environment": {
+        "mode": "sh9",
+        "gpuBytes": 0,
+        "resolution": 0,
+        "hasSphericalHarmonics": true,
+        "lastBuildMs": 11
+      },
+      "memory": {
+        "textureCount": 8,
+        "textureBytes": 2643285,
+        "geometryCount": 9,
+        "geometryBytes": 51400,
+        "materialCount": 32,
+        "meshCount": 41,
+        "instanceCount": 679,
+        "triangles": 1640
+      },
+      "drawingBuffer": {
+        "width": 960,
+        "height": 540
+      },
+      "screenshot": {
+        "width": 960,
+        "height": 540,
+        "stdDev": 54.233958749815336,
+        "mean": 107.24381622942387,
+        "distinctColors": 6078
+      }
+    },
+    "medium": {
+      "programs": 24,
+      "programsByShader": "physical x7, 9 x6, depth x5, 14 x2, 3 x1, 5 x1, 7 x1, 12 x1",
+      "drawCalls": 126,
+      "triangles": 146824,
+      "materials": 31,
+      "materialSignatures": [
+        "standard/T-D/mnrla/O/-/F/-",
+        "standard/--D/mnrla/O/-/F/-",
+        "standard/-ID/mnrla/O/-/F/-",
+        "standard/-I-/-/O/-/F/V",
+        "standard/---/-/O/-/F/-"
+      ],
+      "warmup": {
+        "materials": 7,
+        "meshes": 8,
+        "compiled": 14,
+        "programsAfter": 14,
+        "durationMs": 720.6000000005588,
+        "destinations": [
+          "offscreen"
+        ]
+      },
+      "post": {
+        "mode": "mid",
+        "direct": false,
+        "passCount": 3,
+        "passNames": [
+          "RenderPass",
+          "Bloom(25%)",
+          "Output+LUT+Vignette"
+        ],
+        "msaaSamples": 0,
+        "bloomScale": 0.25
+      },
+      "shadows": {
+        "cascades": 2,
+        "mapSize": 1024,
+        "maxDistance": 90,
+        "shadowMapBytes": 8388608,
+        "blobShadows": 72,
+        "registeredMaterials": 31
+      },
+      "environment": {
+        "mode": "pmrem",
+        "gpuBytes": 688128,
+        "resolution": 336,
+        "hasSphericalHarmonics": false,
+        "lastBuildMs": 35.90000000037253
+      },
+      "memory": {
+        "textureCount": 8,
+        "textureBytes": 2807125,
+        "geometryCount": 9,
+        "geometryBytes": 51784,
+        "materialCount": 32,
+        "meshCount": 41,
+        "instanceCount": 684,
+        "triangles": 1640
+      },
+      "drawingBuffer": {
+        "width": 960,
+        "height": 540
+      },
+      "screenshot": {
+        "width": 960,
+        "height": 540,
+        "stdDev": 52.31527279056528,
+        "mean": 85.55792952674898,
+        "distinctColors": 8713
+      }
+    },
+    "high": {
+      "programs": 30,
+      "programsByShader": "physical x7, 14 x6, depth x5, 9 x4, 17 x3, 7 x2, 3 x1, 5 x1, 12 x1",
+      "drawCalls": 321,
+      "triangles": 391482,
+      "materials": 31,
+      "materialSignatures": [
+        "standard/T-D/mnrla/O/-/F/-",
+        "standard/--D/mnrla/O/-/F/-",
+        "standard/-ID/mnrla/O/-/F/-",
+        "standard/-I-/-/O/-/F/V",
+        "standard/---/-/O/-/F/-"
+      ],
+      "warmup": {
+        "materials": 7,
+        "meshes": 8,
+        "compiled": 14,
+        "programsAfter": 14,
+        "durationMs": 439.3999999994412,
+        "destinations": [
+          "offscreen"
+        ]
+      },
+      "post": {
+        "mode": "high",
+        "direct": false,
+        "passCount": 6,
+        "passNames": [
+          "RenderPass",
+          "SSAO(50%, 8 samples)",
+          "Bloom(25%)",
+          "Output+LUT+Vignette",
+          "AnimeComposite",
+          "FXAA"
+        ],
+        "msaaSamples": 0,
+        "bloomScale": 0.25
+      },
+      "shadows": {
+        "cascades": 3,
+        "mapSize": 2048,
+        "maxDistance": 200,
+        "shadowMapBytes": 50331648,
+        "blobShadows": 72,
+        "registeredMaterials": 31
+      },
+      "environment": {
+        "mode": "pmrem",
+        "gpuBytes": 688128,
+        "resolution": 336,
+        "hasSphericalHarmonics": false,
+        "lastBuildMs": 23.59999999962747
+      },
+      "memory": {
+        "textureCount": 8,
+        "textureBytes": 2807125,
+        "geometryCount": 9,
+        "geometryBytes": 52040,
+        "materialCount": 32,
+        "meshCount": 41,
+        "instanceCount": 684,
+        "triangles": 1640
+      },
+      "drawingBuffer": {
+        "width": 960,
+        "height": 540
+      },
+      "screenshot": {
+        "width": 960,
+        "height": 540,
+        "stdDev": 52.01277904903276,
+        "mean": 83.08367541152263,
+        "distinctColors": 9295
+      }
+    }
+  },
+  "notes": [
+    "[high] 30 shader programs with the full chain (RenderPass -> SSAO(50%, 8 samples) -> Bloom(25%) -> Output+LUT+Vignette -> AnimeComposite -> FXAA) — desktop tier, not subject to the mobile 24-program budget",
+    "[behaviour] after a live medium->high switch the context holds 38 programs (both tiers' programs are resident; this is why per-tier counts are measured in separate contexts)"
+  ]
+}

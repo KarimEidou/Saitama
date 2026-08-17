@@ -1,0 +1,42 @@
+{
+  "generated": "2026-08-17T04:31:32.075Z",
+  "viewport": {
+    "width": 1024,
+    "height": 640
+  },
+  "tuning": {
+    "deadZone": 0.15,
+    "lookSensitivity": 1,
+    "invertLookY": false,
+    "holdThreshold": 0.18,
+    "doubleTapWindow": 0.28,
+    "stickRadius": 120,
+    "floatingStick": true,
+    "hapticsEnabled": true,
+    "stickDeadZonePx": 56,
+    "stickFullDeflectionPx": 120,
+    "stickOriginFollows": true,
+    "stickZoneFraction": 0.5,
+    "cameraDegPerPx": 0.18,
+    "lookFullRateDegPerSec": 220,
+    "lookSmoothing": 1e-7,
+    "lookRestDegPerSec": 0.5,
+    "pinchMinDeltaPx": 1.5,
+    "pinchMaxRatioPerFrame": 1.5,
+    "chargeStartSec": 0.22,
+    "chargeFullSec": 1,
+    "tapMaxDurationSec": 0.25,
+    "tapMaxMovePx": 18,
+    "doubleTapMaxDistPx": 90,
+    "twoFingerTapWindowSec": 0.2,
+    "swipeUpMinPx": 46,
+    "swipeUpMaxSec": 0.4,
+    "swipeUpMaxSkewRatio": 0.8,
+    "triggerThreshold": 0.35,
+    "gamepadDeadZone": 0.15
+  },
+  "checks": {
+    "passed": 124,
+    "failed": 0
+  }
+}

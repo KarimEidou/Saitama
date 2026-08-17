@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Input Harness — One Punch Man</title>
+    <style>
+      :root {
+        --bg: #070a10;
+        --panel: rgba(13, 18, 27, 0.9);
+        --line: rgba(255, 255, 255, 0.1);
+        --text: #e8ecf4;
+        --dim: #8b95a8;
+        --gold: #ffd230;
+        --green: #5ce88a;
+        --blue: #78dcff;
+        --red: #ff5a3c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 12px;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: none;
+      }
+
+      /* Subtle field so a "blank screenshot" check has real variance to find
+         even before any control is touched. */
+      #backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background:
+          radial-gradient(circle at 22% 68%, rgba(255, 210, 48, 0.1), transparent 42%),
+          radial-gradient(circle at 78% 30%, rgba(120, 220, 255, 0.09), transparent 46%),
+          repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.028) 0 1px,
+            transparent 1px 44px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.028) 0 1px,
+            transparent 1px 44px
+          ),
+          var(--bg);
+      }
+
+      /* Marks the stick zone / camera zone split so the split is legible. */
+      #zone-split {
+        position: fixed;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        z-index: 1;
+        background: linear-gradient(
+          to bottom,
+          transparent,
+          rgba(255, 255, 255, 0.22) 22%,
+          rgba(255, 255, 255, 0.22) 78%,
+          transparent
+        );
+      }
+
+      .zone-label {
+        position: fixed;
+        bottom: 10px;
+        z-index: 1;
+        color: rgba(255, 255, 255, 0.28);
+        letter-spacing: 0.22em;
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+      #zone-left {
+        left: 16px;
+      }
+      #zone-right {
+        left: calc(50% + 16px);
+      }
+
+      /* Every readout is inert: touches must fall through to the controls. */
+      .panel {
+        position: fixed;
+        z-index: 50;
+        pointer-events: none;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 11px;
+        /* NO backdrop-filter: it costs ~60ms/frame under SwiftShader, which
+           would make the harness itself the slowest thing in the input path. */
+      }
+
+      .panel h2 {
+        margin: 0 0 7px;
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--dim);
+        font-weight: 600;
+      }
+
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        line-height: 1.65;
+        white-space: nowrap;
+      }
+      .row .k {
+        color: var(--dim);
+      }
+      .row .v {
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .bar {
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        margin: 2px 0 6px;
+      }
+      .bar > i {
+        display: block;
+        height: 100%;
+        width: 0%;
+        border-radius: 2px;
+      }
+      #v-move-bar {
+        background: var(--gold);
+      }
+      #v-look-bar {
+        background: var(--green);
+      }
+      #v-charge-bar {
+        background: var(--red);
+      }
+
+      /* ---- panel placement ----
+         Tuned for a 1024x640 landscape viewport so that NOTHING overlaps and
+         the lower-middle stays clear: that is where the floating stick and its
+         ring are drawn, and a panel on top of them would hide the one thing
+         this harness exists to show. */
+      #panel-state {
+        left: 8px;
+        top: 8px;
+        width: 322px;
+      }
+      #panel-gestures {
+        left: 338px;
+        top: 8px;
+        width: 292px;
+      }
+      #panel-pointers {
+        left: 338px;
+        top: 140px;
+        width: 292px;
+      }
+      #panel-buttons {
+        right: 8px;
+        top: 8px;
+        width: 286px;
+      }
+      #panel-scope {
+        left: 8px;
+        top: 306px;
+        width: 194px;
+      }
+
+      #scope {
+        display: block;
+        width: 170px;
+        height: 170px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+      }
+
+      /* ---- pointer table ---- */
+      .ptr-row {
+        display: grid;
+        grid-template-columns: 34px 96px 82px 52px;
+        gap: 4px;
+        line-height: 1.75;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.07);
+      }
+      .ptr-row.empty {
+        display: block;
+        color: var(--dim);
+        border: none;
+      }
+      .ptr-id {
+        color: var(--dim);
+      }
+      .role-stick {
+        color: var(--gold);
+      }
+      .role-camera {
+        color: var(--green);
+      }
+      .role-button {
+        color: var(--blue);
+      }
+      .role-ignored {
+        color: var(--dim);
+      }
+      .ptr-pos,
+      .ptr-travel {
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ---- button grid ---- */
+      #button-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px 8px;
+      }
+      .btn-cell {
+        display: grid;
+        grid-template-columns: 1fr 30px;
+        gap: 4px;
+        line-height: 1.6;
+        border-radius: 3px;
+        padding: 0 3px;
+      }
+      .btn-cell .btn-meta {
+        display: none;
+      }
+      .btn-name {
+        color: var(--dim);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .btn-flags {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.25);
+      }
+      .btn-cell[data-state='held'] {
+        background: rgba(255, 210, 48, 0.14);
+      }
+      .btn-cell[data-state='held'] .btn-name,
+      .btn-cell[data-state='held'] .btn-flags {
+        color: var(--gold);
+      }
+      .btn-cell[data-state='pressed'] {
+        background: rgba(92, 232, 138, 0.22);
+      }
+      .btn-cell[data-state='pressed'] .btn-name,
+      .btn-cell[data-state='pressed'] .btn-flags {
+        color: var(--green);
+      }
+      .btn-cell[data-state='released'] {
+        background: rgba(255, 90, 60, 0.18);
+      }
+      .btn-cell[data-state='released'] .btn-name,
+      .btn-cell[data-state='released'] .btn-flags {
+        color: var(--red);
+      }
+
+      /* ---- gestures ---- */
+      .gesture-item {
+        line-height: 1.7;
+        color: var(--blue);
+      }
+      .gesture-item.empty {
+        color: var(--dim);
+      }
+
+      #hint {
+        position: fixed;
+        left: 8px;
+        bottom: 30px;
+        z-index: 50;
+        pointer-events: none;
+        color: var(--dim);
+        line-height: 1.6;
+        max-width: 620px;
+      }
+      #hint b {
+        color: var(--text);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="backdrop"></div>
+    <div id="zone-split"></div>
+    <div class="zone-label" id="zone-left">left half · floating stick</div>
+    <div class="zone-label" id="zone-right">right half · camera drag + pinch</div>
+
+    <section class="panel" id="panel-state">
+      <h2>Input state</h2>
+      <div class="row"><span class="k">frame</span><span class="v" id="v-frame">0</span></div>
+      <div class="row"><span class="k">device</span><span class="v" id="v-device">—</span></div>
+      <div class="row">
+        <span class="k">anyActive</span><span class="v" id="v-anyactive">no</span>
+      </div>
+      <div class="row"><span class="k">move</span><span class="v" id="v-move">—</span></div>
+      <div class="bar"><i id="v-move-bar"></i></div>
+      <div class="row"><span class="k">look</span><span class="v" id="v-look">—</span></div>
+      <div class="bar"><i id="v-look-bar"></i></div>
+      <div class="row"><span class="k">pinchDelta</span><span class="v" id="v-pinch">1</span></div>
+      <div class="row"><span class="k">twistDelta</span><span class="v" id="v-twist">0</span></div>
+      <div class="row"><span class="k">charge</span><span class="v" id="v-charge">0</span></div>
+      <div class="bar"><i id="v-charge-bar"></i></div>
+      <div class="row"><span class="k">dash toggle</span><span class="v" id="v-dash">off</span></div>
+      <div class="row">
+        <span class="k">interact</span><span class="v" id="v-interact">hidden</span>
+      </div>
+      <div class="row"><span class="k">haptics</span><span class="v" id="v-haptics">none</span></div>
+    </section>
+
+    <section class="panel" id="panel-scope">
+      <h2>Stick / look scope</h2>
+      <canvas id="scope" width="170" height="170"></canvas>
+    </section>
+
+    <section class="panel" id="panel-pointers">
+      <h2>Active pointers (<span id="v-pointer-count">0</span>)</h2>
+      <div id="pointer-body"></div>
+      <div class="row" style="margin-top: 6px">
+        <span class="k">peaks</span><span class="v" id="v-peaks">—</span>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-buttons">
+      <h2>Buttons · P=pressed H=held R=released</h2>
+      <div id="button-grid"></div>
+    </section>
+
+    <section class="panel" id="panel-gestures">
+      <h2>Gestures</h2>
+      <div id="gesture-list"></div>
+    </section>
+
+    <div id="hint">
+      <b>Left half</b> drag = floating stick (origin lands under your thumb).
+      <b>Right half</b> drag = camera, two fingers = pinch/twist.<br />
+      <b>Punch</b> tap = light, hold = charge ring, swipe up = uppercut.
+      <b>Dash</b> toggles. <b>Double tap</b> = jump. <b>Two-finger tap</b> = lock on.
+    </div>
+
+    <script type="module" src="./input.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Renderer Harness — PBR / IBL / Shadows / Post</title>
+    <!--
+      RENDERER VERIFICATION HARNESS
+
+      Standalone page for `src/engine/**`. It is NOT the game and never ships:
+      no gameplay, no assets, no streaming — just enough scene to exercise every
+      code path the renderer owns, plus a control surface on
+      `window.__RENDER_HARNESS__` that Playwright drives.
+
+      Tier comes from the query string (`?tier=low|medium|high`) so each tier can
+      be measured in its OWN WebGL context. That matters: default-framebuffer
+      MSAA can only be requested at context creation, so a runtime tier switch
+      can never truly reproduce the LOW tier's render path, and shader-program
+      counts accumulate across switches inside one context. One page load per
+      tier gives honest, isolated numbers.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #05070b;
+        color: #e8edf5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #harness-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        outline: none;
+      }
+      #overlay {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 10;
+        padding: 8px 10px;
+        border-radius: 4px;
+        background: rgba(4, 8, 14, 0.72);
+        border: 1px solid rgba(140, 170, 210, 0.25);
+        font-size: 11px;
+        line-height: 1.55;
+        white-space: pre;
+        pointer-events: none;
+        letter-spacing: 0.02em;
+      }
+      #status {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #05070b;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #ffd230;
+      }
+      #status.hidden {
+        display: none;
+      }
+      #fatal {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: none;
+        padding: 24px;
+        overflow: auto;
+        background: #12060a;
+        color: #ff8080;
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="harness-canvas"></canvas>
+    <div id="overlay">initialising</div>
+    <div id="status">building scene</div>
+    <pre id="fatal"></pre>
+    <script type="module" src="./renderer.ts"></script>
+  </body>
+</html>
