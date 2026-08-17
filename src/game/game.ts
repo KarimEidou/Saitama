@@ -645,7 +645,21 @@ export class Game {
       seed: WORLD_SEED,
       playerId: 'player',
       quality: renderTier,
-      skinNearCivilian: (build, seed) => skinCivilian(roster, build, seed),
+      // ══════════════════════════════════════════════════════════════════════
+      //  THE ONE CHARACTER MATERIAL THE LOWER TIERS DO NOT GET
+      // ══════════════════════════════════════════════════════════════════════
+      // Shader PROGRAMS are the scarce resource, not materials. The baked cast
+      // adds three variants — `F-D` for the player, `F--` for allies and
+      // monsters, `FC-` for the crowd-tinted civilians — and `medium` has only
+      // about five programs of headroom in total.
+      //
+      // `FC-` is the one to shed, because it is the one whose absence costs
+      // least: near-tier civilians are extras, `medium` caps them at ten
+      // bodies against `high`'s full set, and the crowd already degrades along
+      // exactly this axis. They fall back to the generator's vertex colours,
+      // which is what every tier shipped before the bake was wired in.
+      skinNearCivilian:
+        renderTier === 'high' ? (build, seed) => skinCivilian(roster, build, seed) : undefined,
     });
     t.mark(diagnostics.boot, 'crowd');
 
