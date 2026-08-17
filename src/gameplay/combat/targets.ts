@@ -32,6 +32,7 @@ export interface ICombatTargetSpec {
   readonly faction: Faction;
   readonly position: Vec3;
   readonly radius?: number;
+  readonly massKg?: number;
   readonly maxHealth?: number;
   readonly health?: number;
   readonly displayName?: string;
@@ -46,6 +47,9 @@ export interface ICombatTargetSpec {
 
 /** Default bounding radius when a caller does not supply one, in metres. */
 const DEFAULT_TARGET_RADIUS = 0.45;
+
+/** Default mass, in kilograms. An adult human. */
+const DEFAULT_TARGET_MASS_KG = 70;
 
 /**
  * Everything the resolver may hit, keyed by id.
@@ -68,6 +72,7 @@ export class TargetRegistry {
       displayName: spec.displayName ?? spec.id,
       position: { x: spec.position.x, y: spec.position.y, z: spec.position.z },
       radius: spec.radius ?? DEFAULT_TARGET_RADIUS,
+      massKg: spec.massKg ?? DEFAULT_TARGET_MASS_KG,
       health: spec.health ?? maxHealth,
       maxHealth,
       resistances: spec.resistances,

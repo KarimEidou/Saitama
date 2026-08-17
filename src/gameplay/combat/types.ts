@@ -62,6 +62,8 @@ export interface ICombatTarget {
   position: Vec3;
   /** Bounding radius in metres — the sphere the cone test uses. */
   readonly radius: number;
+  /** Mass in kilograms. Turns a knockback delta-v into newton-seconds. */
+  readonly massKg: number;
   health: number;
   readonly maxHealth: number;
   /** Multiplier per damage type; 1.0 neutral, 0 immune. Ignored by lethal intent. */
