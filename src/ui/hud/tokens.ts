@@ -86,8 +86,8 @@ export interface IHudPalette {
 const DEFAULT_PALETTE: IHudPalette = {
   accent: '#ffd230',
   saved: '#54e08a',
-  lost: '#ff5a63',
-  collateral: '#ff9f43',
+  lost: '#ff4d6d',
+  collateral: '#ffa62b',
   commit: '#7ef0ff',
   rival: '#c58bff',
   ink: '#f2f5fa',
@@ -105,32 +105,32 @@ const DEFAULT_PALETTE: IHudPalette = {
  */
 const DEUTERANOPIA_PALETTE: IHudPalette = {
   ...DEFAULT_PALETTE,
-  saved: '#66c9ff',
-  lost: '#ffb01f',
-  collateral: '#ff7043',
-  commit: '#b9a2ff',
-  rival: '#8fd4ff',
-};
-
-/** Protanopia additionally loses red LUMINANCE, so `lost` is lifted further. */
-const PROTANOPIA_PALETTE: IHudPalette = {
-  ...DEUTERANOPIA_PALETTE,
-  saved: '#5cc0ff',
-  lost: '#ffc233',
-  collateral: '#ff8a5c',
+  saved: '#4fb3ff',
+  lost: '#ffd24a',
+  collateral: '#e8703c',
+  commit: '#e8ecf5',
+  rival: '#cfd8e6',
 };
 
 /**
- * Tritanopia loses the blue/yellow axis, so blue/orange is exactly the wrong
- * choice here and red/cyan is the right one.
+ * Protanopia additionally loses red LUMINANCE — a deep red goes nearly black —
+ * so the collateral orange is lifted rather than deepened.
+ */
+const PROTANOPIA_PALETTE: IHudPalette = {
+  ...DEUTERANOPIA_PALETTE,
+  collateral: '#ff9a52',
+};
+
+/**
+ * Tritanopia is the opposite problem: red/green is INTACT and blue/yellow is
+ * not. Green/red for saved/lost is therefore kept exactly as the standard
+ * palette has it, and it is the cyan `commit` — which reads as grey — that has
+ * to move.
  */
 const TRITANOPIA_PALETTE: IHudPalette = {
   ...DEFAULT_PALETTE,
-  saved: '#3fd7d0',
-  lost: '#ff5b7a',
-  collateral: '#ff8fa8',
-  commit: '#8fe8ff',
-  rival: '#ff9fbf',
+  commit: '#c98cff',
+  rival: '#a8e063',
 };
 
 /**
@@ -140,9 +140,9 @@ const TRITANOPIA_PALETTE: IHudPalette = {
  */
 const HIGH_CONTRAST_PALETTE: IHudPalette = {
   accent: '#ffe066',
-  saved: '#9dfbff',
-  lost: '#ff9a9a',
-  collateral: '#ffd08a',
+  saved: '#7fd4ff',
+  lost: '#ff8080',
+  collateral: '#ffc14d',
   commit: '#ffffff',
   rival: '#e0c9ff',
   ink: '#ffffff',

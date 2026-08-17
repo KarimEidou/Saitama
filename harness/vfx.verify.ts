@@ -697,7 +697,7 @@ async function main(): Promise<void> {
   let shots: Record<string, PixelReport> = {};
   let freeze: PixelReport | undefined;
   let allocation: AllocationReport | undefined;
-  let determinismDelta = Number.NaN;
+  let determinismDelta: number | undefined;
 
   try {
     browser = await chromium.launch({ args: SWIFTSHADER_ARGS });
@@ -777,7 +777,7 @@ async function main(): Promise<void> {
         screenshots: shots,
         impactFreeze: freeze,
         allocation,
-        determinism: { meanAbsolutePixelDifference: determinismDelta },
+        determinism: { meanAbsolutePixelDifference: determinismDelta ?? null },
         notes,
       },
       null,

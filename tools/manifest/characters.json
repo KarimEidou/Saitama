@@ -171,6 +171,7 @@
           { "tier": "high", "file": "chr/saitama/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/saitama/vat.bin" },
       "surfaceClasses": ["cape", "cloth", "leather", "skin"],
       "cc0Textures": ["mat.road.asphalt.clean", "mat.wall.plaster.beige", "mat.wall.plaster.white"]
     },
@@ -275,6 +276,7 @@
           { "tier": "high", "file": "chr/genos/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/genos/vat.bin" },
       "surfaceClasses": ["armor", "cloth", "hair", "joint", "metal", "skin", "vent"],
       "cc0Textures": [
         "mat.metal.corrugated",
@@ -373,6 +375,7 @@
           { "tier": "high", "file": "chr/tatsumaki/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/tatsumaki/vat.bin" },
       "surfaceClasses": ["accent", "cloth", "hair", "skin"],
       "cc0Textures": ["mat.wall.plaster.white"]
     },
@@ -465,6 +468,7 @@
           { "tier": "high", "file": "chr/mumenRider/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/mumenRider/vat.bin" },
       "surfaceClasses": ["cloth", "hair", "leather", "skin"],
       "cc0Textures": [
         "mat.metal.shutter.painted",
@@ -572,6 +576,7 @@
           { "tier": "high", "file": "chr/civilian/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/civilian/vat.bin" },
       "surfaceClasses": ["accent", "cloth", "hair", "skin"],
       "cc0Textures": ["mat.wall.plaster.white"]
     },
@@ -665,6 +670,7 @@
           { "tier": "high", "file": "chr/mosquitoGirl/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/mosquitoGirl/vat.bin" },
       "surfaceClasses": ["chitin"],
       "cc0Textures": ["mat.metal.shutter.painted"]
     },
@@ -770,6 +776,7 @@
           { "tier": "high", "file": "chr/vaccineMan/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/vaccineMan/vat.bin" },
       "surfaceClasses": ["slime"],
       "cc0Textures": []
     },
@@ -863,6 +870,7 @@
           { "tier": "high", "file": "chr/deepSeaKing/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/deepSeaKing/vat.bin" },
       "surfaceClasses": ["chitin", "cloth", "leather", "scale"],
       "cc0Textures": [
         "mat.metal.shutter.painted",
@@ -973,6 +981,7 @@
           { "tier": "high", "file": "chr/boros/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/boros/vat.bin" },
       "surfaceClasses": ["armor", "cape", "chitin", "hair", "metal", "skin"],
       "cc0Textures": [
         "mat.metal.panel.factory",
@@ -1071,6 +1080,7 @@
           { "tier": "high", "file": "chr/mook.wolf/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/mook.wolf/vat.bin" },
       "surfaceClasses": ["chitin", "hide"],
       "cc0Textures": ["mat.metal.shutter.painted", "mat.wall.concrete.cracked"]
     },
@@ -1164,6 +1174,7 @@
           { "tier": "high", "file": "chr/mook.tiger/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/mook.tiger/vat.bin" },
       "surfaceClasses": ["chitin", "hide"],
       "cc0Textures": ["mat.metal.shutter.painted", "mat.wall.concrete.cracked"]
     },
@@ -1257,6 +1268,7 @@
           { "tier": "high", "file": "chr/mook.demon/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/mook.demon/vat.bin" },
       "surfaceClasses": ["armor", "chitin"],
       "cc0Textures": ["mat.metal.panel.factory", "mat.metal.shutter.painted"]
     },
@@ -1362,6 +1374,7 @@
           { "tier": "high", "file": "chr/mook.dragon/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/mook.dragon/vat.bin" },
       "surfaceClasses": ["armor", "chitin", "scale"],
       "cc0Textures": ["mat.metal.panel.factory", "mat.metal.shutter.painted", "mat.roof.tiles.grey"]
     },
@@ -1467,6 +1480,7 @@
           { "tier": "high", "file": "chr/mook.god/face.high.png" }
         ]
       },
+      "vat": { "file": "chr/mook.god/vat.bin" },
       "surfaceClasses": ["armor", "chitin", "metal"],
       "cc0Textures": [
         "mat.metal.panel.factory",
