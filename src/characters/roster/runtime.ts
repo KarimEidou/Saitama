@@ -160,6 +160,7 @@ export class RosterRuntime {
   private readonly plans = new Map<string, AtlasPlan>();
   private readonly faceRects = new Map<string, FaceRect>();
   private readonly failures = new Map<string, string>();
+  private loadMsTotal = 0;
   private disposed = false;
 
   constructor(options: IRosterRuntimeOptions) {
@@ -185,6 +186,17 @@ export class RosterRuntime {
   /** Ids whose load failed, with the reason. Surfaced in boot diagnostics. */
   get failed(): ReadonlyMap<string, string> {
     return this.failures;
+  }
+
+  /**
+   * Milliseconds spent fetching and decoding atlases, cumulative.
+   *
+   * Reported separately from the boot total because it is the ONE number this
+   * module adds to the boot path, and a boot measured on a contended machine
+   * cannot be differenced against a baseline measured on a quiet one.
+   */
+  get loadMs(): number {
+    return Math.round(this.loadMsTotal);
   }
 
   isResident(id: string): boolean {
@@ -230,6 +242,7 @@ export class RosterRuntime {
   private async doLoad(id: string): Promise<boolean> {
     const entry = this.entryOrUndefined(id);
     if (entry === undefined) return false;
+    const started = performance.now();
 
     const tier = this.tierFor();
     const dir = characterDir(entry);
@@ -270,9 +283,15 @@ export class RosterRuntime {
 
       this.loaded.set(id, { textures, tier, bytes });
       this.failures.delete(id);
-      log.info(`${id}: ${decoded.size} maps at '${tier}' (${(bytes / 1048576).toFixed(1)} MB)`);
+      const ms = performance.now() - started;
+      this.loadMsTotal += ms;
+      log.info(
+        `${id}: ${decoded.size} maps at '${tier}' ` +
+          `(${(bytes / 1048576).toFixed(1)} MB, ${ms.toFixed(0)}ms)`
+      );
       return true;
     } catch (error) {
+      this.loadMsTotal += performance.now() - started;
       this.failures.set(id, String(error));
       log.warn(`${id}: baked atlas unavailable — falling back to vertex colours (${String(error)})`);
       return false;
