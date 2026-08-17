@@ -211,6 +211,21 @@ export class CrowdRenderer {
       paletteBytes += bake.bytes;
 
       const geometry = build.geometry.clone();
+      // NO MORPH TARGETS ON AN INSTANCED GEOMETRY, EVER.
+      // `InstancedMesh.updateMorphTargets()` is an empty override in three
+      // r185 — per-instance morph state is supposed to live in `morphTexture`
+      // — so `morphTargetInfluences` is never allocated. But
+      // `WebGLRenderer.setProgram` decides to enter the morph path from the
+      // GEOMETRY alone, and `WebGLMorphtargets.update` then reads
+      // `object.morphTargetInfluences.length`. The throw comes out of
+      // `renderBufferDirect` and kills every frame from then on, which is
+      // exactly the fault the city's prop instancing shipped with (see
+      // `instanceableGeometry` in `src/world/city/runtime.ts`).
+      // `clone()` copies morph attributes, and `CROWD_MORPHS` is one option
+      // away from putting them on this build. The instanced tier is animated
+      // by the VAT and by nothing else, so they are dropped here.
+      geometry.morphAttributes = {};
+      geometry.morphTargetsRelative = false;
       geometry.setAttribute(
         'crowdRegion',
         classifyRegions(build, options.palette?.cloth, options.palette?.accent)

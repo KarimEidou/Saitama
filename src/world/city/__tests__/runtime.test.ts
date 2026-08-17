@@ -22,8 +22,10 @@ import { CITY_MATERIALS } from '../materials';
 import {
   DESTROYED_FLAG,
   buildBlockMesh,
+  buildChunkNodes,
   destroyFractureChunk,
   extractDebrisGeometry,
+  instanceableGeometry,
   repairBlock,
   toBufferGeometry,
 } from '../runtime';
@@ -189,5 +191,108 @@ describe('block meshes', () => {
     expect((mesh.mesh.material as THREE.Material[]).length).toBe(mesh.drawCalls);
     expect(mesh.drawCalls).toBeLessThanOrEqual(3);
     expect(seen[0]).toBe(block.materials.facade);
+  });
+});
+
+/**
+ * INSTANCED PROPS AND MORPH TARGETS
+ *
+ * The regression these pin is not cosmetic and not local: an `InstancedMesh`
+ * whose geometry carries morph attributes makes `WebGLRenderer` throw out of
+ * `renderBufferDirect` on EVERY frame after it enters the scene, because
+ * `InstancedMesh.updateMorphTargets()` is an empty override in three r185 and
+ * `morphTargetInfluences` is therefore never allocated, while
+ * `WebGLRenderer.setProgram` still enters the morph path on the geometry
+ * alone. Two of the pipeline's prop GLBs ship a blend shape, so this is not
+ * hypothetical — it was live, and it blacked the game out a few seconds after
+ * boot for as long as it went unnoticed.
+ *
+ * No renderer is constructed here: the invariant is a property of the objects,
+ * so it can be asserted on the CPU, which is the only way it stays asserted.
+ */
+describe('instanceable geometry', () => {
+  const withMorphs = (): THREE.BufferGeometry => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+    geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(9), 3));
+    geometry.setIndex(new THREE.BufferAttribute(new Uint16Array([0, 1, 2]), 1));
+    geometry.addGroup(0, 3, 0);
+    geometry.morphAttributes.position = [new THREE.BufferAttribute(new Float32Array(9), 3)];
+    geometry.morphAttributes.normal = [new THREE.BufferAttribute(new Float32Array(9), 3)];
+    geometry.morphTargetsRelative = true;
+    return geometry;
+  };
+
+  it('is the identity for geometry that has no morph targets', () => {
+    const plain = new THREE.BufferGeometry();
+    plain.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+    expect(instanceableGeometry(plain)).toBe(plain);
+  });
+
+  it('drops morph targets and keeps everything a draw needs', () => {
+    const source = withMorphs();
+    const stripped = instanceableGeometry(source);
+
+    expect(stripped).not.toBe(source);
+    expect(Object.keys(stripped.morphAttributes)).toHaveLength(0);
+    // Source untouched: the model template may still be drawn un-instanced.
+    expect(Object.keys(source.morphAttributes)).toHaveLength(2);
+
+    expect(stripped.getAttribute('position')).toBe(source.getAttribute('position'));
+    expect(stripped.getAttribute('normal')).toBe(source.getAttribute('normal'));
+    expect(stripped.getIndex()).toBe(source.getIndex());
+    expect(stripped.groups).toEqual(source.groups);
+    expect(stripped.boundingSphere).not.toBeNull();
+  });
+
+  it('THE INVARIANT: an InstancedMesh over it is renderable', () => {
+    // Straight from the geometry three cannot draw instanced — this is the
+    // shape of the bug, asserted so nobody has to rediscover it.
+    const broken = new THREE.InstancedMesh(withMorphs(), new THREE.MeshBasicMaterial(), 2);
+    expect(broken.morphTargetInfluences).toBeUndefined();
+    expect(broken.morphTexture).toBeNull();
+    expect(Object.keys(broken.geometry.morphAttributes).length).toBeGreaterThan(0);
+
+    // Through the helper, `setProgram` never enters the morph path at all.
+    const fixed = new THREE.InstancedMesh(
+      instanceableGeometry(withMorphs()),
+      new THREE.MeshBasicMaterial(),
+      2
+    );
+    expect(Object.keys(fixed.geometry.morphAttributes)).toHaveLength(0);
+  });
+
+  it('buildChunkNodes never instances morph-bearing geometry', () => {
+    const generator = makeGenerator('box');
+    // A chunk with street furniture in it; the plan places props on every
+    // ordinary block, so the first chunk with instances is representative.
+    let build = generator.generate(0, 0, { includeProps: true });
+    for (let cz = -2; cz <= 2 && build.instances.length === 0; cz++) {
+      for (let cx = -2; cx <= 2 && build.instances.length === 0; cx++) {
+        build = generator.generate(cx, cz, { includeProps: true });
+      }
+    }
+    expect(build.instances.length).toBeGreaterThan(0);
+
+    const nodes = buildChunkNodes(
+      build,
+      () => new THREE.MeshBasicMaterial(),
+      () => ({ geometry: withMorphs(), material: new THREE.MeshBasicMaterial() })
+    );
+    expect(nodes.instanced.length).toBeGreaterThan(0);
+    for (const mesh of nodes.instanced) {
+      expect(Object.keys(mesh.geometry.morphAttributes)).toHaveLength(0);
+    }
+  });
+});
+
+describe('instanceable geometry caching', () => {
+  it('hands the same stripped geometry back for one source', () => {
+    // Once per chunk per model, and an evicted chunk never disposes it — a
+    // fresh copy each time would leak a BufferGeometry per eviction.
+    const source = new THREE.BufferGeometry();
+    source.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+    source.morphAttributes.position = [new THREE.BufferAttribute(new Float32Array(9), 3)];
+    expect(instanceableGeometry(source)).toBe(instanceableGeometry(source));
   });
 });

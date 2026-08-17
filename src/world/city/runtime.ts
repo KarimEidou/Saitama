@@ -126,6 +126,100 @@ export function installDestructionHook(material: THREE.Material): THREE.Material
 /* Meshes                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/* Instancing                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ *  A `THREE.InstancedMesh` CANNOT DRAW GEOMETRY THAT CARRIES MORPH TARGETS
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * This is not a style rule, it is a hard incompatibility in three r185, and it
+ * takes the WHOLE FRAME down — every frame, forever, from the moment such a
+ * mesh reaches the scene. It cost this project several hours to find, so the
+ * mechanism is written out in full:
+ *
+ *   1. `Mesh`'s constructor calls `updateMorphTargets()`, which allocates
+ *      `morphTargetInfluences` when the geometry has morph attributes.
+ *      `InstancedMesh` OVERRIDES that method with an empty body — per-instance
+ *      morph state is meant to live in `InstancedMesh.morphTexture`, written
+ *      by `setMorphAt()`. So on an `InstancedMesh`, `morphTargetInfluences` is
+ *      `undefined` and `morphTexture` is `null` until `setMorphAt` is called.
+ *   2. `WebGLRenderer.setProgram` decides to touch morph state from the
+ *      GEOMETRY ALONE: `if (morphAttributes.position !== undefined || …)`.
+ *      The object is not consulted.
+ *   3. `WebGLMorphtargets.update` then takes its non-instanced branch —
+ *      `morphTexture !== null` is false — and reads
+ *      `object.morphTargetInfluences.length`.
+ *
+ * The result is `TypeError: Cannot read properties of undefined (reading
+ * 'length')` thrown out of `renderBufferDirect`, from inside the SHADOW pass,
+ * before `renderer.render()` can complete. `renderer.info` freezes mid-frame,
+ * nothing is presented, and because the throw is a property of the scene and
+ * not of the frame, it repeats on every frame that follows.
+ *
+ * ── WHY THE CITY HITS IT ───────────────────────────────────────────────────
+ * Street furniture is instanced — that is the whole point of `IPropPlacement`,
+ * one draw call per model per chunk. The models come from the asset pipeline,
+ * and two of them (`model.prop.rusted_wheel_rim_01` and `_02`) carry a
+ * one-target blend shape inherited from their source asset. They attach in the
+ * background, several seconds after boot, which is why this looked like a
+ * streaming or eviction fault rather than a bad prop.
+ *
+ * ── WHY STRIPPING IS THE RIGHT ANSWER RATHER THAN `setMorphAt` ─────────────
+ * Nothing in this game drives a prop morph. A hydrant, a bin and a wheel rim
+ * are static by definition; there is no animation channel, no influence
+ * anywhere in the codebase, and no plausible one. Giving three a morph texture
+ * to sample would allocate a `DataArrayTexture` per model to encode a
+ * deformation that is always zero. The targets are dead data, so they are
+ * dropped at the point of instancing.
+ *
+ * ── WHAT IT COSTS ─────────────────────────────────────────────────────────
+ * Returns the SAME geometry when there is nothing to strip, so the ordinary
+ * prop costs one `Object.keys` and no allocation. The stripped variant SHARES
+ * every `BufferAttribute` object with the original, and three keys its GPU
+ * buffers on the attribute rather than on the geometry — so it shares its
+ * buffers too, and costs no VRAM. It must therefore never be `dispose()`d
+ * while the model it came from is still in use, which is why `disposeGroup` in
+ * `src/game/city-streamer.ts` leaves instanced geometry alone.
+ *
+ * Memoised per SOURCE geometry, and that is a lifetime decision rather than a
+ * micro-optimisation: this runs once per chunk per model, an evicted chunk
+ * never disposes it, and a fresh copy per chunk would leave a `BufferGeometry`
+ * and a `WebGLGeometries` registration behind on every eviction for as long as
+ * the session lasts. A `WeakMap` keyed on the registry's own geometry gives
+ * exactly one per model, released when the model is.
+ */
+const strippedGeometries = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+
+export function instanceableGeometry(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  if (Object.keys(geometry.morphAttributes).length === 0) return geometry;
+
+  const cached = strippedGeometries.get(geometry);
+  if (cached !== undefined) return cached;
+
+  const stripped = new THREE.BufferGeometry();
+  stripped.name = geometry.name;
+  for (const name of Object.keys(geometry.attributes)) {
+    stripped.setAttribute(name, geometry.attributes[name]!);
+  }
+  if (geometry.index !== null) stripped.setIndex(geometry.index);
+  for (const group of geometry.groups) {
+    stripped.addGroup(group.start, group.count, group.materialIndex);
+  }
+  stripped.setDrawRange(geometry.drawRange.start, geometry.drawRange.count);
+  // Cloned rather than shared: they are mutable and three writes to them from
+  // `computeBoundingSphere()`, so two geometries holding one `Sphere` is the
+  // next lifetime bug along.
+  stripped.boundingBox = geometry.boundingBox?.clone() ?? null;
+  stripped.boundingSphere = geometry.boundingSphere?.clone() ?? null;
+  if (stripped.boundingSphere === null) stripped.computeBoundingSphere();
+
+  strippedGeometries.set(geometry, stripped);
+  return stripped;
+}
+
 /** A block's mesh plus the handles destruction needs. */
 export interface IBlockMesh {
   readonly mesh: THREE.Mesh;
@@ -211,7 +305,13 @@ export function buildChunkNodes(
   for (const batch of build.instances) {
     const model = resolveModel(batch.assetKey);
     if (!model) continue;
-    const mesh = new THREE.InstancedMesh(model.geometry, model.material, batch.count);
+    // `instanceableGeometry`, not `model.geometry`: see its header. A prop
+    // whose GLB carries morph targets kills every subsequent frame.
+    const mesh = new THREE.InstancedMesh(
+      instanceableGeometry(model.geometry),
+      model.material,
+      batch.count
+    );
     mesh.name = `props:${batch.assetKey}`;
     for (let i = 0; i < batch.count; i++) {
       matrix.fromArray(batch.matrices, i * 16);

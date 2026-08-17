@@ -123,6 +123,7 @@ export {
   destroyFractureChunk,
   extractDebrisGeometry,
   installDestructionHook,
+  instanceableGeometry,
   repairBlock,
   toBufferGeometry,
   toChunkPayload,

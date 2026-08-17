@@ -52,6 +52,7 @@ import {
   blockSeed,
   buildBlockMesh,
   buildGroundMesh,
+  instanceableGeometry,
   polygonBounds,
   polygonCentroid,
   shadeTint,
@@ -779,6 +780,13 @@ export class CityStreamer {
    * Idempotent and cheap to call repeatedly: a chunk is skipped once its props
    * exist, and a batch whose model has not loaded yet is left for the next call
    * rather than resolved to nothing permanently.
+   *
+   * The geometry goes through `instanceableGeometry` and NOT straight from the
+   * resolver. Two of the pipeline's prop GLBs carry a blend shape, and three
+   * r185 throws out of `renderBufferDirect` on every frame after such a mesh
+   * enters the scene — read that function's header before removing the call.
+   * It also has to be here rather than in the resolver: `PropResolver` is the
+   * caller's, and the harnesses supply their own.
    */
   attachProps(resolveModel: PropResolver): number {
     this.resolveModel = resolveModel;
@@ -794,7 +802,11 @@ export class CityStreamer {
           complete = false;
           continue;
         }
-        const mesh = new THREE.InstancedMesh(model.geometry, model.material, batch.count);
+        const mesh = new THREE.InstancedMesh(
+          instanceableGeometry(model.geometry),
+          model.material,
+          batch.count
+        );
         mesh.name = `props:${batch.assetKey}`;
         for (let i = 0; i < batch.count; i++) {
           matrix.fromArray(batch.matrices, i * 16);

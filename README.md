@@ -107,19 +107,38 @@ assets are committed — `npm run guard` rejects any tracked binary outside
 
 Other scripts:
 
-| Command                        | What it does                                                       |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `npm run build`                | production web build into `dist/`                                  |
-| `npm test`                     | Vitest unit tests                                                  |
-| `npm run typecheck`            | `tsc --noEmit`, strict                                             |
-| `npm run lint`                 | ESLint over the whole tree                                         |
-| `npm run guard`                | refuse tracked binaries and files over 5 MB                        |
-| `npm run verify`               | build, serve, drive headless Chromium, prove a real frame rendered |
-| `npx tsx tools/attribution.ts` | regenerate `ATTRIBUTION.md` from the manifests                     |
+| Command                               | What it does                                                       |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `npm run build`                       | production web build into `dist/`                                  |
+| `npm test`                            | Vitest unit tests                                                  |
+| `npm run typecheck`                   | `tsc --noEmit`, strict                                             |
+| `npm run lint`                        | ESLint over the whole tree                                         |
+| `npm run guard`                       | refuse tracked binaries and files over 5 MB                        |
+| `npm run verify`                      | build, serve, drive headless Chromium, prove a real frame rendered |
+| `npx tsx verification/soak.verify.ts` | drive the whole game 1800 frames; zero errors, loop still drawing  |
+| `npx tsx tools/attribution.ts`        | regenerate `ATTRIBUTION.md` from the manifests                     |
 
 ---
 
 ## Known issues
+
+**The game used to stop rendering a few seconds after boot; it is fixed.**
+`THREE.InstancedMesh.updateMorphTargets()` is an empty override in three r185 —
+per-instance morph state is meant to live in `morphTexture` — so an
+`InstancedMesh` never allocates `morphTargetInfluences`. But
+`WebGLRenderer.setProgram` decides to touch morph state from the GEOMETRY
+alone, and `WebGLMorphtargets.update` then reads
+`object.morphTargetInfluences.length`. Two prop GLBs
+(`model.prop.rusted_wheel_rim_01` / `_02`) carry a one-target blend shape from
+their source asset, and street furniture is instanced — so from the moment the
+background prop load attached one, every frame threw
+`Cannot read properties of undefined (reading 'length')` out of
+`renderBufferDirect` inside the shadow pass, `renderer.info` froze mid-frame,
+and nothing was presented again. `instanceableGeometry()` in
+`src/world/city/runtime.ts` now drops morph attributes at the point of
+instancing. It survived every earlier check because every check sampled only
+the first seconds of a session; `verification/soak.verify.ts` is the run that
+would have caught it.
 
 **`npm run assets` used to fail on a fresh clone; it is fixed.**
 `loadSourceManifests()` (`tools/lib/manifest.ts`) globbed every
