@@ -457,6 +457,12 @@ export class MonsterBrain {
     // Someone who cannot — the protagonist — still has to be seen.
     const peripheral = Math.max(proximity, a.aggroRadius * HARMABLE_PERIPHERAL_FRACTION);
     const suppressed = this.suppressedFor > 0 ? this.suppressedId : undefined;
+    // Hoisted: the scan now walks the player, the allies AND the nearest
+    // civilians, so a `sin`, a `cos` and a `Math.cos(halfAngle)` per candidate
+    // is twenty of each per think rather than three.
+    const forwardX = Math.sin(this.yaw);
+    const forwardZ = Math.cos(this.yaw);
+    const coneCosine = Math.cos(a.visionHalfAngleRad);
 
     let bestId: EntityId | undefined;
     let bestScore = 0;
@@ -484,11 +490,9 @@ export class MonsterBrain {
 
       // Inside the vision cone, close enough that facing stops mattering, or —
       // for someone who can be hurt — anywhere inside the peripheral radius.
-      const forwardX = Math.sin(this.yaw);
-      const forwardZ = Math.cos(this.yaw);
       const planar = Math.hypot(dx, dz) || 1;
       const cosine = (dx * forwardX + dz * forwardZ) / planar;
-      const inCone = cosine >= Math.cos(a.visionHalfAngleRad);
+      const inCone = cosine >= coneCosine;
       const noticed = inCone || distance <= proximity || (harmable && distance <= peripheral);
       if (!noticed && target.id !== this.targetId) continue;
 

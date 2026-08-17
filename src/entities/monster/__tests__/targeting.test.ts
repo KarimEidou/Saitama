@@ -219,14 +219,17 @@ describe('a monster gives up on a target it cannot hurt', () => {
   });
 
   it('counts wasted ATTACKS, not just seconds', () => {
-    const { bus } = recordingBus();
-    // A pest swings every 1.1 s, so two futile hits land well inside the
-    // five-second lock: whichever limit is reached first ends the engagement.
-    const brain = makeBrain('mob.wolf.pest', bus, { x: 0, y: 0, z: 0 }, 'pest#futile');
+    const recorder = recordingBus();
+    // A pest swings every 1.1 s, so the second futile hit lands at about two
+    // seconds — comfortably inside the five-second lock, which proves it was
+    // the COUNT that ended the engagement and not the clock.
+    const brain = makeBrain('mob.wolf.pest', recorder.bus, { x: 0, y: 0, z: 0 }, 'pest#futile');
     const view = world([saitama(0, 1.2)]);
     const gaveUp = tickUntil(brain, view, 20, () => brain.retargets > 0);
     expect(gaveUp).toBeGreaterThan(0);
-    expect(gaveUp).toBeLessThan(6);
+    expect(gaveUp).toBeLessThan(3.5);
+    // Exactly the two swings it takes to learn, and not one more.
+    expect(recorder.ofType('ShockwaveFired')).toHaveLength(2);
   });
 
   it('never picks him over the ally standing behind it', () => {
