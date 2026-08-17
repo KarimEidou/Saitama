@@ -68,8 +68,7 @@ function skyNoise(x: number, y: number, z: number, scale: number): number {
   for (let dz = 0; dz <= 1; dz++) {
     for (let dy = 0; dy <= 1; dy++) {
       for (let dx = 0; dx <= 1; dx++) {
-        const weight =
-          (dx === 1 ? u : 1 - u) * (dy === 1 ? v : 1 - v) * (dz === 1 ? w : 1 - w);
+        const weight = (dx === 1 ? u : 1 - u) * (dy === 1 ? v : 1 - v) * (dz === 1 ? w : 1 - w);
         result += hash3(xi + dx, yi + dy, zi + dz) * weight;
       }
     }
@@ -93,9 +92,7 @@ function cloudField(x: number, y: number, z: number): number {
  *          ready for `PMREMGenerator.fromEquirectangular()` or for CPU SH
  *          projection. The caller owns it and must dispose it.
  */
-export function createProceduralSkyTexture(
-  options: IProceduralSkyOptions = {}
-): THREE.DataTexture {
+export function createProceduralSkyTexture(options: IProceduralSkyOptions = {}): THREE.DataTexture {
   const width = options.width ?? 256;
   const height = width >> 1;
 

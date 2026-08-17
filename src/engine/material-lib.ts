@@ -55,7 +55,7 @@ import {
   type IMaterialFeatures,
 } from './shader-chunks';
 import { addShaderHook } from './shader-hooks';
-import { createMissingTexture } from './procedural-textures';
+import { createBlackPixelTexture, createMissingTexture } from './procedural-textures';
 
 const log = createLogger('engine.materials');
 
@@ -127,6 +127,12 @@ export class MaterialLib implements IDisposable {
   private envIntensity: number;
   private readonly programBudget: number;
   private missingTexture: THREE.DataTexture | undefined;
+  /**
+   * Neutral default for the damage-mask sampler. A `null` sampler binds three's
+   * internal empty texture, whose contents are undefined — materials would
+   * sample garbage dust before the destruction system publishes a real mask.
+   */
+  private readonly emptyDamageMask: THREE.DataTexture;
   private disposed = false;
   private budgetWarned = false;
 
@@ -144,6 +150,8 @@ export class MaterialLib implements IDisposable {
   };
 
   constructor(options: IMaterialLibOptions = {}) {
+    this.emptyDamageMask = createBlackPixelTexture();
+    this.globals.uEngineDamageMask.value = this.emptyDamageMask;
     this.registry = options.registry;
     this.anisotropyValue = options.anisotropy ?? 4;
     this.envIntensity = options.envMapIntensity ?? 1;
@@ -269,7 +277,11 @@ export class MaterialLib implements IDisposable {
   ): THREE.Material {
     const { spec } = request;
     const side =
-      spec.side === 'double' ? THREE.DoubleSide : spec.side === 'back' ? THREE.BackSide : THREE.FrontSide;
+      spec.side === 'double'
+        ? THREE.DoubleSide
+        : spec.side === 'back'
+          ? THREE.BackSide
+          : THREE.FrontSide;
 
     const common = {
       name: spec.id,
@@ -478,10 +490,7 @@ export class MaterialLib implements IDisposable {
             .replace('#include <metalnessmap_fragment>', TRIPLANAR_METALNESS_FRAGMENT);
         }
         if (hasNormalMap) {
-          fragment = fragment.replace(
-            '#include <normal_fragment_maps>',
-            TRIPLANAR_NORMAL_FRAGMENT
-          );
+          fragment = fragment.replace('#include <normal_fragment_maps>', TRIPLANAR_NORMAL_FRAGMENT);
         }
       }
 
@@ -489,9 +498,10 @@ export class MaterialLib implements IDisposable {
       if (surface.length > 0) {
         // The metalness splice may already have been rewritten above, so anchor
         // on whatever is there now rather than on the original include.
-        const anchor = effective.triplanar && hasOrm
-          ? TRIPLANAR_METALNESS_FRAGMENT
-          : '#include <metalnessmap_fragment>';
+        const anchor =
+          effective.triplanar && hasOrm
+            ? TRIPLANAR_METALNESS_FRAGMENT
+            : '#include <metalnessmap_fragment>';
         fragment = fragment.replace(anchor, `${anchor}\n${surface}`);
       }
 
@@ -524,7 +534,7 @@ export class MaterialLib implements IDisposable {
     sizeX = 512,
     sizeZ = 512
   ): void {
-    this.globals.uEngineDamageMask.value = texture;
+    this.globals.uEngineDamageMask.value = texture ?? this.emptyDamageMask;
     this.globals.uEngineDamageRect.value.set(
       centerX,
       centerZ,
@@ -641,6 +651,7 @@ export class MaterialLib implements IDisposable {
     this.observers.clear();
     this.missingTexture?.dispose();
     this.missingTexture = undefined;
+    this.emptyDamageMask.dispose();
   }
 }
 
@@ -698,14 +709,8 @@ export function applyInstanceVariation(
     wear[i] = wearLo + random() * (wearHi - wearLo);
   }
 
-  mesh.geometry.setAttribute(
-    INSTANCE_TINT_ATTRIBUTE,
-    new THREE.InstancedBufferAttribute(tint, 3)
-  );
-  mesh.geometry.setAttribute(
-    INSTANCE_WEAR_ATTRIBUTE,
-    new THREE.InstancedBufferAttribute(wear, 1)
-  );
+  mesh.geometry.setAttribute(INSTANCE_TINT_ATTRIBUTE, new THREE.InstancedBufferAttribute(tint, 3));
+  mesh.geometry.setAttribute(INSTANCE_WEAR_ATTRIBUTE, new THREE.InstancedBufferAttribute(wear, 1));
 }
 
 /** Structural equality of the fields that affect the built material. */

@@ -33,6 +33,13 @@ import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 
 const MOTION_BLUR_TAPS = 6;
 
+/**
+ * Resting chromatic aberration, present at all times on the HIGH tier as a
+ * subtle lens characteristic. Deliberately small: fringing you can NOTICE
+ * outside of an impact reads as a broken shader rather than as a lens.
+ */
+const REST_CHROMATIC = 0.16;
+
 const VERTEX_SHADER = /* glsl */ `
 	varying vec2 vUv;
 	void main() {
@@ -158,7 +165,7 @@ export class AnimeCompositePass extends Pass {
         uAspect: { value: 1 },
         uTime: { value: 0 },
         uMotionBlur: { value: 0 },
-        uChromatic: { value: this.chromaticEnabled ? 0.35 : 0 },
+        uChromatic: { value: this.chromaticEnabled ? REST_CHROMATIC : 0 },
         uSpeedLines: { value: 0 },
         uSpeedLineColor: { value: new THREE.Color(options.speedLineColor ?? 0xffffff) },
         uSpeedLineDensity: { value: options.speedLineDensity ?? 120 },
@@ -169,7 +176,7 @@ export class AnimeCompositePass extends Pass {
       depthWrite: false,
     });
     this.fsQuad = new FullScreenQuad(this.material);
-    this.targetChromatic = this.chromaticEnabled ? 0.35 : 0;
+    this.targetChromatic = this.chromaticEnabled ? REST_CHROMATIC : 0;
   }
 
   /**
@@ -184,11 +191,9 @@ export class AnimeCompositePass extends Pass {
     const clamped = Math.min(1, Math.max(0, intensity));
     if (focal) (this.material.uniforms.uFocal!.value as THREE.Vector2).copy(focal);
     this.targetMotionBlur = this.motionBlurEnabled ? Math.max(this.targetMotionBlur, clamped) : 0;
-    this.targetSpeedLines = this.speedLinesEnabled
-      ? Math.max(this.targetSpeedLines, clamped)
-      : 0;
+    this.targetSpeedLines = this.speedLinesEnabled ? Math.max(this.targetSpeedLines, clamped) : 0;
     if (this.chromaticEnabled) {
-      this.targetChromatic = Math.max(this.targetChromatic, 0.35 + clamped * 0.9);
+      this.targetChromatic = Math.max(this.targetChromatic, REST_CHROMATIC + clamped * 1.1);
     }
     this.burstHold = Math.max(this.burstHold, hold);
     // Jump straight to the target: an impact cue that eases IN is a cue that
@@ -200,14 +205,17 @@ export class AnimeCompositePass extends Pass {
 
   /** Advance the decay. `dt` is UNSCALED seconds — the effect must keep moving during hit-stop. */
   update(dt: number): void {
-    this.material.uniforms.uTime!.value += dt;
+    // Wrapped: a mediump float loses sub-frame precision past a few thousand,
+    // and a long play session would make the speed lines visibly quantise.
+    // 1000 is comfortably above the longest effect period here.
+    this.material.uniforms.uTime!.value = (this.material.uniforms.uTime!.value + dt) % 1000;
 
     if (this.burstHold > 0) {
       this.burstHold -= dt;
       return;
     }
 
-    const restChromatic = this.chromaticEnabled ? 0.35 : 0;
+    const restChromatic = this.chromaticEnabled ? REST_CHROMATIC : 0;
     // Exponential decay, frame-rate independent.
     const decay = Math.pow(0.0008, dt);
     this.targetMotionBlur *= decay;
@@ -222,7 +230,10 @@ export class AnimeCompositePass extends Pass {
     this.material.uniforms.uChromatic!.value = this.targetChromatic;
   }
 
-  setEffectEnabled(effect: 'motionBlur' | 'chromaticAberration' | 'speedLines', enabled: boolean): void {
+  setEffectEnabled(
+    effect: 'motionBlur' | 'chromaticAberration' | 'speedLines',
+    enabled: boolean
+  ): void {
     switch (effect) {
       case 'motionBlur':
         this.motionBlurEnabled = enabled;
@@ -233,7 +244,7 @@ export class AnimeCompositePass extends Pass {
         break;
       case 'chromaticAberration':
         this.chromaticEnabled = enabled;
-        this.targetChromatic = enabled ? 0.35 : 0;
+        this.targetChromatic = enabled ? REST_CHROMATIC : 0;
         this.material.uniforms.uChromatic!.value = this.targetChromatic;
         break;
       case 'speedLines':

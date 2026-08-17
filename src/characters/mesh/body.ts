@@ -148,7 +148,7 @@ const ARM_SECTIONS: readonly Section[] = [
   // hides it.
   { key: 'inboard', at: -0.3, v: 0.0, a: 0.027, b: 0.028, mus: 0.2, fat: 0.14, tier: 0 },
   { key: 'deltoidLow', at: -0.12, v: 0.05, a: 0.033, b: 0.035, mus: 0.28, fat: 0.16, tier: 2 },
-  { key: 'deltoid', at: 0.06, v: 0.11, a: 0.036, b: 0.038, mus: 0.3, musB: 0.34, fat: 0.15, tier: 0 },
+  { key: 'deltoid', at: 0.06, v: 0.11, a: 0.036, b: 0.036, mus: 0.3, musB: 0.34, fat: 0.15, tier: 0 },
   { key: 'deltoidEnd', at: 0.24, v: 0.17, a: 0.034, b: 0.036, mus: 0.3, fat: 0.16, tier: 2 },
   { key: 'bicep', at: 0.45, v: 0.26, a: 0.032, b: 0.034, mus: 0.3, musB: 0.34, fat: 0.2, tier: 1 },
   { key: 'armMid', at: 0.65, v: 0.34, a: 0.03, b: 0.032, mus: 0.24, fat: 0.2, tier: 2 },

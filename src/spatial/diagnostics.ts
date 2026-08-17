@@ -63,6 +63,8 @@ export interface ICullRateReport {
   /** Mean quadtree nodes visited per cull, with and without the PVS. */
   readonly nodesVisitedFrustum: number;
   readonly nodesVisitedWithPvs: number;
+  /** Mean chunk-sized subtrees the PVS discarded inside the walk. */
+  readonly pvsSubtreeRejections: number;
 
   /** Worst-case (max over samples) survivors, which is what frame time sees. */
   readonly worstChunksAfterFrustum: number;
@@ -108,6 +110,7 @@ export function measureCullRates(
   let sumInstPvs = 0;
   let sumNodesFrustum = 0;
   let sumNodesPvs = 0;
+  let sumPvsRejections = 0;
   let worstChunksFrustum = 0;
   let worstChunksPvs = 0;
   let worstInstPvs = 0;
@@ -159,6 +162,7 @@ export function measureCullRates(
     sumInstPvs += listB.length;
     sumNodesFrustum += statsA.nodesVisited;
     sumNodesPvs += statsB.nodesVisited;
+    sumPvsRejections += statsB.chunksRejectedByPvs;
     if (keptFrustum > worstChunksFrustum) worstChunksFrustum = keptFrustum;
     if (keptPvs > worstChunksPvs) worstChunksPvs = keptPvs;
     if (listB.length > worstInstPvs) worstInstPvs = listB.length;
@@ -185,6 +189,7 @@ export function measureCullRates(
     totalInstances: quadtree.count,
     nodesVisitedFrustum: sumNodesFrustum / n,
     nodesVisitedWithPvs: sumNodesPvs / n,
+    pvsSubtreeRejections: sumPvsRejections / n,
     worstChunksAfterFrustum: worstChunksFrustum,
     worstChunksAfterPvs: worstChunksPvs,
     worstInstancesAfterPvs: worstInstPvs,
@@ -206,6 +211,7 @@ export function formatCullReport(report: ICullRateReport): string {
     `instances after frustum ... ${report.instancesAfterFrustum.toFixed(1)}`,
     `instances after +PVS ...... ${report.instancesAfterPvs.toFixed(1)} (-${pct(report.pvsInstanceEliminationRate)})`,
     `nodes visited ............. ${report.nodesVisitedFrustum.toFixed(1)} -> ${report.nodesVisitedWithPvs.toFixed(1)}`,
+    `PVS subtree rejections .... ${report.pvsSubtreeRejections.toFixed(1)} / cull`,
     '',
     `worst-case chunks ......... ${report.worstChunksAfterFrustum} -> ${report.worstChunksAfterPvs}`,
     `worst-case instances ...... ${report.worstInstancesAfterPvs}`,

@@ -66,8 +66,8 @@ export interface IFootprint {
 export interface IPvsBuildOptions {
   /** Horizontal rays per sampling origin. */
   readonly rayCount?: number;
-  /** Street-level sample points per chunk: 1, 5 or 9. */
-  readonly originSamples?: 1 | 5 | 9;
+  /** Street-level sample points per chunk: 1, 5, 9 or 13. */
+  readonly originSamples?: 1 | 5 | 9 | 13;
   /** Seed for the angular jitter. Determines the table exactly. */
   readonly seed?: number;
   /** Ray length cap in metres. */
@@ -363,13 +363,31 @@ function clampCell(v: number): number {
 /* Builder                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Sample-point offsets inside a chunk, as fractions of the chunk edge. */
+/**
+ * Sample-point offsets inside a chunk, as fractions of the chunk edge.
+ *
+ * The near-edge fractions are the important ones. A chunk's mask has to cover
+ * a viewer standing ANYWHERE inside it, including hard against its boundary —
+ * and in a grid city the boundary is where the road is, so it is exactly where
+ * the long sightlines are. Sampling only the interior (0.25 / 0.5 / 0.75) puts
+ * every origin inside the block, where rays die against the first façade after
+ * a few metres. Measured against point-to-point ground truth, interior-only
+ * sampling produced false negatives; the 3x3 pattern below produced none.
+ */
+const EDGE = 0.03;
 const ORIGIN_PATTERNS: Readonly<Record<number, readonly number[]>> = {
   1: [0.5, 0.5],
-  5: [0.5, 0.5, 0.25, 0.25, 0.75, 0.25, 0.25, 0.75, 0.75, 0.75],
+  5: [0.5, 0.5, EDGE, EDGE, 1 - EDGE, EDGE, EDGE, 1 - EDGE, 1 - EDGE, 1 - EDGE],
   9: [
-    1 / 6, 1 / 6, 0.5, 1 / 6, 5 / 6, 1 / 6, 1 / 6, 0.5, 0.5, 0.5, 5 / 6, 0.5, 1 / 6, 5 / 6, 0.5,
-    5 / 6, 5 / 6, 5 / 6,
+    EDGE, EDGE, 0.5, EDGE, 1 - EDGE, EDGE,
+    EDGE, 0.5, 0.5, 0.5, 1 - EDGE, 0.5,
+    EDGE, 1 - EDGE, 0.5, 1 - EDGE, 1 - EDGE, 1 - EDGE,
+  ],
+  13: [
+    EDGE, EDGE, 0.5, EDGE, 1 - EDGE, EDGE,
+    EDGE, 0.5, 0.5, 0.5, 1 - EDGE, 0.5,
+    EDGE, 1 - EDGE, 0.5, 1 - EDGE, 1 - EDGE, 1 - EDGE,
+    0.25, 0.25, 0.75, 0.25, 0.25, 0.75, 0.75, 0.75,
   ],
 };
 
@@ -386,7 +404,7 @@ export function buildPvs(
   options: IPvsBuildOptions = {}
 ): PvsTable {
   const rayCount = options.rayCount ?? PVS_DEFAULT_RAY_COUNT;
-  const originSamples = options.originSamples ?? 5;
+  const originSamples = options.originSamples ?? 9;
   const seed = options.seed ?? PVS_DEFAULT_SEED;
   const maxDistance = options.maxDistance ?? WORLD_DIAGONAL;
   const symmetrise = options.symmetrise ?? true;
@@ -625,17 +643,24 @@ export function groundTruthVisible(
     return false;
   };
 
-  const stepFraction = 1 / (samplesPerAxis + 1);
-  for (let az = 1; az <= samplesPerAxis; az++) {
-    for (let ax = 1; ax <= samplesPerAxis; ax++) {
-      const px = fx + ax * stepFraction * CHUNK_SIZE;
-      const pz = fz + az * stepFraction * CHUNK_SIZE;
+  // Sample the FULL chunk, edges included. Truth about "can a viewer anywhere
+  // in A see anything in B" has to include viewers standing on the boundary,
+  // which in a grid city is the roadway — leave it out and the reference
+  // declares half the streets invisible.
+  const span = samplesPerAxis > 1 ? (1 - 2 * GROUND_TRUTH_EDGE) / (samplesPerAxis - 1) : 0;
+  const at = (i: number): number =>
+    samplesPerAxis > 1 ? GROUND_TRUTH_EDGE + i * span : 0.5;
+
+  for (let az = 0; az < samplesPerAxis; az++) {
+    for (let ax = 0; ax < samplesPerAxis; ax++) {
+      const px = fx + at(ax) * CHUNK_SIZE;
+      const pz = fz + at(az) * CHUNK_SIZE;
       if (inside(px, pz)) continue;
 
-      for (let bz = 1; bz <= samplesPerAxis; bz++) {
-        for (let bx = 1; bx <= samplesPerAxis; bx++) {
-          const qx = tx + bx * stepFraction * CHUNK_SIZE;
-          const qz = tz + bz * stepFraction * CHUNK_SIZE;
+      for (let bz = 0; bz < samplesPerAxis; bz++) {
+        for (let bx = 0; bx < samplesPerAxis; bx++) {
+          const qx = tx + at(bx) * CHUNK_SIZE;
+          const qz = tz + at(bz) * CHUNK_SIZE;
           if (inside(qx, qz)) continue;
           if (segmentClear(footprints, px, pz, qx, qz)) return true;
         }
@@ -644,6 +669,9 @@ export function groundTruthVisible(
   }
   return false;
 }
+
+/** Fractional inset of the outermost ground-truth sample row. */
+const GROUND_TRUTH_EDGE = 0.02;
 
 /** True when no footprint intersects the open segment p→q. */
 function segmentClear(

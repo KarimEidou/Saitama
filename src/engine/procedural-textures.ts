@@ -119,8 +119,8 @@ export function createNoiseAlbedo(options: INoiseAlbedoOptions = {}): THREE.Data
       const n = fbm(x, y, size, seed, 4);
       tmp.copy(base).lerp(accent, n);
       if (grid > 0) {
-        const gx = Math.min(x % (size / 4), (size / 4) - (x % (size / 4)));
-        const gy = Math.min(y % (size / 4), (size / 4) - (y % (size / 4)));
+        const gx = Math.min(x % (size / 4), size / 4 - (x % (size / 4)));
+        const gy = Math.min(y % (size / 4), size / 4 - (y % (size / 4)));
         const line = Math.min(gx, gy) < 1.5 ? grid : 0;
         tmp.lerp(accent, line);
       }

@@ -1,4 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "include": ["harness/input.ts", "harness/input.verify.ts", "src/**/*.ts"]
-}

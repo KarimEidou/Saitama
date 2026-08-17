@@ -43,11 +43,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import type { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
-import type {
-  IPostProcessing,
-  IQualitySettings,
-  PostEffectName,
-} from '@/types';
+import type { IPostProcessing, IQualitySettings, PostEffectName } from '@/types';
 import { createLogger } from '@/util';
 import { renderProfileFor, type PostTierProfile } from '../quality';
 import { bakeLutStrip, ANIME_GRADE, type IGradeOptions } from './lut';
@@ -131,6 +127,13 @@ export class PostProcessing implements IPostProcessing {
   private width = 1;
   private height = 1;
   private disposed = false;
+  /**
+   * Guards against double-advancing time-based effects. `IPostProcessing`
+   * extends `IUpdatable`, so a game loop may legitimately call `update(dt)`
+   * AND `render(dt)` in the same frame; without this the speed lines animate at
+   * double speed for anyone who wires it up the documented way.
+   */
+  private advancedThisFrame = false;
 
   constructor(options: IPostProcessingOptions) {
     this.renderer = options.renderer;
@@ -194,7 +197,10 @@ export class PostProcessing implements IPostProcessing {
         radius: profile.ssaoRadius,
         intensity: profile.ssaoIntensity,
       });
-      this.addPass(this.ssaoPass, `SSAO(${Math.round(profile.ssaoScale * 100)}%, ${profile.ssaoSamples} samples)`);
+      this.addPass(
+        this.ssaoPass,
+        `SSAO(${Math.round(profile.ssaoScale * 100)}%, ${profile.ssaoSamples} samples)`
+      );
     }
 
     if (profile.bloom) {
@@ -279,17 +285,20 @@ export class PostProcessing implements IPostProcessing {
   render(dt: number): void {
     if (this.disposed) return;
     if (!this.enabled || !this.composer) {
+      this.advancedThisFrame = false;
       this.renderer.setRenderTarget(null);
       this.renderer.render(this.scene, this.camera);
       return;
     }
-    this.animePass?.update(dt);
+    if (!this.advancedThisFrame) this.animePass?.update(dt);
+    this.advancedThisFrame = false;
     this.composer.render(dt);
   }
 
   /** Advance time-based effects without drawing. Part of `IUpdatable`. */
   update(dt: number): void {
     this.animePass?.update(dt);
+    this.advancedThisFrame = true;
   }
 
   setSize(width: number, height: number): void {

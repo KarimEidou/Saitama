@@ -156,7 +156,11 @@ export function fragmentDeclarations(features: IMaterialFeatures): string {
     );
   }
   if (features.instanceVariation) {
-    lines.push('varying vec3 vEngineTint;', 'varying float vEngineWear;', 'uniform float uEngineWearRoughness;');
+    lines.push(
+      'varying vec3 vEngineTint;',
+      'varying float vEngineWear;',
+      'uniform float uEngineWearRoughness;'
+    );
   }
   if (features.damageMask) {
     lines.push(

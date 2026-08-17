@@ -102,8 +102,8 @@ async function main(): Promise<void> {
     const maxTris = Math.max(...stats.perCharacter.map((c) => c.triangles));
     check(maxTris <= 4000, `LOD0 max ${maxTris} tris within the 4000 budget`);
     check(
-      stats.lodTriangles[1]! <= 1600,
-      `LOD1 ${stats.lodTriangles[1]} tris near the ~1.2k target`
+      stats.lodTriangles[1]! <= 1550,
+      `LOD1 ${stats.lodTriangles[1]} tris within the dressed-hero ceiling`
     );
     check(stats.lodTriangles[2]! <= 560, `LOD2 ${stats.lodTriangles[2]} tris near the ~400 target`);
     check(

@@ -318,9 +318,7 @@ export class Renderer implements IRenderer {
     }
 
     this.capabilitiesCache = {
-      renderer: debugInfo
-        ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
-        : 'unknown',
+      renderer: debugInfo ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)) : 'unknown',
       vendor: debugInfo ? String(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL)) : 'unknown',
       isWebGL2:
         this.raw.capabilities.isWebGL2 ??

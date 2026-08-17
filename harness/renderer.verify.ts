@@ -253,6 +253,40 @@ async function analyse(file: string): Promise<PixelReport> {
   };
 }
 
+/**
+ * Re-encode a screenshot with maximum PNG compression.
+ *
+ * LOSSLESS — the pixels are byte-identical, so the statistics reported for the
+ * captured frame still describe the committed file exactly. Palette
+ * quantisation would shrink these further but would cap the image at 256
+ * colours, contradicting the very distinct-colour count this harness reports.
+ */
+async function recompress(file: string): Promise<void> {
+  const optimised = await sharp(file)
+    .png({ compressionLevel: 9, effort: 10, adaptiveFiltering: true, palette: false })
+    .toBuffer();
+  await writeFile(file, optimised);
+}
+
+/**
+ * Mean absolute per-channel difference between two same-sized PNGs, 0..255.
+ *
+ * Used for A/B assertions where "the image changed" is the claim. Comparing
+ * summary statistics alone would pass for two completely different frames that
+ * happen to share a histogram.
+ */
+async function meanAbsoluteDifference(fileA: string, fileB: string): Promise<number> {
+  const [a, b] = await Promise.all([
+    sharp(fileA).removeAlpha().raw().toBuffer(),
+    sharp(fileB).removeAlpha().raw().toBuffer(),
+  ]);
+  const length = Math.min(a.length, b.length);
+  if (length === 0) return 0;
+  let total = 0;
+  for (let i = 0; i < length; i++) total += Math.abs(a[i]! - b[i]!);
+  return total / length;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Driver                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -339,14 +373,12 @@ async function verifyTier(
     const shotPath = path.join(OUT_DIR, `renderer-${tier}.png`);
     await page.screenshot({ path: shotPath, type: 'png' });
     const pixels = await analyse(shotPath);
+    await recompress(shotPath);
 
     /* ------------------------------ asserts ---------------------------- */
     check(snap.isWebGL2, `[${tier}] WebGL2 context was not obtained`);
     check(snap.drawCalls > 0, `[${tier}] no draw calls issued (${snap.drawCalls})`);
-    check(
-      snap.triangles > 10_000,
-      `[${tier}] suspiciously few triangles (${snap.triangles})`
-    );
+    check(snap.triangles > 10_000, `[${tier}] suspiciously few triangles (${snap.triangles})`);
     check(snap.frameCount >= 8, `[${tier}] too few frames presented (${snap.frameCount})`);
     check(
       snap.warmup.compiled > 0,
@@ -355,8 +387,7 @@ async function verifyTier(
     // The warmed destination must be the one the tier actually draws to.
     const expectedDestination = tier === 'low' ? 'direct' : 'offscreen';
     check(
-      snap.warmup.destinations.length === 1 &&
-        snap.warmup.destinations[0] === expectedDestination,
+      snap.warmup.destinations.length === 1 && snap.warmup.destinations[0] === expectedDestination,
       `[${tier}] warmup targeted ${JSON.stringify(snap.warmup.destinations)}; ` +
         `expected exactly ["${expectedDestination}"] — warming the other destination ` +
         `doubles the material program count with unusable variants`
@@ -384,10 +415,7 @@ async function verifyTier(
     if (tier === 'low') {
       check(snap.post.direct, '[low] expected NO effect composer (direct to framebuffer)');
       check(snap.environment.mode === 'sh9', '[low] expected the spherical-harmonic IBL path');
-      check(
-        snap.environment.hasSphericalHarmonics,
-        '[low] SH coefficients were not produced'
-      );
+      check(snap.environment.hasSphericalHarmonics, '[low] SH coefficients were not produced');
       check(
         snap.environment.gpuBytes === 0,
         `[low] SH path should hold no environment VRAM (${snap.environment.gpuBytes} bytes)`
@@ -415,7 +443,10 @@ async function verifyTier(
 
     if (tier === 'high') {
       check(snap.post.mode === 'high', `[high] unexpected post mode "${snap.post.mode}"`);
-      check(snap.shadows.cascades === 3, `[high] expected 3 cascades, got ${snap.shadows.cascades}`);
+      check(
+        snap.shadows.cascades === 3,
+        `[high] expected 3 cascades, got ${snap.shadows.cascades}`
+      );
       check(
         snap.shadows.mapSize === 2048,
         `[high] expected 2048px cascades, got ${snap.shadows.mapSize}`
@@ -492,15 +523,16 @@ async function verifyBehaviour(browser: Browser, baseUrl: string): Promise<void>
       if (!harness) return null;
       harness.emitLethalHit();
       const snap = harness.snapshot();
-      return { timeScale: snap.clock.timeScale, fovOffset: snap.impact.fovOffset, active: snap.impact.active };
+      return {
+        timeScale: snap.clock.timeScale,
+        fovOffset: snap.impact.fovOffset,
+        active: snap.impact.active,
+      };
     })) as { timeScale: number; fovOffset: number; active: boolean } | null;
 
     check(frozen !== null, '[behaviour] harness control surface missing');
     if (frozen) {
-      check(
-        frozen.active,
-        '[behaviour] lethal-hit event did not activate the impact freeze'
-      );
+      check(frozen.active, '[behaviour] lethal-hit event did not activate the impact freeze');
       check(
         frozen.timeScale < 0.2,
         `[behaviour] impact freeze did not slow the clock (timeScale ${frozen.timeScale})`
@@ -568,22 +600,45 @@ async function verifyBehaviour(browser: Browser, baseUrl: string): Promise<void>
     await page.evaluate(() => window.__RENDER_HARNESS__?.setResolutionScale(1));
     await waitFrames(page, 3);
 
-    /* --- global damage/dust mask ---------------------------------------- */
+    /* --- global damage/dust mask: a real A/B ---------------------------- */
+    // Freezing the camera makes the two frames pixel-comparable, so the test
+    // proves the injected uniform CHANGED THE IMAGE rather than merely proving
+    // that a second frame also rendered something.
+    await page.evaluate(() => window.__RENDER_HARNESS__?.setCameraFrozen(true));
+    const cleanShot = path.join(OUT_DIR, 'renderer-dust-off.png');
     const dustShot = path.join(OUT_DIR, 'renderer-dust-mask.png');
+
+    await page.evaluate(() => window.__RENDER_HARNESS__?.setDust(0));
+    await waitFrames(page, 3);
+    await page.screenshot({ path: cleanShot, type: 'png' });
+    const clean = await analyse(cleanShot);
+
     await page.evaluate(() => window.__RENDER_HARNESS__?.setDust(0.85));
-    await waitFrames(page, 4);
+    await waitFrames(page, 3);
     await page.screenshot({ path: dustShot, type: 'png' });
     const dusty = await analyse(dustShot);
+
+    const dustDelta = await meanAbsoluteDifference(cleanShot, dustShot);
+    await Promise.all([recompress(cleanShot), recompress(dustShot)]);
     check(
       dusty.stdDev > 10 && dusty.distinctColors > 100,
       `[behaviour] dusty frame looks blank (stdDev ${dusty.stdDev.toFixed(2)}, ` +
         `colours ${dusty.distinctColors})`
     );
-    console.log(
-      `dust mask      stdDev ${dusty.stdDev.toFixed(2)}, colours ${dusty.distinctColors} ` +
-        `(saved ${dustShot})`
+    check(
+      dustDelta > 4,
+      `[behaviour] the global damage/dust mask did not visibly change the frame ` +
+        `(mean absolute pixel difference ${dustDelta.toFixed(2)}/255) — the shared ` +
+        `uniform is probably not reaching the injected materials`
     );
-    await page.evaluate(() => window.__RENDER_HARNESS__?.setDust(0.06));
+    console.log(
+      `dust mask      mean ${clean.mean.toFixed(1)} -> ${dusty.mean.toFixed(1)}, ` +
+        `mean abs pixel delta ${dustDelta.toFixed(2)}/255 (saved ${dustShot})`
+    );
+    await page.evaluate(() => {
+      window.__RENDER_HARNESS__?.setDust(0.06);
+      window.__RENDER_HARNESS__?.setCameraFrozen(false);
+    });
 
     /* --- runtime tier change -------------------------------------------- */
     await page.evaluate(() => window.__RENDER_HARNESS__?.setTier('high'));
@@ -596,13 +651,9 @@ async function verifyBehaviour(browser: Browser, baseUrl: string): Promise<void>
     );
     check(
       switched.post.mode === 'high',
-      `[behaviour] runtime tier change did not rebuild the post chain ` +
-        `(${switched.post.mode})`
+      `[behaviour] runtime tier change did not rebuild the post chain ` + `(${switched.post.mode})`
     );
-    check(
-      switched.drawCalls > 0,
-      '[behaviour] no draw calls after the runtime tier change'
-    );
+    check(switched.drawCalls > 0, '[behaviour] no draw calls after the runtime tier change');
     notes.push(
       `[behaviour] after a live medium->high switch the context holds ` +
         `${switched.programs} programs (both tiers' programs are resident; this is ` +

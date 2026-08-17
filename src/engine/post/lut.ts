@@ -66,7 +66,12 @@ export const ANIME_GRADE: IGradeOptions = {
 /** A LUT that changes nothing. Useful for A/B and for regression tests. */
 export const NEUTRAL_GRADE: IGradeOptions = {};
 
-function applyGrade(r: number, g: number, b: number, options: IGradeOptions): [number, number, number] {
+function applyGrade(
+  r: number,
+  g: number,
+  b: number,
+  options: IGradeOptions
+): [number, number, number] {
   const lift = options.lift ?? [0, 0, 0];
   const gamma = options.gamma ?? [1, 1, 1];
   const gain = options.gain ?? [1, 1, 1];

@@ -153,9 +153,12 @@ function baseProportions(): Proportions {
     chinY: 0.87,
     headY: 0.885,
     headTopY: 1.0,
-    shoulderY: 0.8,
+    // The glenohumeral joint sits slightly BELOW the trapezius ridge. Placing
+    // it level (or above) makes the deltoid crest the shoulder line, which
+    // reads as shoulder pads on every costume.
+    shoulderY: 0.793,
     shoulderX: 0.105,
-    clavicleY: 0.795,
+    clavicleY: 0.792,
     clavicleX: 0.03,
     upperArm: 0.18,
     foreArm: 0.145,

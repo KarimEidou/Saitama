@@ -292,6 +292,36 @@ export function spectralCentroidOf(
   return total <= 0 ? 0 : weighted / total;
 }
 
+/**
+ * Centroid computed over ONE band only.
+ *
+ * A full-spectrum centroid cannot track the pitch of one hit inside a punch
+ * chain: the still-decaying tails of the previous hits sit an octave below and
+ * dominate the average. Restricting the measurement to the band the attack
+ * actually occupies removes that contamination, and because a centroid is a
+ * weighted mean rather than a bin index it resolves far finer than the FFT
+ * grid — which matters when the thing being measured is a 4 % pitch step.
+ */
+export function bandCentroid(
+  x: Float32Array | number[],
+  sampleRate: number,
+  lo: number,
+  hi: number,
+  fftSize = 2048
+): number {
+  const spec = powerSpectrum(x, fftSize);
+  const binHz = sampleRate / fftSize;
+  const kLo = Math.max(1, Math.ceil(lo / binHz));
+  const kHi = Math.min(spec.length - 1, Math.floor(hi / binHz));
+  let weighted = 0;
+  let total = 0;
+  for (let k = kLo; k <= kHi; k++) {
+    weighted += spec[k]! * k * binHz;
+    total += spec[k]!;
+  }
+  return total <= 0 ? 0 : weighted / total;
+}
+
 /** Frequency of the loudest bin — the rough fundamental of a tonal signal. */
 export function dominantFrequency(
   x: Float32Array | number[],
@@ -322,7 +352,10 @@ export function dominantFrequency(
  * enough that the numbers stay stable across sample rates.
  */
 export const OCTAVE_BAND_EDGES: readonly number[] = [
-  20, 45, 90, 180, 355, 710, 1400, 2800, 5600, 11200, 20000,
+  // Starts at 10 Hz, not 20: infrasonic energy is inaudible but it is still
+  // energy, and a fingerprint that silently drops it would both fail to sum
+  // to one and hide a voice wasting headroom below the audible range.
+  10, 20, 45, 90, 180, 355, 710, 1400, 2800, 5600, 11200, 20000,
 ];
 
 /**

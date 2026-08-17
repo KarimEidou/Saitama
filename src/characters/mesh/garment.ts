@@ -382,8 +382,18 @@ export function buildCape(
 /* LOD gating                                                                 */
 /* -------------------------------------------------------------------------- */
 
-/** Whether a garment piece survives at this LOD. */
+/**
+ * Whether a garment piece survives at this LOD.
+ *
+ * SILHOUETTE pieces (cape, coat, skirt) survive everywhere: losing a cape at
+ * distance is a visible pop, because a cape is most of the shape.
+ *
+ * TRIM (cuffs, collars, belts, boot tops) is hero-LOD only. Those pieces stand
+ * a few millimetres off the body and their COLOUR is already carried by the
+ * body's own vertex colours, so dropping them past 12 m costs nothing visible
+ * and buys back a third of the LOD1 budget.
+ */
 export function garmentAllowed(lod: LodSettings, kind: 'silhouette' | 'trim'): boolean {
   if (!lod.garments) return false;
-  return kind === 'silhouette' || lod.level <= 1;
+  return kind === 'silhouette' || lod.level === 0;
 }

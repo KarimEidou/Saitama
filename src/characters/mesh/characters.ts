@@ -168,8 +168,8 @@ function genosRecipe(): CharacterRecipe {
 const TATSUMAKI_PROFILE: BodyProfile = {
   archetype: 'lithe',
   height: 1.44,
-  shoulderWidth: 0.84,
-  bulk: 0.76,
+  shoulderWidth: 0.86,
+  bulk: 0.82,
   limbLength: 1.0,
   headScale: 1.18,
   uniformScale: 1,
@@ -205,7 +205,7 @@ function tatsumakiRecipe(): CharacterRecipe {
       palette,
       paint: tatsumakiCostume(palette),
       garments: { skirt: true, primary: 0x16171b },
-      hair: { style: 'bob', color: 0x2fbf7a, thickness: 0.024, line: 0.63, lobes: 7 },
+      hair: { style: 'bob', color: 0x2fbf7a, thickness: 0.013, line: 0.63, lobes: 7 },
     },
   };
 }
@@ -240,7 +240,7 @@ function mumenRecipe(): CharacterRecipe {
       garments: { gloves: true, boots: true, belt: true, collar: true },
       // The helmet reuses the hair shell: a thick offset scalp in white, pulled
       // down past the ears, is exactly a bike helmet and costs nothing new.
-      hair: { style: 'short', color: 0xdfe3e8, thickness: 0.03, line: 0.56, lobes: 0 },
+      hair: { style: 'short', color: 0xdfe3e8, thickness: 0.018, line: 0.58, lobes: 0 },
     },
   };
 }
@@ -412,6 +412,16 @@ export function showcaseBodies(): CharacterRecipe[] {
   const heavyPalette = resolvePalette(heavy, { hair: new THREE.Color(0x2a1f18) });
   const childPalette = resolvePalette(child, { hair: new THREE.Color(0x3a2a1c) });
   const monsterPalette = resolvePalette(monster, { hair: new THREE.Color(0x2b2a24) });
+  // Hide nothing but the loincloth: a monster reads as a monster because you
+  // can see its mass, and dressing it in a bodysuit throws that away.
+  const monsterHide: Coat = { color: monsterPalette.skin };
+  const monsterCloth: Coat = { color: new THREE.Color(0x40342a), inflate: 1.03 };
+  const monsterClaw: Coat = { color: new THREE.Color(0x2a2622) };
+  const monsterPaint: PaintFn = (part, _key, at) => {
+    if (part === 'torso') return at < 0.2 ? monsterCloth : monsterHide;
+    if (part === 'hand' || part === 'foot') return monsterClaw;
+    return monsterHide;
+  };
 
   return [
     saitamaRecipe(),
@@ -443,7 +453,7 @@ export function showcaseBodies(): CharacterRecipe[] {
       options: {
         shape: { muscle: 1, belly: 0.25, angular: 0.12 },
         palette: monsterPalette,
-        paint: bodysuitCostume(monsterPalette, { gloveFrom: 2.2, bootFrom: 2.2, neckTo: 0.24 }),
+        paint: monsterPaint,
         hair: { style: 'spiky', color: 0x2b2a24, thickness: 0.012, lobes: 6 },
       },
     },

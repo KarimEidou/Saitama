@@ -24,11 +24,7 @@
  */
 
 /* Core ------------------------------------------------------------------- */
-export {
-  Renderer,
-  type IRendererOptions,
-  type IRendererDiagnostics,
-} from './renderer';
+export { Renderer, type IRendererOptions, type IRendererDiagnostics } from './renderer';
 
 export {
   ResolutionGovernor,
@@ -64,12 +60,7 @@ export {
   type IEnvironmentStats,
 } from './ibl';
 
-export {
-  projectEquirectToSH9,
-  averageIrradiance,
-  serializeSH9,
-  deserializeSH9,
-} from './sh9';
+export { projectEquirectToSH9, averageIrradiance, serializeSH9, deserializeSH9 } from './sh9';
 
 export { createProceduralSkyTexture, type IProceduralSkyOptions } from './procedural-sky';
 
@@ -151,11 +142,7 @@ export {
 } from './post/lut';
 
 /* Feel ------------------------------------------------------------------- */
-export {
-  ImpactFreeze,
-  type IImpactFreezeOptions,
-  type IImpactFreezeState,
-} from './impact-freeze';
+export { ImpactFreeze, type IImpactFreezeOptions, type IImpactFreezeState } from './impact-freeze';
 
 /* Diagnostics ------------------------------------------------------------ */
 export {

@@ -145,7 +145,9 @@ export function buildNoseStrand(
   const u = d.unit;
   const skull = d.headScale;
   const headLength = d.headTopY - d.chinY;
-  const noseY = d.chinY + headLength * 0.54;
+  // 0.36 of head height, which puts the nose BELOW the eye line (~0.48). The
+  // eye line is not the middle of a head; it only feels like it.
+  const noseY = d.chinY + headLength * 0.36;
   const head = sampleStrandAtHeight(torso, noseY);
   // The torso frame's B axis points FORWARD (-Z), so the face surface sits at
   // centre.z - (radiusB + offsetB).

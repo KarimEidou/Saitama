@@ -37,6 +37,7 @@ import {
   silhouetteDistance,
   type HumanoidBuild,
 } from '@/characters/mesh';
+import { FACE_CENTER_U, faceOffsetU, faceUV } from '@/characters/mesh/uv';
 
 declare global {
   interface Window {
@@ -48,11 +49,75 @@ declare global {
 
 const WIDTH = 1800;
 const HEIGHT = 1200;
-const ROW_HEIGHT = 760;
+const ROW_HEIGHT = 700;
 
 /* -------------------------------------------------------------------------- */
 /* Materials                                                                  */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Paint a face into the shared atlas.
+ *
+ * This is the proof that the UV layout works. The generator makes no attempt
+ * to model eyes or a mouth — at this triangle budget that would look far worse
+ * than drawing them, and One Punch Man's faces are flat graphic shapes anyway.
+ * So the mesh publishes exactly where the face lands (`HEAD_LANDMARK_V`,
+ * `faceOffsetU`) and a texture puts features there.
+ *
+ * The atlas is WHITE everywhere else and multiplies against the vertex colour
+ * the generator already baked in, so one map serves every region without
+ * disturbing the jumpsuit, the gloves or the boots.
+ */
+function makeFaceAtlas(headHalfWidth: number): THREE.CanvasTexture {
+  const size = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  // Canvas y runs downward; texture v runs upward (three.js flips on upload).
+  const toPixels = (u: number, v: number): [number, number] => {
+    const [au, av] = faceUV(u, v);
+    return [au * size, (1 - av) * size];
+  };
+
+  const ellipse = (
+    u: number,
+    v: number,
+    halfMetres: number,
+    halfV: number,
+    fill: string
+  ): void => {
+    const [cx, cy] = toPixels(u, v);
+    const [ex] = toPixels(u + faceOffsetU(halfMetres, headHalfWidth), v);
+    const [, ey] = toPixels(u, v + halfV);
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Math.abs(ex - cx), Math.abs(ey - cy), 0, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const eyeV = 0.744;
+  const browV = 0.781;
+  const mouthV = 0.658;
+  const eyeSpread = faceOffsetU(0.032, headHalfWidth);
+
+  for (const side of [-1, 1]) {
+    const u = FACE_CENTER_U + side * eyeSpread;
+    ellipse(u, eyeV, 0.0155, 0.019, '#1a1a1f');
+    // A brow above each eye is what gives a bald head an expression at all.
+    ellipse(u, browV, 0.019, 0.005, '#6a5541');
+  }
+  ellipse(FACE_CENTER_U, mouthV, 0.021, 0.006, '#8d5348');
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  return texture;
+}
 
 /**
  * One material per `MeshSlot`.
@@ -61,7 +126,7 @@ const ROW_HEIGHT = 760;
  * colour, so a single atlas-less build still shows jumpsuit yellow against red
  * gloves. The slots exist so metal can actually be metal.
  */
-function makeMaterials(): THREE.Material[] {
+function makeMaterials(face: THREE.Texture): THREE.Material[] {
   const base = (
     roughness: number,
     metalness: number,
@@ -75,7 +140,7 @@ function makeMaterials(): THREE.Material[] {
     });
 
   return [
-    base(0.74, 0.0), // skin
+    base(0.74, 0.0, { map: face }), // skin — carries the face
     base(0.9, 0.0), // cloth
     base(0.62, 0.04), // accent
     base(0.55, 0.0), // hair
@@ -165,7 +230,9 @@ interface Panel {
   readonly focusRadius: number;
 }
 
-const materials = makeMaterials();
+// Head half-width for a 1.75 m adult; the face atlas is authored against it
+// and read by every character, which is exactly what a shared atlas means.
+const materials = makeMaterials(makeFaceAtlas(0.087));
 
 function place(
   scene: THREE.Object3D,
@@ -253,7 +320,7 @@ function boot(): void {
 
   const recipes = showcaseBodies();
   const row: Placed[] = [];
-  const spacing = 1.62;
+  const spacing = 1.56;
 
   // The camera looks along +Z (characters face -Z), so world +X lands on the
   // LEFT of the screen. Laying the row out in descending x is what puts
@@ -351,20 +418,20 @@ function boot(): void {
       camera: makeCamera(
         21,
         WIDTH / ROW_HEIGHT,
-        { x: 0, y: 1.42, z: -13.4 },
-        { x: 0, y: 1.02, z: 0 }
+        { x: 0, y: 1.42, z: -11.55 },
+        { x: 0, y: 1.26, z: 0 }
       ),
       focus: new THREE.Vector3(0, 1, 0),
       focusRadius: 7.5,
     },
     {
-      title: 'Head — bald, untextured',
+      title: 'Head — face from the shared atlas',
       rect: [0, ROW_HEIGHT, cellW, cellH],
       camera: makeCamera(
         26,
         cellW / cellH,
-        { x: 24.4, y: 1.705, z: -1.02 },
-        { x: 23.99, y: 1.615, z: 0.02 }
+        { x: 24.26, y: 1.7, z: -1.28 },
+        { x: 24.0, y: 1.6, z: 0.02 }
       ),
       focus: new THREE.Vector3(24, 1.3, 0),
       focusRadius: 1.1,
@@ -375,7 +442,7 @@ function boot(): void {
       camera: makeCamera(
         20,
         cellW / cellH,
-        { x: 39.95, y: 1.22, z: -6.4 },
+        { x: 39.95, y: 1.2, z: -7.3 },
         { x: 39.95, y: 0.92, z: 0 }
       ),
       focus: new THREE.Vector3(39.95, 1, 0),
@@ -385,9 +452,9 @@ function boot(): void {
       title: 'Deformation under an extreme pose',
       rect: [cellW * 2, ROW_HEIGHT, cellW, cellH],
       camera: makeCamera(
-        22,
+        20,
         cellW / cellH,
-        { x: 56.4, y: 1.22, z: -6.1 },
+        { x: 56.4, y: 1.2, z: -7.3 },
         { x: 56.4, y: 0.9, z: 0 }
       ),
       focus: new THREE.Vector3(56.4, 1, 0),
@@ -399,7 +466,7 @@ function boot(): void {
       camera: makeCamera(
         20,
         cellW / cellH,
-        { x: 71.0, y: 1.22, z: -6.9 },
+        { x: 71.0, y: 1.2, z: -8.5 },
         { x: 71.0, y: 0.92, z: 0 }
       ),
       focus: new THREE.Vector3(71, 1, 0),

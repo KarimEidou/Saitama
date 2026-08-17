@@ -24,7 +24,9 @@
 import { AudioSystem } from '../audio-system';
 import { SOUND_KEYS, SOUND_SPECS, VOICE_CLASSES, type SoundKey } from '../voices/registry';
 import { MUSIC_STATES, type MusicState } from '../music/patterns';
-import type { ConsecutiveVoice } from '../voices/consecutive';
+import { chainSchedule, type ConsecutiveVoice } from '../voices/consecutive';
+import { THREAT_TIERS } from '../voices/monster';
+import type { ThreatTier } from '@/types';
 import type { DebrisVoice } from '../voices/debris';
 import type { CrowdBedVoice } from '../voices/crowd';
 import * as A from './analysis';
@@ -523,6 +525,158 @@ export async function renderRetriggerProbe(options: IProbeOptions = {}): Promise
 }
 
 /**
+ * Chain pitch rise.
+ *
+ * Slices the render at exactly the times the voice scheduled its hits — taken
+ * from `chainSchedule`, the same pure function the voice itself uses — and
+ * measures the dominant low-frequency component of each hit. The rising
+ * sequence is the whole point of a consecutive-punch chain, so it is measured
+ * directly rather than inferred.
+ */
+export async function renderChainProbe(
+  variant = 'consecutive',
+  intensity = 0.6,
+  options: IProbeOptions = {}
+): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const seconds = 3.2;
+  const key: SoundKey =
+    variant === 'barrage' ? 'punch.barrage' : variant === 'flurry' ? 'punch.flurry' : 'punch.consecutive';
+  const hits = chainSchedule(variant, intensity, 1);
+
+  const result = await render(seconds, sampleRate, options, (system) => {
+    system.play(key, { intensity, delay: TRIGGER_AT, pitchVariation: 0 });
+    return { scheduledHits: hits.length };
+  });
+
+  // The pitch of a hit lives in its first ~35 ms, before the sweep bottoms out.
+  const pitches: number[] = [];
+  for (const hit of hits) {
+    const start = Math.floor((TRIGGER_AT + hit.offset + 0.002) * sampleRate);
+    const end = Math.min(result.mono.length, start + Math.floor(0.035 * sampleRate));
+    if (end - start < 512) continue;
+    pitches.push(A.dominantFrequency(result.mono.subarray(start, end), sampleRate, 2048, 35));
+  }
+  let rising = 0;
+  // Exclude the finisher, which deliberately drops back against the rise.
+  const body = pitches.slice(0, Math.max(1, pitches.length - 1));
+  for (let i = 1; i < body.length; i++) if (body[i]! >= body[i - 1]!) rising++;
+
+  result.extras.hitCount = hits.length;
+  result.extras.measuredHits = pitches.length;
+  result.extras.pitchFirst = body[0] ?? 0;
+  result.extras.pitchLast = body[body.length - 1] ?? 0;
+  result.extras.pitchRatio = body[0] ? body[body.length - 1]! / body[0]! : 0;
+  result.extras.risingFraction = body.length > 1 ? rising / (body.length - 1) : 0;
+  result.extras.finisherPitch = pitches[pitches.length - 1] ?? 0;
+
+  return measure(
+    `chain.${variant}`,
+    'mix',
+    `Chain "${variant}" sliced at its scheduled hit times to measure the pitch rise.`,
+    result,
+    TRIGGER_AT,
+    options.includePcm ?? false
+  );
+}
+
+/**
+ * One monster utterance across every threat tier. Body size is encoded in the
+ * formant set, so the tiers must come out spectrally ordered.
+ */
+export async function renderMonsterTierProbe(
+  key: SoundKey,
+  tier: ThreatTier,
+  options: IProbeOptions = {}
+): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const seconds = 7;
+  const result = await render(seconds, sampleRate, options, (system) => {
+    system.play(key, { variant: tier, intensity: 0.8, delay: TRIGGER_AT, pitchVariation: 0 });
+    return {};
+  });
+  return measure(
+    `${key}.${tier}`,
+    'voice',
+    `${key} at threat tier "${tier}".`,
+    result,
+    TRIGGER_AT,
+    options.includePcm ?? false
+  );
+}
+
+/** One sound key rendered with an explicit variant, for A/B comparisons. */
+export async function renderVariantProbe(
+  key: SoundKey,
+  variant: string,
+  intensity: number,
+  seconds: number,
+  options: IProbeOptions = {}
+): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const result = await render(seconds, sampleRate, options, (system) => {
+    system.play(key, { variant, intensity, delay: TRIGGER_AT, pitchVariation: 0 });
+    return {};
+  });
+  return measure(
+    `${key}#${variant}`,
+    'voice',
+    `${key} with variant "${variant}".`,
+    result,
+    TRIGGER_AT,
+    options.includePcm ?? false
+  );
+}
+
+/** The crowd bed at a given density — the civilian-count knob. */
+export async function renderCrowdDensityProbe(
+  density: number,
+  options: IProbeOptions = {}
+): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const seconds = 6;
+  const result = await render(seconds, sampleRate, options, (system) => {
+    system.playAmbience('ambience.city', 0.15);
+    system.wind().stop(0, 0.01);
+    system.setCrowdDensity(density);
+    const blips = system.crowd().scheduleBlips(seconds);
+    return { density, blipCount: blips };
+  });
+  return measure(
+    `ambience.crowd@${density}`,
+    'ambience',
+    `Crowd bed at density ${density}.`,
+    result,
+    0.001,
+    options.includePcm ?? false
+  );
+}
+
+/** The wind bed at a given speed — the traversal knob. */
+export async function renderWindSpeedProbe(
+  metresPerSecond: number,
+  options: IProbeOptions = {}
+): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const seconds = 5;
+  const result = await render(seconds, sampleRate, options, (system) => {
+    system.playAmbience('ambience.city', 0.15);
+    system.crowd().stop(0, 0.01);
+    system.setAmbientWind(0);
+    system.setPlayerSpeed(metresPerSecond);
+    return { speed: metresPerSecond };
+  });
+  return measure(
+    `move.wind@${metresPerSecond}`,
+    'ambience',
+    `Wind bed at ${metresPerSecond} m/s.`,
+    result,
+    0.001,
+    options.includePcm ?? false
+  );
+}
+
+/**
  * Debris density: a full-intensity burst, measured with an onset detector
  * tuned for short quiet grains.
  *
@@ -650,6 +804,14 @@ export function probeNames(): string[] {
     'mix.budget',
     'debris.density.debris.impact',
     'debris.density.debris.glass',
+    'chain.consecutive',
+    'chain.barrage',
+    ...THREAT_TIERS.map((t) => `monster.roar.${t}`),
+    ...['concrete', 'metal', 'grass', 'water', 'rubble'].map((s) => `move.footstep#${s}`),
+    'ambience.crowd@0.05',
+    'ambience.crowd@0.9',
+    'move.wind@4',
+    'move.wind@42',
   ];
 }
 
@@ -666,6 +828,14 @@ export async function renderAllProbes(options: IProbeOptions = {}): Promise<IPro
   out.push(await renderBudgetProbe(options));
   out.push(await renderDebrisDensityProbe(1, 'debris.impact', options));
   out.push(await renderDebrisDensityProbe(1, 'debris.glass', options));
+  out.push(await renderChainProbe('consecutive', 0.6, options));
+  out.push(await renderChainProbe('barrage', 0.9, options));
+  for (const tier of THREAT_TIERS) out.push(await renderMonsterTierProbe('monster.roar', tier, options));
+  for (const surface of ['concrete', 'metal', 'grass', 'water', 'rubble']) {
+    out.push(await renderVariantProbe('move.footstep', surface, 0.6, 0.8, options));
+  }
+  for (const density of [0.05, 0.9]) out.push(await renderCrowdDensityProbe(density, options));
+  for (const speed of [4, 42]) out.push(await renderWindSpeedProbe(speed, options));
   return out;
 }
 
@@ -696,6 +866,11 @@ export function installProbeApi(): void {
     renderRetriggerProbe,
     renderBudgetProbe,
     renderDebrisDensityProbe,
+    renderChainProbe,
+    renderMonsterTierProbe,
+    renderVariantProbe,
+    renderCrowdDensityProbe,
+    renderWindSpeedProbe,
     probeNames,
     PCM_PROBES,
   };

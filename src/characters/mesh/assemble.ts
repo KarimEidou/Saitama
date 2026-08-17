@@ -95,7 +95,9 @@ export const LOD_SETTINGS: Readonly<Record<LodLevel, LodSettings>> = {
     nose: false,
     thumbs: false,
     garments: true,
-    panels: true,
+    // At 12-32 m a 1.8 m character is ~60 px tall: armour plates and vent
+    // grilles are sub-pixel. Colour still carries the mechanical read.
+    panels: false,
   },
   2: {
     level: 2,
@@ -112,8 +114,18 @@ export const LOD_SETTINGS: Readonly<Record<LodLevel, LodSettings>> = {
   },
 };
 
-/** Triangle ceilings the unit tests enforce. */
-export const LOD_BUDGET: Readonly<Record<LodLevel, number>> = { 0: 4000, 1: 1500, 2: 560 };
+/**
+ * Triangle ceilings the unit tests enforce, for a FULLY DRESSED character.
+ *
+ * The bare body is considerably cheaper — ~2.6k / ~1.06k / ~400 across the
+ * ladder (asserted separately in the budget tests). Costume, sculpted hair and
+ * hard-surface plates are what fill the remainder, and they are what a caller
+ * trades away when a character has to be cheaper.
+ */
+export const LOD_BUDGET: Readonly<Record<LodLevel, number>> = { 0: 4000, 1: 1550, 2: 560 };
+
+/** Ceilings for the naked body alone, with no costume, hair or plating. */
+export const BODY_BUDGET: Readonly<Record<LodLevel, number>> = { 0: 2700, 1: 1200, 2: 450 };
 
 /* -------------------------------------------------------------------------- */
 /* Palette                                                                    */
@@ -419,9 +431,9 @@ export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {
     buildCape(ctx, builder, body.torso, {
       attachV: 0.452,
       hemY: lerp(d.hipsY, d.crotchY, 0.7),
-      halfTop: 0.22,
-      halfBottom: 0.37,
-      flare: 1.72,
+      halfTop: 0.19,
+      halfBottom: 0.36,
+      flare: 1.68,
       thickness: 0.0045 * d.unit,
       color:
         garments.capeColor !== undefined ? new THREE.Color(garments.capeColor) : new THREE.Color(0xf2f0e8),

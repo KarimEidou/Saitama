@@ -364,7 +364,9 @@ export function submitCrowdBlobShadows(
 
     // Cross-fade with the cascade range, then fade out at the far limit.
     const fadeIn =
-      cascadeEnd <= 0 ? 1 : Math.min(1, Math.max(0, (distance - fadeInStart) / (cascadeEnd - fadeInStart)));
+      cascadeEnd <= 0
+        ? 1
+        : Math.min(1, Math.max(0, (distance - fadeInStart) / (cascadeEnd - fadeInStart)));
     const fadeOut = Math.min(1, Math.max(0, (maxDistance - distance) / (maxDistance * 0.25)));
     // A character in mid-air casts a bigger, weaker blob.
     const airborne = entry.airborne ?? 0;

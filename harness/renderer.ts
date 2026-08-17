@@ -18,7 +18,7 @@
  *                         whose first compile costs ~400ms without warmup.
  *   distant crowd         placed BEYOND the cascade range so the instanced
  *                         blob-shadow decals are the thing under them.
- *   emissive sign, glass  emissive and transparent program variants.
+ *   emissive sign        an emissive surface above the bloom threshold.
  *
  * ── WHAT IT IS NOT ─────────────────────────────────────────────────────────
  * Not a benchmark. This runs under SwiftShader in CI, which is a CPU software
@@ -28,11 +28,7 @@
  */
 
 import * as THREE from 'three';
-import type {
-  IGameDiagnostics,
-  IQualityTier,
-  MaterialSpec,
-} from '@/types';
+import type { IGameDiagnostics, IQualityTier, MaterialSpec } from '@/types';
 import { createEventBus, createRng } from '@/util';
 import {
   ANIME_GRADE,
@@ -135,6 +131,11 @@ interface IRenderHarness {
   setResolutionScale(scale: number): void;
   /** Push a global dust level into every injected material. */
   setDust(amount: number): void;
+  /**
+   * Stop the camera orbit so two frames can be compared pixel for pixel.
+   * Without this, any A/B test is confounded by the camera having moved.
+   */
+  setCameraFrozen(frozen: boolean): void;
   /** Switch tier inside this context. Program counts ACCUMULATE afterwards. */
   setTier(tier: IQualityTier): void;
   /** Resolve after `count` more presented frames. */
@@ -258,7 +259,10 @@ function main(): void {
   /* ----------------------------- materials ------------------------------ */
 
   setStatus('building materials');
-  const anisotropy = Math.min(profile.settings.anisotropy, renderer.getCapabilities().maxAnisotropy);
+  const anisotropy = Math.min(
+    profile.settings.anisotropy,
+    renderer.getCapabilities().maxAnisotropy
+  );
   const materials = new MaterialLib({ anisotropy, programBudget: 24 });
   // Every lit material must be registered with the shadow system, or the
   // non-CSM branch of the lighting chunk accumulates all N cascade lights and
@@ -384,7 +388,7 @@ function main(): void {
     const height = 7 + rand() * 22;
     mesh.scale.set(4 + rand() * 4, height, 4 + rand() * 4);
     const angle = (i / 9) * Math.PI * 2 + rand() * 0.4;
-    const distance = 26 + rand() * 34;
+    const distance = 34 + rand() * 34;
     mesh.position.set(Math.cos(angle) * distance, height / 2, Math.sin(angle) * distance - 8);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -610,6 +614,7 @@ function main(): void {
   window.__GAME_DIAG__ = diagnostics;
 
   let presentedFrames = 0;
+  let cameraFrozen = false;
   const frameWaiters: { target: number; resolve: () => void }[] = [];
 
   function onResize(): void {
@@ -639,9 +644,11 @@ function main(): void {
     // three screenshots are directly comparable. Under SwiftShader, where frame
     // times vary by an order of magnitude, a time-driven orbit would put each
     // tier at a different angle and turn the evidence into noise.
-    const t = 0.8 + presentedFrames * 0.01;
-    camera.position.set(Math.sin(t) * 17.5, 6.6, Math.cos(t) * 17.5);
-    camera.lookAt(0, 2.6, -2);
+    if (!cameraFrozen) {
+      const t = 0.8 + presentedFrames * 0.01;
+      camera.position.set(Math.sin(t) * 21, 7.4, Math.cos(t) * 21);
+      camera.lookAt(0, 3.2, -2);
+    }
 
     shadows.applyLightingState(lighting);
     shadows.update();
@@ -806,6 +813,10 @@ function main(): void {
 
     setDust(amount: number): void {
       materials.setDustAmount(amount);
+    },
+
+    setCameraFrozen(frozen: boolean): void {
+      cameraFrozen = frozen;
     },
 
     setTier(next: IQualityTier): void {

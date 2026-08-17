@@ -132,8 +132,15 @@ function buildLobe(
     head.center.z - head.shape.radiusB * Math.sin(angle) * 0.92
   );
 
-  const travel = radial.clone().multiplyScalar(0.55).add(new THREE.Vector3(0, -plan.droop, 0)).normalize();
-  const bend = radial.clone().multiplyScalar(plan.curl).add(new THREE.Vector3(0, plan.curl * 0.9, 0));
+  const travel = radial
+    .clone()
+    .multiplyScalar(0.5)
+    .add(new THREE.Vector3(0, -plan.droop, 0))
+    .normalize();
+  // The curl term is mostly OUTWARD. Letting it lift as hard as it splays
+  // turns a bob into an umbrella, which is the exact failure this style has to
+  // avoid.
+  const bend = radial.clone().multiplyScalar(plan.curl).add(new THREE.Vector3(0, plan.curl * 0.3, 0));
 
   const steps = ctx.lod.level === 0 ? 5 : 4;
   const span = plan.length * d.unit * d.headScale;
@@ -146,14 +153,15 @@ function buildLobe(
       .clone()
       .addScaledVector(travel, span * s)
       .addScaledVector(bend, span * s * s);
-    // Fat at the root, knife-edged at the tip: that is what makes a lobe read
-    // as a lock of hair rather than a horn.
-    const taper = Math.pow(1 - s, 0.75) * 0.85 + 0.15 * (1 - s);
+    // Wide at the root, knife-edged at the tip, and flattened against the
+    // skull rather than round: a round lobe reads as a horn, a flattened one
+    // reads as a lock of hair.
+    const taper = Math.pow(1 - s, 0.7);
     rings.push({
       center,
       shape: {
-        radiusA: radius * (0.55 + taper),
-        radiusB: radius * (0.35 + taper * 0.72),
+        radiusA: radius * (0.32 + 0.78 * taper),
+        radiusB: radius * (0.24 + 0.62 * taper),
         exponent: 2.3,
       },
       skin: rigidSkin('Head', ctx.rig.index),
@@ -187,10 +195,10 @@ function lobePlans(spec: HairSpec, count: number, seed: number): LobePlan[] {
         plans.push({
           around,
           height: 0.66 + rng.range(-0.02, 0.02),
-          length: 0.075,
-          radius: 0.023,
-          droop: 1.35,
-          curl: 0.42 + rng.range(-0.05, 0.05),
+          length: 0.082,
+          radius: 0.026,
+          droop: 1.7,
+          curl: 0.26 + rng.range(-0.04, 0.04),
         });
         break;
       case 'spiky':
@@ -198,7 +206,7 @@ function lobePlans(spec: HairSpec, count: number, seed: number): LobePlan[] {
           around,
           height: 0.86 + rng.range(-0.04, 0.04),
           length: 0.045,
-          radius: 0.013,
+          radius: 0.018,
           droop: -0.8,
           curl: -0.12 + rng.range(-0.06, 0.06),
         });
@@ -237,7 +245,7 @@ export function buildHair(ctx: BodyContext, torso: Strand, spec: HairSpec): Stra
   if (ctx.lod.level >= 2) return strands;
 
   const requested = spec.lobes ?? (spec.style === 'bob' ? 5 : spec.style === 'spiky' ? 7 : 0);
-  const count = ctx.lod.level === 0 ? requested : Math.ceil(requested * 0.6);
+  const count = ctx.lod.level === 0 ? requested : Math.ceil(requested * 0.5);
   if (count <= 0) return strands;
 
   const seed = ctx.rig.dims.profile.seed ?? 1337;

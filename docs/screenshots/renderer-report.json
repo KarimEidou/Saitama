@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-17T04:31:44.137Z",
+  "generatedAt": "2026-08-17T04:40:35.155Z",
   "viewport": {
     "width": 960,
     "height": 540
@@ -24,7 +24,7 @@
         "meshes": 8,
         "compiled": 14,
         "programsAfter": 14,
-        "durationMs": 351.6000000005588,
+        "durationMs": 231.30000000074506,
         "destinations": [
           "direct"
         ]
@@ -50,7 +50,7 @@
         "gpuBytes": 0,
         "resolution": 0,
         "hasSphericalHarmonics": true,
-        "lastBuildMs": 11
+        "lastBuildMs": 9.5
       },
       "memory": {
         "textureCount": 8,
@@ -69,16 +69,16 @@
       "screenshot": {
         "width": 960,
         "height": 540,
-        "stdDev": 54.233958749815336,
-        "mean": 107.24381622942387,
-        "distinctColors": 6078
+        "stdDev": 54.6778468180318,
+        "mean": 106.64963863168725,
+        "distinctColors": 5901
       }
     },
     "medium": {
       "programs": 24,
       "programsByShader": "physical x7, 9 x6, depth x5, 14 x2, 3 x1, 5 x1, 7 x1, 12 x1",
-      "drawCalls": 126,
-      "triangles": 146824,
+      "drawCalls": 124,
+      "triangles": 146796,
       "materials": 31,
       "materialSignatures": [
         "standard/T-D/mnrla/O/-/F/-",
@@ -92,7 +92,7 @@
         "meshes": 8,
         "compiled": 14,
         "programsAfter": 14,
-        "durationMs": 720.6000000005588,
+        "durationMs": 475.1000000005588,
         "destinations": [
           "offscreen"
         ]
@@ -114,7 +114,7 @@
         "mapSize": 1024,
         "maxDistance": 90,
         "shadowMapBytes": 8388608,
-        "blobShadows": 72,
+        "blobShadows": 70,
         "registeredMaterials": 31
       },
       "environment": {
@@ -122,7 +122,7 @@
         "gpuBytes": 688128,
         "resolution": 336,
         "hasSphericalHarmonics": false,
-        "lastBuildMs": 35.90000000037253
+        "lastBuildMs": 26.199999999254942
       },
       "memory": {
         "textureCount": 8,
@@ -131,7 +131,7 @@
         "geometryBytes": 51784,
         "materialCount": 32,
         "meshCount": 41,
-        "instanceCount": 684,
+        "instanceCount": 682,
         "triangles": 1640
       },
       "drawingBuffer": {
@@ -141,16 +141,16 @@
       "screenshot": {
         "width": 960,
         "height": 540,
-        "stdDev": 52.31527279056528,
-        "mean": 85.55792952674898,
-        "distinctColors": 8713
+        "stdDev": 51.22547586010567,
+        "mean": 82.41164994855967,
+        "distinctColors": 8328
       }
     },
     "high": {
       "programs": 30,
       "programsByShader": "physical x7, 14 x6, depth x5, 9 x4, 17 x3, 7 x2, 3 x1, 5 x1, 12 x1",
-      "drawCalls": 321,
-      "triangles": 391482,
+      "drawCalls": 319,
+      "triangles": 391458,
       "materials": 31,
       "materialSignatures": [
         "standard/T-D/mnrla/O/-/F/-",
@@ -164,7 +164,7 @@
         "meshes": 8,
         "compiled": 14,
         "programsAfter": 14,
-        "durationMs": 439.3999999994412,
+        "durationMs": 438,
         "destinations": [
           "offscreen"
         ]
@@ -197,7 +197,7 @@
         "gpuBytes": 688128,
         "resolution": 336,
         "hasSphericalHarmonics": false,
-        "lastBuildMs": 23.59999999962747
+        "lastBuildMs": 18.700000000186265
       },
       "memory": {
         "textureCount": 8,
@@ -216,9 +216,9 @@
       "screenshot": {
         "width": 960,
         "height": 540,
-        "stdDev": 52.01277904903276,
-        "mean": 83.08367541152263,
-        "distinctColors": 9295
+        "stdDev": 51.166460369038894,
+        "mean": 80.21428176440328,
+        "distinctColors": 8463
       }
     }
   },
