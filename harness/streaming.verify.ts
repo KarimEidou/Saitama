@@ -91,6 +91,15 @@ interface ILapReport {
   geometries: number;
 }
 
+interface IPriorityBand {
+  distanceChunks: number;
+  ahead: number;
+  behind: number;
+  aheadMeanRank: number;
+  behindMeanRank: number;
+  strictlySeparated: boolean;
+}
+
 interface IPriorityReport {
   sampled: number;
   aheadMeanRank: number;
@@ -98,7 +107,11 @@ interface IPriorityReport {
   aheadWorstRank: number;
   behindBestRank: number;
   strictlyOrdered: boolean;
-  firstTenAheadFraction: number;
+  bands: IPriorityBand[];
+  bandsComparable: number;
+  bandsOrderedByMean: number;
+  bandsStrictlySeparated: number;
+  firstTwentyAheadFraction: number;
 }
 
 interface IDamageReport {
@@ -350,6 +363,13 @@ async function main(): Promise<void> {
     if (boot.residentChunks < 50) {
       failures.push(`cold start left only ${boot.residentChunks} chunks resident`);
     }
+    // The cold start pays first-use shader compilation on its very first
+    // upload, which no later frame repeats. It still has to clear the hard
+    // 50 ms bar — a boot hitch is a hitch — and it is reported separately so it
+    // can never hide inside the lap figures.
+    if (boot.peakUploadMs > 50) {
+      failures.push(`cold start had a frame spending ${boot.peakUploadMs.toFixed(1)} ms uploading`);
+    }
 
     for (const lap of laps) {
       if (lap.maxUploadsPerFrame > 2) {
@@ -433,10 +453,29 @@ async function main(): Promise<void> {
           `${priority.aheadMeanRank.toFixed(1)} vs behind ${priority.behindMeanRank.toFixed(1)}`
       );
     }
-    if (!priority.strictlyOrdered) {
-      warnings.push(
-        `load order is not strictly separated: worst chunk ahead arrived at rank ` +
-          `${priority.aheadWorstRank}, best behind at ${priority.behindBestRank}`
+    // The real assertion: at EQUAL distance, ahead must beat behind in every
+    // band. Comparing across bands would contradict ring dominance, which is a
+    // deliberate design decision rather than a defect.
+    if (priority.bandsComparable < 3) {
+      failures.push(`only ${priority.bandsComparable} distance bands had chunks on both sides`);
+    }
+    if (priority.bandsOrderedByMean < priority.bandsComparable) {
+      const offenders = priority.bands
+        .filter((b) => b.ahead >= 2 && b.behind >= 2 && b.aheadMeanRank >= b.behindMeanRank)
+        .map((b) => `${b.distanceChunks} chunks (${b.aheadMeanRank.toFixed(0)} vs ${b.behindMeanRank.toFixed(0)})`);
+      failures.push(
+        `${priority.bandsComparable - priority.bandsOrderedByMean} distance band(s) loaded ` +
+          `what was behind the camera first: ${offenders.join(', ')}`
+      );
+    }
+    // Where the earliest arrivals went. A Chebyshev band still spans a 1.4x
+    // range of true distance and the PVS penalty reorders within it, so total
+    // separation inside a band is not something the design promises — but a
+    // clear majority of the first arrivals facing the camera is.
+    if (priority.firstTwentyAheadFraction < 0.5) {
+      failures.push(
+        `only ${(priority.firstTwentyAheadFraction * 100).toFixed(0)}% of the first 20 arrivals ` +
+          'were in front of the camera'
       );
     }
 
@@ -514,8 +553,23 @@ async function main(): Promise<void> {
           `geometries ${lap.geometries} | ring changes ${lap.ringTransitions}`
       );
     }
-    console.log('\n──────── priority ────────');
-    console.log(JSON.stringify(priority, null, 2));
+    console.log('\n──────── priority (arrival rank, cold start) ────────');
+    console.log(
+      `overall: ahead mean ${priority.aheadMeanRank.toFixed(1)} vs behind ` +
+        `${priority.behindMeanRank.toFixed(1)} over ${priority.sampled} chunks; ` +
+        `${(priority.firstTwentyAheadFraction * 100).toFixed(0)}% of the first 20 arrivals faced the camera`
+    );
+    for (const band of priority.bands) {
+      console.log(
+        `  ${band.distanceChunks} chunks out: ahead ${band.ahead} @ ${band.aheadMeanRank.toFixed(1)} | ` +
+          `behind ${band.behind} @ ${band.behindMeanRank.toFixed(1)}` +
+          (band.ahead >= 2 && band.behind >= 2
+            ? band.aheadMeanRank < band.behindMeanRank
+              ? '  OK'
+              : '  INVERTED'
+            : '  (too few to compare)')
+      );
+    }
     console.log('\n──────── damage ────────');
     console.log(JSON.stringify(damage, null, 2));
     console.log('\n──────── determinism ────────');
