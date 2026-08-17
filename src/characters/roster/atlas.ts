@@ -687,7 +687,8 @@ export function bakeCharacterAtlas(
   const ao = bakeOcclusion(raster, size, options);
 
   const texels = size * size;
-  const albedo = new Uint8Array(texels * 4);
+  const albedo = new Uint8Array(texels * 3);
+  const mask = new Uint8Array(texels);
   const orm = new Uint8Array(texels * 3);
   const normalMap = new Uint8Array(texels * 3);
   const height = new Float32Array(texels);
@@ -864,7 +865,6 @@ export function bakeCharacterAtlas(
     for (let x = 0; x < size; x++) {
       const texel = y * size + x;
       const o3 = texel * 3;
-      const o4 = texel * 4;
       if (raster.covered[texel] === 0) {
         normalMap[o3] = 128;
         normalMap[o3 + 1] = 128;
@@ -872,12 +872,12 @@ export function bakeCharacterAtlas(
         continue;
       }
 
-      albedo[o4] = Math.round(linearToSrgb(baseLinear[o3]!) * 255);
-      albedo[o4 + 1] = Math.round(linearToSrgb(baseLinear[o3 + 1]!) * 255);
-      albedo[o4 + 2] = Math.round(linearToSrgb(baseLinear[o3 + 2]!) * 255);
+      albedo[o3] = Math.round(linearToSrgb(baseLinear[o3]!) * 255);
+      albedo[o3 + 1] = Math.round(linearToSrgb(baseLinear[o3 + 1]!) * 255);
+      albedo[o3 + 2] = Math.round(linearToSrgb(baseLinear[o3 + 2]!) * 255);
 
       const surface = SURFACE_CLASSES[raster.classId[texel]!] ?? 'skin';
-      albedo[o4 + 3] = Math.round(TINT_MASK_LEVEL[styles[surface].tint] * 255);
+      mask[texel] = Math.round(TINT_MASK_LEVEL[styles[surface].tint] * 255);
 
       orm[o3] = Math.round(clamp01(ao[texel]!) * 255);
       orm[o3 + 1] = Math.round(clamp01(roughness[texel]!) * 255);
@@ -913,7 +913,8 @@ export function bakeCharacterAtlas(
     }
   }
 
-  dilate(albedo, raster.covered, size, 4);
+  dilate(albedo, raster.covered, size, 3);
+  dilate(mask, raster.covered, size, 1);
   dilate(orm, raster.covered, size, 3);
   dilate(normalMap, raster.covered, size, 3);
   if (emissive !== undefined) dilate(emissive, raster.covered, size, 3);
@@ -921,6 +922,7 @@ export function bakeCharacterAtlas(
   return {
     size,
     albedo,
+    mask,
     orm,
     normal: normalMap,
     emissive,

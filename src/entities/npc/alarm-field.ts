@@ -49,6 +49,7 @@ import { clamp01 } from '@/util';
 import {
   ALARM_DECAY,
   ALARM_DT,
+  ALARM_GATE,
   ALARM_RISE,
   ALARM_TRANSFER,
   FIELD_CELL,
@@ -252,15 +253,16 @@ export class AlarmField {
         const hasRight = gx < FIELD_DIM - 1;
 
         // Best alarm reachable from a neighbour, attenuated by one cell of
-        // travel. `max` and not a sum: alarm is an intensity, not a quantity,
-        // and summing makes a wide-open plaza louder than a narrow street for
-        // no reason a player would ever accept.
+        // travel, and only from neighbours that have crossed the gate. `max`
+        // and not a sum: alarm is an intensity, not a quantity, and summing
+        // makes a wide-open plaza louder than a narrow street for no reason a
+        // player would ever accept.
         let best = 0;
         if (hasLeft && value[i - 1]! > best) best = value[i - 1]!;
         if (hasRight && value[i + 1]! > best) best = value[i + 1]!;
         if (hasUp && value[i - FIELD_DIM]! > best) best = value[i - FIELD_DIM]!;
         if (hasDown && value[i + FIELD_DIM]! > best) best = value[i + FIELD_DIM]!;
-        let target = best * ALARM_TRANSFER;
+        const orthoTarget = best >= ALARM_GATE ? best * ALARM_TRANSFER : 0;
 
         let diag = 0;
         if (hasLeft && hasUp && value[i - FIELD_DIM - 1]! > diag) diag = value[i - FIELD_DIM - 1]!;
@@ -269,20 +271,31 @@ export class AlarmField {
         if (hasRight && hasDown && value[i + FIELD_DIM + 1]! > diag) {
           diag = value[i + FIELD_DIM + 1]!;
         }
-        const diagTarget = diag * DIAGONAL_TRANSFER;
-        if (diagTarget > target) target = diagTarget;
-
-        if (seed[i]! > target) target = seed[i]!;
+        const diagTarget = diag >= ALARM_GATE ? diag * DIAGONAL_TRANSFER : 0;
 
         const current = value[i]!;
-        let v: number;
-        if (target > current) {
-          // Rising: bounded, which is what fixes the front speed.
-          v = current + Math.min(rise, target - current);
-        } else {
-          // Falling: exponential relaxation towards the target, so a cell that
-          // has lost its source drains smoothly instead of stepping down.
-          v = current - Math.min(decay, current - target);
+        // Orthogonal and diagonal neighbours are rate-limited SEPARATELY, the
+        // diagonal one by 1/sqrt(2). A single shared rate limit makes the front
+        // travel a full cell diagonally in the same time it travels one
+        // orthogonally, so the wave expands as a square rotated 45 degrees —
+        // grid anisotropy, and extremely visible once a crowd is standing in it.
+        let v = current;
+        if (orthoTarget > v) v = current + Math.min(rise, orthoTarget - current);
+        if (diagTarget > current) {
+          const diagValue = current + Math.min(rise * Math.SQRT1_2, diagTarget - current);
+          if (diagValue > v) v = diagValue;
+        }
+        if (seed[i]! > v) {
+          // A seed is a source, not a neighbour: it is not rate-limited, or a
+          // detonation would take four seconds to become frightening.
+          v = seed[i]!;
+        }
+        if (v === current && current > 0) {
+          // Falling: exponential relaxation towards zero (or towards whatever
+          // the neighbours still support), so a cell that has lost its source
+          // drains smoothly instead of stepping down.
+          const floor = Math.max(orthoTarget, diagTarget, seed[i]!);
+          v = current - Math.min(decay, current - floor);
         }
         next[i] = v;
         if (v > peak) peak = v;

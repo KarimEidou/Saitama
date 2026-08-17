@@ -350,7 +350,7 @@ export class ShockwaveLayer {
 
       // The band starts fat and thins as it runs out of energy, so the edge
       // sharpens with distance instead of smearing.
-      shape[o] = 1.5 + radius * (0.42 - 0.24 * t);
+      shape[o] = 1.5 + radius * (0.28 - 0.16 * t);
       shape[o + 1] = t;
       shape[o + 2] = this.intensity[i]!;
       shape[o + 3] = radius * this.loft[i]! * (0.35 + 0.65 * t);

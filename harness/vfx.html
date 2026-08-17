@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>VFX Harness — Shockwave / Dust / Speedlines / Cracks</title>
+    <!--
+      VFX VERIFICATION HARNESS
+
+      Standalone page for `src/vfx/**`. Not the game and never ships.
+
+      It builds a real city street through the verified renderer stack —
+      MaterialLib, cascaded shadows, IBL, the tier's post chain — so the
+      shader-program count it reports is measured against the SAME 24-program
+      budget the game lives inside, not against an empty scene where anything
+      would fit.
+
+      Tier comes from the query string (`?tier=low|medium|high`). One page load
+      per tier: shader programs accumulate inside a WebGL context, so measuring
+      two tiers in one context reports a sum rather than a measurement.
+
+      The simulation steps at a FIXED delta and only when told to, so a
+      screenshot taken after N frames shows exactly the same instant of an
+      effect on every machine — which is what makes the captured evidence
+      comparable rather than decorative.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #05070b;
+        color: #e8edf5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #harness-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        outline: none;
+      }
+      #overlay {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 10;
+        padding: 8px 10px;
+        border-radius: 4px;
+        background: rgba(4, 8, 14, 0.72);
+        border: 1px solid rgba(140, 170, 210, 0.25);
+        font-size: 11px;
+        line-height: 1.55;
+        white-space: pre;
+        pointer-events: none;
+        letter-spacing: 0.02em;
+      }
+      #overlay.hidden {
+        display: none;
+      }
+      #status {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #05070b;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #ffd230;
+      }
+      #status.hidden {
+        display: none;
+      }
+      #fatal {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: none;
+        padding: 24px;
+        overflow: auto;
+        background: #12060a;
+        color: #ff8080;
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="harness-canvas"></canvas>
+    <div id="overlay">initialising</div>
+    <div id="status">building city</div>
+    <pre id="fatal"></pre>
+    <script type="module" src="./vfx.ts"></script>
+  </body>
+</html>

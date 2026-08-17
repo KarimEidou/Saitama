@@ -274,10 +274,10 @@
     "totalTextureBytes": 327781564,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 4158,
-      "stdDev": 65.17632083407065,
+      "distinctColors": 4208,
+      "stdDev": 65.09393728770742,
       "magentaPixels": 0,
-      "meanLuma": 89.36249682290924
+      "meanLuma": 89.35463182290927
     },
     "proximityFadeCurve": [
       0,
@@ -332,10 +332,10 @@
     "drawCalls": 8,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 3177,
-      "stdDev": 89.8046551146773,
+      "distinctColors": 2336,
+      "stdDev": 92.98266607174199,
       "magentaPixels": 0,
-      "meanLuma": 63.56222669270451
+      "meanLuma": 66.28139479166322
     },
     "proximityFadeCurve": [
       0,
@@ -370,18 +370,18 @@
       }
     ],
     "metalness": {
-      "high": 0.07895660400390625,
-      "low": 0.7952995300292969,
-      "mean": 0.16063236909754136,
-      "maxRoughSpread": 0.17254901960784313
+      "high": 0.1371927261352539,
+      "low": 0.7681407928466797,
+      "mean": 0.1903368220609777,
+      "maxRoughSpread": 0.20392156862745098
     },
     "drawCalls": 2,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 6578,
-      "stdDev": 53.2049432866495,
+      "distinctColors": 6567,
+      "stdDev": 51.90624462638998,
       "magentaPixels": 0,
-      "meanLuma": 43.37563536461233
+      "meanLuma": 42.527537994820435
     },
     "proximityFadeCurve": [
       0,
@@ -402,10 +402,10 @@
     "perCharacterTriangles": 1434,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 8957,
-      "stdDev": 65.27624381763556,
+      "distinctColors": 8945,
+      "stdDev": 64.69785685202291,
       "magentaPixels": 0,
-      "meanLuma": 87.05677617186656
+      "meanLuma": 86.38450942707486
     },
     "proximityFadeCurve": [
       0,

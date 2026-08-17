@@ -251,7 +251,11 @@ export class EffectEmitters {
    */
   impactFlash(rng: IRandom, x: number, y: number, z: number, power: number): void {
     const p = this.sprite;
-    const scale = 2.5 + 22 * power;
+    // METRES. This is a contact flash on a fist, not a nuclear fireball: at 20+
+    // metres across it stops being a flash and becomes a light bulb parked in
+    // front of the camera, and everything behind it — the wave, the dust, the
+    // city — disappears into the middle of it.
+    const scale = 1.1 + 5.4 * power;
 
     // Core star.
     p.x = x;
@@ -279,31 +283,31 @@ export class EffectEmitters {
     p.style = 0;
     p.aspect = 1;
     p.seed = rng.next();
-    this.tint(p, this.shockColor, 1.9 + power * 2.4);
+    this.tint(p, this.shockColor, 1.5 + power * 1.5);
     this.sprites.emit(p);
 
     // Soft bloom halo behind it.
-    p.size0 = scale * 1.5;
-    p.size1 = scale * 3.6;
+    p.size0 = scale * 1.4;
+    p.size1 = scale * 2.8;
     p.life = 0.34 + power * 0.2;
     p.tile = SpriteTile.Glow;
     p.rotVel = 0;
     p.alpha = 0.85;
     p.erode = 0.3;
     p.seed = rng.next();
-    this.tint(p, this.shockColor, 1.1 + power * 1.3);
+    this.tint(p, this.shockColor, 0.55 + power * 0.7);
     this.sprites.emit(p);
 
     // Expanding ring pop — the small, fast read that says "contact".
-    p.size0 = scale * 0.5;
-    p.size1 = scale * 6.5;
+    p.size0 = scale * 0.55;
+    p.size1 = scale * 5.5;
     p.life = 0.32 + power * 0.22;
     p.tile = SpriteTile.Ring;
     p.alpha = 0.95;
     p.erode = 0.7;
     p.rot = rng.range(0, Math.PI * 2);
     p.seed = rng.next();
-    this.tint(p, this.shockColor, 1.5 + power * 1.6);
+    this.tint(p, this.shockColor, 0.9 + power * 1.1);
     this.sprites.emit(p);
   }
 

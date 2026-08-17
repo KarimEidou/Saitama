@@ -3,9 +3,15 @@ import type { CapacitorConfig } from '@capacitor/cli';
 /**
  * Capacitor configuration.
  *
- * NOTE: the `android/` platform directory is intentionally NOT generated here.
- * Running `npx cap add android` is owned by the Android packaging workstream
- * (Task 15). This file only declares the configuration that task will consume.
+ * The `android/` platform directory is GENERATED, not committed — it stays in
+ * `.gitignore` because `npm run guard` rejects any tracked `.png` outside
+ * `docs/screenshots/`, and a Capacitor project ships 26 launcher/splash PNGs
+ * under `android/app/src/main/res/`. Everything in it derives from this file
+ * plus `package.json`, so regenerate rather than commit:
+ *
+ *   npx tsx scripts/android-sdk.ts     # install the SDK (idempotent)
+ *   npm run build && npx cap add android
+ *   npx tsx scripts/build-apk.ts       # -> android/app/build/outputs/apk/debug/
  */
 const config: CapacitorConfig = {
   appId: 'com.saitama.onepunch',

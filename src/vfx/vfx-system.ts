@@ -846,7 +846,7 @@ export class VFXSystem implements IVFXSystem {
         this.emitters.hitSparks(rng, x, y + 0.4, z, slot.dx, slot.dy, slot.dz, power, 14 + power * 26);
         this.emitters.debrisChips(rng, x, y + 0.3, z, slot.dx, slot.dy, slot.dz, power, 5 + power * 10);
         this.emitters.dustPlume(rng, x, y + 0.3, z, 1.2 + scale * 0.6, power, 14 + power * 22, 1.3);
-        this.speedlines.burst(0.55 + power * 0.45, 3.4);
+        this.speedlines.burst(0.26 + power * 0.34, 3.4);
         if (this.camera) this.speedlines.setFocusWorld(x, y, z, this.camera);
         this.shake.addAtPosition(0.35 + power * 0.5, this.scratchVectorB.set(x, y, z), 55);
         slot.lifetime = 1.6 + power;
@@ -859,7 +859,7 @@ export class VFXSystem implements IVFXSystem {
         this.emitters.debrisChips(rng, x, y + 1, z, 0, 1, 0, power, 10 + power * 16);
         this.emitters.dustPlume(rng, x, y + 0.6, z, 2 + scale, power, 26 + power * 40, 2.4);
         this.spawnShell(x, y, z, 0, 1, 0, Math.PI, 8 + scale * 6, power, 0, true);
-        this.speedlines.burst(0.7 * power + 0.2, 3);
+        this.speedlines.burst(0.45 * power + 0.15, 3);
         this.shake.addAtPosition(0.5 + power * 0.5, this.scratchVectorB.set(x, y, z), 80);
         slot.lifetime = 2.6 + power;
         break;
@@ -871,7 +871,7 @@ export class VFXSystem implements IVFXSystem {
         this.emitters.debrisChips(rng, x, y + 0.2, z, 0, 1, 0, power, 6 + power * 12);
         this.spawnShell(x, y + 0.15, z, 0, 1, 0, Math.PI, 6 + scale * 3.2, power * 0.85, 0, false);
         this.shake.addAtPosition(0.4 + power * 0.5, this.scratchVectorB.set(x, y, z), 70);
-        this.speedlines.burst(0.35 + power * 0.35, 4.2);
+        this.speedlines.burst(0.22 + power * 0.26, 4.2);
         slot.lifetime = 2.6 + power;
         break;
       }
@@ -912,7 +912,7 @@ export class VFXSystem implements IVFXSystem {
         break;
 
       case 'speedLines':
-        this.speedlines.burst(0.5 + power * 0.5, 2.6);
+        this.speedlines.burst(0.35 + power * 0.35, 2.6);
         slot.lifetime = 0.8;
         break;
 
@@ -1036,7 +1036,7 @@ export class VFXSystem implements IVFXSystem {
       );
     }
 
-    this.speedlines.burst(0.55 + power * 0.45, 2.6);
+    this.speedlines.burst(0.30 + power * 0.36, 2.6);
     if (this.camera) this.speedlines.setFocusWorld(x, y + 1, z, this.camera);
     this.shake.addAtPosition(0.45 + power * 0.55, this.scratchVectorB.set(x, y, z), 40 + range * 0.6);
 
@@ -1079,7 +1079,10 @@ export class VFXSystem implements IVFXSystem {
     params.halfAngle = halfAngle;
     params.range = range;
     params.life = life ?? Math.min(1.6, Math.max(0.3, range / (150 + power * 220)));
-    params.intensity = (primary ? 0.85 : 0.55) + power * 0.5;
+        // The axial cone covers a huge screen area at 180 metres; the ground
+    // skirt is the shape the eye should follow. Weighting them equally turns
+    // the punch into a white blob.
+    params.intensity = (primary ? 0.9 : kind === 1 ? 0.34 : 0.45) + power * 0.4;
     params.kind = kind;
     params.sharpness = 1.05 + power * 0.45;
     params.chroma = this.profile.shaderQuality > 0 ? 0.022 + power * 0.014 : 0;

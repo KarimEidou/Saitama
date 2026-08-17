@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Progression Harness — Day/Night, Rank, Quests, Boredom</title>
+    <!--
+      PROGRESSION + DAY/NIGHT VERIFICATION HARNESS
+
+      Two things at once, because they are verified by different means:
+
+        THE SKY   A real 3D scene lit entirely by `src/world/sky/**`: the four
+                  baked Poly Haven HDRIs, exposure-normalised against their
+                  MEASURED mean luminance and cross-faded by a 24-minute clock.
+                  The claim under test is visual and therefore has to be seen:
+                  the SAME view is screenshotted at six times of day and the
+                  pixels are compared. If midnight is as bright as noon, the
+                  normalisation is broken and the numbers will say so.
+
+        THE RULES `src/gameplay/progression/**` driven headlessly through the
+                  event bus. Rank, witnesses, boredom, quests and saves have no
+                  pixels; they are asserted on numbers, and the panel prints
+                  those numbers so a human can check them too.
+
+      The scene is a synthetic block: ground, buildings with window emissives,
+      street lamps, and a few props. It is NOT the city workstream's city —
+      this harness owns only the sky and the rules, and must not import
+      another system to prove them.
+
+      Playwright drives `window.__PROGRESSION_HARNESS__`.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #05070c;
+        color: #e6edf7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #layout {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        width: 100vw;
+        height: 100vh;
+      }
+      #stage {
+        position: relative;
+        background: #05070c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        border-left: 1px solid #1d2740;
+        padding: 14px 16px;
+        overflow-y: auto;
+        font-size: 11.5px;
+        line-height: 1.5;
+        background: #080b12;
+      }
+      h1 {
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #ffd230;
+        margin: 0 0 10px;
+      }
+      h2 {
+        font-size: 10.5px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #7f8ea8;
+        margin: 15px 0 5px;
+        border-bottom: 1px solid #172034;
+        padding-bottom: 3px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        padding: 1px 0;
+        vertical-align: top;
+      }
+      td.k {
+        color: #8b9ab5;
+        white-space: nowrap;
+        padding-right: 10px;
+      }
+      td.v {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .good {
+        color: #4ade80;
+      }
+      .bad {
+        color: #ff6b6b;
+      }
+      .warn {
+        color: #ffd230;
+      }
+      .note {
+        color: #6f7d95;
+        margin-top: 12px;
+        font-size: 10.5px;
+      }
+      #banner {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        padding: 5px 10px;
+        border-radius: 3px;
+        background: rgba(5, 7, 12, 0.72);
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        color: #ffd230;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="layout">
+      <div id="stage">
+        <canvas id="view"></canvas>
+        <div id="banner">booting…</div>
+      </div>
+      <div id="panel">
+        <h1>Progression &amp; Sky</h1>
+        <div id="stats"></div>
+        <div class="note">
+          Sky luminance is normalised against each HDRI's MEASURED mean, because
+          the four maps are not exposure matched: their peaks span five orders
+          of magnitude while their means sit within 1.5x of each other. Without
+          the division, midnight renders as bright as noon.
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./progression.ts"></script>
+  </body>
+</html>

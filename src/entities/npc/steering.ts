@@ -176,7 +176,11 @@ export class CrowdSteering {
     );
     agents.stamina[i] = stamina;
 
-    const spent = stamina <= 0.02;
+    // Hysteresis, and it is not optional: a flat threshold means an exhausted
+    // civilian recovers past it within a tenth of a second of stopping, flips
+    // back to fleeing, and flips again immediately. Exhaustion sets in at 2%
+    // and only lifts at 30%, so a collapse lasts a couple of seconds.
+    const spent = agents.mood[i] === MOOD_COWER ? stamina <= 0.3 : stamina <= 0.02;
     const cornered = !canFlee || threatDistance < CORNERED_DISTANCE;
 
     let next: number;

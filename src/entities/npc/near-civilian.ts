@@ -72,13 +72,21 @@ const STAGGER_SECONDS = 0.85;
 /** Seconds a civilian keeps following the player after being shepherded. */
 const SHEPHERD_SECONDS = 2.5;
 
-/** What the near tier needs from the system that owns it. */
+/**
+ * What the near tier needs from the system that owns it.
+ *
+ * Time and the player position are METHODS, not properties. A `NearCivilian`
+ * is recycled across many agents and outlives any snapshot, so a value
+ * captured when the host was built would be stale within a second — and the
+ * stale value here is "where the player is", which decides who gets credit for
+ * a rescue.
+ */
 export interface ICivilianHost {
   readonly agents: CrowdAgents;
   /** Seconds since the crowd system started. */
-  readonly time: number;
+  now(): number;
   /** Player position, when one is registered. */
-  readonly player: { x: number; z: number } | undefined;
+  playerPosition(): { x: number; z: number } | undefined;
   /** Route damage and death through the system so one code path resolves both. */
   damageAgent(index: number, amount: number, causedByPlayer: boolean, attacker?: EntityId): number;
 }
@@ -428,7 +436,7 @@ function buildCivilianTree(): BtNode<CivilianContext> {
     guard<CivilianContext>(
       'shepherded',
       (c) => {
-        const player = c.host.player;
+        const player = c.host.playerPosition();
         if (player === undefined) return false;
         if (c.self.shepherding) return true;
         const dx = player.x - c.agents.posX[c.index]!;
@@ -436,7 +444,7 @@ function buildCivilianTree(): BtNode<CivilianContext> {
         return dx * dx + dz * dz < RESCUE_RADIUS * RESCUE_RADIUS && c.agents.alarm[c.index]! > 0.2;
       },
       action<CivilianContext>('follow-player', (c) => {
-        const player = c.host.player;
+        const player = c.host.playerPosition();
         if (player === undefined) return 'failure';
         const dx = player.x - c.agents.posX[c.index]!;
         const dz = player.z - c.agents.posZ[c.index]!;

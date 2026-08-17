@@ -99,12 +99,13 @@ export const ALARM_DT = 1 / ALARM_HZ;
  * How much alarm survives one cell of travel.
  *
  * Sets the field's RANGE rather than its speed: a seed of intensity 1 decays
- * to the flee threshold after `ln(threshold) / ln(transfer)` cells. At 0.86
- * per 12 m that is about 260 m for the gawk threshold and 140 m for the flee
- * threshold — a dragon-level monster empties the district, a wolf-level one
- * clears a street.
+ * to a threshold after `ln(threshold) / ln(transfer)` cells. At 0.885 per 12 m
+ * that puts the flee threshold about 95 m out and the gawk threshold about
+ * 190 m out — a dragon-level monster empties a district and leaves a much
+ * larger ring of people standing there filming it, which is the shape the
+ * source material has.
  */
-export const ALARM_TRANSFER = 0.86;
+export const ALARM_TRANSFER = 0.885;
 
 /**
  * Ceiling on how fast a cell's alarm may rise, per second.
@@ -116,12 +117,29 @@ export const ALARM_TRANSFER = 0.86;
  * that advances at a near-constant metres per second, which is what a
  * spreading scream looks like.
  *
- * 0.55/s over a 12 m cell works out around 25-35 m/s: deliberately faster than
- * a real crowd's panic wave (1-5 m/s), because the threats here are ten metres
- * tall and audible across a district. Slower and the player outruns the panic,
- * which makes the city read as oblivious.
+ * With `ALARM_GATE`, the front advances one cell every `gate / rise` seconds:
+ * 12 m every 0.385 s, about 31 m/s. The harness differentiates the measured
+ * front radius rather than trusting this arithmetic.
+ *
+ * Deliberately far faster than a real crowd's panic wave of 1-5 m/s, because
+ * the threats here are ten metres tall and audible across a district. Slower
+ * and the player outruns the panic, which makes the city read as oblivious.
  */
-export const ALARM_RISE = 0.55;
+export const ALARM_RISE = 0.26;
+
+/**
+ * A cell must reach this before it can alarm its neighbours.
+ *
+ * Panic spreads from people who are ALREADY panicking, not from people who are
+ * mildly uneasy. Without the gate, a cell three blocks away starts creeping
+ * upward the instant its neighbour is a thousandth above zero, so the "front"
+ * is really the whole profile rising at once and its apparent speed starts
+ * near 70 m/s and decays. With it, a cell waits until its neighbour has
+ * genuinely crossed into alarm and then takes `gate / rise` seconds to do the
+ * same — which makes the front speed a constant, and a computable one:
+ * `FIELD_CELL / (ALARM_GATE / ALARM_RISE)`, about 31 m/s.
+ */
+export const ALARM_GATE = 0.1;
 
 /** How fast alarm bleeds away once the threat stops feeding it, per second. */
 export const ALARM_DECAY = 0.42;
@@ -133,7 +151,7 @@ export const ALARM_GAWK = 0.1;
 export const ALARM_FLEE = 0.38;
 
 /** Alarm at or above which a cornered civilian gives up and cowers. */
-export const ALARM_COWER = 0.82;
+export const ALARM_COWER = 0.72;
 
 /** Seeded alarm falls off to zero over this radius around a threat, metres. */
 export const THREAT_SEED_RADIUS = 26;

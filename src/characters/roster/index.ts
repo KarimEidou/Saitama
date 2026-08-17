@@ -68,6 +68,7 @@ export {
 } from './face';
 
 export {
+  findPaintCollisions,
   headLandmarkV,
   measureHead,
   prepareRosterGeometry,
@@ -75,6 +76,7 @@ export {
   type AtlasPlan,
   type HeadMetrics,
   type PreparedGeometry,
+  type RegionMove,
 } from './geometry';
 
 export {

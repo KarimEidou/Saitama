@@ -347,7 +347,10 @@ void main() {
   float cell = floor(u * 220.0 + seed * 57.0);
   float streak = 0.45 + 0.55 * smoothstep(0.25, 0.95, vfxHash(cell));
 
-  float body = smoothstep(0.0, 0.62, v) * (1.0 - smoothstep(EDGE - 0.02, EDGE + 0.10, v));
+  /* The trailing compression is a BAND behind the edge, not a filled shell.
+     Starting it at v = 0 fills the whole cone with haze and the wave stops
+     reading as a wave. */
+  float body = smoothstep(0.30, 0.80, v) * (1.0 - smoothstep(EDGE - 0.02, EDGE + 0.10, v));
   body *= streak;
 
   float lens = smoothstep(EDGE + 0.01, 0.97, v) * (1.0 - smoothstep(0.94, 1.0, v));
@@ -355,14 +358,14 @@ void main() {
   float fade = pow(max(0.0, 1.0 - life), 0.65);
   float attenuation = fade * vArc * intensity;
 
-  float alpha = clamp(body * 0.34 + lens * 0.34 + band * 0.42, 0.0, 1.0) * attenuation;
+  float alpha = clamp(body * 0.15 + lens * 0.20 + band * 0.36, 0.0, 1.0) * attenuation;
 
-  vec3 rgb = vTint * (band * 2.7 + body * 0.24);
+  vec3 rgb = vTint * (band * 1.35 + body * 0.09);
 #if VFX_QUALITY > 0
-  rgb += vec3(bandR, band, bandB) * 0.85 * vTint;
-  rgb += vec3(0.0, 0.03, 0.11) * lens;
+  rgb += vec3(bandR, band, bandB) * 0.42 * vTint;
+  rgb += vec3(0.0, 0.025, 0.09) * lens;
 #else
-  rgb += band * 0.85 * vTint;
+  rgb += band * 0.42 * vTint;
 #endif
   rgb = max(rgb, vec3(0.0)) * attenuation;
 
@@ -426,12 +429,15 @@ float slLines(float k, float r, float density, float seed) {
   float f = x - cell;
   float h = slHash(cell + seed);
   float h2 = slHash(cell + seed + 37.0);
-  float halfWidth = 0.030 + 0.26 * h;
-  float centre = 0.5 + (h2 - 0.5) * 0.6;
-  float line = smoothstep(halfWidth, halfWidth * 0.12, abs(f - centre));
-  float start = uInner * (0.5 + 0.9 * h2);
-  float grow = smoothstep(start, start + 0.55, r);
-  return line * grow * (0.35 + 0.65 * h);
+  /* Most cells carry NO line. Evenly filled spokes read as a test pattern; the
+     gaps are what make the field read as motion rather than as a sunburst. */
+  if (h < 0.68) return 0.0;
+  float halfWidth = 0.010 + 0.075 * h2;
+  float centre = 0.5 + (h2 - 0.5) * 0.5;
+  float line = smoothstep(halfWidth, halfWidth * 0.15, abs(f - centre));
+  float start = uInner * (0.75 + 0.8 * h2);
+  float grow = smoothstep(start, start + 0.62, r);
+  return line * grow * (0.45 + 0.55 * h2);
 }
 
 void main() {
@@ -440,14 +446,15 @@ void main() {
   float k = atan(d.y, d.x) * 0.15915494 + 0.5;
 
   float lines = slLines(k, r, uDensity, uPhase);
-  lines = max(lines, slLines(k, r, uDensity * 0.47, uPhase + 13.0) * 0.85);
+  lines = max(lines, slLines(k, r, uDensity * 0.43, uPhase + 13.0) * 0.75);
 #if VFX_QUALITY > 0
-  lines = max(lines, slLines(k, r, uDensity * 2.10, uPhase + 71.0) * 0.55);
+  lines = max(lines, slLines(k, r, uDensity * 2.30, uPhase + 71.0) * 0.42);
 #endif
 
-  /* Lines strengthen toward the frame edge so the centre of the shot — where
-     the thing the player is looking at is — stays clear. */
-  lines *= mix(0.55, 1.0, smoothstep(0.15, 1.15, r));
+  /* Lines strengthen toward the frame edge so the centre of the shot — the
+     thing the player is actually looking at — stays clear. Speedlines that
+     cover the subject are not style, they are an occlusion bug. */
+  lines *= mix(0.0, 1.0, smoothstep(0.45, 1.35, r));
 
   float alpha = clamp(lines * uIntensity, 0.0, 1.0);
   if (alpha < 0.004) discard;

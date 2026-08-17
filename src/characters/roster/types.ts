@@ -376,8 +376,21 @@ export interface FaceRect {
 /** The maps one character's atlas bake produces. */
 export interface AtlasMaps {
   readonly size: number;
-  /** RGBA sRGB. Alpha carries the crowd tint mask. */
+  /**
+   * RGB, sRGB-encoded. Three channels, NOT four: the tint mask used to live in
+   * an alpha channel and that turned out to be a trap. An image whose alpha is
+   * zero everywhere — which is every character except the crowd sheet — gets
+   * unpremultiplied to a flat colour by libvips on save, and premultiplied to
+   * black by some browsers on upload. The mask therefore ships as its own
+   * single-channel map, and albedo stays opaque RGB everywhere.
+   */
   readonly albedo: Uint8Array;
+  /**
+   * Single channel: which per-instance tint slot each texel listens to, at the
+   * levels in `TINT_MASK_LEVEL`. Only meaningful for crowd characters; the
+   * baker still fills it so the layout is uniform.
+   */
+  readonly mask: Uint8Array;
   /** RGB linear: AO in R, roughness in G, metalness in B. */
   readonly orm: Uint8Array;
   /** RGB tangent-space normal. */
