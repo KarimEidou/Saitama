@@ -22,6 +22,29 @@
  * will never load. Filtering has to happen here because `vite.config.ts` and the
  * asset pipeline belong to other workstreams; this script only ever deletes from
  * the generated `android/` copy and never touches `dist/` or `public/`.
+ *
+ * WHY THIS DOES NOT DELEGATE TO `scripts/build-web.ts`
+ * ---------------------------------------------------
+ * That script prunes too, and the two filters look like duplication. They are
+ * not interchangeable, for three reasons — in descending order of importance:
+ *
+ *   1. DIFFERENT TREE. `build-web.ts` prunes `dist/`, the build you serve to a
+ *      browser. This prunes the throwaway copy under `android/`. Routing the APK
+ *      build through it would make packaging destructive to `dist/` — which is a
+ *      served artifact and, during parallel work, may be live behind `npx serve`.
+ *      Packaging must stay read-only with respect to `dist/`.
+ *   2. BROADER SCRATCH RULE. This drops any path with a dot-prefixed segment;
+ *      `build-web.ts` matches only `.work/` and `.cache/`, so `.process-cache.json`
+ *      (68 KB) and `mdl/.gitignore` survive there and would ride into the APK.
+ *   3. MANIFEST AUTHORITY. This trusts `assets.runtime.json`'s declared tier and
+ *      falls back to the filename token; `build-web.ts` has only the token rule.
+ *      Measured on the current payload the two agree on all 192 tiered outputs,
+ *      so this buys nothing today — it is insurance against a pipeline that emits
+ *      a tiered file without a `.tier.` token, not a live difference.
+ *
+ * (1) and (2) are real and load-bearing. Sharing the filter would mean extracting
+ * it to take a root and a scratch predicate — worth doing only if a third caller
+ * ever appears; with two, the indirection costs more than the ~20 duplicated lines.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -447,6 +470,11 @@ function main(): void {
   log(`SDK: ${sdk}`);
 
   if (!skipWeb) {
+    // Icons are build output, not source (`public/icons/` is gitignored because
+    // `npm run guard` rejects tracked PNGs). `npm run build` does not generate
+    // them, so without this a from-clean build ships an APK with no launcher
+    // icon at all — `scripts/build-web.ts` runs the same step for the same reason.
+    run('npx', ['tsx', 'scripts/make-icons.ts'], REPO_ROOT);
     run('npm', ['run', 'build'], REPO_ROOT);
   } else {
     log('skipping web build (--skip-web)');
