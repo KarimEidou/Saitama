@@ -196,6 +196,19 @@ export interface SurfaceStyle {
 /** A complete per-class style table. Every class is present after resolution. */
 export type SurfaceStyleSet = Readonly<Record<SurfaceClass, SurfaceStyle>>;
 
+/**
+ * A partial style, as a character supplies it.
+ *
+ * `detail` is partial too, so a character can say "same maps, tighter tiling"
+ * without restating the whole detail spec — which is what most overrides are.
+ */
+export type SurfaceStyleOverride = Partial<Omit<SurfaceStyle, 'detail'>> & {
+  readonly detail?: Partial<DetailSpec>;
+};
+
+/** Per-class overrides layered over `DEFAULT_SURFACES`. */
+export type SurfaceOverrides = Partial<Record<SurfaceClass, SurfaceStyleOverride>>;
+
 /* -------------------------------------------------------------------------- */
 /* Faces                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -309,7 +322,7 @@ export interface RosterEntry {
   /** Costume colour -> surface class table. */
   readonly colors: readonly ClassColor[];
   /** Per-class overrides layered over `DEFAULT_SURFACES`. */
-  readonly surfaces?: Partial<Record<SurfaceClass, Partial<SurfaceStyle>>>;
+  readonly surfaces?: SurfaceOverrides;
   readonly face: FaceStyle;
   /** Deterministic seed for every random decision in the bake. */
   readonly seed: number;

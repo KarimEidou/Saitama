@@ -39,7 +39,7 @@ import { createRng } from '@/util';
 import type { CharacterRecipe, Coat, PaintFn } from '@/characters/mesh';
 import { resolvePalette } from '@/characters/mesh';
 import { baseFace } from './face';
-import type { ClassColor, FaceStyle, RosterEntry, SurfaceClass, SurfaceStyle } from './types';
+import type { ClassColor, RosterEntry, SurfaceClass, SurfaceOverrides } from './types';
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
@@ -680,7 +680,7 @@ export function mookEntry(tier: ThreatTier, seed: number): RosterEntry {
   };
 }
 
-function tierSurfaces(tier: ThreatTier): Partial<Record<SurfaceClass, Partial<SurfaceStyle>>> {
+function tierSurfaces(tier: ThreatTier): SurfaceOverrides {
   switch (tier) {
     case 'wolf':
       return { hide: { roughness: 0.88 } };

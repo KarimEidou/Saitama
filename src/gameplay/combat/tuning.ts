@@ -137,6 +137,21 @@ export interface ICombatTuning {
   readonly normalPunchIntent: LethalIntent;
   /** Knockback delta-v applied to a tap victim, m/s. */
   readonly normalKnockbackMps: number;
+  /**
+   * Fire the tap on the PRESS edge (true) or on the release of a short press
+   * (false).
+   *
+   * `true` matches the input contract verbatim — "`buttons.punch.pressed` =
+   * throw the light punch NOW" — and is the only setting with zero latency,
+   * which matters more on a phone than anywhere else.
+   *
+   * The cost is that beginning a charge next to a monster throws a free jab
+   * first, so the monster is already dead when the serious punch lands and the
+   * player levels three blocks for nothing. That is a legible mistake to make
+   * once, but if playtesting says otherwise, `false` defers the tap until
+   * release and costs one frame plus `seriousMinChargeSeconds` of latency.
+   */
+  readonly normalPunchOnPress: boolean;
 
   /* ---- consecutive normal punches ---- */
   /**
@@ -230,6 +245,17 @@ export interface ICombatTuning {
    * formality. Above this, the kill lowers boredom instead of raising it.
    */
   readonly challengeSeconds: number;
+  /**
+   * Seconds to wait after the last hostile dies before closing the scorecard.
+   *
+   * NOT cosmetic. Collapses are STAGGERED across frames — the destruction
+   * system deliberately spreads a 300-body building over several frames to
+   * stay inside the debris budget — so the chunks a serious punch knocked
+   * loose are still falling when the monster hits the ground. Closing the
+   * books on the kill frame would bill the player for the first tenth of the
+   * damage they caused and quietly forgive the rest.
+   */
+  readonly encounterSettleSeconds: number;
 
   /* ---- boredom ---- */
   /** Boredom added by the most trivial kill imaginable (a wolf-tier mob). */
@@ -257,7 +283,17 @@ export interface ICombatTuning {
   readonly boredomBaseline: number;
   /** Boredom drift per second back toward the baseline. */
   readonly boredomDecayRatePerSecond: number;
-  /** Movement below this is not reported, so the bus is not spammed. */
+  /**
+   * Report threshold. The meter's VALUE always moves; the BUS only hears
+   * about it once the accumulated move passes this.
+   *
+   * The idle rise is 2.5e-3 per second, which at 60 fps is 4e-5 per frame.
+   * Emitting that would put an event on the bus every frame forever and make
+   * the audio system re-derive its arrangement sixty times a second to hear
+   * the same number — while a threshold that DISCARDED the sub-epsilon delta
+   * instead of banking it would mean boredom never rises from idling at all.
+   * So the delta is always applied and only the reporting is quantised.
+   */
   readonly boredomEmitEpsilon: number;
 }
 
@@ -276,6 +312,7 @@ export const DEFAULT_COMBAT_TUNING: ICombatTuning = Object.freeze({
   normalPower: 120,
   normalPunchIntent: 'normal',
   normalKnockbackMps: 34,
+  normalPunchOnPress: true,
 
   /* chain */
   chainWindowSeconds: 0.42,
@@ -316,6 +353,7 @@ export const DEFAULT_COMBAT_TUNING: ICombatTuning = Object.freeze({
   witnessRadiusMetres: 60,
   defaultZoningYenPerKg: DEFAULT_ZONING_YEN_PER_KG,
   challengeSeconds: 12,
+  encounterSettleSeconds: 2.5,
 
   /* boredom */
   boredomPerTrivialKill: 0.045,
@@ -329,7 +367,7 @@ export const DEFAULT_COMBAT_TUNING: ICombatTuning = Object.freeze({
   boredomIdleRatePerSecond: 0.0025,
   boredomBaseline: 0.55,
   boredomDecayRatePerSecond: 0.004,
-  boredomEmitEpsilon: 1e-4,
+  boredomEmitEpsilon: 5e-3,
 } satisfies ICombatTuning);
 
 /** Partial override, resolved against the defaults. */

@@ -306,16 +306,19 @@ function eyeGeometry(pen: Pen, style: FaceStyle, mood: Mood, side: -1 | 1): EyeG
 function drawSocket(pen: Pen, style: FaceStyle, mood: Mood, eye: EyeGeom): void {
   const shadow = style.shadow;
   if (shadow === undefined) return;
-  const strength = 0.16 + mood.hollow * 0.3;
-  pen.ellipse(eye.cx, eye.cy + eye.ry * 0.28, eye.rx * 1.9, eye.ry * 2.1, hex(shadow), strength);
+  // Deliberately small and faint. A wide halo around each eye stops reading as
+  // a socket and starts reading as a second, paler eye — which is exactly what
+  // it looked like at 1.9x the eye radius.
+  const strength = 0.1 + mood.hollow * 0.16;
+  pen.ellipse(eye.cx, eye.cy + eye.ry * 0.35, eye.rx * 1.3, eye.ry * 1.45, hex(shadow), strength);
   if (mood.hollow > 0.2) {
-    pen.ellipse(
-      eye.cx,
-      eye.cy + eye.ry * 1.5,
-      eye.rx * 1.25,
-      eye.ry * 0.6,
+    // The hollow under a tired eye is a crescent, not a disc.
+    pen.stroke(
+      `M ${n(eye.cx - eye.rx * 0.95)} ${n(eye.cy + eye.ry * 1.15)}` +
+        ` Q ${n(eye.cx)} ${n(eye.cy + eye.ry * 1.9)} ${n(eye.cx + eye.rx * 0.95)} ${n(eye.cy + eye.ry * 1.15)}`,
       hex(shadow),
-      0.22 * mood.hollow
+      Math.max(eye.ry * 0.3, 1.2),
+      0.3 * mood.hollow
     );
   }
 }
@@ -471,6 +474,12 @@ function drawMouth(pen: Pen, style: FaceStyle, mood: Mood): void {
 
   switch (style.mouth) {
     case 'line': {
+      if (mood.mouthOpen > 0.001) {
+        // Surprise opens even a line mouth. Without this the "surprised" tile
+        // differs from neutral only in the eyes, which reads as a stare.
+        pen.ellipse(cx, cy + mood.mouthOpen * pen.sy * 0.3, halfWidth * 0.42, mood.mouthOpen * pen.sy, color);
+        break;
+      }
       pen.stroke(
         `M ${n(cx - halfWidth)} ${n(cy - curve)} Q ${n(cx)} ${n(cy + curve * 2)} ${n(cx + halfWidth)} ${n(cy - curve)}`,
         color,

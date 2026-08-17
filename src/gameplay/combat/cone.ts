@@ -337,6 +337,50 @@ export function segmentIntersectsAabb(
 /* -------------------------------------------------------------------------- */
 
 /**
+ * An orthonormal basis whose first axis is `N`.
+ *
+ * The seed axis is whichever world axis `N` is LEAST aligned with, so the
+ * cross product is never near-degenerate and the basis stays well conditioned
+ * for a cone pointing straight up, straight down, or anywhere else.
+ */
+function perpendicularBasis(
+  nx: number,
+  ny: number,
+  nz: number
+): { ux: number; uy: number; uz: number; vx: number; vy: number; vz: number } {
+  const ax = Math.abs(nx);
+  const ay = Math.abs(ny);
+  const az = Math.abs(nz);
+  const sx = ax <= ay && ax <= az ? 1 : 0;
+  const sy = sx === 0 && ay <= az ? 1 : 0;
+  const sz = sx === 0 && sy === 0 ? 1 : 0;
+
+  // u = normalise(N x seed)
+  let ux = ny * sz - nz * sy;
+  let uy = nz * sx - nx * sz;
+  let uz = nx * sy - ny * sx;
+  const ulen = Math.sqrt(ux * ux + uy * uy + uz * uz) || 1;
+  ux /= ulen;
+  uy /= ulen;
+  uz /= ulen;
+
+  // v = N x u, already unit because N and u are orthonormal.
+  return {
+    ux,
+    uy,
+    uz,
+    vx: ny * uz - nz * uy,
+    vy: nz * ux - nx * uz,
+    vz: nx * uy - ny * ux,
+  };
+}
+
+/** Half-extent of a box projected onto an arbitrary unit axis. */
+function projectedRadius(hx: number, hy: number, hz: number, ax: number, ay: number, az: number) {
+  return hx * Math.abs(ax) + hy * Math.abs(ay) + hz * Math.abs(az);
+}
+
+/**
  * CONSERVATIVE box-vs-spherical-sector test. Never a false negative.
  *
  * The structure is: cheap EXACT rejects, then cheap EXACT accepts, then two
@@ -355,11 +399,22 @@ export function segmentIntersectsAabb(
  *  CONSERVATIVE
  *    7. the box's bounding sphere intersects the cone (`sphereInCone`);
  *    8. `max(dot(P - O, N)) / min|P - O|` — an upper bound on the cosine of
- *       the smallest achievable off-axis angle — reaches `cos(halfAngle)`.
+ *       the smallest achievable off-axis angle — reaches `cos(halfAngle)`;
+ *    9. the AXIAL/LATERAL bound, in the cone's own frame.
  *
  * Bound 8 is what makes long thin boxes (building fracture chunks, the whole
  * reason this exists) tight: the bounding sphere of a 40 m slab is useless,
  * but the dot/distance ratio is not.
+ *
+ * Bound 9 is what makes a LARGE, NEARBY, OFF-AXIS box tight — a building you
+ * are standing beside while punching down the street, which is the single most
+ * common thing the charge forecast has to price correctly. Written in an
+ * orthonormal frame `(N, U, V)`, the cone is exactly `lateral <= axial *
+ * tan(halfAngle)`, and the box's extents along `U` and `V` bound the lateral
+ * term from below independently of the axial one. Bounds 7 and 8 both accept
+ * such a box (its bounding sphere swallows the apex region, and its far top
+ * corner has a large axial component while its near face is close), and this
+ * one rejects it.
  */
 export function aabbInCone(
   box: ICombatAabb,
@@ -408,6 +463,29 @@ export function aabbInCone(
   const hz = (box.maxZ - box.minZ) * 0.5;
   const boundingRadius = Math.sqrt(hx * hx + hy * hy + hz * hz);
   if (!sphereInCone(cx, cy, cz, boundingRadius, nx, ny, nz, range, halfAngle)) return false;
+
+  /* 9 — axial / lateral bound in the cone's own frame.
+     Runs only for a cone narrower than a hemisphere; at or past 90 degrees the
+     `lateral <= axial * tan` form stops describing the solid. */
+  if (halfAngle < Math.PI * 0.5 - 1e-6) {
+    const basis = perpendicularBasis(nx, ny, nz);
+    const axialCentre = cx * nx + cy * ny + cz * nz;
+    const axialMax = axialCentre + projectedRadius(hx, hy, hz, nx, ny, nz);
+    if (axialMax <= 0) return false;
+
+    const uCentre = cx * basis.ux + cy * basis.uy + cz * basis.uz;
+    const uRadius = projectedRadius(hx, hy, hz, basis.ux, basis.uy, basis.uz);
+    const vCentre = cx * basis.vx + cy * basis.vy + cz * basis.vz;
+    const vRadius = projectedRadius(hx, hy, hz, basis.vx, basis.vy, basis.vz);
+
+    // Smallest |u| and |v| the box can reach. Zero when the interval straddles
+    // the axis, which is the case that must never be rejected.
+    const uMin = Math.abs(uCentre) <= uRadius ? 0 : Math.abs(uCentre) - uRadius;
+    const vMin = Math.abs(vCentre) <= vRadius ? 0 : Math.abs(vCentre) - vRadius;
+
+    const reach = axialMax * Math.tan(halfAngle);
+    if (uMin * uMin + vMin * vMin > reach * reach) return false;
+  }
 
   /* 8 — dot / distance bound on the smallest off-axis angle. */
   // max of dot(P - O, N) over the box: pick the per-axis extreme by sign of N.

@@ -28,7 +28,13 @@
  * author, so the credits screen is generated rather than remembered.
  */
 
-import type { DetailSpec, SurfaceClass, SurfaceStyle, SurfaceStyleSet } from './types';
+import type {
+  DetailSpec,
+  SurfaceClass,
+  SurfaceOverrides,
+  SurfaceStyle,
+  SurfaceStyleSet,
+} from './types';
 import { SURFACE_CLASSES } from './types';
 
 function detail(spec: Partial<DetailSpec>): DetailSpec {
@@ -249,9 +255,7 @@ export const DEFAULT_SURFACES: SurfaceStyleSet = {
 };
 
 /** Merge per-character overrides over the defaults. */
-export function resolveSurfaces(
-  overrides?: Partial<Record<SurfaceClass, Partial<SurfaceStyle>>>
-): SurfaceStyleSet {
+export function resolveSurfaces(overrides?: SurfaceOverrides): SurfaceStyleSet {
   if (overrides === undefined) return DEFAULT_SURFACES;
   const out = {} as Record<SurfaceClass, SurfaceStyle>;
   for (const key of SURFACE_CLASSES) {

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Combat Harness — One Punch Resolution</title>
+    <!--
+      ONE-PUNCH COMBAT VERIFICATION HARNESS
+
+      A top-down slice of City Z showing what a punch actually resolves
+      against: the cone the serious punch sweeps, the entities inside it that
+      died instantly, the ones just outside that lived, the buildings the wave
+      engulfed, and the price in yen.
+
+      Deliberately 2D canvas, not WebGL. Every claim being checked here is CPU
+      geometry and event ordering; rendering it through a software GL stack
+      would add a large, noisy dependency that tests nothing about the
+      resolution itself and would turn the screenshot into a measure of
+      SwiftShader.
+
+      It also runs, at load, two cross-checks that no unit test inside
+      `src/gameplay/combat` can run — because the module is forbidden from
+      importing the code it would have to compare itself against:
+
+        MIRROR PARITY   combat's `sphereInCone` against `src/spatial`'s, the
+                        one it is a byte-for-byte copy of. A drift here means
+                        the broad phase and the kill test disagree about who
+                        is in range, and enemies start surviving punches.
+
+        BROAD-PHASE     the real `DynamicEntityGrid` cone query, adapted to
+        PARITY          `ICombatBroadPhase`, against combat's brute-force
+                        linear scan, over a full city population.
+
+      Playwright drives `window.__COMBAT_HARNESS__`.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #07070b;
+        color: #e9edf5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #layout {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        width: 100vw;
+        height: 100vh;
+      }
+      #stage {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 50% 45%, #12141c 0%, #06060a 78%);
+      }
+      #view {
+        display: block;
+      }
+      #panel {
+        border-left: 1px solid #1e2333;
+        padding: 14px 16px 20px;
+        overflow-y: auto;
+        font-size: 12px;
+        line-height: 1.55;
+        background: #0a0b11;
+      }
+      h1 {
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #ffd230;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: #6d7891;
+        font-size: 11px;
+        margin: 0 0 12px;
+      }
+      h2 {
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #7b89a5;
+        margin: 16px 0 6px;
+        border-bottom: 1px solid #1a2032;
+        padding-bottom: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        padding: 1px 0;
+        vertical-align: top;
+      }
+      td.k {
+        color: #8794ae;
+        white-space: nowrap;
+        padding-right: 10px;
+      }
+      td.v {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .ok {
+        color: #4ade80;
+      }
+      .bad {
+        color: #ff6b6b;
+      }
+      .warn {
+        color: #ffd230;
+      }
+      .meter {
+        height: 8px;
+        border-radius: 4px;
+        background: #191f2e;
+        overflow: hidden;
+        margin: 3px 0 8px;
+      }
+      .meter > i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #4ade80, #ffd230 55%, #ff5f6d);
+      }
+      .legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 3px 0;
+        color: #b7c3d8;
+      }
+      .sw {
+        width: 20px;
+        height: 10px;
+        border-radius: 2px;
+        flex: none;
+      }
+      .note {
+        color: #5f6b83;
+        margin-top: 14px;
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+      pre {
+        margin: 4px 0 0;
+        font-size: 10.5px;
+        color: #93a1bb;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="layout">
+      <div id="stage"><canvas id="view" width="980" height="980"></canvas></div>
+      <div id="panel">
+        <h1>One Punch</h1>
+        <p class="sub">City Z, street level, 240 m across</p>
+
+        <h2>Verification</h2>
+        <div id="verify"></div>
+
+        <h2>The punch</h2>
+        <div id="punch"></div>
+
+        <h2>Boredom</h2>
+        <div class="meter"><i id="boredom-bar" style="width: 55%"></i></div>
+        <div id="boredom"></div>
+
+        <h2>Encounter</h2>
+        <div id="encounter"></div>
+
+        <h2>Legend</h2>
+        <div class="legend"><span class="sw" style="background: #ff9f43"></span> boss</div>
+        <div class="legend"><span class="sw" style="background: #ff4fd8"></span> monster</div>
+        <div class="legend"><span class="sw" style="background: #56b8ff"></span> civilian</div>
+        <div class="legend"><span class="sw" style="background: #4ade80"></span> ally</div>
+        <div class="legend"><span class="sw" style="background: #6b7280"></span> killed</div>
+        <div class="legend">
+          <span class="sw" style="background: linear-gradient(90deg, #fff6c2, #ff5f2e)"></span>
+          shockwave cone
+        </div>
+        <div class="legend"><span class="sw" style="background: #2b3550"></span> building</div>
+        <div class="legend">
+          <span class="sw" style="background: #ff2d6f"></span> building the wave took
+        </div>
+
+        <div class="note">
+          The cone is the SPHERICAL SECTOR the resolver actually tests against,
+          drawn from the same numbers the punch was resolved with — not an
+          artist's impression of it. Everything inside died in one hit,
+          whatever its tier and whatever its health was.
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./combat.ts"></script>
+  </body>
+</html>

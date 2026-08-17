@@ -306,6 +306,19 @@ export interface IHeroismReport {
   readonly position?: Vec3;
 }
 
+/**
+ * Starting a fight by hand, e.g. from a quest script or a test.
+ *
+ * `time` and the starting boredom are filled in from the combat system's own
+ * clock and meter when omitted, so a caller only has to say who is fighting.
+ */
+export interface IEncounterStartLike {
+  readonly encounterId: string;
+  readonly hostileIds: readonly EntityId[];
+  readonly allyIds?: readonly EntityId[];
+  readonly time?: number;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Re-exported vocabulary                                                     */
 /* -------------------------------------------------------------------------- */

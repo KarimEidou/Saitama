@@ -49,7 +49,7 @@
 
 import { spawn } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { read as readKTX2 } from 'ktx-parse';
@@ -146,7 +146,44 @@ export const MODEL_DIR = path.join(PUBLIC_ASSETS_DIR, 'mdl');
  * intermediates mid-encode. That failure looks like a random `vips2png: unable
  * to write to target`, which is a genuinely miserable thing to debug.
  */
-export const WORK_DIR = path.join(PUBLIC_ASSETS_DIR, '.work', String(process.pid));
+export const WORK_ROOT = path.join(PUBLIC_ASSETS_DIR, '.work');
+export const WORK_DIR = path.join(WORK_ROOT, String(process.pid));
+
+/**
+ * Delete this run's scratch, plus any left behind by a run that died.
+ *
+ * The pid namespacing that makes concurrent builds safe also means a build
+ * that is killed — Ctrl-C, OOM, an agent stopping a long encode — strands its
+ * subtree forever, and those subtrees hold 40 MB intermediate PNGs. So each
+ * run sweeps siblings whose pid no longer exists.
+ *
+ * `process.kill(pid, 0)` only tests for existence. A recycled pid makes this
+ * skip a directory that was in fact abandoned, which is the harmless direction
+ * to be wrong in; it can never delete a live run's scratch.
+ */
+export async function cleanWorkDirs(): Promise<void> {
+  await rm(WORK_DIR, { recursive: true, force: true });
+  let siblings: string[];
+  try {
+    siblings = await readdir(WORK_ROOT);
+  } catch {
+    return; // never created, or already gone
+  }
+  for (const name of siblings) {
+    const pid = Number(name);
+    if (!Number.isInteger(pid) || pid <= 0) continue;
+    try {
+      process.kill(pid, 0);
+      continue; // still running: leave it alone
+    } catch {
+      await rm(path.join(WORK_ROOT, name), { recursive: true, force: true });
+    }
+  }
+  // `rmdir` refuses a non-empty directory, which is exactly the check wanted:
+  // the root goes only once no other build is using it.
+  await rmdir(WORK_ROOT).catch(() => {});
+}
+
 /** The index the game loads first. */
 export const RUNTIME_INDEX = path.join(PUBLIC_ASSETS_DIR, 'assets.runtime.json');
 /** Content-addressed skip cache. Lives beside the outputs it describes. */
@@ -1121,7 +1158,7 @@ async function main(): Promise<void> {
     }
   }
 
-  await rm(WORK_DIR, { recursive: true, force: true });
+  await cleanWorkDirs();
 
   const index = await writeRuntimeIndex({
     sourceManifest,
