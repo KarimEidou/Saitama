@@ -329,13 +329,18 @@
       },
       "headHalfWidth": 0.0836
     },
-    "drawCalls": 5,
+    "drawCalls": 2,
+    "proximityFade": {
+      "armCollapseRatio": 0.85,
+      "coverage": 0.9136799999999999,
+      "features": "F-D"
+    },
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 4363,
-      "stdDev": 91.39720225049061,
+      "distinctColors": 5148,
+      "stdDev": 92.16683336961658,
       "magentaPixels": 0,
-      "meanLuma": 80.49663575521384
+      "meanLuma": 83.90186690104882
     },
     "proximityFadeCurve": [
       0,

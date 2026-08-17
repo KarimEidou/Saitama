@@ -590,7 +590,7 @@ async function runFace(): Promise<Record<string, unknown>> {
     // One ROW, not a grid: stacked heads are occluded by the shoulders of the
     // character in front of them, which is how the first attempt hid two of
     // the four expressions entirely.
-    character.root.position.set(6 + i * 0.45, 0, 0);
+    character.root.position.set(6 + i * 0.38, 0, 0);
     character.root.rotation.y = Math.PI;
     scene.add(character.root);
     strip.push(character);
@@ -613,8 +613,8 @@ async function runFace(): Promise<Record<string, unknown>> {
   camera.lookAt(0, eyeY - 0.02, 0);
 
   const grid = new THREE.PerspectiveCamera(26, gridWidth / HEIGHT, 0.05, 40);
-  grid.position.set(6.675, eyeY - 0.06, 3.55);
-  grid.lookAt(6.675, eyeY - 0.06, 0);
+  grid.position.set(6.57, eyeY - 0.05, 4.05);
+  grid.lookAt(6.57, eyeY - 0.05, 0);
 
   const fadeCamera = new THREE.PerspectiveCamera(34, fadeWidth / HEIGHT, 0.05, 40);
   fadeCamera.position.set(12.05, 1.15, 1.55);
