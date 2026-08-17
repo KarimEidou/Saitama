@@ -1,0 +1,91 @@
+# Build City Z and publish it to GitHub Pages.
+#
+# This exists so the game can be played with nothing but a phone. The assets are
+# not in the repo -- 1.65 GB of CC0 material from Poly Haven, which GitHub could
+# not hold (100 MB per file, no git-lfs here) -- so CI regenerates them from the
+# committed manifest and lockfile, then serves the result.
+#
+# Trigger it from the Actions tab (including the GitHub mobile app), or let it
+# run on a push to the game branch.
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [claude/one-punch-man-mobile-game-3e1w4v]
+    paths-ignore: ['**/*.md', 'docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; let a newer one supersede a queued older one, but
+# do not kill a run that is already publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # The expensive step is `npm run assets`: a 1.65 GB fetch plus KTX2
+      # encoding, which is CPU-bound and takes the better part of ten minutes on
+      # a 4-core runner. Cache the PROCESSED output rather than the raw
+      # downloads -- it is a fifth of the size and skips both stages on a hit.
+      # The key covers the manifests and the pipeline, so changing either
+      # correctly forces a rebuild.
+      - name: Restore processed assets
+        id: assets-cache
+        uses: actions/cache@v4
+        with:
+          path: public/assets
+          key: assets-v1-${{ hashFiles('tools/manifest/*.json', 'assets/assets.lock.json', 'tools/*.ts', 'tools/lib/*.ts') }}
+
+      - name: Fetch and process assets
+        if: steps.assets-cache.outputs.cache-hit != 'true'
+        run: npm run assets
+
+      # Prunes the build to a single asset tier: 262 MB -> ~135 MB. Serving
+      # every tier to a phone over mobile data would be indefensible, and the
+      # runtime only ever requests one of them.
+      - name: Build (mobile tier)
+        run: npx tsx scripts/build-web.ts
+
+      - name: Report what is being published
+        run: |
+          echo "dist: $(du -sh dist | cut -f1)"
+          echo "largest file: $(find dist -type f -printf '%s %p\n' | sort -rn | head -1 | awk '{printf "%.1f MB  %s", $1/1048576, $2}')"
+          echo "high/ultra files that should not be here: $(find dist \( -name '*.high.*' -o -name '*.ultra.*' \) | wc -l)"
+
+      - uses: actions/configure-pages@v5
+        with:
+          # Turn Pages on automatically if it is not already. If the token is
+          # not allowed to, this fails loudly and Pages can be switched on by
+          # hand in Settings -> Pages -> Source: GitHub Actions.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
