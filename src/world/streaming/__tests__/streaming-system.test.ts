@@ -58,13 +58,27 @@ async function advance(system: StreamingSystem, frames: number): Promise<IFrameS
   return samples;
 }
 
-/** Drive frames until the system reports idle, or give up after `limit`. */
+/**
+ * Drive frames until the system is fully quiescent.
+ *
+ * Quiescent means nothing left to build AND nothing left to tear down. Waiting
+ * only on the build side is the mistake it is easy to make here: eviction is
+ * budgeted at four chunks a frame, so after a long jump the loads finish long
+ * before the unloads and a build-only wait returns to a half-torn-down world.
+ */
 async function settle(system: StreamingSystem, limit = 4000): Promise<number> {
   for (let i = 0; i < limit; i++) {
     system.update(1 / 60);
     await tick();
     const stats = system.getDetailedStats();
-    if (stats.queued === 0 && stats.inFlight === 0 && stats.readyToUpload === 0) return i + 1;
+    if (
+      stats.queued === 0 &&
+      stats.inFlight === 0 &&
+      stats.readyToUpload === 0 &&
+      stats.unloadsLastFrame === 0
+    ) {
+      return i + 1;
+    }
   }
   throw new Error('streaming system never settled');
 }
@@ -204,7 +218,15 @@ describe('LOD rings', () => {
         throw new Error(`ring ${chunk.builtRing} must not publish colliders`);
       }
     }
-    expect(r0Chunks).toBe(9);
+    // Nine chunks sit in R0, but the origin block is a park with nothing to
+    // collide with, and an empty parcel deliberately registers nothing at all.
+    let r0WithBuildings = 0;
+    for (let index = 0; index < 256; index++) {
+      const chunk = system.chunkAtIndex(index);
+      if (chunk?.builtRing === RING_R0 && chunk.standingBuildings > 0) r0WithBuildings++;
+    }
+    expect(r0Chunks).toBe(r0WithBuildings);
+    expect(r0Chunks).toBeGreaterThanOrEqual(8);
     expect(r1Chunks).toBeGreaterThan(0);
 
     // Crowd follows the same policy: skinned near, instanced mid, nothing far.
@@ -290,9 +312,10 @@ describe('damage persistence', () => {
   it('keeps destroyed pieces destroyed across an unload and a reload', async () => {
     const damage = new ChunkDamageState();
     const { system } = makeSystem({ quality: 'low', damage });
-    const target = chunkIndex(0, 0);
+    // Chunk (-1, 0): a nine-tower downtown block, one chunk west of the origin.
+    const target = chunkIndex(-1, 0);
 
-    system.setView(new THREE.Vector3(48, 2, 48), new THREE.Vector3(0, 0, -1));
+    system.setView(new THREE.Vector3(-48, 2, 48), new THREE.Vector3(0, 0, -1));
     await settle(system);
 
     const before = system.chunkAtIndex(target)!;
@@ -318,7 +341,7 @@ describe('damage persistence', () => {
     expect(system.chunkAtIndex(target)).toBeUndefined();
 
     // Walk back. The chunk is regenerated from the seed plus the damage bits.
-    system.setView(new THREE.Vector3(48, 2, 48), new THREE.Vector3(0, 0, -1));
+    system.setView(new THREE.Vector3(-48, 2, 48), new THREE.Vector3(0, 0, -1));
     await settle(system);
 
     const reloaded = system.chunkAtIndex(target)!;
@@ -331,15 +354,15 @@ describe('damage persistence', () => {
 
   it('survives a save/load round trip of the bitmask', async () => {
     const damage = new ChunkDamageState();
-    damage.destroyBuilding(chunkIndex(0, 0), 0);
+    damage.destroyBuilding(chunkIndex(-1, 0), 0);
     const snapshot = damage.serialize();
 
     const restored = ChunkDamageState.deserialize(snapshot);
     const { system } = makeSystem({ quality: 'low', damage: restored });
-    system.setView(new THREE.Vector3(48, 2, 48), new THREE.Vector3(0, 0, -1));
+    system.setView(new THREE.Vector3(-48, 2, 48), new THREE.Vector3(0, 0, -1));
     await settle(system);
 
-    const chunk = system.chunkAtIndex(chunkIndex(0, 0))!;
+    const chunk = system.chunkAtIndex(chunkIndex(-1, 0))!;
     expect(chunk.destroyedPieces).toBe(16);
   });
 });

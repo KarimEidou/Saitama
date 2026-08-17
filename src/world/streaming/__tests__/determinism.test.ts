@@ -80,12 +80,16 @@ describe('chunk determinism', () => {
   });
 
   it('is deterministic with damage applied', () => {
+    // Chunk (-1, 0) is a downtown block with nine buildings. Damage tests must
+    // pick a chunk that actually HAS masonry to remove — the world contains
+    // parks, and "nothing changed" would pass vacuously in one.
     const slots = [damageSlot(0, 0), damageSlot(0, 5), damageSlot(1, 12)];
-    const a = buildChunkGeometry(SEED, 0, 0, RING_R0, maskWith(slots));
-    const b = buildChunkGeometry(SEED, 0, 0, RING_R0, maskWith(slots));
+    const a = buildChunkGeometry(SEED, -1, 0, RING_R0, maskWith(slots));
+    const b = buildChunkGeometry(SEED, -1, 0, RING_R0, maskWith(slots));
     expect(a.contentHash).toBe(b.contentHash);
 
-    const pristine = buildChunkGeometry(SEED, 0, 0, RING_R0, undefined);
+    const pristine = buildChunkGeometry(SEED, -1, 0, RING_R0, undefined);
+    expect(pristine.standingBuildings).toBe(9);
     expect(a.contentHash).not.toBe(pristine.contentHash);
     expect(a.buffers.vertexCount).toBeLessThan(pristine.buffers.vertexCount);
   });

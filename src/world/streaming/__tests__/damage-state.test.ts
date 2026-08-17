@@ -99,6 +99,7 @@ describe('ChunkDamageState', () => {
 describe('damage survives a rebuild', () => {
   it('suppresses destroyed pieces every time the chunk is generated', () => {
     const damage = new ChunkDamageState();
+    // Chunk (-8, -8) is dense index 0: an industrial block with four sheds.
     const chunk = 0;
     const pristine = buildChunkGeometry(SEED, -8, -8, RING_R0, undefined);
     expect(pristine.standingBuildings).toBeGreaterThan(0);
@@ -124,10 +125,12 @@ describe('damage survives a rebuild', () => {
 
   it('shortens a building when only its upper bands are destroyed', () => {
     const damage = new ChunkDamageState();
-    const full = buildChunkGeometry(SEED, 0, 0, 1, undefined);
+    // Chunk (-1, 0), dense index 135: a downtown block with nine towers.
+    const chunk = 135;
+    const full = buildChunkGeometry(SEED, -1, 0, 1, undefined);
     // Bands 2 and 3 are the top half: slots 8..15 of the building.
-    for (let p = 8; p < 16; p++) damage.setDestroyed(136, damageSlot(0, p));
-    const topped = buildChunkGeometry(SEED, 0, 0, 1, damage.cloneMask(136));
+    for (let p = 8; p < 16; p++) damage.setDestroyed(chunk, damageSlot(0, p));
+    const topped = buildChunkGeometry(SEED, -1, 0, 1, damage.cloneMask(chunk));
 
     expect(topped.standingBuildings).toBe(full.standingBuildings);
     // The bounding box must have come down, because the tallest surviving band
