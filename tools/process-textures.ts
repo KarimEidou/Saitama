@@ -126,9 +126,27 @@ interface IRoleTarget {
    * low-frequency and does not repay it.
    */
   readonly qlevel?: number;
-  /** UASTC effort, 0..4. */
+  /**
+   * UASTC effort, 0..4. Measured on a 1024² asphalt normal map, 2 threads,
+   * level-0 PSNR against the source:
+   *
+   *   0..1 →  7.8 s   36.09 dB
+   *   2    →  8.1 s   36.24 dB   <- mobile
+   *   3    → 12.3 s   36.52 dB   <- high / ultra: +0.28 dB for 1.5x the time
+   *   4    → 224.0 s  36.59 dB   <- 27x the time of level 3 for +0.07 dB
+   *
+   * Level 4 is not a quality setting, it is a way to lose an afternoon.
+   */
   readonly uastcQuality?: number;
-  /** UASTC RDO lambda. The encoder docs give [0.25, 0.75] for normal maps. */
+  /**
+   * UASTC RDO lambda. The encoder docs give [0.25, 0.75] for normal maps.
+   *
+   * Worth knowing before tuning it: on this data RDO barely moves the file.
+   * Sweeping lambda 0.5 → 2.0 at 1K shrank the output from 1,271,997 B to
+   * 1,208,270 B — 5% — because a tangent-space normal map is close to
+   * incompressible noise and there is little rate for RDO to redistribute.
+   * The lever that actually controls normal-map size is the dimension cap.
+   */
   readonly uastcRdoLambda?: number;
 }
 
