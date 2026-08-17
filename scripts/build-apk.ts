@@ -167,10 +167,6 @@ function configureGradle(sdk: string): void {
     'org.gradle.parallel=true',
     'org.gradle.caching=true',
     'android.useAndroidX=true',
-    // Assets are already compressed (KTX2/GLB/PNG). Re-deflating them costs
-    // build time, inflates the APK's uncompressed footprint on device, and
-    // forces a copy to read them. Storing them lets the WebView mmap directly.
-    'android.aaptOptions.noCompress=ktx2,glb,gltf,bin,basis,wasm',
   ];
 
   const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy ?? '';
@@ -218,6 +214,69 @@ function configureGradle(sdk: string): void {
 
   writeFileSync(propsFile, `${base}\n\n${managed.join('\n')}\n`, 'utf8');
   log(`configured ${propsFile}`);
+  configureNoCompress();
+}
+
+/**
+ * Store KTX2 textures uncompressed inside the APK.
+ *
+ * Measured on this project's own payload (`unzip -v` over the packaged APK):
+ *
+ *     ktx2   62.11 MB -> 62.06 MB   deflate saves  0.1%
+ *     glb    42.37 MB -> 32.78 MB   deflate saves 22.6%
+ *     bin     5.82 MB ->  2.60 MB   deflate saves 55.3%
+ *
+ * KTX2 payloads are already Basis-supercompressed, so deflating them buys ~50 KB
+ * across 127 files while forcing the WebView to inflate every texture on load
+ * instead of reading it in place. GLB and VAT `.bin` still compress well and are
+ * deliberately left deflated — a blanket `noCompress` would cost ~13 MB of APK.
+ *
+ * This must go through the AGP DSL: `android.aaptOptions.noCompress` in
+ * `gradle.properties` is silently ignored (it is not a real AGP property), which
+ * is why the first build of this project shipped every KTX2 deflated.
+ *
+ * `android/app/build.gradle` is Capacitor-generated, so the block is re-injected
+ * on every build and delimited by markers to stay idempotent.
+ */
+function configureNoCompress(): void {
+  const gradleFile = path.join(ANDROID_DIR, 'app', 'build.gradle');
+  if (!existsSync(gradleFile)) {
+    log(`WARNING: ${gradleFile} absent — skipping noCompress configuration`);
+    return;
+  }
+  const BEGIN = '    // >>> managed by scripts/build-apk.ts — noCompress';
+  const END = '    // <<< managed by scripts/build-apk.ts';
+  const block = [
+    BEGIN,
+    '    androidResources {',
+    "        noCompress += ['ktx2']",
+    '    }',
+    END,
+  ].join('\n');
+
+  const original = readFileSync(gradleFile, 'utf8');
+  const stripped = original.replace(
+    new RegExp(`\\n?${escapeRegExp(BEGIN)}[\\s\\S]*?${escapeRegExp(END)}\\n?`),
+    '\n'
+  );
+
+  const anchor = stripped.match(/^android\s*\{[^\n]*\n/m);
+  if (!anchor || anchor.index === undefined) {
+    log(`WARNING: no \`android {\` block found in ${gradleFile}; noCompress not applied`);
+    return;
+  }
+  const at = anchor.index + anchor[0].length;
+  const next = `${stripped.slice(0, at)}${block}\n${stripped.slice(at)}`;
+  if (next !== original) {
+    writeFileSync(gradleFile, next, 'utf8');
+    log(`injected androidResources.noCompress += ['ktx2'] into ${gradleFile}`);
+  } else {
+    log(`noCompress block already current in ${gradleFile}`);
+  }
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /* ----------------------------------------------------------- asset prune */
