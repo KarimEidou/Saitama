@@ -45,7 +45,6 @@ import type {
   IMonsterArchetype,
   IMonsterAttack,
   IMonsterSnapshot,
-  IMonsterTarget,
   IMonsterWorld,
   IMutableVec3,
   MonsterState,
