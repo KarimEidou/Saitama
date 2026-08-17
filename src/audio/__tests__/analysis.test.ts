@@ -104,8 +104,11 @@ describe('spectral metrics', () => {
     // Overlapping bands would push this above 1; gaps would push it below.
     expect(total).toBeGreaterThan(0.97);
     expect(total).toBeLessThan(1.0001);
-    // 1000 Hz falls in the 710-1400 band, index 5.
-    expect(fp[5]).toBeGreaterThan(0.9);
+    // Essentially all of the energy lands in the band containing 1000 Hz.
+    const band = A.OCTAVE_BAND_EDGES.findIndex(
+      (lo, i) => lo <= 1000 && 1000 < (A.OCTAVE_BAND_EDGES[i + 1] ?? Infinity)
+    );
+    expect(fp[band]).toBeGreaterThan(0.9);
   });
 
   it('separates distinct spectra and collapses identical ones', () => {
