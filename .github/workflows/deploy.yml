@@ -53,9 +53,16 @@ jobs:
           path: public/assets
           key: assets-v1-${{ hashFiles('tools/manifest/*.json', 'assets/assets.lock.json', 'tools/*.ts', 'tools/lib/*.ts') }}
 
-      - name: Fetch and process assets
+      # `--tier mobile` is load-bearing, not an optimisation. `assets:process`
+      # defaults to ALL tiers, and a 4K ultra albedo is ~28 s of single-asset
+      # ETC1S encoding; on a 2-core runner that overran a 90-minute job, and
+      # every ultra and high output it produced was then deleted by the prune
+      # below. Build only the tier that ships.
+      - name: Fetch and process assets (mobile tier only)
         if: steps.assets-cache.outputs.cache-hit != 'true'
-        run: npm run assets
+        run: |
+          npm run assets:fetch
+          npm run assets:process -- --tier mobile
 
       # Prunes the build to a single asset tier: 262 MB -> ~135 MB. Serving
       # every tier to a phone over mobile data would be indefensible, and the
