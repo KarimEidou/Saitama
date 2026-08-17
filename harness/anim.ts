@@ -88,7 +88,14 @@ stage.style.height = `${HEIGHT}px`;
 canvas.style.width = `${WIDTH}px`;
 canvas.style.height = `${HEIGHT}px`;
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+// `preserveDrawingBuffer` because this harness renders ONCE at load rather
+// than in a loop: without it the driver's pixel read-back sees a cleared
+// buffer and reports a blank frame for a page that drew perfectly.
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  preserveDrawingBuffer: true,
+});
 renderer.setPixelRatio(1);
 renderer.setSize(WIDTH, HEIGHT, false);
 renderer.setClearColor(0x0a0d15, 1);
@@ -328,7 +335,13 @@ function renderWalkCycle(): WalkStats {
   const SUBSTEPS = 10;
   const dt = period / (PHASES * SUBSTEPS);
   solver.reset(0);
-  for (let i = 0; i < PHASES * SUBSTEPS * 4; i++) {
+  // Warm up four whole cycles, then a HALF SAMPLE more. Sampling exactly on
+  // phase 0 and 0.5 lands on the two touchdown instants, where float error
+  // decides which side of the stance test a foot falls on — so the strip can
+  // miss double support entirely, which is the one thing a walk cycle has to
+  // show. Half a sample off the boundary shows the middle of each phase.
+  const warmup = PHASES * SUBSTEPS * 4 + Math.floor(SUBSTEPS / 2);
+  for (let i = 0; i < warmup; i++) {
     copyPose(probe, rig.rest);
     solver.update(dt, { speed }, probe);
   }

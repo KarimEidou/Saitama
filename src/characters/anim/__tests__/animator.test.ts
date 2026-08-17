@@ -13,17 +13,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import type { ClipName, IAnimator } from '@/types';
-import { ProceduralAnimator } from '../animator';
+import { ProceduralAnimator, type AnimatorOptions } from '../animator';
 import { createCharacterParts, buildCharacter } from '@/characters/mesh';
 import type { AnimEvent } from '../types';
 import { heroFixture } from './support';
 
-function makeAnimator(options: Parameters<typeof ProceduralAnimator.prototype.constructor>[2] = {}): {
+function makeAnimator(options: AnimatorOptions = {}): {
   animator: ProceduralAnimator;
   root: THREE.Object3D;
 } {
   const parts = createCharacterParts(buildCharacter('saitama', 0), new THREE.MeshBasicMaterial());
-  const animator = new ProceduralAnimator(parts, parts.root, options as never);
+  const animator = new ProceduralAnimator(parts, parts.root, options);
   return { animator, root: parts.root };
 }
 
@@ -395,7 +395,7 @@ describe('determinism', () => {
     // object's uuid from `Math.random`, so counting calls during construction
     // would measure three.js rather than this system. A uuid cannot influence
     // a pose; a call inside `update` could.
-    const { animator } = makeAnimator({ seed: 5 } as never);
+    const { animator } = makeAnimator({ seed: 5 });
     animator.setLocomotion({ speed: 2 });
     animator.play('walk');
     step(animator, 1);
@@ -412,8 +412,8 @@ describe('determinism', () => {
   });
 
   it('gives crowd members different phases from different seeds', () => {
-    const a = makeAnimator({ seed: 1 } as never).animator;
-    const b = makeAnimator({ seed: 2 } as never).animator;
+    const a = makeAnimator({ seed: 1 }).animator;
+    const b = makeAnimator({ seed: 2 }).animator;
     expect(a.solver.phase).not.toBe(b.solver.phase);
     expect(a.params.phaseOffset).not.toBe(b.params.phaseOffset);
     a.dispose();

@@ -1,0 +1,82 @@
+{
+  "walk": {
+    "mode": "walk",
+    "phases": 8,
+    "speed": 1.4,
+    "cadence": 1.0629232088170044,
+    "strideLength": 1.3171224302818167,
+    "duty": 0.6084511141923228,
+    "maxContactDrift": 0.000043208302348756285,
+    "maxFlatDrift": 0.000043208302348756285,
+    "naiveContactDrift": 0.10410627205252716,
+    "reachDrop": 0.03219244245438935,
+    "stanceCounts": [
+      2,
+      1,
+      1,
+      1,
+      2,
+      1,
+      1,
+      1
+    ]
+  },
+  "clips": {
+    "mode": "clips",
+    "clipCells": 18,
+    "gaitCells": 5,
+    "bodies": [
+      {
+        "name": "Child",
+        "height": 1.2200000286102295,
+        "legLength": 0.5239831693470478,
+        "cadence": 1.3382062740955676,
+        "stride": 0.7962839619175561
+      },
+      {
+        "name": "Tatsumaki",
+        "height": 1.440000057220459,
+        "legLength": 0.7115478217601776,
+        "cadence": 1.148364302238309,
+        "stride": 1.0813212174563784
+      },
+      {
+        "name": "Saitama",
+        "height": 1.75,
+        "legLength": 0.8548050224781036,
+        "cadence": 1.0477271494375713,
+        "stride": 1.2990255599508886
+      },
+      {
+        "name": "Heavy civilian",
+        "height": 1.7400000095367432,
+        "legLength": 0.8211660534143448,
+        "cadence": 1.068971770900606,
+        "stride": 1.2479052699723172
+      },
+      {
+        "name": "Monster humanoid",
+        "height": 2.450000047683716,
+        "legLength": 1.2387135699391365,
+        "cadence": 0.8703547078009827,
+        "stride": 1.8824416638826778
+      }
+    ],
+    "distinctPoses": 18
+  },
+  "crowd": {
+    "mode": "crowd",
+    "instances": 250,
+    "drawCalls": 5,
+    "triangles": 102214,
+    "textureBytes": 82944,
+    "textureSize": [
+      81,
+      128
+    ],
+    "quantisationMax": 0.0010827726560218487,
+    "temporalMax": 0.012799541034503587,
+    "distinctOffsets": 250,
+    "cpuReferences": 3
+  }
+}

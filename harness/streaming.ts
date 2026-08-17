@@ -132,14 +132,35 @@ interface ILapReport {
   readonly geometries: number;
 }
 
+/** Ahead-vs-behind arrival comparison for one band of equal distance. */
+interface IPriorityBand {
+  /** Chebyshev distance from the cold-start camera, in whole chunks. */
+  readonly distanceChunks: number;
+  readonly ahead: number;
+  readonly behind: number;
+  readonly aheadMeanRank: number;
+  readonly behindMeanRank: number;
+  /** Every chunk ahead arrived before every chunk behind, within this band. */
+  readonly strictlySeparated: boolean;
+}
+
 interface IPriorityReport {
   readonly sampled: number;
   readonly aheadMeanRank: number;
   readonly behindMeanRank: number;
   readonly aheadWorstRank: number;
   readonly behindBestRank: number;
+  /** Across the whole sample. Expected FALSE — see the note in `priorityReport`. */
   readonly strictlyOrdered: boolean;
-  readonly firstTenAheadFraction: number;
+  readonly bands: readonly IPriorityBand[];
+  /** Bands with enough chunks on both sides to compare. */
+  readonly bandsComparable: number;
+  /** Comparable bands where the mean arrival rank ahead beat the mean behind. */
+  readonly bandsOrderedByMean: number;
+  /** Comparable bands where the separation was total. */
+  readonly bandsStrictlySeparated: number;
+  /** Of the first 20 direction-classified arrivals, the fraction facing the camera. */
+  readonly firstTwentyAheadFraction: number;
 }
 
 interface IDamageReport {
