@@ -1087,13 +1087,16 @@ export class Game {
       // idempotent and returns immediately when the set is resident, so in the
       // normal case this is a no-op — and in the case that matters, a boot-time
       // fetch that failed, it is the retry that gets the protagonist his face.
-      await this.roster.loadSequential(
-        ['chr.saitama', 'chr.civilian', 'chr.genos', 'chr.mumenRider'],
-        async () => {
-          this.upgradeCharacterSkins();
-          await nextFrame();
-        }
-      );
+      const wanted = ['chr.saitama', 'chr.genos', 'chr.mumenRider'];
+      // The shared civilian sheet is 18 MB and only `high` binds it — the lower
+      // tiers shed its shader variant (see `skinNearCivilian` above), so
+      // fetching it there would spend the bandwidth and the GPU memory on a
+      // texture nothing samples.
+      if (this.diagnostics.quality === 'high') wanted.splice(1, 0, 'chr.civilian');
+      await this.roster.loadSequential(wanted, async () => {
+        this.upgradeCharacterSkins();
+        await nextFrame();
+      });
       this.upgradeCharacterSkins();
       log.info(
         `roster resident: ${this.roster.residentIds.length} characters, ` +
