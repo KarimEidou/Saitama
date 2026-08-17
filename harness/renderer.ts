@@ -143,6 +143,11 @@ interface IRenderHarness {
    * Without this, any A/B test is confounded by the camera having moved.
    */
   setCameraFrozen(frozen: boolean): void;
+  /**
+   * Turn the SH path's specular-only probe on or off. Off is the "smooth metal
+   * renders black" state, kept reachable purely so the fix can be measured.
+   */
+  setSpecularProbe(enabled: boolean): void;
   /** Switch tier inside this context. Program counts ACCUMULATE afterwards. */
   setTier(tier: IQualityTier): void;
   /** Resolve after `count` more presented frames. */
@@ -253,10 +258,26 @@ function main(): void {
     cloudiness: 0.5,
   });
 
+  // The material library is constructed BEFORE the environment on purpose. On
+  // the SH path the environment map lights specular only, and every material
+  // has to cancel its diffuse term or it is lit twice. Building the library
+  // first means materials are born with the define instead of being recompiled
+  // a frame later.
+  const anisotropy = Math.min(
+    profile.settings.anisotropy,
+    renderer.getCapabilities().maxAnisotropy
+  );
+  const materials = new MaterialLib({ anisotropy, programBudget: 24 });
+
   const environment = new EnvironmentLighting(renderer.raw, scene, {
     mode: profile.ibl,
     showBackground: true,
     intensity: lighting.envMapIntensity,
+    // 32px cube faces: enough angular detail to read as a reflection on
+    // corrugated iron or a street lamp, small enough to be a few hundred KB
+    // instead of the tens of megabytes a real HDRI's full PMREM would cost.
+    specularCubeSize: 32,
+    onSpecularOnlyChanged: (specularOnly) => materials.setSpecularOnlyEnvironment(specularOnly),
   });
   environment.setEnvironment(skyTexture);
   environment.applyLightingState(lighting);
@@ -266,11 +287,6 @@ function main(): void {
   /* ----------------------------- materials ------------------------------ */
 
   setStatus('building materials');
-  const anisotropy = Math.min(
-    profile.settings.anisotropy,
-    renderer.getCapabilities().maxAnisotropy
-  );
-  const materials = new MaterialLib({ anisotropy, programBudget: 24 });
   // Every lit material must be registered with the shadow system, or the
   // non-CSM branch of the lighting chunk accumulates all N cascade lights and
   // the object renders N times too bright.
@@ -842,6 +858,10 @@ function main(): void {
 
     setCameraFrozen(frozen: boolean): void {
       cameraFrozen = frozen;
+    },
+
+    setSpecularProbe(enabled: boolean): void {
+      environment.setSpecularCubeSize(enabled ? 32 : 0);
     },
 
     setTier(next: IQualityTier): void {

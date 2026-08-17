@@ -56,11 +56,28 @@ const VIEWPORT = { width: 960, height: 540 };
 const PROGRAM_BUDGET = 24;
 
 /**
- * The top row of the sphere grid — metalness 1.0 — at the harness's fixed
- * camera pose. Without a specular probe these pixels are near-black; with one
- * they carry a sky reflection.
+ * The body of the smoothest, most metallic sphere in the grid (metalness 1.0,
+ * roughness 0.045) at the harness's fixed camera pose. Deliberately a small box
+ * INSIDE one sphere rather than a band across the row: a wider crop is mostly
+ * sky and ground, whose brightness swamps the very thing being measured.
+ *
+ * Measured here: 33/255 with spherical harmonics alone, 120/255 once the
+ * specular probe exists. That is the whole "black metal" problem in one number.
  */
-const METAL_SPHERE_CROP = { left: 380, top: 95, width: 210, height: 65 };
+const METAL_SPHERE_CROP = { left: 404, top: 110, width: 34, height: 34 };
+
+/** The whole sphere grid, saved as small side-by-side evidence crops. */
+const SPHERE_GRID_CROP = { left: 370, top: 85, width: 250, height: 300 };
+
+/** Playwright's screenshot `clip` uses x/y; sharp's `extract` uses left/top. */
+function toClip(region: { left: number; top: number; width: number; height: number }): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  return { x: region.left, y: region.top, width: region.width, height: region.height };
+}
 
 const SWIFTSHADER_ARGS = [
   '--use-angle=swiftshader',
@@ -271,17 +288,36 @@ async function analyse(file: string): Promise<PixelReport> {
  * Used to make a claim about a specific part of the image rather than the frame
  * as a whole — "the metal spheres are not black" is invisible in a whole-frame
  * mean, because they are a small fraction of the pixels.
+ *
+ * NOTE: `sharp(...).extract(...).stats()` does NOT crop. `stats()` reads the
+ * INPUT image and ignores everything queued in the pipeline, so the obvious
+ * spelling silently returns whole-frame statistics and any assertion built on
+ * it passes vacuously. The crop has to be materialised through `toBuffer()`
+ * first, which is why this computes the statistics by hand.
  */
 async function analyseRegion(
   file: string,
   region: { left: number; top: number; width: number; height: number }
 ): Promise<{ mean: number; stdDev: number }> {
-  const stats = await sharp(file).extract(region).stats();
-  const channels = stats.channels.slice(0, 3);
-  return {
-    mean: channels.reduce((sum, channel) => sum + channel.mean, 0) / channels.length,
-    stdDev: channels.reduce((sum, channel) => sum + channel.stdev, 0) / channels.length,
-  };
+  const { data, info } = await sharp(file)
+    .extract(region)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const count = info.width * info.height * info.channels;
+  if (count === 0) return { mean: 0, stdDev: 0 };
+
+  let total = 0;
+  for (let i = 0; i < count; i++) total += data[i]!;
+  const mean = total / count;
+
+  let variance = 0;
+  for (let i = 0; i < count; i++) {
+    const delta = data[i]! - mean;
+    variance += delta * delta;
+  }
+  return { mean, stdDev: Math.sqrt(variance / count) };
 }
 
 /**
@@ -470,15 +506,51 @@ async function verifyTier(
         `[low] only ${snap.specularOnlyMaterials}/${snap.materialCount} materials cancel ` +
           `the environment map's diffuse term; the rest are double-lit`
       );
-      const metal = await analyseRegion(shotPath, METAL_SPHERE_CROP);
+      // A/B the probe against itself. Asserting an absolute brightness would
+      // only prove the frame is not black; asserting the DIFFERENCE proves the
+      // probe is what makes the metal legible.
+      await page.evaluate(() => window.__RENDER_HARNESS__?.setCameraFrozen(true));
+      await waitFrames(page, 2);
+
+      const withProbeShot = path.join(OUT_DIR, 'renderer-metal-with-probe.png');
+      await page.screenshot({ path: withProbeShot, type: 'png', clip: toClip(SPHERE_GRID_CROP) });
+      const withProbe = await analyseRegion(shotPath, METAL_SPHERE_CROP);
+
+      await page.evaluate(() => window.__RENDER_HARNESS__?.setSpecularProbe(false));
+      await waitFrames(page, 3);
+      const withoutShot = path.join(OUT_DIR, 'renderer-metal-sh-only.png');
+      await page.screenshot({ path: withoutShot, type: 'png', clip: toClip(SPHERE_GRID_CROP) });
+      const noProbeFull = path.join(OUT_DIR, 'renderer-low-no-specular.tmp.png');
+      await page.screenshot({ path: noProbeFull, type: 'png' });
+      const withoutProbe = await analyseRegion(noProbeFull, METAL_SPHERE_CROP);
+      await rm(noProbeFull, { force: true });
+
+      await page.evaluate(() => {
+        window.__RENDER_HARNESS__?.setSpecularProbe(true);
+        window.__RENDER_HARNESS__?.setCameraFrozen(false);
+      });
+      await Promise.all([recompress(withProbeShot), recompress(withoutShot)]);
+
       check(
-        metal.mean > 30,
-        `[low] the smooth-metal spheres are near-black (crop mean ${metal.mean.toFixed(1)}/255) — ` +
-          `the specular probe is not reaching them`
+        withProbe.mean - withoutProbe.mean > 40,
+        `[low] the specular probe barely changed the smooth metal sphere ` +
+          `(${withoutProbe.mean.toFixed(1)} -> ${withProbe.mean.toFixed(1)}/255); ` +
+          `it should go from near-black to reflective`
+      );
+      check(
+        withProbe.mean > 70,
+        `[low] the smooth-metal sphere is still dark with the probe on ` +
+          `(crop mean ${withProbe.mean.toFixed(1)}/255)`
+      );
+      check(
+        withoutProbe.mean < 60,
+        `[low] the SH-only control is not dark (${withoutProbe.mean.toFixed(1)}/255), so ` +
+          `the A/B proves nothing — the crop is probably off the sphere`
       );
       console.log(
-        `metal crop     mean ${metal.mean.toFixed(1)}/255, stdDev ${metal.stdDev.toFixed(1)} ` +
-          `(SH diffuse + ${(snap.environment.gpuBytes / 1024).toFixed(0)} KB specular probe)`
+        `metal sphere   SH only ${withoutProbe.mean.toFixed(1)}/255 -> ` +
+          `SH + ${(snap.environment.gpuBytes / 1024).toFixed(0)} KB specular probe ` +
+          `${withProbe.mean.toFixed(1)}/255 (crops saved beside the screenshots)`
       );
       check(snap.shadows.cascades === 1, `[low] expected 1 cascade, got ${snap.shadows.cascades}`);
       check(

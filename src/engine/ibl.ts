@@ -119,7 +119,7 @@ export class EnvironmentLighting implements IDisposable {
   private lastBuildMs = 0;
   private resolution = 0;
   private disposed = false;
-  private readonly specularCubeSize: number;
+  private specularCubeSize: number;
   private readonly onSpecularOnlyChanged: ((specularOnly: boolean) => void) | undefined;
   private specularOnlyActive = false;
   /** Downsampled equirect owned by the specular build; disposed with it. */
@@ -196,6 +196,22 @@ export class EnvironmentLighting implements IDisposable {
       `environment ready via ${this.modeValue} in ${this.lastBuildMs.toFixed(1)}ms ` +
         `(${(this.estimateGpuBytes() / 1024 / 1024).toFixed(2)} MB)`
     );
+  }
+
+  /**
+   * Resize (or with 0, disable) the specular-only probe and rebuild.
+   *
+   * Exists so the difference it makes can be MEASURED rather than asserted:
+   * the verification harness renders the same frozen frame with and without it
+   * and compares the metal spheres. 0 is not a shipping configuration — it is
+   * what "smooth metal renders black" looks like.
+   */
+  setSpecularCubeSize(size: number): void {
+    const next = Math.max(0, Math.round(size));
+    if (next === this.specularCubeSize) return;
+    this.specularCubeSize = next;
+    const source = this.sourceTexture;
+    if (source) this.setEnvironment(source);
   }
 
   /** Rebuild with a different path. Cheap when no environment is installed. */
