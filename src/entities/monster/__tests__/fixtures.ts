@@ -93,6 +93,10 @@ export function makeTarget(
     position: { x, y: 0, z },
     alive: overrides.alive ?? true,
     priority: overrides.priority ?? 1,
+    // Left UNDEFINED unless a test says otherwise, which is the same thing the
+    // contract says: absent means harmable. Defaulting it to `true` here would
+    // hide the one case that matters — a host that never sets it at all.
+    harmable: overrides.harmable,
   };
 }
 

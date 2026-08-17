@@ -226,33 +226,188 @@ function tierIntensity(tier: string): number {
   }
 }
 
-/** Everything monsters are allowed to perceive: the player, allies, civilians. */
+/* -------------------------------------------------------------------------- */
+/* Everything a monster is allowed to perceive                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Nearest civilians published as monster targets, and the radius they are
+ * drawn from.
+ *
+ * Bounded because the alternative is 250 records against every monster's think
+ * — and pointless, because a monster only ever engages what is near it. The
+ * crowd is itself populated around the player (`MID_RADIUS` is 150 m), so
+ * "nearest to the focus" is the set that is on screen and in play; a monster
+ * further out than this is fighting off-camera and the cone it fires still
+ * reaches whoever is standing there, because damage is resolved by the crowd
+ * from `ShockwaveFired` rather than from this list.
+ */
+const CIVILIAN_TARGET_CAP = 16;
+const CIVILIAN_TARGET_RADIUS = 90;
+
+/**
+ * Priority of an ordinary person, relative to the 1.6 an ally carries.
+ *
+ * Below a hero, above nobody. It is the baseline the other two numbers are
+ * measured against: a monster leaves a civilian for Genos when Genos is within
+ * about 1.6× the distance, and takes the civilian when he is not.
+ */
+const CIVILIAN_PRIORITY = 1;
+
+/** A pooled entry, so a 60 Hz republish of twenty targets allocates nothing. */
+type MutableTarget = {
+  -readonly [K in keyof IMonsterTarget]: IMonsterTarget[K];
+};
+
+/**
+ * One owned vector per civilian slot.
+ *
+ * A civilian's position lives in a `Float32Array`, so the published entry has
+ * to point at something. Slot `n` always uses vector `n` and every vector is
+ * rewritten before it is read, which is what lets sixteen entries share a
+ * fixed set of objects without any of them reporting another one's position.
+ * The player and the allies are NOT copied — those entries alias live
+ * transforms on purpose, because the brain reads them every frame and a copy
+ * would be one frame stale.
+ */
+const CIVILIAN_VECTORS: { x: number; y: number; z: number }[] = Array.from(
+  { length: CIVILIAN_TARGET_CAP },
+  () => ({ x: 0, y: 0.9, z: 0 })
+);
+
+/** Scratch for the nearest-N selection. Fixed size; never grows. */
+const CIVILIAN_INDEX_SCRATCH = new Int32Array(CIVILIAN_TARGET_CAP);
+const CIVILIAN_DISTANCE_SCRATCH = new Float32Array(CIVILIAN_TARGET_CAP);
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  WHO MONSTERS CAN SEE — and the one field that makes the premise work
+ * ═══════════════════════════════════════════════════════════════════════════
+ * The player, the allies, and the nearest civilians.
+ *
+ * The load-bearing entry is `harmable: false` on the player. A monster picking
+ * purely by proximity picks Saitama every time, walks the fight away from
+ * everybody who can actually lose, and spends the encounter swinging at a man
+ * who is not even inconvenienced — which is the exact failure this game cannot
+ * survive, because HE is not the stake, the city is. The brain weights that
+ * flag against distance and priority (`MonsterBrain.perceive`) and uses it to
+ * break a fixation it cannot win (`MonsterBrain.tickFixation`).
+ *
+ * Civilians are here for the other half of it. Without them a monster that has
+ * given up on the protagonist has nothing left to want, and the correct
+ * consequence of being unhurtable is not that monsters stand around — it is
+ * that they go and hurt somebody else, in front of you, faster than you can
+ * get there.
+ */
 export function perceivableTargets(
   playerId: EntityId,
   playerPosition: Vec3,
   crowd: CrowdSystem,
   out: IMonsterTarget[]
 ): readonly IMonsterTarget[] {
-  out.length = 0;
   // `Faction` has no 'player' member and should not: to a monster, Saitama is
-  // one more hero standing in the street. Priority is what separates them.
-  out.push({ id: playerId, position: playerPosition, faction: 'hero', alive: true, priority: 1 });
+  // one more hero standing in the street. `harmable` is what separates them.
+  let count = writeTarget(out, 0, playerId, playerPosition, true, 1, false);
+
   for (const ally of crowd.allies) {
     // Allies stay in the list once downed as well as alive: `alive: false` is
     // how a brain learns to stop chasing a body, and dropping the entry
     // entirely would leave the monster's last target dangling instead.
-    out.push({
-      id: ally.id,
-      position: ally.transform.position,
-      faction: 'hero',
-      alive: !ally.isDead,
-      // Above the player on purpose. A monster that always picks the nearest
+    count = writeTarget(
+      out,
+      count,
+      ally.id,
+      ally.transform.position,
+      !ally.isDead,
+      // Above a civilian on purpose. A monster that always picks the nearest
       // target never threatens anybody the player is trying to protect, and
       // "the world's weakness is the game" needs the world to be reachable.
-      priority: 1.6,
-    });
+      1.6,
+      true
+    );
   }
+
+  count = writeNearestCivilians(crowd, playerPosition, out, count);
+
+  out.length = count;
   return out;
+}
+
+/**
+ * The nearest living civilians, by insertion into a fixed window.
+ *
+ * One pass over the agent arrays and at most `CIVILIAN_TARGET_CAP` shifts per
+ * candidate — no sort, no intermediate array, nothing retained. Only the
+ * LIVING are published: a body is not a target, and a monster whose target
+ * dies falls into the brain's "remembered, not seen" branch and prowls the
+ * spot for a moment, which is the behaviour we want anyway.
+ */
+function writeNearestCivilians(
+  crowd: CrowdSystem,
+  focus: Vec3,
+  out: IMonsterTarget[],
+  start: number
+): number {
+  const agents = crowd.agents;
+  const limit = CIVILIAN_TARGET_RADIUS * CIVILIAN_TARGET_RADIUS;
+  const index = CIVILIAN_INDEX_SCRATCH;
+  const distance = CIVILIAN_DISTANCE_SCRATCH;
+  let found = 0;
+
+  for (let i = 0; i < agents.extent; i++) {
+    if (agents.active[i] === 0 || agents.health[i]! <= 0) continue;
+    const dx = agents.posX[i]! - focus.x;
+    const dz = agents.posZ[i]! - focus.z;
+    const d = dx * dx + dz * dz;
+    if (d > limit) continue;
+    if (found === CIVILIAN_TARGET_CAP && d >= distance[found - 1]!) continue;
+
+    let slot = Math.min(found, CIVILIAN_TARGET_CAP - 1);
+    while (slot > 0 && distance[slot - 1]! > d) {
+      distance[slot] = distance[slot - 1]!;
+      index[slot] = index[slot - 1]!;
+      slot--;
+    }
+    distance[slot] = d;
+    index[slot] = i;
+    if (found < CIVILIAN_TARGET_CAP) found++;
+  }
+
+  let count = start;
+  for (let n = 0; n < found; n++) {
+    const i = index[n]!;
+    const vector = CIVILIAN_VECTORS[n]!;
+    vector.x = agents.posX[i]!;
+    vector.z = agents.posZ[i]!;
+    count = writeTarget(out, count, agents.idOf(i), vector, true, CIVILIAN_PRIORITY, true);
+  }
+  return count;
+}
+
+/**
+ * Write one target into the pooled slot at `index`, growing the array only
+ * when the population does.
+ */
+function writeTarget(
+  out: IMonsterTarget[],
+  index: number,
+  id: EntityId,
+  position: Vec3,
+  alive: boolean,
+  priority: number,
+  harmable: boolean
+): number {
+  const entry = out[index] as MutableTarget | undefined;
+  if (entry === undefined) {
+    out.push({ id, faction: 'hero', position, alive, priority, harmable });
+    return index + 1;
+  }
+  entry.id = id;
+  entry.position = position;
+  entry.alive = alive;
+  entry.priority = priority;
+  entry.harmable = harmable;
+  return index + 1;
 }
 
 /* -------------------------------------------------------------------------- */

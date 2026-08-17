@@ -243,6 +243,28 @@ export interface IMonsterTarget {
    * is what puts Mumen Rider in danger without scripting it.
    */
   readonly priority: number;
+  /**
+   * ══════════════════════════════════════════════════════════════════════
+   *  CAN FORCE SPENT ON THIS TARGET BUY ANYTHING?
+   * ══════════════════════════════════════════════════════════════════════
+   * False for exactly one entity in this game, and that entity is the reason
+   * the field exists: the protagonist cannot be hurt, so a monster committed
+   * to him is a monster that has removed itself from the fight AND dragged
+   * the fight away from everybody who can still lose. The premise —
+   * "Saitama is never in danger; the city is" — is delivered here or not at
+   * all.
+   *
+   * It is not a difficulty knob and it is not a taunt weight. It answers one
+   * question — will hitting this thing change anything? — and the brain uses
+   * it twice: to discount an unharmable target against a harmable one at the
+   * same distance (`perceive`), and to give up on one it has been swinging
+   * at for nothing (`tickFixation`).
+   *
+   * Absent means harmable. A host that does not model invulnerability at all
+   * gets exactly the old proximity-and-priority behaviour, which is why every
+   * existing caller and fixture keeps working untouched.
+   */
+  readonly harmable?: boolean;
 }
 
 /**
@@ -288,6 +310,17 @@ export interface IMonsterSnapshot {
   readonly maxHealth: number;
   readonly targetId: EntityId | undefined;
   readonly targetDistance: number;
+  /**
+   * Whether the current target can be hurt at all.
+   *
+   * In the HUD this is the difference between a monster that is threatening
+   * the city and a monster that is punching the one man in it who cannot be
+   * hurt — which looks identical on screen and is the opposite of the same
+   * thing. Reads false whenever there is no target.
+   */
+  readonly targetHarmable: boolean;
+  /** Targets this monster has abandoned as futile. Should not stay at 0 forever. */
+  readonly retargets: number;
   /** Attack currently being executed, if any. */
   readonly attackId: string | undefined;
   /** Phase of that attack. */

@@ -108,6 +108,13 @@ export {
 export { THREAT_TIERS, mookEntry, monsterRecipe, namedMonsters, tierMooks } from './monsters';
 
 export {
+  RosterRuntime,
+  type IBakedAssetSource,
+  type IRosterBody,
+  type IRosterRuntimeOptions,
+} from './runtime';
+
+export {
   CROWD_SEED,
   buildRosterMesh,
   civilianEntry,

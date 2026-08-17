@@ -72,3 +72,7 @@ verification/*.webm
 .probe*.ts
 
 .*scratch*
+
+# Generated app icons (npx tsx scripts/make-icons.ts)
+public/icons/
+public/manifest.webmanifest

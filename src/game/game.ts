@@ -92,8 +92,18 @@ import {
   physicsInitDurationMs,
 } from '@/physics';
 
-import { buildCharacter, createCharacterParts } from '@/characters/mesh';
+import { createCharacterParts, type HumanoidBuild } from '@/characters/mesh';
 import { ProceduralAnimator } from '@/characters/anim';
+import {
+  RosterRuntime,
+  attachSoloCrowdColors,
+  crowdColors,
+  expressionForBoredom,
+  setExpression,
+  setProximityFade,
+  type FaceRect,
+  type IRosterBody,
+} from '@/characters/roster';
 
 import { PlayerRig, createPhysicsCameraProbe } from '@/entities/player';
 import { CrowdSystem } from '@/entities/npc';
@@ -212,6 +222,19 @@ export class Game {
   readonly freeze: ImpactFreeze;
 
   /**
+   * The baked character atlases, and the loader that brings them in.
+   *
+   * Held because loading is progressive: Saitama's set is awaited during boot
+   * and everyone else's arrives behind `start()`, at which point the bodies
+   * already on screen have to be re-skinned.
+   */
+  readonly roster: RosterRuntime;
+
+  /** The player's material, when he has a baked one. Drives face and dither. */
+  private playerSkin: THREE.Material | undefined;
+  private readonly deferredSkins: IDeferredSkin[];
+
+  /**
    * Saitama's animator.
    *
    * Held here because NOBODY ELSE TICKS IT. `IAnimator.update` is documented as
@@ -289,6 +312,9 @@ export class Game {
     this.input = parts.input;
     this.hud = parts.hud;
     this.freeze = parts.freeze;
+    this.roster = parts.roster;
+    this.playerSkin = parts.playerSkin;
+    this.deferredSkins = parts.deferredSkins;
     this.scene = parts.scene;
     this.bus = parts.bus;
 
@@ -415,6 +441,27 @@ export class Game {
       // 6.5 s of a 12 s boot on software GL.
       pmrem: false,
     });
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE PROTAGONIST'S FACE, STARTED NOW AND AWAITED LATER
+    // ══════════════════════════════════════════════════════════════════════
+    // `tools/build-characters.ts` bakes every character's albedo/ORM/normal
+    // atlas, a four-tile expression strip and a crowd tint mask into
+    // `public/assets/chr/`. That bake is seconds per character and must never
+    // run in a frame — but LOADING it is three PNG fetches, and not doing so is
+    // what left Saitama a blank-faced flat-yellow mannequin with no weave on
+    // the jumpsuit.
+    //
+    // His set is ~1.2 MB and is started HERE, unawaited, so the decode overlaps
+    // the sky's HDRIs, Rapier's wasm and the city generator. It is awaited at
+    // the point the body is actually built, by which time it has almost always
+    // landed for free. Everyone else loads after `start()` — the full cast is
+    // 251 MB of texture at `high` and does not belong on the boot path.
+    const roster = new RosterRuntime({
+      source: provider,
+      anisotropy: Math.min(4, capabilities.maxAnisotropy),
+    });
+    const saitamaSkin = roster.load('chr.saitama');
 
     // Everything the world needs a handle on, created before the long waits so
     // the sky's four HDRIs and Rapier's wasm can be in flight WHILE the core
@@ -599,6 +646,7 @@ export class Game {
       seed: WORLD_SEED,
       playerId: 'player',
       quality: renderTier,
+      skinNearCivilian: (build, seed) => skinCivilian(roster, build, seed),
     });
     t.mark(diagnostics.boot, 'crowd');
 
@@ -642,8 +690,37 @@ export class Game {
     /* ---- 6. SYSTEMS ---------------------------------------------------- */
     step(0.76, 'Waking Saitama');
 
-    const saitama = buildSaitama();
+    // Started back at the provider; by now it has usually landed and this costs
+    // nothing. If the bake was never run the promise resolves `false` and he is
+    // built against the generator's vertex colours instead of failing to boot.
+    if (!(await saitamaSkin)) {
+      recordError(
+        diagnostics,
+        'roster',
+        'chr.saitama has no baked atlas — run `npx tsx tools/build-characters.ts`'
+      );
+    }
+    const saitama = buildSaitama(roster);
     scene.add(saitama.parts.root);
+
+    // Bodies built before their atlas landed. Each is re-skinned by
+    // `upgradeCharacterSkins()` behind `start()`; a body whose material was
+    // already real is not listed and is never touched again.
+    const deferredSkins: IDeferredSkin[] = [];
+    // Filled in once the Game exists. A closure created during boot must NOT
+    // reach for the `const game` below it: optional chaining does not save a
+    // temporal-dead-zone access, it throws just the same. A holder object is
+    // in scope from the moment it is declared, which a `let` binding is not.
+    const onAtlasArrived: { run?: () => void } = {};
+    const deferIfUnskinned = (
+      body: IRosterBody,
+      root: THREE.Object3D,
+      options: { proximityFade?: boolean } = {}
+    ): void => {
+      if (body.material !== undefined) return;
+      deferredSkins.push({ id: body.entry.id, root, faceRect: body.faceRect, options });
+    };
+    deferIfUnskinned(saitama.body, saitama.parts.root, { proximityFade: true });
 
     const controller = physics.createCharacterController(
       new THREE.Vector3(SPAWN_POSITION.x, SPAWN_POSITION.y, SPAWN_POSITION.z),
@@ -709,7 +786,22 @@ export class Game {
       groundHeight: () => 0,
       onSpawned: (monster) => {
         try {
-          monster.attach(buildMonsterBody(monster.archetype.bodyHeightMetres, monster.id));
+          const key = monster.archetype.assetKey;
+          const built = buildMonsterBody(
+            roster,
+            key,
+            monster.archetype.bodyHeightMetres,
+            monster.id
+          );
+          monster.attach(built.instance);
+          deferIfUnskinned(built.body, built.instance.root);
+          // Pull this archetype's atlas in behind the spawn. The body is
+          // already on screen with the generator's vertex colours; it is
+          // re-skinned as soon as the set lands, and the next one of its kind
+          // is textured from birth.
+          if (!roster.isResident(key)) {
+            void roster.load(key).then(() => onAtlasArrived.run?.());
+          }
         } catch (error) {
           recordError(diagnostics, 'monster-body', error);
         }
@@ -720,13 +812,12 @@ export class Game {
     // is the only stake this game has, because the protagonist has none.
     crowd.setPlayer(SPAWN_POSITION.x, SPAWN_POSITION.z);
     crowd.setObstacles(cityStreamer.obstacleRects());
-    crowd.addHero('genos', SPAWN_POSITION.x - 9, SPAWN_POSITION.z - 12, buildHeroBody('genos'));
-    crowd.addHero(
-      'mumenRider',
-      SPAWN_POSITION.x + 5,
-      SPAWN_POSITION.z - 6,
-      buildHeroBody('mumenRider')
-    );
+    const genosBody = buildHeroBody(roster, 'genos');
+    const mumenBody = buildHeroBody(roster, 'mumenRider');
+    deferIfUnskinned(genosBody.body, genosBody.parts.root);
+    deferIfUnskinned(mumenBody.body, mumenBody.parts.root);
+    crowd.addHero('genos', SPAWN_POSITION.x - 9, SPAWN_POSITION.z - 12, genosBody);
+    crowd.addHero('mumenRider', SPAWN_POSITION.x + 5, SPAWN_POSITION.z - 6, mumenBody);
 
     const progression = new ProgressionCoordinator({
       bus,
@@ -833,7 +924,11 @@ export class Game {
       input,
       hud,
       freeze,
+      roster,
+      playerSkin: saitama.body.material,
+      deferredSkins,
     });
+    onAtlasArrived.run = (): void => game.upgradeCharacterSkins();
     hudHooks.onModal = (modal): void => game.setModalPaused(modal);
     hudHooks.onSettings = (settings): void => game.applySettings(settings);
 
@@ -851,6 +946,7 @@ export class Game {
       'physics.ragdolls',
       'characters.mesh',
       'characters.anim',
+      'characters.roster',
       'entities.player',
       'entities.monster',
       'entities.npc',
@@ -867,9 +963,16 @@ export class Game {
       'emits IGeometryBuffers with no UVs, no material groups and no aDestroyed ' +
       'attribute, so its chunks cannot be registered with DestructionSystem. ' +
       'ChunkDamageState and the chunkIndex convention ARE used.';
-    diagnostics.systems.skipped['characters.roster'] =
-      'runtime atlas baking is seconds per character; bodies ship with vertex ' +
-      'colours from the mesh generator instead.';
+    // The roster's ATLAS BAKE still never runs at runtime — it is seconds per
+    // character — but its OUTPUT is now loaded from `public/assets/chr/`, which
+    // is three PNG fetches. Saitama is awaited during boot; the rest arrive
+    // behind `start()` and are swapped onto the live bodies.
+    if (roster.failed.size > 0) {
+      diagnostics.systems.skipped['characters.roster'] =
+        `${roster.failed.size} baked atlas set(s) could not be loaded; those bodies ` +
+        'fall back to the mesh generator\'s vertex colours. Run ' +
+        '`npx tsx tools/build-characters.ts`.';
+    }
 
     return game;
   }
@@ -911,7 +1014,11 @@ export class Game {
     void this.bindNativeBackButton();
 
     this.onResize();
-    void this.loadRemainingMaterials();
+    // The rest of the cast BEFORE the city's 51 MB of KTX2: an ally standing
+    // four metres away with no face is more obviously wrong than a wall with a
+    // stand-in albedo, and the civilian sheet is needed the moment the first
+    // pedestrian is promoted to the near tier.
+    void this.loadRemainingCharacters().then(() => this.loadRemainingMaterials());
     this.rafHandle = requestAnimationFrame(this.tick);
   }
 
@@ -941,6 +1048,75 @@ export class Game {
       this.disposers.push(() => void handle.remove());
     } catch {
       // No native shell. Escape already covers the desktop case.
+    }
+  }
+
+  /**
+   * The cast, after the player is already walking around.
+   *
+   * Ordered by how close the player gets to each: the allies stand beside him,
+   * the civilian sheet dresses everyone the crowd promotes to the near tier,
+   * and the monsters are loaded on spawn by the monster system rather than
+   * speculatively — there are nine of them and only a couple are ever resident.
+   *
+   * Sequential with a frame between each, because three 1024² PNG decodes and
+   * ~17 MB of texture upload landing in one frame is a visible hitch.
+   */
+  private async loadRemainingCharacters(): Promise<void> {
+    try {
+      await this.roster.loadSequential(
+        ['chr.genos', 'chr.mumenRider', 'chr.civilian'],
+        async () => {
+          this.upgradeCharacterSkins();
+          await nextFrame();
+        }
+      );
+      this.upgradeCharacterSkins();
+      log.info(
+        `roster resident: ${this.roster.residentIds.length} characters, ` +
+          `${(this.roster.residentBytes / 1048576).toFixed(1)} MB`
+      );
+    } catch (error) {
+      recordError(this.diagnostics, 'roster-background', error);
+    }
+  }
+
+  /**
+   * Swap real materials onto bodies that were built before their atlas landed.
+   *
+   * Idempotent and cheap: the list only ever shrinks, and an entry whose atlas
+   * is still absent is left alone for the next pass. Newly-skinned materials
+   * are handed to the shadow system immediately — the once-a-second audit would
+   * get there eventually, but a character rendering three times too bright for
+   * up to a second is exactly the artefact that audit exists to prevent.
+   */
+  private upgradeCharacterSkins(): void {
+    for (let i = this.deferredSkins.length - 1; i >= 0; i--) {
+      const pending = this.deferredSkins[i]!;
+      const replaced = new Set<THREE.Material>();
+      pending.root.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.isMesh !== true) return;
+        if (Array.isArray(mesh.material)) for (const item of mesh.material) replaced.add(item);
+        else if (mesh.material) replaced.add(mesh.material);
+      });
+
+      const material = this.roster.reskin(
+        pending.root,
+        pending.id,
+        pending.faceRect,
+        pending.options
+      );
+      if (material === undefined) continue;
+
+      this.shadows.registerMaterial(material);
+      if (pending.id === 'chr.saitama') this.playerSkin = material;
+      // The stand-in is this file's own object and nothing else references it.
+      // Anything else that happened to be bound is left alone.
+      for (const old of replaced) {
+        if (old.name === STAND_IN_NAME) old.dispose();
+      }
+      this.deferredSkins.splice(i, 1);
     }
   }
 
@@ -1090,6 +1266,7 @@ export class Game {
     this.ragdolls.dispose();
     this.physics.dispose();
     this.spatial.dispose();
+    this.roster.dispose();
     this.registry.dispose();
     this.renderer.dispose();
     this.bus.clear();
@@ -1371,6 +1548,17 @@ export class Game {
     waveOrigins: { x: number; z: number; range: number; power: number; intent: string }[];
     geneosDistance: number;
     mumenDistance: number;
+    /**
+     * Every time the monster changed its mind about who it was fighting.
+     *
+     * The original failure was invisible in a final-frame reading: one target
+     * id, held for sixty seconds, looks exactly like a monster that re-engaged
+     * ten times and happened to end where it started. Read-only instrumentation
+     * — it samples `brain.currentTargetId`, it does not steer anything.
+     */
+    targetTimeline: { at: number; id: string; harmable: boolean }[];
+    /** Times the monster abandoned a target it could not hurt. */
+    retargets: number;
   } {
     const genos = this.crowd.allies.find((a) => a.heroId === 'genos');
     const mumen = this.crowd.allies.find((a) => a.heroId === 'mumenRider');
@@ -1417,6 +1605,8 @@ export class Game {
 
     const step = 1 / 30;
     let elapsed = 0;
+    const targetTimeline: { at: number; id: string; harmable: boolean }[] = [];
+    let lastSeenTarget = ' ';
     try {
       while (elapsed < maxSeconds) {
         elapsed += step;
@@ -1431,6 +1621,17 @@ export class Game {
           ),
         });
         this.crowd.update(step);
+        const current = String(monster.brain.currentTargetId ?? 'none');
+        if (current !== lastSeenTarget) {
+          lastSeenTarget = current;
+          if (targetTimeline.length < 24) {
+            targetTimeline.push({
+              at: Math.round(elapsed * 100) / 100,
+              id: current,
+              harmable: monster.brain.isTargetHarmable,
+            });
+          }
+        }
         if ((genos?.isDead ?? true) && (mumen?.isDead ?? true)) break;
       }
     } finally {
@@ -1457,6 +1658,8 @@ export class Game {
       waveOrigins: sampledOrigins,
       geneosDistance: distanceOf(genos),
       mumenDistance: distanceOf(mumen),
+      targetTimeline,
+      retargets: monster.brain.retargets,
     };
   }
 
@@ -1587,6 +1790,23 @@ export class Game {
     this.playerAnimator.setRoot(controller.position, controller.yaw);
     this.playerAnimator.update(dt);
 
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE FACE
+    // ══════════════════════════════════════════════════════════════════════
+    // Two uniform writes, no material swap and no extra draw call — which is
+    // the entire reason the roster bakes four expression tiles into one strip
+    // instead of four materials.
+    //
+    // The expression is the same boredom value the posture uses, so the meter
+    // reads on his face and in his shoulders at once. The dither is the camera
+    // arm collapsing in an alley; it is on the player's material ALONE because
+    // the `discard` it compiles to disables early-Z.
+    const skin = this.playerSkin;
+    if (skin !== undefined) {
+      setExpression(skin, expressionForBoredom(this.progression.boredom.boredom));
+      setProximityFade(skin, this.player.camera.diagnostics().armCollapseRatio);
+    }
+
     for (const monster of this.monsters.all()) {
       monster.character?.animator.update(dt);
     }
@@ -1694,6 +1914,19 @@ interface IGameParts {
   input: IInputManager;
   hud: HudManager;
   freeze: ImpactFreeze;
+  roster: RosterRuntime;
+  /** Saitama's baked material, when his atlas landed during boot. */
+  playerSkin: THREE.Material | undefined;
+  /** Bodies built before their atlas landed, to be re-skinned in the background. */
+  deferredSkins: IDeferredSkin[];
+}
+
+/** A body whose baked material has to be swapped on once its atlas loads. */
+interface IDeferredSkin {
+  readonly id: string;
+  readonly root: THREE.Object3D;
+  readonly faceRect: FaceRect;
+  readonly options: { readonly proximityFade?: boolean };
 }
 
 /** Millisecond stopwatch that writes straight into the boot report. */
@@ -1724,15 +1957,74 @@ function probeRenderTier(native: boolean, platform: string): IQualityTier {
   return 'low';
 }
 
-/** Saitama: the bored slouch is a clip variant, not a separate rig. */
-function buildSaitama(): {
+/**
+ * The stand-in a body wears until its baked atlas lands.
+ *
+ * The mesh generator paints costume colours into vertex colours, so this is a
+ * recognisable character rather than a grey blank — but it is flat: no weave, no
+ * pores, no per-texel roughness, and NO FACE, because a face is texture. It is
+ * what the whole cast looked like before the bake was wired in, and it exists
+ * now only to cover the second between spawn and atlas.
+ */
+const STAND_IN_NAME = 'character.stand-in';
+
+function standInMaterial(roughness: number, metalness: number, color?: number): THREE.Material {
+  const parameters: THREE.MeshStandardMaterialParameters = {
+    name: STAND_IN_NAME,
+    vertexColors: true,
+    roughness,
+    metalness,
+  };
+  if (color !== undefined) parameters.color = new THREE.Color(color);
+  return new THREE.MeshStandardMaterial(parameters);
+}
+
+/**
+ * Dress ONE near-tier civilian from the shared crowd sheet.
+ *
+ * Two hundred people cannot each have an atlas, so `chr.civilian` is baked
+ * NEUTRAL — greys carrying weave, wear and occlusion — and a single-channel
+ * tint mask says which texel is skin, cloth, accent or hair. The crowd
+ * injection then multiplies in four colours read from vertex attributes.
+ *
+ * On an `InstancedMesh` those attributes are instanced. A near-tier civilian is
+ * a plain `SkinnedMesh`, where an ABSENT attribute reads as (0,0,0) and
+ * multiplies the whole person to solid black — which is why the roster ships
+ * `attachSoloCrowdColors` and why calling it is not optional.
+ */
+function skinCivilian(
+  roster: RosterRuntime,
+  build: HumanoidBuild,
+  seed: number
+): THREE.Material | undefined {
+  if (!roster.isResident('chr.civilian')) return undefined;
+  const faceRect = roster.prepareForeign('chr.civilian', build);
+  attachSoloCrowdColors(build.geometry, crowdColors(seed));
+  return roster.createMaterial('chr.civilian', faceRect, { crowdTint: true });
+}
+
+/**
+ * Saitama: the bored slouch is a clip variant, not a separate rig.
+ *
+ * Built through the roster so the UVs match the baked atlas, and skinned with
+ * the real material when it is resident. The face is the entire point — the
+ * character is a deadpan and two dots — so his atlas is the ONE the boot path
+ * waits for.
+ */
+function buildSaitama(roster: RosterRuntime): {
   parts: ReturnType<typeof createCharacterParts>;
   animator: ProceduralAnimator;
+  body: IRosterBody;
 } {
-  const build = buildCharacter('saitama', 0);
+  const body = roster.buildBody('chr.saitama', 0, {
+    // Only the player carries the screen-door dither: it costs a `discard`,
+    // which disables early-Z, and it solves a problem (the camera arm
+    // collapsing into the body in an alley) that nobody else has.
+    proximityFade: true,
+  });
   const parts = createCharacterParts(
-    build,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.68, metalness: 0.04 })
+    body.build,
+    body.material ?? standInMaterial(0.68, 0.04)
   );
   parts.root.name = 'saitama';
   parts.root.castShadow = true;
@@ -1740,49 +2032,52 @@ function buildSaitama(): {
     variants: { idle: 'bored' },
     initial: 'idle',
   });
-  return { parts, animator };
+  return { parts, animator, body };
 }
 
 /** A body for one of the allies. Same generator, different recipe. */
-function buildHeroBody(id: 'genos' | 'mumenRider'): {
+function buildHeroBody(
+  roster: RosterRuntime,
+  id: 'genos' | 'mumenRider'
+): {
   parts: ReturnType<typeof createCharacterParts>;
   animator: ProceduralAnimator;
+  body: IRosterBody;
 } {
-  const build = buildCharacter(id, 1);
-  const parts = createCharacterParts(
-    build,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.15 })
-  );
+  const body = roster.buildBody(`chr.${id}`, 1);
+  const parts = createCharacterParts(body.build, body.material ?? standInMaterial(0.6, 0.15));
   parts.root.name = `hero-${id}`;
   const animator = new ProceduralAnimator(parts, parts.root, { seed: id === 'genos' ? 3 : 7 });
-  return { parts, animator };
+  return { parts, animator, body };
 }
 
 /**
  * A body for a monster.
  *
- * The mesh generator's `monsterHumanoid` showcase profile, scaled to the
- * archetype's own height. Deliberately NOT the roster's atlas path: baking a
- * character atlas is seconds of main-thread work per body, which is fine
- * offline and unacceptable when a spawn director places one mid-fight.
+ * Its OWN roster recipe, not a recoloured Genos: a Mosquito Girl and a Deep Sea
+ * King are different silhouettes, and the archetype already names which one it
+ * is (`assetKey`). The atlas is loaded in the background per archetype, so the
+ * first of a kind wears the generator's vertex colours for a moment and every
+ * one after it is textured on arrival — no bake ever happens in a frame, which
+ * is the constraint that made the earlier build skip this path entirely.
  */
-function buildMonsterBody(heightMetres: number, id: string): ICharacterInstance {
-  const build = buildCharacter('genos', 1);
+function buildMonsterBody(
+  roster: RosterRuntime,
+  assetKey: string,
+  heightMetres: number,
+  id: string
+): { instance: ICharacterInstance; body: IRosterBody } {
+  const body = roster.buildBody(assetKey, 1);
   const parts = createCharacterParts(
-    build,
-    new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0x7d5240),
-      vertexColors: true,
-      roughness: 0.82,
-      metalness: 0.05,
-    })
+    body.build,
+    body.material ?? standInMaterial(0.82, 0.05, 0x7d5240)
   );
   parts.root.name = `monster:${id}`;
-  // The generator's hero build is 1.75 m; scale to whatever the archetype says
-  // it is, so a 3.4 m Deep Sea King towers and a street pest does not.
-  parts.root.scale.setScalar(Math.max(0.6, heightMetres / 1.75));
+  // The generator's build is 1.75 m; scale to whatever the archetype says it
+  // is, so a 3.4 m Deep Sea King towers and a street pest does not.
+  parts.root.scale.setScalar(Math.max(0.6, heightMetres / body.entry.recipe.profile.height));
   const animator = new ProceduralAnimator(parts, parts.root, { seed: 11, initial: 'idle' });
-  return { ...parts, animator };
+  return { instance: { ...parts, animator }, body };
 }
 
 /** The city's materials, which this file created and therefore knows the layout of. */

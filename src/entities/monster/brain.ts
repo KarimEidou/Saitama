@@ -22,6 +22,21 @@
  * emitting `AllyDowned` directly, because that is a NARRATIVE beat rather than
  * a physical one. See `boss-encounter.ts`.
  *
+ * ── WHO IT SWINGS AT, WHICH IS THE WHOLE GAME ─────────────────────────────
+ * The protagonist cannot be hurt. Everything else can. So a monster that picks
+ * its target by proximity picks the one character with no stake in the fight,
+ * walks the encounter away from everybody who has one, and turns the game's
+ * central premise into an anticlimax — which is exactly what a sixty-second
+ * capture of a Harbinger showed: `lastTargetId: "player"`, unchanged, Genos
+ * three hundred and fifty metres away and on full health.
+ *
+ * Selection therefore weights HARMABILITY alongside priority and distance
+ * (`perceive`), notices people who can be hurt from any angle rather than only
+ * through the vision cone, and puts a bounded clock on any engagement that
+ * cannot accomplish anything (`tickFixation`). A monster may still charge
+ * Saitama, and often does — he is attacked constantly in the source material.
+ * It simply cannot spend the whole fight on him while a district burns.
+ *
  * ── COST ──────────────────────────────────────────────────────────────────
  * Hundreds of these tick on a phone. So:
  *   • full re-think runs on a distance-bucketed interval (0.1 s near, 0.6 s
@@ -79,6 +94,77 @@ const ALERT_ORIENT_SECONDS = 0.55;
 
 /** Metres beyond the bounding radius at which a monster notices regardless of facing. */
 const PROXIMITY_MARGIN_METRES = 2;
+
+/* -------------------------------------------------------------------------- */
+/* WHO A MONSTER FIGHTS — the tuning behind the game's one stake              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Score multiplier for a target that cannot be harmed.
+ *
+ * The whole premise in one number. A monster that picks purely by distance
+ * picks Saitama, walks its own fight three hundred metres away from the only
+ * people in it who can lose, and spends the encounter swinging at someone who
+ * is not even inconvenienced. Weighting harmability against proximity is what
+ * makes an ally at thirty metres outrank the invulnerable man at ten.
+ *
+ * It is deliberately NOT zero. A monster with Saitama standing on top of it
+ * still swings at him — he gets attacked constantly in the source material, it
+ * simply never works — and with `Math.max(distance, 0.5)` in the denominator
+ * this weight puts the crossover at roughly 0.12 × (ally distance / ally
+ * priority) metres: point-blank he still wins, three metres out he does not.
+ */
+const UNHARMABLE_WEIGHT = 0.12;
+
+/**
+ * All-round awareness of a HARMABLE target, as a fraction of `aggroRadius`.
+ *
+ * The vision cone is what makes a monster approachable from behind, and that
+ * has to survive — but applied to everyone it also means a monster locked onto
+ * something in front of it can never notice the ally shooting it in the back,
+ * which is precisely how the fight ends up in an empty district. So the cone
+ * still governs the player (stealth is intact, because he is the unharmable
+ * one) while people who scream, fire and bleed register from any angle.
+ */
+const HARMABLE_PERIPHERAL_FRACTION = 0.35;
+
+/**
+ * Score bonus for the target a monster is already fighting.
+ *
+ * Hysteresis, not loyalty: two allies a metre apart would otherwise swap the
+ * lock every think and the monster would stand between them turning its head.
+ * Granted ONLY when the current target is harmable — a fixation on someone
+ * invulnerable is the bug, and rewarding it would re-create it.
+ */
+const TARGET_STICKINESS = 1.15;
+
+/**
+ * Seconds a monster stays committed to a target it cannot hurt.
+ *
+ * Long enough to be a beat rather than a flinch — it charges in, it commits,
+ * it swings — and short enough that no encounter is spent on it.
+ */
+const FUTILE_LOCK_SECONDS = 5;
+
+/**
+ * Attacks that land on an unharmable target before the monster gives up.
+ *
+ * Two. The first tells it nothing (everything survives one hit), the second is
+ * a pattern. A creature that keeps going after that is not menacing, it is
+ * broken — and the failure this whole mechanism exists to delete was a
+ * `lastTargetId` that never changed for sixty seconds.
+ */
+const FUTILE_ATTACK_LIMIT = 2;
+
+/**
+ * Seconds an abandoned target is skipped over entirely.
+ *
+ * Only one target can be suppressed at a time, and one slot is the right size:
+ * there is exactly one thing in this world that cannot be hurt. When it
+ * expires the monster is free to have another go — which is why Saitama still
+ * gets attacked all game, in bursts, instead of once and never again.
+ */
+const FUTILE_SUPPRESSION_SECONDS = 14;
 
 /** Seconds between idle wander re-aims. */
 const WANDER_PERIOD_SECONDS = 3.5;
@@ -191,6 +277,16 @@ export class MonsterBrain {
   private targetDistance = Number.POSITIVE_INFINITY;
   private hasLineOfSight = false;
   private secondsSinceSeen = Number.POSITIVE_INFINITY;
+  /** Whether hitting the current target would accomplish anything. */
+  private targetHarmable = true;
+
+  /* fixation — the clock that stops a monster wasting a fight on Saitama */
+  private futileSeconds = 0;
+  private futileAttacks = 0;
+  private suppressedId: EntityId | undefined;
+  private suppressedFor = 0;
+  /** Targets abandoned as futile. Diagnostics, and what the tests assert on. */
+  retargets = 0;
 
   /* scheduling */
   private thinkTimer = 0;
@@ -258,6 +354,16 @@ export class MonsterBrain {
     return this.targetDistance;
   }
 
+  /** True when the current target can actually be hurt. No target reads false. */
+  get isTargetHarmable(): boolean {
+    return this.targetId !== undefined && this.targetHarmable;
+  }
+
+  /** The target being deliberately ignored, and for how much longer. */
+  get suppressedTargetId(): EntityId | undefined {
+    return this.suppressedFor > 0 ? this.suppressedId : undefined;
+  }
+
   /** Animation slot this monster wants played right now. */
   get clip(): ClipName {
     switch (this.fsm.current) {
@@ -299,6 +405,9 @@ export class MonsterBrain {
     this.age += dt;
     this.tickCooldowns(dt);
     this.tickAttack(dt);
+    // Before the think, so a target abandoned this frame is already gone when
+    // the scan that replaces it runs.
+    this.tickFixation(dt);
 
     this.thinkTimer -= dt;
     if (this.thinkTimer <= 0) {
@@ -325,25 +434,45 @@ export class MonsterBrain {
   /**
    * Choose a target.
    *
-   * Score is `priority / distance`, so an ally worth protecting outranks a
-   * closer civilian without any script saying so — which is exactly how Mumen
-   * Rider ends up in front of the Deep Sea King.
+   * ── WHAT THE SCORE IS, AND WHY IT IS NOT JUST DISTANCE ──────────────────
+   *
+   *     score = priority × harmability × stickiness / distance
+   *
+   * Distance alone picks whoever is nearest, and in this game whoever is
+   * nearest is very often the one person in the world who cannot be hurt.
+   * Priority alone was tried and is not enough — a 1.6× ally at thirty metres
+   * still loses to a 1.0× protagonist at five. Harmability is the term that
+   * makes the difference categorical rather than a tuning race: an ally worth
+   * protecting outranks a closer civilian, and BOTH of them outrank Saitama
+   * unless he is close enough to be stepped on.
+   *
+   * That is how Mumen Rider ends up in front of the Deep Sea King without a
+   * line of script saying so, and how the fight stays where the people are.
    */
   private perceive(world: IMonsterWorld): void {
     const a = this.archetype;
     const keepRange = this.targetId === undefined ? a.aggroRadius : a.loseAggroMetres;
     const proximity = a.radiusMetres + PROXIMITY_MARGIN_METRES;
+    // Someone who can be hurt is noticed from any angle inside this radius.
+    // Someone who cannot — the protagonist — still has to be seen.
+    const peripheral = Math.max(proximity, a.aggroRadius * HARMABLE_PERIPHERAL_FRACTION);
+    const suppressed = this.suppressedFor > 0 ? this.suppressedId : undefined;
 
     let bestId: EntityId | undefined;
     let bestScore = 0;
     let bestDistance = Number.POSITIVE_INFINITY;
     let bestVisible = false;
+    let bestHarmable = true;
     let bestX = 0;
     let bestZ = 0;
     let bestY = 0;
 
     for (const target of world.targets) {
       if (!target.alive || target.faction === 'monster') continue;
+      // Given up on for futility. Ignored outright rather than merely
+      // out-scored: the point of abandoning a target is to LOOK ELSEWHERE,
+      // and a discount still wins when it is the only thing in range.
+      if (target.id === suppressed) continue;
 
       const dx = target.position.x - this.position.x;
       const dy = target.position.y - this.position.y;
@@ -351,33 +480,47 @@ export class MonsterBrain {
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (distance > keepRange) continue;
 
-      // Inside the vision cone, or close enough that facing stops mattering.
+      const harmable = target.harmable ?? true;
+
+      // Inside the vision cone, close enough that facing stops mattering, or —
+      // for someone who can be hurt — anywhere inside the peripheral radius.
       const forwardX = Math.sin(this.yaw);
       const forwardZ = Math.cos(this.yaw);
       const planar = Math.hypot(dx, dz) || 1;
       const cosine = (dx * forwardX + dz * forwardZ) / planar;
       const inCone = cosine >= Math.cos(a.visionHalfAngleRad);
-      const noticed = inCone || distance <= proximity;
+      const noticed = inCone || distance <= proximity || (harmable && distance <= peripheral);
       if (!noticed && target.id !== this.targetId) continue;
 
       const clear = world.lineOfSight?.(this.position, target.position) ?? true;
       if (!clear && target.id !== this.targetId) continue;
 
-      const score = target.priority / Math.max(distance, 0.5);
+      const weight = harmable ? 1 : UNHARMABLE_WEIGHT;
+      // Stickiness for a fight already in progress, never for a futile one.
+      const sticky = target.id === this.targetId && harmable ? TARGET_STICKINESS : 1;
+      const score = (target.priority * weight * sticky) / Math.max(distance, 0.5);
       if (score <= bestScore) continue;
       bestScore = score;
       bestId = target.id;
       bestDistance = distance;
       bestVisible = clear && noticed;
+      bestHarmable = harmable;
       bestX = target.position.x;
       bestY = target.position.y;
       bestZ = target.position.z;
     }
 
     if (bestId !== undefined) {
+      // Switching targets restarts the futility clock: the count is about ONE
+      // target's worth of wasted effort, not about the monster's whole life.
+      if (bestId !== this.targetId) {
+        this.futileSeconds = 0;
+        this.futileAttacks = 0;
+      }
       this.targetId = bestId;
       this.targetDistance = bestDistance;
       this.hasLineOfSight = bestVisible;
+      this.targetHarmable = bestHarmable;
       // Proof of progress, for the FSM watchdog. A chase across three
       // districts is a legitimate three-minute stay in `pursue`, and the
       // watchdog must not end it — but a `pursue` that has perceived nothing
@@ -397,10 +540,7 @@ export class MonsterBrain {
       // than as a switch flipping off.
       this.secondsSinceSeen += this.thinkInterval;
       this.hasLineOfSight = false;
-      if (this.secondsSinceSeen > this.archetype.memorySeconds) {
-        this.targetId = undefined;
-        this.targetDistance = Number.POSITIVE_INFINITY;
-      }
+      if (this.secondsSinceSeen > this.archetype.memorySeconds) this.forgetTarget();
     }
 
     this.thinkInterval =
@@ -426,6 +566,85 @@ export class MonsterBrain {
       }
       return;
     }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Fixation — the clock that ends a fight nobody can lose                 */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * ══════════════════════════════════════════════════════════════════════
+   *  THE RE-TARGET, AND WHY IT IS A CLOCK RATHER THAN A SCORE
+   * ══════════════════════════════════════════════════════════════════════
+   * Weighting harmability decides who a monster picks when it has a choice.
+   * This decides what happens when it does not — the case that actually shipped
+   * broken: a Harbinger locked onto the protagonist, `lastTargetId: "player"`
+   * unchanged for sixty seconds, three hundred metres of city between the fight
+   * and everybody in it who could still be hurt.
+   *
+   * No score fixes that, because the discount is irrelevant when the discounted
+   * target is the only one in range. What fixes it is the monster noticing it
+   * is wasting its time: seconds committed, and attacks that landed and changed
+   * nothing. Either limit ends the engagement, the target is skipped for a
+   * while, and the monster goes looking for something it can actually break.
+   *
+   * A monster may still engage Saitama, repeatedly, all game. It just cannot
+   * spend a whole encounter on him.
+   */
+  private tickFixation(dt: number): void {
+    if (this.suppressedFor > 0) {
+      this.suppressedFor -= dt;
+      if (this.suppressedFor <= 0) {
+        this.suppressedFor = 0;
+        this.suppressedId = undefined;
+      }
+    }
+
+    if (this.targetId === undefined || this.targetHarmable) {
+      this.futileSeconds = 0;
+      return;
+    }
+    // Only time spent ENGAGED counts. Walking towards him across a district is
+    // not futile yet — he might be standing next to somebody who matters.
+    const state = this.fsm.current;
+    if (state !== 'pursue' && state !== 'attack' && state !== 'alerted') return;
+
+    this.futileSeconds += dt;
+    if (this.futileSeconds < FUTILE_LOCK_SECONDS && this.futileAttacks < FUTILE_ATTACK_LIMIT) {
+      return;
+    }
+    this.abandonTarget();
+  }
+
+  /**
+   * Give up on the current target and refuse to see it for a while.
+   *
+   * Straight to `idle` rather than to `alerted`: `alerted` means "I have
+   * something", and this monster explicitly does not any more. `idle` is legal
+   * from every live state, wanders instead of standing still, re-acquires on
+   * the very next think, and — unlike `alerted`, whose watchdog is shorter than
+   * several archetypes' memory — cannot sit there long enough to trip anything.
+   * The visible result is a creature that breaks off mid-swing and turns away,
+   * which is exactly what it has decided to do.
+   */
+  private abandonTarget(): void {
+    if (this.targetId === undefined) return;
+    this.suppressedId = this.targetId;
+    this.suppressedFor = FUTILE_SUPPRESSION_SECONDS;
+    this.retargets++;
+    this.forgetTarget();
+    this.cancelAttack();
+    if (this.fsm.current !== 'idle') this.fsm.transition('idle');
+    this.thinkTimer = 0;
+  }
+
+  /** Drop the current target and everything derived from it. */
+  private forgetTarget(): void {
+    this.targetId = undefined;
+    this.targetDistance = Number.POSITIVE_INFINITY;
+    this.targetHarmable = true;
+    this.futileSeconds = 0;
+    this.futileAttacks = 0;
   }
 
   /**
@@ -630,6 +849,11 @@ export class MonsterBrain {
       sourceId: this.id,
     });
 
+    // Force spent on someone it cannot hurt. Counted here rather than at the
+    // decision, because a wind-up that got interrupted cost the monster
+    // nothing and taught it nothing — only a released attack is evidence.
+    if (this.targetId !== undefined && !this.targetHarmable) this.futileAttacks++;
+
     if (attack.kind === 'summon' && attack.summonArchetypeId !== undefined) {
       this.onSummon?.(attack.summonArchetypeId, attack.summonCount ?? 1, this.scratch);
     }
@@ -807,6 +1031,8 @@ export class MonsterBrain {
       maxHealth: this.archetype.maxHealth,
       targetId: this.targetId,
       targetDistance: this.targetDistance,
+      targetHarmable: this.isTargetHarmable,
+      retargets: this.retargets,
       attackId: this.attack?.id,
       attackPhase: this.attackPhase,
       isBoss: this.archetype.isBoss,
@@ -834,6 +1060,14 @@ export class MonsterBrain {
     this.targetDistance = Number.POSITIVE_INFINITY;
     this.secondsSinceSeen = Number.POSITIVE_INFINITY;
     this.hasLineOfSight = false;
+    // A recycled monster has no grudges and no history: the suppression and
+    // the futility counters are about ONE engagement, and this is a new one.
+    this.targetHarmable = true;
+    this.futileSeconds = 0;
+    this.futileAttacks = 0;
+    this.suppressedId = undefined;
+    this.suppressedFor = 0;
+    this.retargets = 0;
     this.thinkTimer = 0;
     this.thinkInterval = THINK_INTERVAL_NEAR;
     this.cooldowns.clear();

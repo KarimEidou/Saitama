@@ -46,7 +46,13 @@ import type { ICrowdSink, ICrowdSlot, CrowdMode } from '@/world/streaming';
 import { clamp01, createRng, type IRandom } from '@/util';
 import { CHUNK_SIZE } from '@/spatial/constants';
 import { ProceduralAnimator } from '@/characters/anim';
-import { buildHumanoid, civilianOptions, civilianProfile, createCharacterParts } from '@/characters/mesh';
+import {
+  buildHumanoid,
+  civilianOptions,
+  civilianProfile,
+  createCharacterParts,
+  type HumanoidBuild,
+} from '@/characters/mesh';
 import { AlarmField } from './alarm-field';
 import {
   CrowdAgents,
@@ -160,6 +166,22 @@ export interface ICrowdSystemOptions {
   readonly quality?: IQualityTier;
   /** Skip building meshes. Tests and headless simulation. */
   readonly headless?: boolean;
+  /**
+   * Skin a freshly-built near-tier civilian.
+   *
+   * Supplied by the composition root, which is the only layer that knows where
+   * the baked character atlases live. It receives the freshly-built body and
+   * its seed and returns the material to bind, or `undefined` to keep the mesh
+   * generator's vertex colours. The whole `HumanoidBuild` rather than just the
+   * geometry because the roster's UV preparation needs the region table.
+   *
+   * A HOOK rather than an import: the header's list of things this system
+   * refuses to import names the roster explicitly, and that is what let the
+   * crowd be built and screenshotted on its own. It also has to run headless,
+   * in tests and in the crowd harness, none of which have an asset provider.
+   * The default is exactly today's behaviour.
+   */
+  readonly skinNearCivilian?: (build: HumanoidBuild, seed: number) => THREE.Material | undefined;
 }
 
 /** Population caps by render tier. The crowd is the first thing to shed. */
@@ -185,6 +207,9 @@ export class CrowdSystem implements ICrowdSink {
   private readonly playerId: EntityId | undefined;
   private readonly headless: boolean;
   private readonly spawnRng: IRandom;
+  private readonly skinNearCivilian:
+    | ((build: HumanoidBuild, seed: number) => THREE.Material | undefined)
+    | undefined;
 
   private readonly threats: IThreatSource[] = [];
   private readonly heroes: HeroNpc[] = [];
@@ -242,6 +267,7 @@ export class CrowdSystem implements ICrowdSink {
     this.headless = options.headless ?? false;
     this.spawnRng = createRng(this.seed).derive('crowd-spawn');
     this.caps = CAP_BY_TIER[options.quality ?? 'high'];
+    this.skinNearCivilian = options.skinNearCivilian;
     this.group.name = 'crowd';
 
     if (!this.headless) {
@@ -761,11 +787,17 @@ export class CrowdSystem implements ICrowdSink {
     const profile = civilianProfile(seed);
     const options = civilianOptions(profile, 1);
     const build = buildHumanoid(profile, options);
-    const material = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.82,
-      metalness: 0.02,
-    });
+    // The baked civilian sheet when the composition root can supply it —
+    // neutral grey carrying weave, wear and occlusion, recoloured per body by
+    // the tint mask. Falls back to the generator's flat vertex colours, which
+    // is what the crowd harness and every headless test see.
+    const material =
+      this.skinNearCivilian?.(build, seed) ??
+      new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.82,
+        metalness: 0.02,
+      });
     const parts = createCharacterParts(build, material);
     const animator = new ProceduralAnimator(parts, parts.root, {
       seed,
