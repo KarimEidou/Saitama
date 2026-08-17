@@ -644,16 +644,18 @@ export class CityStreamer {
     // ── The distant skyline ───────────────────────────────────────────────
     // Baked HERE, in the constructor, and not behind a flag: a city whose
     // horizon appears a second after the first frame is worse than one that
-    // never had it, and the whole bake is ~50 ms of arithmetic against a 6 s
-    // boot budget. It also means the world looks COMPLETE from frame one, while
+    // never had it. Measured: 41 ms of arithmetic on an idle machine, 98 ms in
+    // a browser sharing its cores with two other builds, and a 0.1 ms upload of
+    // the 2.0 MB result — against a boot budget with 1.2 s of headroom. It also
+    // means the world looks COMPLETE from frame one, while
     // `buildImmediate(BOOT_RADIUS)` has only raised the chunk under the
     // player's feet and the other eight are still arriving one per 0.4 s.
     //
     // Main thread rather than a worker. The worker path in
     // `src/world/streaming` bakes its own placeholder city (see `bakeSkyline`),
     // and moving THIS bake off-thread means shipping the plan JSON and the
-    // whole of `@/world/city` into the worker bundle for 50 ms — a bad trade
-    // that this file is not the place to make.
+    // whole of `@/world/city` into the worker bundle to save 41 ms — a bad
+    // trade that this file is not the place to make.
     const bake = bakeSkyline(options.generator.index);
     this.impostorHeights = bake.heightsByChunk;
     this.streamingMaterials = new StreamingMaterials({
