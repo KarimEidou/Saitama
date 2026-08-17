@@ -128,8 +128,8 @@ export class EffectEmitters {
       p.vy = rng.range(0.4, 2.2) * upward * (1 + power * 2.2);
 
       if (heavy) {
-        p.size0 = radius * rng.range(0.35, 0.7) + 1.6 + power * 3;
-        p.size1 = p.size0 * rng.range(2.2, 3.6);
+        p.size0 = radius * rng.range(0.22, 0.95) + 1.2 + power * 3;
+        p.size1 = p.size0 * rng.range(1.9, 3.8);
         p.life = rng.range(2.4, 5.2) * (0.55 + power * 0.75);
         p.gravity = -0.55;
         p.drag = 1.15;
@@ -196,8 +196,11 @@ export class EffectEmitters {
       const outY = this.scratchVector.y;
       const outZ = this.scratchVector.z;
 
+      // Height distribution biased low: most of the mass hugs the ground and a
+      // few plumes tower over it. A uniform spread produces a hedge.
+      const wall = 3 + radius * 0.24;
       p.x = outX + rng.range(-radius * 0.05, radius * 0.05);
-      p.y = outY + rng.range(0.2, 2.4 + radius * 0.05);
+      p.y = outY + 0.3 + Math.pow(rng.next(), 1.9) * wall;
       p.z = outZ + rng.range(-radius * 0.05, radius * 0.05);
 
       // Radially outward, at a fraction of the front's own speed.
@@ -207,10 +210,10 @@ export class EffectEmitters {
       const carried = edgeSpeed * rng.range(0.06, 0.18);
       p.vx = (dx / length) * carried;
       p.vz = (dz / length) * carried;
-      p.vy = rng.range(1.5, 5.5) * (lofted ? 2.4 : 1) * (0.5 + power);
+      p.vy = rng.range(1.5, 9.0) * (lofted ? 2.2 : 1) * (0.5 + power);
 
-      p.size0 = 2.4 + radius * rng.range(0.05, 0.115) + power * 5;
-      p.size1 = p.size0 * rng.range(2.1, 3.4);
+      p.size0 = 2.0 + radius * rng.range(0.035, 0.14) + power * 5;
+      p.size1 = p.size0 * rng.range(1.8, 3.6);
       p.life = rng.range(2.6, 5.4) * (0.6 + power * 0.6);
       p.tile = rng.pick(DUST_TILES);
       p.rot = rng.range(0, Math.PI * 2);

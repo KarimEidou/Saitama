@@ -547,7 +547,7 @@ export class CrowdSteering {
     }
 
     this.constrain(agents, obstacles);
-    this.updateFacing(agents, flow, dt);
+    this.updateFacing(agents, flow, bodies, dt);
   }
 
   /**
@@ -649,7 +649,12 @@ export class CrowdSteering {
    * through a building, at any distance. It is the cheapest piece of world
    * communication in the whole system.
    */
-  private updateFacing(agents: CrowdAgents, flow: FlowField, dt: number): void {
+  private updateFacing(
+    agents: CrowdAgents,
+    flow: FlowField,
+    bodies: readonly IAvoidBody[],
+    dt: number
+  ): void {
     const dir: [number, number] = [0, 0];
     const maxTurn = TURN_RATE * dt;
     for (let i = 0; i < agents.extent; i++) {
@@ -658,10 +663,31 @@ export class CrowdSteering {
       let tx: number;
       let tz: number;
       if (mood === MOOD_GAWK || mood === MOOD_COWER) {
-        // The flee field points away from the threat; face back down it.
-        flow.sampleDirection(flow.flee, agents.posX[i]!, agents.posZ[i]!, dir);
-        tx = -dir[0];
-        tz = -dir[1];
+        // Look at the actual monster when there is one to look at. The flow
+        // field's gradient is the fallback, and it is a WORSE answer: it points
+        // down the street the panic is arriving along, which round a corner is
+        // ninety degrees off the thing everybody is supposedly filming.
+        const x = agents.posX[i]!;
+        const z = agents.posZ[i]!;
+        let bestSq = Infinity;
+        tx = 0;
+        tz = 0;
+        for (const body of bodies) {
+          if ((body.layer & LAYER_THREAT) === 0) continue;
+          const dx = body.x - x;
+          const dz = body.z - z;
+          const d = dx * dx + dz * dz;
+          if (d < bestSq && d > 1e-4) {
+            bestSq = d;
+            tx = dx;
+            tz = dz;
+          }
+        }
+        if (bestSq === Infinity) {
+          flow.sampleDirection(flow.flee, x, z, dir);
+          tx = -dir[0];
+          tz = -dir[1];
+        }
         if (mood === MOOD_COWER) {
           // Cowering turns away, shoulder first.
           tx = -tx;

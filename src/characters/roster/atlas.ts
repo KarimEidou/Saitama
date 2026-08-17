@@ -202,6 +202,33 @@ function clampSigned(value: number): number {
   return value < -1 ? -1 : value > 1 ? 1 : value;
 }
 
+/**
+ * Cycles each pattern packs into ONE tile.
+ *
+ * Needed to keep patterns above the Nyquist limit of the atlas. The unwrap's
+ * texel density varies by a factor of three across a character — the leg
+ * rectangle covers 3.4 m of surface per UV unit against the body's 1.4 — so a
+ * single "tiles per metre" number that looks like fine cotton on the torso is
+ * pure moire on the shins. Clamping frequency per region is what turns that
+ * shimmer into fabric.
+ */
+const PATTERN_CYCLES: Readonly<Record<MicroPattern, number>> = {
+  none: 1,
+  weave: 8,
+  twill: 10,
+  canvas: 5,
+  leather: 6,
+  pores: 22,
+  strand: 26,
+  brushed: 60,
+  hexcell: 8,
+  scale: 13,
+  pebble: 9,
+};
+
+/** Texels a pattern cycle must span before it is allowed to exist. */
+const MIN_TEXELS_PER_CYCLE = 5;
+
 /* -------------------------------------------------------------------------- */
 /* Colour space                                                               */
 /* -------------------------------------------------------------------------- */
@@ -290,6 +317,54 @@ function regionDensities(
 function wrapIndex(value: number, size: number): number {
   const i = Math.floor(value) % size;
   return i < 0 ? i + size : i;
+}
+
+/**
+ * A box-filtered pyramid over one detail tile.
+ *
+ * The CC0 sources are 4k photographs downsampled to a 512 tile, and the bake
+ * then MINIFIES them again — by 8x on a limb. Point or bilinear sampling of an
+ * 8x minified photograph is not detail, it is noise, and it is what made the
+ * first metal close-up sparkle like static. A three-level pyramid plus a
+ * footprint-driven level choice costs a few milliseconds and removes it.
+ */
+interface TilePyramid {
+  readonly levels: readonly { size: number; albedo: Uint8Array; normal: Uint8Array; arm: Uint8Array }[];
+}
+
+function halve(data: Uint8Array, size: number): Uint8Array {
+  const half = size >> 1;
+  const out = new Uint8Array(half * half * 3);
+  for (let y = 0; y < half; y++) {
+    for (let x = 0; x < half; x++) {
+      const o = (y * half + x) * 3;
+      for (let c = 0; c < 3; c++) {
+        const a = data[((y * 2) * size + x * 2) * 3 + c]!;
+        const b = data[((y * 2) * size + x * 2 + 1) * 3 + c]!;
+        const d = data[((y * 2 + 1) * size + x * 2) * 3 + c]!;
+        const e = data[((y * 2 + 1) * size + x * 2 + 1) * 3 + c]!;
+        out[o + c] = (a + b + d + e + 2) >> 2;
+      }
+    }
+  }
+  return out;
+}
+
+function buildPyramid(tile: DetailTile, levels = 3): TilePyramid {
+  const out: { size: number; albedo: Uint8Array; normal: Uint8Array; arm: Uint8Array }[] = [
+    { size: tile.size, albedo: tile.albedo, normal: tile.normal, arm: tile.arm },
+  ];
+  for (let i = 1; i < levels; i++) {
+    const previous = out[i - 1]!;
+    if (previous.size <= 16) break;
+    out.push({
+      size: previous.size >> 1,
+      albedo: halve(previous.albedo, previous.size),
+      normal: halve(previous.normal, previous.size),
+      arm: halve(previous.arm, previous.size),
+    });
+  }
+  return { levels: out };
 }
 
 /**
@@ -703,6 +778,7 @@ export function bakeCharacterAtlas(
   let glowing = false;
 
   const tiles = options.tiles;
+  const pyramids = new Map<string, TilePyramid>();
   const detailSample = new Float32Array(3);
   const armSample = new Float32Array(3);
   const normalSample = new Float32Array(3);
@@ -727,8 +803,21 @@ export function bakeCharacterAtlas(
     // Detail coordinates in TILES-PER-METRE, so a pattern keeps its physical
     // size whether it lands on the body rectangle or the much denser
     // extremity one.
-    const du = raster.local[texel * 2]! * spanU * metresPerUv * detail.tiles;
-    const dv = raster.local[texel * 2 + 1]! * spanV * metresPerUv * detail.tiles;
+    // Frequency is capped per region so no pattern cycle lands under five
+    // texels. `tiles` is authored as an intent ("about this many repeats per
+    // metre"); the atlas decides what it can actually carry.
+    const texelsPerMetre = size / Math.max(metresPerUv, 1e-4);
+    const cycles = PATTERN_CYCLES[detail.pattern];
+    const tilesPerMetre = Math.min(
+      detail.tiles,
+      texelsPerMetre / (MIN_TEXELS_PER_CYCLE * Math.max(cycles, 1))
+    );
+    const du = raster.local[texel * 2]! * spanU * metresPerUv * tilesPerMetre;
+    const dv = raster.local[texel * 2 + 1]! * spanV * metresPerUv * tilesPerMetre;
+    // The photographic detail keeps its own (uncapped) rate but picks a mip.
+    const photoTiles = detail.tiles;
+    const pu = raster.local[texel * 2]! * spanU * metresPerUv * photoTiles;
+    const pv = raster.local[texel * 2 + 1]! * spanV * metresPerUv * photoTiles;
 
     const o3 = texel * 3;
     let r = raster.color[o3]!;
@@ -757,7 +846,19 @@ export function bakeCharacterAtlas(
     let occlusion = ao[texel]!;
 
     if (tile !== undefined) {
-      sampleTile(tile.albedo, tile.size, du, dv, detailSample);
+      let pyramid = pyramids.get(tile.id);
+      if (pyramid === undefined) {
+        pyramid = buildPyramid(tile);
+        pyramids.set(tile.id, pyramid);
+      }
+      // Source texels per destination texel, then the matching pyramid level.
+      const footprint = (tile.size * photoTiles) / Math.max(texelsPerMetre, 1);
+      const level = Math.min(
+        pyramid.levels.length - 1,
+        Math.max(0, Math.round(Math.log2(Math.max(footprint, 1))))
+      );
+      const mip = pyramid.levels[level]!;
+      sampleTile(mip.albedo, mip.size, pu, pv, detailSample);
       const luma =
         0.2126 * srgbToLinear(detailSample[0]!) +
         0.7152 * srgbToLinear(detailSample[1]!) +
@@ -767,7 +868,7 @@ export function bakeCharacterAtlas(
       g *= modulation;
       b *= modulation;
 
-      sampleTile(tile.arm, tile.size, du, dv, armSample);
+      sampleTile(mip.arm, mip.size, pu, pv, armSample);
       occlusion *= lerp(1, armSample[0]!, 0.7);
       rough = clamp01(
         lerp(rough, rough * (armSample[1]! / Math.max(tile.meanRough, 1e-3)), detail.roughnessStrength)
@@ -777,7 +878,7 @@ export function bakeCharacterAtlas(
       metal = clamp01(metal * lerp(1, 0.5 + armSample[2]! * 0.5, 0.35));
 
       if (detail.normalStrength > 0) {
-        sampleTile(tile.normal, tile.size, du, dv, normalSample);
+        sampleTile(mip.normal, mip.size, pu, pv, normalSample);
         detailNormal[o3] = (normalSample[0]! * 2 - 1) * detail.normalStrength;
         detailNormal[o3 + 1] = (normalSample[1]! * 2 - 1) * detail.normalStrength;
         detailNormal[o3 + 2] = normalSample[2]! * 2 - 1;

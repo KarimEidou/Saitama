@@ -182,7 +182,10 @@ void main() {
     vec3 shade = uAmbientColor + uSunColor * (ndl * 0.72 + 0.28);
     shade *= mix(1.0, tex.g, 0.45);
     float rim = tex.b * pow(1.0 - nz, 1.6) * clamp(0.7 - dot(n, -uSunView) * 0.5, 0.0, 1.2);
-    rgb = mix(rgb, rgb * shade + uSunColor * rim * 0.45, vExtra.z);
+    /* The rim is deliberately weak. Pushed harder it draws a bright ring around
+       every quad and a plume stops being a mass of dust and becomes a pile of
+       visibly separate bubbles. */
+    rgb = mix(rgb, rgb * shade + uSunColor * rim * 0.20, vExtra.z);
   }
 #endif
 

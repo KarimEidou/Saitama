@@ -1,0 +1,667 @@
+{
+  "meta": {
+    "questCatalogue": [
+      {
+        "id": "quest.duty.quota",
+        "title": "C-Class Duty Quota",
+        "threatTier": "wolf",
+        "requiredClass": null,
+        "rewardPoints": 45,
+        "timeLimitSeconds": 10080,
+        "objectives": [
+          "defeat:3"
+        ],
+        "isBoss": false,
+        "errand": false,
+        "conflictsWith": []
+      },
+      {
+        "id": "quest.subjugation.crablante",
+        "title": "Subjugation Request: Crablante",
+        "threatTier": "tiger",
+        "requiredClass": null,
+        "rewardPoints": 60,
+        "timeLimitSeconds": null,
+        "objectives": [
+          "defeat:1"
+        ],
+        "isBoss": false,
+        "errand": false,
+        "conflictsWith": []
+      },
+      {
+        "id": "quest.rescue.tunnel",
+        "title": "Civilian Rescue: Route 7 Tunnel Collapse",
+        "threatTier": "wolf",
+        "requiredClass": null,
+        "rewardPoints": 90,
+        "timeLimitSeconds": 150,
+        "objectives": [
+          "reach:1",
+          "rescue:9"
+        ],
+        "isBoss": false,
+        "errand": false,
+        "conflictsWith": []
+      },
+      {
+        "id": "quest.errand.bargain",
+        "title": "Bargain Sale — Shopping District J",
+        "threatTier": "wolf",
+        "requiredClass": null,
+        "rewardPoints": 0,
+        "timeLimitSeconds": 660,
+        "objectives": [
+          "reach:1",
+          "talk:4"
+        ],
+        "isBoss": false,
+        "errand": true,
+        "conflictsWith": [
+          "quest.subjugation.mosquito"
+        ]
+      },
+      {
+        "id": "quest.escort.mumen",
+        "title": "Assist Request: Mumen Rider",
+        "threatTier": "tiger",
+        "requiredClass": "C",
+        "rewardPoints": 110,
+        "timeLimitSeconds": 300,
+        "objectives": [
+          "protect:1",
+          "reach:1"
+        ],
+        "isBoss": false,
+        "errand": false,
+        "conflictsWith": []
+      },
+      {
+        "id": "quest.subjugation.mosquito",
+        "title": "Subjugation Request: Mosquito Girl",
+        "threatTier": "demon",
+        "requiredClass": null,
+        "rewardPoints": 240,
+        "timeLimitSeconds": null,
+        "objectives": [
+          "defeatTier:40",
+          "defeat:1"
+        ],
+        "isBoss": false,
+        "errand": false,
+        "conflictsWith": [
+          "quest.errand.bargain"
+        ]
+      },
+      {
+        "id": "quest.assist.genos",
+        "title": "Joint Operation: Demon Cyborg",
+        "threatTier": "demon",
+        "requiredClass": null,
+        "rewardPoints": 200,
+        "timeLimitSeconds": null,
+        "objectives": [
+          "talk:1",
+          "defeatTier:6"
+        ],
+        "isBoss": false,
+        "errand": false,
+        "conflictsWith": []
+      },
+      {
+        "id": "quest.boss.deepsea",
+        "title": "Emergency: The Deep Sea King",
+        "threatTier": "dragon",
+        "requiredClass": "B",
+        "rewardPoints": 900,
+        "timeLimitSeconds": null,
+        "objectives": [
+          "reach:1",
+          "survive:45",
+          "defeat:1"
+        ],
+        "isBoss": true,
+        "errand": false,
+        "conflictsWith": []
+      },
+      {
+        "id": "quest.boss.asteroid",
+        "title": "Absolute Emergency: Meteor over Z-City",
+        "threatTier": "god",
+        "requiredClass": "B",
+        "rewardPoints": 2200,
+        "timeLimitSeconds": 240,
+        "objectives": [
+          "reach:1",
+          "destroy:1"
+        ],
+        "isBoss": true,
+        "errand": false,
+        "conflictsWith": []
+      },
+      {
+        "id": "quest.subjugation.subterranean",
+        "title": "Subjugation Request: Subterranean King",
+        "threatTier": "dragon",
+        "requiredClass": "A",
+        "rewardPoints": 1400,
+        "timeLimitSeconds": null,
+        "objectives": [
+          "reach:1",
+          "defeatTier:25",
+          "defeat:1"
+        ],
+        "isBoss": true,
+        "errand": false,
+        "conflictsWith": []
+      }
+    ],
+    "shotTimes": [
+      {
+        "id": "midnight",
+        "t": 0,
+        "label": "00:00 midnight"
+      },
+      {
+        "id": "dawn",
+        "t": 0.198,
+        "label": "04:45 dawn"
+      },
+      {
+        "id": "morning",
+        "t": 0.3333,
+        "label": "08:00 morning"
+      },
+      {
+        "id": "noon",
+        "t": 0.5,
+        "label": "12:00 noon"
+      },
+      {
+        "id": "dusk",
+        "t": 0.75,
+        "label": "18:00 golden hour"
+      },
+      {
+        "id": "night",
+        "t": 0.8229,
+        "label": "19:45 nightfall"
+      }
+    ],
+    "canvas": {
+      "width": 600,
+      "height": 540
+    }
+  },
+  "setup": {
+    "ready": true,
+    "assetsLoaded": true,
+    "iblMode": "pmrem",
+    "skiesLoaded": [
+      "dawn",
+      "day",
+      "dusk",
+      "night"
+    ],
+    "skiesMissing": [],
+    "normalisation": [
+      {
+        "sky": "dawn",
+        "meanLuminance": 1.0980531162976837,
+        "maxLuminance": 8.44295,
+        "scale": 0.9107027566860424,
+        "measured": true,
+        "hasBakedSH": true
+      },
+      {
+        "sky": "day",
+        "meanLuminance": 0.73268945997054,
+        "maxLuminance": 136998.2976,
+        "scale": 1.3648347009662292,
+        "measured": true,
+        "hasBakedSH": true
+      },
+      {
+        "sky": "dusk",
+        "meanLuminance": 0.9044060619958861,
+        "maxLuminance": 4.035887499999999,
+        "scale": 1.1056980288181093,
+        "measured": true,
+        "hasBakedSH": true
+      },
+      {
+        "sky": "night",
+        "meanLuminance": 0.712214196645703,
+        "maxLuminance": 554.8063999999999,
+        "scale": 1.4040719838353048,
+        "measured": true,
+        "hasBakedSH": true
+      }
+    ],
+    "radianceRebuilds": 2,
+    "radianceResolution": 384,
+    "environmentGpuBytes": 2621440,
+    "litMaterials": 2,
+    "drawCalls": 141,
+    "triangles": 12566,
+    "programs": 8,
+    "sky": {
+      "timeOfDay": 0.5,
+      "phase": "noon",
+      "dayCount": 0,
+      "blendFrom": "day",
+      "blendTo": "day",
+      "blendAlpha": 1,
+      "skyLuminance": 1,
+      "exposure": 1,
+      "netLuminance": 1,
+      "sunElevationDegrees": 77.27561966408517,
+      "sunAzimuthDegrees": 198.49445599789829,
+      "sunIntensity": 3.075102901324336,
+      "moonIntensity": 0,
+      "moonIsKeyLight": false,
+      "nightFactor": 0,
+      "windowLitFraction": 0,
+      "streetLightsOn": false,
+      "shadowRadius": 200,
+      "fogDensity": 0.0014,
+      "fogColor": "#eaf0ff",
+      "ambientColor": "#faf9ff",
+      "groundColor": "#b3aba4",
+      "sunColor": "#fff4e2",
+      "hasMeasuredEnvironment": true
+    },
+    "progression": {
+      "rank": "C-Class Rank 388",
+      "heroClass": "C",
+      "rankNumber": 388,
+      "points": 20,
+      "reputation": 50,
+      "boredom": 0,
+      "rankGainMultiplier": 1,
+      "funFightsAvailable": true,
+      "killsTotal": 0,
+      "civiliansSaved": 0,
+      "civiliansLost": 0,
+      "propertyDamage": 0,
+      "witnesses": 20,
+      "genosRank": "S-Class Rank 17",
+      "genosSeatsAbove": 527,
+      "questCounts": {
+        "locked": 5,
+        "available": 5,
+        "active": 0,
+        "completed": 0,
+        "failed": 0
+      }
+    },
+    "problems": []
+  },
+  "exposureMismatch": {
+    "meanSpread": 1.5417456173566273,
+    "peakSpread": 33945.023888797696,
+    "means": [
+      1.0980531162976837,
+      0.73268945997054,
+      0.9044060619958861,
+      0.712214196645703
+    ],
+    "peaks": [
+      8.44295,
+      136998.2976,
+      4.035887499999999,
+      554.8063999999999
+    ]
+  },
+  "shots": [
+    {
+      "id": "midnight",
+      "label": "00:00 midnight",
+      "file": "docs/screenshots/progression-sky-midnight.png",
+      "sky": {
+        "timeOfDay": 0,
+        "phase": "midnight",
+        "dayCount": 0,
+        "blendFrom": "night",
+        "blendTo": "night",
+        "blendAlpha": 1,
+        "skyLuminance": 0.013999999999999995,
+        "exposure": 1.9797917687909907,
+        "netLuminance": 0.02771708476307386,
+        "sunElevationDegrees": -30.803323371758857,
+        "sunAzimuthDegrees": 4.665883564596697,
+        "sunIntensity": 0.08443782527005433,
+        "moonIntensity": 0.9933861796476979,
+        "moonIsKeyLight": true,
+        "nightFactor": 1,
+        "windowLitFraction": 0.35625000000000007,
+        "streetLightsOn": true,
+        "shadowRadius": 60,
+        "fogDensity": 0.0032,
+        "fogColor": "#6a7e97",
+        "ambientColor": "#bfcaff",
+        "groundColor": "#9597b3",
+        "sunColor": "#a8c4ff",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 11.769111388888888,
+        "stdDev": 16.33925527302539,
+        "colours": 236,
+        "meanR": 9.644503086419753,
+        "meanG": 12.020780864197532,
+        "meanB": 15.532237654320987,
+        "coolness": 0.23385610665536874,
+        "brightFraction": 0.00029012345679012345
+      }
+    },
+    {
+      "id": "dawn",
+      "label": "04:45 dawn",
+      "file": "docs/screenshots/progression-sky-dawn.png",
+      "sky": {
+        "timeOfDay": 0.198,
+        "phase": "dawn",
+        "dayCount": 0,
+        "blendFrom": "dawn",
+        "blendTo": "dawn",
+        "blendAlpha": 1,
+        "skyLuminance": 0.18037511092141606,
+        "exposure": 1.3152603929907256,
+        "netLuminance": 0.2372402392762474,
+        "sunElevationDegrees": 2.680852292177602,
+        "sunAzimuthDegrees": 62.840120424365125,
+        "sunIntensity": 1.1425375240282594,
+        "moonIntensity": 0,
+        "moonIsKeyLight": false,
+        "nightFactor": 0.036902704086340554,
+        "windowLitFraction": 0.011070811225902167,
+        "streetLightsOn": false,
+        "shadowRadius": 194.83362142791233,
+        "fogDensity": 0.001466424867355413,
+        "fogColor": "#ab827a",
+        "ambientColor": "#a5bcff",
+        "groundColor": "#808db3",
+        "sunColor": "#ff9045",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 54.818132348148154,
+        "stdDev": 36.77282241044125,
+        "colours": 610,
+        "meanR": 50.40800925925926,
+        "meanG": 54.944101851851855,
+        "meanB": 66.55634259259259,
+        "coolness": 0.1380620084467014,
+        "brightFraction": 0.0024228395061728393
+      }
+    },
+    {
+      "id": "morning",
+      "label": "08:00 morning",
+      "file": "docs/screenshots/progression-sky-morning.png",
+      "sky": {
+        "timeOfDay": 0.3333,
+        "phase": "morning",
+        "dayCount": 0,
+        "blendFrom": "day",
+        "blendTo": "day",
+        "blendAlpha": 1,
+        "skyLuminance": 0.7752927237181687,
+        "exposure": 1.041562863033682,
+        "netLuminance": 0.8075161090050772,
+        "sunElevationDegrees": 40.740067932173936,
+        "sunAzimuthDegrees": 88.31907801470498,
+        "sunIntensity": 2.7128262284206905,
+        "moonIntensity": 0,
+        "moonIsKeyLight": false,
+        "nightFactor": 0,
+        "windowLitFraction": 0,
+        "streetLightsOn": false,
+        "shadowRadius": 200,
+        "fogDensity": 0.0014,
+        "fogColor": "#d9dfec",
+        "ambientColor": "#faf9ff",
+        "groundColor": "#b3aba4",
+        "sunColor": "#fff4e2",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 160.3203178697531,
+        "stdDev": 54.87461120181114,
+        "colours": 385,
+        "meanR": 151.03683024691358,
+        "meanG": 161.47551234567902,
+        "meanB": 176.21331481481482,
+        "coolness": 0.07693345579160021,
+        "brightFraction": 0.2812654320987654
+      }
+    },
+    {
+      "id": "noon",
+      "label": "12:00 noon",
+      "file": "docs/screenshots/progression-sky-noon.png",
+      "sky": {
+        "timeOfDay": 0.5,
+        "phase": "noon",
+        "dayCount": 0,
+        "blendFrom": "day",
+        "blendTo": "day",
+        "blendAlpha": 1,
+        "skyLuminance": 1,
+        "exposure": 1,
+        "netLuminance": 1,
+        "sunElevationDegrees": 77.27561966408517,
+        "sunAzimuthDegrees": 198.49445599789829,
+        "sunIntensity": 3.075102901324336,
+        "moonIntensity": 0,
+        "moonIsKeyLight": false,
+        "nightFactor": 0,
+        "windowLitFraction": 0,
+        "streetLightsOn": false,
+        "shadowRadius": 200,
+        "fogDensity": 0.0014,
+        "fogColor": "#eaf0ff",
+        "ambientColor": "#faf9ff",
+        "groundColor": "#b3aba4",
+        "sunColor": "#fff4e2",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 172.99374293950618,
+        "stdDev": 51.79057108920412,
+        "colours": 397,
+        "meanR": 163.61962345679012,
+        "meanG": 174.18432098765433,
+        "meanB": 188.80311111111112,
+        "coolness": 0.0714581812810629,
+        "brightFraction": 0.35158333333333336
+      }
+    },
+    {
+      "id": "dusk",
+      "label": "18:00 golden hour",
+      "file": "docs/screenshots/progression-sky-dusk.png",
+      "sky": {
+        "timeOfDay": 0.75,
+        "phase": "dusk",
+        "dayCount": 0,
+        "blendFrom": "dusk",
+        "blendTo": "dusk",
+        "blendAlpha": 1,
+        "skyLuminance": 0.23911071893334646,
+        "exposure": 1.2572572618465943,
+        "netLuminance": 0.30062368776430975,
+        "sunElevationDegrees": 10.070684862766052,
+        "sunAzimuthDegrees": 291.71388946445654,
+        "sunIntensity": 1.927604930472412,
+        "moonIntensity": 0,
+        "moonIsKeyLight": false,
+        "nightFactor": 0,
+        "windowLitFraction": 0,
+        "streetLightsOn": false,
+        "shadowRadius": 200,
+        "fogDensity": 0.0014,
+        "fogColor": "#9d8a95",
+        "ambientColor": "#83aaff",
+        "groundColor": "#657fb3",
+        "sunColor": "#ffb288",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 70.02499759259258,
+        "stdDev": 38.70314371112651,
+        "colours": 468,
+        "meanR": 63.0821512345679,
+        "meanG": 70.36902160493827,
+        "meanB": 87.0610524691358,
+        "coolness": 0.1597068707944214,
+        "brightFraction": 0.002441358024691358
+      }
+    },
+    {
+      "id": "night",
+      "label": "19:45 nightfall",
+      "file": "docs/screenshots/progression-sky-night.png",
+      "sky": {
+        "timeOfDay": 0.8229,
+        "phase": "night",
+        "dayCount": 0,
+        "blendFrom": "dusk",
+        "blendTo": "night",
+        "blendAlpha": 0.9969200658000004,
+        "skyLuminance": 0.023600634587685965,
+        "exposure": 1.821093360938737,
+        "netLuminance": 0.04297895896157604,
+        "sunElevationDegrees": -8.520928198837497,
+        "sunAzimuthDegrees": 307.02677608724315,
+        "sunIntensity": 0.08443782527005433,
+        "moonIntensity": 0.9933861796476979,
+        "moonIsKeyLight": true,
+        "nightFactor": 1,
+        "windowLitFraction": 0.6462572587500001,
+        "streetLightsOn": true,
+        "shadowRadius": 60,
+        "fogDensity": 0.0032,
+        "fogColor": "#6b7f98",
+        "ambientColor": "#becaff",
+        "groundColor": "#9497b3",
+        "sunColor": "#a8c4ff",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 15.325917274074072,
+        "stdDev": 18.726276944185948,
+        "colours": 258,
+        "meanR": 12.704175925925925,
+        "meanG": 15.65800925925926,
+        "meanB": 19.75625,
+        "coolness": 0.21725143379716505,
+        "brightFraction": 0.0004660493827160494
+      }
+    }
+  ],
+  "midnightNoonLumaRatio": 0.06803200618073454,
+  "closestPair": {
+    "a": "midnight",
+    "b": "night",
+    "delta": 4.553086256677406
+  },
+  "sunTravel": {
+    "azimuthSpread": 302.36089252264645,
+    "elevations": [
+      -30.803323371758857,
+      2.680852292177602,
+      40.740067932173936,
+      77.27561966408517,
+      10.070684862766052,
+      -8.520928198837497
+    ]
+  },
+  "scenarios": [
+    {
+      "name": "unwitnessedKills",
+      "detail": {
+        "kills": 200,
+        "pointsBefore": 20,
+        "pointsAfter": 20,
+        "pointsGained": 0,
+        "rank": "C-Class Rank 388"
+      }
+    },
+    {
+      "name": "witnessedRescues",
+      "detail": {
+        "rescues": 20,
+        "witnesses": 14,
+        "pointsGained": 240,
+        "rank": "C-Class Rank 364"
+      }
+    },
+    {
+      "name": "unwitnessedCollateral",
+      "detail": {
+        "peakPoints": 500,
+        "peakRank": "C-Class Rank 340",
+        "collateralGross": 900000,
+        "collateralReported": 495000,
+        "reportRate": 0.55,
+        "pointsAfter": 0,
+        "rankAfter": "C-Class Rank 390"
+      }
+    },
+    {
+      "name": "genosIrony",
+      "detail": {
+        "jointIncidents": 10,
+        "playerCredit": 1000,
+        "genosCredit": 2400,
+        "ratio": 2.4,
+        "playerRank": "C-Class Rank 288",
+        "genosRank": "S-Class Rank 15",
+        "startGap": 527,
+        "endGap": 429
+      }
+    },
+    {
+      "name": "boredomThrottle",
+      "detail": {
+        "freshGain": 1000,
+        "jadedGain": 150,
+        "ratio": 0.15,
+        "expectedFloor": 0.15,
+        "funFightsAtMaxBoredom": false,
+        "funFightLock": 0.72
+      }
+    },
+    {
+      "name": "questConflict",
+      "detail": {
+        "crablante": "completed",
+        "mosquito": "completed",
+        "bargainSale": "failed",
+        "boredomAfterMissingTheSale": 0.12
+      }
+    },
+    {
+      "name": "evacuationTimer",
+      "detail": {
+        "atTwentySeconds": "active",
+        "afterExpiry": "failed",
+        "boredom": 0.04
+      }
+    }
+  ],
+  "saveRoundTrip": {
+    "backend": "localStorage",
+    "exact": true,
+    "bytes": 2010,
+    "mismatches": [],
+    "rank": "C-Class Rank 372",
+    "boredom": 0,
+    "questStates": 10
+  },
+  "consoleErrors": [],
+  "failures": [],
+  "passed": true
+}

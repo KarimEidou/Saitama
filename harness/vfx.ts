@@ -66,7 +66,7 @@ export type VFXScenario =
   | 'impactFlash'
   | 'seriousPunch';
 
-export type CameraPreset = 'street' | 'hero' | 'wide' | 'sky' | 'ground';
+export type CameraPreset = 'street' | 'hero' | 'punch' | 'wide' | 'sky' | 'ground';
 
 interface IBudgetReport {
   /** Programs live with the VFX hidden. */
@@ -270,7 +270,7 @@ function main(): void {
   /* ----------------------------- materials ------------------------------ */
 
   setStatus('building materials');
-  const roadAlbedo = createNoiseAlbedo({ size: 256, color: 0x5c5a57, accent: 0x393836, seed: 5 });
+  const roadAlbedo = createNoiseAlbedo({ size: 256, color: 0x76736e, accent: 0x494744, seed: 5 });
   const roadNormal = createNoiseNormal(256, 2.2, 5);
   const roadOrm = createOrmTexture({ size: 256, roughness: 0.9, metalness: 0, seed: 5 });
 
@@ -447,7 +447,7 @@ function main(): void {
   // The multipliers put the dust in the same exposure bracket as the concrete
   // it is blowing off. Dust is translucent, so it takes a little under half the
   // scene's direct sun and a little over half its ambient.
-  vfx.setSun(lighting.sunDirection, lighting.sunColor.getHex(), 0x8ba7cc, 1.55, 0.6);
+  vfx.setSun(lighting.sunDirection, 0xfff2e2, 0x93aed0, 1.5, 0.62);
   vfx.setFog(lighting.fogColor.getHex(), lighting.fogDensity);
   vfx.setViewport(window.innerWidth, window.innerHeight);
   scene.add(vfx.root);
@@ -489,9 +489,16 @@ function main(): void {
       },
       // Close, low and three-quarter. The shot the freeze holds on.
       hero: {
-        eye: new THREE.Vector3(31, 6.5, 60),
-        target: new THREE.Vector3(-8, 10, -80),
+        eye: new THREE.Vector3(34, 7.5, 52),
+        target: new THREE.Vector3(-8, 11, -78),
         fov: 56,
+      },
+      // Elevated three-quarter, ~75 m out. Far enough that a 130-metre wave
+      // fits, close enough that the buildings still tower.
+      punch: {
+        eye: new THREE.Vector3(62, 26, 72),
+        target: new THREE.Vector3(-8, 15, -86),
+        fov: 52,
       },
       // High and back, so a 180-metre cone fits the frame with the city.
       wide: {
