@@ -28,14 +28,15 @@ zero audio files — every sound is synthesised at runtime by the Web Audio API.
 The systems are built and individually verified. **They are not yet assembled
 into a playable game.**
 
-|                                                               | State                                                                                                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Engine, physics, world, characters, combat, VFX, audio, input | implemented, each with its own harness under [`harness/`](harness/)                                                                |
-| `src/main.ts`                                                 | still the scaffold's **temporary bootstrap** — a spinning-primitive scene that proves the toolchain, wiring up none of the systems |
-| `npm run dev`                                                 | serves that bootstrap scene, not the game                                                                                          |
-| `npm run assets`                                              | **currently fails** — see [Known issues](#known-issues)                                                                            |
-| Android APK                                                   | builds; a 118 MB debug APK has been produced from this tree                                                                        |
-| Frame rate                                                    | **never measured on real hardware** — see [Performance](#performance-what-is-measured-and-what-is-not)                             |
+|                                                               | State                                                                                                    |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Engine, physics, world, characters, combat, VFX, audio, input | implemented, each with its own harness under [`harness/`](harness/)                                      |
+| `src/main.ts`                                                 | the real entry point — hands off to `src/game/`, the composition root that wires every system            |
+| `npm run dev`                                                 | serves the game; boots to City Z in ~4.8 s                                                               |
+| `npm run assets`                                              | works — fetches 1.65 GB and encodes it; a warm re-run is a ~0.6 s no-op                                  |
+| Android APK                                                   | builds; a 118 MB debug APK has been produced from this tree                                              |
+| iOS                                                           | runs in Safari today via Add to Home Screen; the Xcode project generates here but needs macOS to compile |
+| Frame rate                                                    | **never measured on real hardware** — see [Performance](#performance-what-is-measured-and-what-is-not)   |
 
 To see a system working today, run its harness rather than the game: `npx vite`
 and open `/harness/city.html` (or `combat`, `crowd`, `physics`, `renderer`,
@@ -85,124 +86,13 @@ Other scripts:
 
 ## Known issues
 
-**`npm run assets` does not work on a fresh clone.** `loadSourceManifests()`
-(`tools/lib/manifest.ts`) globs every `tools/manifest/*.json` and validates each
-one against the _third-party source-entry_ schema. `tools/manifest/characters.json`
-is a character manifest with a deliberately different shape, so the load aborts
-with 46 validation errors:
-
-```
-$ npx tsx tools/fetch-assets.ts --dry-run
-  ✗ manifest validation failed with 46 problem(s):
-  - chr.saitama: providerAssetId is required
-  - chr.saitama: tags must be an array
-  …
-```
-
-Consequences:
-
-- `assets:fetch` exits 1 and downloads nothing.
-- `assets:process` still builds textures and environments — those read the
-  already-resolved `assets/source/manifest.resolved.json` — but the **model
-  stage fails**, because `tools/process-models.ts` calls the same loader.
-
-The fix is one of: teach the loader to skip non-source manifests, restrict it to
-`MANIFEST_FILES` (which already exists in that file and lists exactly the three
-source manifests), or move `characters.json` out of `tools/manifest/`. This is
-in another workstream's files, so it is reported here rather than patched.
-
-Also worth knowing:
-
-- `ffmpeg-static` is a declared devDependency that no code references. It is
-  GPL-3.0-or-later, which is the one licence family this project's asset policy
-  rules out; it is build-only and never distributed, so nothing is currently
-  wrong, but the clean answer is to drop the dependency.
-- `@fontsource/inter` and `@fontsource/bebas-neue` are declared and referenced by
-  family name in CSS, but no module imports their stylesheets, so no font binary
-  reaches the bundle and the UI falls back to `system-ui`.
-- `src/assets/` and `src/ui/hud/` are empty placeholders.
-
----
-
-## Architecture
-
-### The one rule
-
-> **Systems import only from `src/types/` and `src/util/`. A system never
-> imports another system's implementation. All cross-system communication goes
-> over the event bus.**
-
-`src/types/` is type-only and erases completely at build time; `src/util/` is
-dependency-free runtime code (event bus, RNG, math, logging). Concretely: the
-destruction system does not import the quest system to tell it a building fell —
-it emits `ChunkDetached`, and the quest system subscribes.
-
-This is what let seventeen workstreams be built in parallel without colliding,
-and it is what keeps any single system removable. Event payloads carry ids and
-plain data, never live entity references, so the bus can be recorded and
-replayed for deterministic tests.
-
-### The wave structure
-
-The codebase was built by parallel workstreams organised into waves, where a
-wave may only depend on contracts that an earlier wave has already frozen:
-
-1. **Contracts.** `src/types/` — every interface, every event, every payload,
-   written and agreed before any implementation existed. Nothing in here has a
-   runtime footprint, so committing to it early cost nothing and bought
-   everything.
-2. **Foundations.** The asset pipeline, renderer, physics wrapper, spatial
-   index, input, and the character mesh generator — each against the contracts
-   only, none aware of the others.
-3. **Systems.** City generation, world streaming, day/night, animation, audio
-   synthesis, VFX, crowd, combat, progression — built on the foundations,
-   talking to each other exclusively through the bus.
-4. **Integration and evidence.** Per-system harnesses, headless verification,
-   APK packaging, licensing and documentation.
-
-Each workstream owns exactly one directory. Anything shared is promoted into
-`src/types/` first, which is why that barrel documents symbol ownership file by
-file: each name is defined in exactly one place and imported everywhere else.
-
-### Where each system lives
-
-| Directory                   | Owns                                                                             |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| `src/types/`                | every interface contract; type-only, no runtime cost                             |
-| `src/util/`                 | event bus, seeded RNG, math, logging — the only other legal import               |
-| `src/engine/`               | WebGL2 renderer, material library, shadows, IBL/SH9, post-processing, hit-stop   |
-| `src/engine/post/`          | tier-gated post chains (bloom in three shader programs)                          |
-| `src/world/city/`           | procedural City Z: districts, blocks, buildings, pre-fractured geometry          |
-| `src/world/streaming/`      | chunk streaming, LOD rings, worker pool, damage persistence, impostor ring       |
-| `src/world/sky/`            | day/night clock, HDRI blending, exposure normalisation                           |
-| `src/spatial/`              | quadtree, precomputed visibility, frustum culling, entity grid, ground BVH       |
-| `src/physics/`              | Rapier wrapper: character controller, ragdolls, debris pool, impulse propagation |
-| `src/characters/mesh/`      | procedural humanoid geometry and the 27-bone skeleton                            |
-| `src/characters/roster/`    | surfaces, faces, texture-atlas baking, the cast list                             |
-| `src/characters/anim/`      | locomotion, clip library, IK, VAT baking for crowds                              |
-| `src/entities/player/`      | locomotion feel and the third-person camera rig                                  |
-| `src/entities/npc/`         | civilians, panic propagation, the allies who can actually lose                   |
-| `src/entities/monster/`     | threat state machine and monster types                                           |
-| `src/gameplay/combat/`      | one-punch resolution, the serious-punch cone, encounter results                  |
-| `src/gameplay/progression/` | hero rank on witnessed saves and reported collateral                             |
-| `src/vfx/`                  | shockwaves, particles, ground decals, speedlines, camera shake                   |
-| `src/audio/`                | the entire soundtrack and every sound effect, synthesised at runtime             |
-| `src/ui/input/`             | touch, keyboard, gamepad and synthetic input behind one `InputState`             |
-| `tools/`                    | the asset pipeline and this project's own generators                             |
-| `harness/`                  | one page per system, plus the headless driver that captures its evidence         |
-
-### Asset pipeline
-
-Manifest → fetch → process → runtime, documented in
-[`docs/asset-pipeline.md`](docs/asset-pipeline.md). The short version: three
-committed manifests declare every third-party asset with a per-file md5; the
-fetcher downloads into a content-addressed store and writes a lockfile; the
-processor transcodes to KTX2/GLB in three quality tiers with a content-hash skip
-cache; the runtime loads one `assets.runtime.json` index.
-
----
-
-## Platforms
+**`npm run assets` used to fail on a fresh clone; it is fixed.**
+`loadSourceManifests()` (`tools/lib/manifest.ts`) globbed every
+`tools/manifest/*.json` and validated each against the _third-party
+source-entry_ schema. `characters.json` describes first-party generated
+characters and is deliberately a different shape, so the load aborted with 46
+validation errors and took the whole pipeline down with it. It now uses the
+`MANIFEST_FILES` list that already named exactly the three source manifests.
 
 **Web.** The primary target. `npm run build` produces `dist/`. WebGL2 is
 required. The Three.js chunk is 522 KB raw / 129 KB gzipped.
