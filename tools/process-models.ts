@@ -29,13 +29,24 @@
  * `join()` with its defaults merges primitives across sibling nodes and bakes
  * their transforms in. Run on one of these files it produces one giant mesh
  * containing every wall variant at its catalogue position: the kit is gone,
- * unrecoverably, and the "model" is a 50-metre-wide display shelf. So the
- * join here is deliberately narrower — primitives are merged only *within a
- * single mesh*, grouped by material. That still removes redundant draw calls
- * (193 → 147 primitives on the apartments facade) without touching the node
- * layer, and the kit survives. `large_iron_gate` benefits from the same rule
- * for a different reason: its four nodes are left door / right door / bolt /
- * frame, and welding those together would make the gate un-animatable.
+ * unrecoverably, and the "model" is a 50-metre-wide display shelf. Each of
+ * those 147 nodes has to stay addressable. `large_iron_gate` needs the same
+ * protection for a different reason — its four nodes are left door / right
+ * door / bolt / frame, and welding those together makes the gate
+ * un-animatable.
+ *
+ * So the join here is deliberately narrow: primitives merge only *within a
+ * single mesh*, grouped by material, and the node layer is never touched.
+ * Measured over the whole kit that is nearly a no-op — 654 primitives after
+ * dedup/weld/prune, of which exactly 7 are joinable, across `fire_hydrant`
+ * (4), `street_lamp_01`, `street_lamp_02` and `security_light` (1 each). The
+ * reason is structural, not a bug: Blender's glTF exporter already splits
+ * primitives by material, so two primitives in one mesh nearly always have
+ * two different materials. The seven that do merge only become mergeable
+ * *because* `dedup` collapsed two byte-identical materials first. The pass
+ * stays because it is correct, costs microseconds, and would matter for any
+ * future asset that is not a Blender export — but do not expect draw-call
+ * savings from it on this kit, and do not "fix" it by widening the scope.
  *
  * ── WHY THE ARM TEXTURE IS NOT BOUND TO `occlusionTexture` ─────────────────
  * Poly Haven ships an `*_arm_*.jpg` per model and the naming invites you to
@@ -91,11 +102,7 @@ import {
   type Texture,
   TextureChannel,
 } from '@gltf-transform/core';
-import {
-  ALL_EXTENSIONS,
-  KHRMaterialsUnlit,
-  KHRTextureBasisu,
-} from '@gltf-transform/extensions';
+import { ALL_EXTENSIONS, KHRMaterialsUnlit, KHRTextureBasisu } from '@gltf-transform/extensions';
 import {
   dedup,
   getBounds,
@@ -224,7 +231,7 @@ export interface IModelAssetOutput {
  * input. It is folded into the content-addressed output key, so bumping it
  * invalidates every cached build — which is the point.
  */
-const TOOL_VERSION = 'process-models@4';
+const TOOL_VERSION = 'process-models@6';
 
 /** Where built models land. Served by Vite from `/assets/mdl/…`. */
 const OUTPUT_DIR = path.join(REPO_ROOT, 'public', 'assets', 'mdl');
@@ -326,7 +333,10 @@ const TIER_POLICY: Readonly<Record<QualityTier, ITierPolicy>> = {
 };
 
 /** The tier's policy with any per-run overrides applied. */
-function policyFor(tier: QualityTier, overrides: Pick<ProcessOptions, 'unlitFurthestLod'>): ITierPolicy {
+function policyFor(
+  tier: QualityTier,
+  overrides: Pick<ProcessOptions, 'unlitFurthestLod'>
+): ITierPolicy {
   const base = TIER_POLICY[tier];
   return overrides.unlitFurthestLod === undefined
     ? base
@@ -348,7 +358,12 @@ const { R, G, A } = TextureChannel;
 
 function toArray(value: string | readonly string[] | undefined): readonly string[] {
   if (value === undefined) return [];
-  return typeof value === 'string' ? value.split(',').map((s) => s.trim()).filter(Boolean) : value;
+  return typeof value === 'string'
+    ? value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : value;
 }
 
 /** `fire_*` → /^fire_.*$/. Anything without a `*` is matched as a substring. */
@@ -404,6 +419,36 @@ function meshAccessorBytes(mesh: Mesh, seen: Set<unknown>): number {
   return bytes;
 }
 
+/**
+ * Per-level vertex + index bytes, measured after quantisation.
+ *
+ * All three levels share one `.glb`, so "the size of LOD1" is not a file size
+ * and pretending otherwise would be a made-up number. What IS measurable, and
+ * what a streaming system actually needs, is how much GPU memory each level
+ * costs once resident: the byte length of its quantised attribute and index
+ * accessors. Meshes shared between levels (a part too small to decimate) are
+ * counted once, at the first level that introduces them — matching the fact
+ * that switching to that level uploads nothing new.
+ *
+ * Run AFTER `meshopt()` so the numbers are post-quantisation. The
+ * EXT_meshopt_compression byte lengths only exist during serialisation, so
+ * these are decoded sizes — which is the right unit for a VRAM budget anyway.
+ */
+function measureLodBytes(doc: Document, levels: number): number[] {
+  const bytes = new Array<number>(levels).fill(0);
+  const seen = new Set<unknown>();
+  for (const node of doc.getRoot().listNodes()) {
+    const extras = node.getExtras() as { lod?: unknown } | undefined;
+    if (!extras?.lod) continue;
+    node.listChildren().forEach((child, level) => {
+      const mesh = child.getMesh();
+      if (!mesh || level >= levels) return;
+      bytes[level] += meshAccessorBytes(mesh, seen);
+    });
+  }
+  return bytes;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Stage 1 — cleanup and within-mesh join                                     */
 /* -------------------------------------------------------------------------- */
@@ -425,7 +470,10 @@ function joinWithinMeshes(doc: Document): number {
       // Primitives can only be joined when material, draw mode, indexing and
       // the exact attribute set all agree; anything else corrupts the result.
       const key = [
-        doc.getRoot().listMaterials().indexOf(prim.getMaterial() as Material),
+        doc
+          .getRoot()
+          .listMaterials()
+          .indexOf(prim.getMaterial() as Material),
         prim.getMode(),
         prim.getIndices() ? 'i' : 'n',
         prim.listSemantics().slice().sort().join(','),
@@ -464,14 +512,14 @@ function joinWithinMeshes(doc: Document): number {
 interface ILevelInfo {
   readonly level: number;
   readonly triangles: number;
-  readonly bytes: number;
   /** True when this level reuses the previous level's mesh (costs 0 bytes). */
   readonly shared: boolean;
 }
 
 interface ILodSummary {
   readonly parts: readonly string[];
-  readonly levels: readonly { triangles: number; bytes: number; shared: number }[];
+  /** Per level: total triangles, and how many parts reused the level above. */
+  readonly levels: readonly { triangles: number; shared: number }[];
 }
 
 /**
@@ -492,10 +540,20 @@ interface ILodSummary {
 function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
   const parts: string[] = [];
   const levelTris = LOD_RATIOS.map(() => 0);
-  const levelBytes = LOD_RATIOS.map(() => 0);
   const levelShared = LOD_RATIOS.map(() => 0);
-  const seenAccessors = new Set<unknown>();
   const unlitMaterials = new Map<Material, Material>();
+  /**
+   * Source mesh → its LOD ladder, so geometry reused by several nodes is
+   * decimated once.
+   *
+   * `dedup` collapses byte-identical meshes, and these kits are full of them:
+   * `modular_electricity_poles` drops from 103 meshes to 44, because the same
+   * bolt and insulator appear at 59 different positions. Without this cache
+   * each of those nodes would get its own private copy of LOD1 and LOD2 —
+   * geometry that is bitwise identical to a copy already in the file, paid
+   * for 59 times.
+   */
+  const ladders = new Map<Mesh, { meshes: Mesh[]; infos: ILevelInfo[] }>();
 
   // Snapshot first: the loop adds nodes, and listNodes() is live.
   const sourceNodes = doc
@@ -508,62 +566,55 @@ function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
     const name = node.getName() || baseMesh.getName() || 'part';
     parts.push(name);
 
-    const meshes: Mesh[] = [baseMesh];
-    const infos: ILevelInfo[] = [
-      {
-        level: 0,
-        triangles: triangleCount(baseMesh),
-        bytes: meshAccessorBytes(baseMesh, seenAccessors),
-        shared: false,
-      },
-    ];
+    let ladder = ladders.get(baseMesh);
+    if (!ladder) {
+      const meshes: Mesh[] = [baseMesh];
+      const infos: ILevelInfo[] = [{ level: 0, triangles: triangleCount(baseMesh), shared: false }];
 
-    for (let level = 1; level < LOD_RATIOS.length; level++) {
-      const previous = meshes[level - 1];
-      const previousTris = infos[level - 1].triangles;
-      const target = Math.round(infos[0].triangles * LOD_RATIOS[level]);
+      for (let level = 1; level < LOD_RATIOS.length; level++) {
+        const previous = meshes[level - 1];
+        const previousTris = infos[level - 1].triangles;
+        const target = Math.round(infos[0].triangles * LOD_RATIOS[level]);
 
-      // Nothing worth decimating, or the target is not below the level above.
-      if (previousTris < MIN_LOD_TRIANGLES || target >= previousTris) {
-        meshes.push(previous);
-        infos.push({ level, triangles: previousTris, bytes: 0, shared: true });
-        continue;
+        // Nothing worth decimating, or the target is not below the level above.
+        if (previousTris < MIN_LOD_TRIANGLES || target >= previousTris) {
+          meshes.push(previous);
+          infos.push({ level, triangles: previousTris, shared: true });
+          continue;
+        }
+
+        // Simplify from LOD0 every time rather than cascading: meshoptimizer
+        // gives a better 12% mesh from the original than from an already-lossy
+        // 35% one, and cascading compounds the error.
+        const candidate = simplifyMeshClone(doc, baseMesh, LOD_RATIOS[level], LOD_ERROR[level]);
+        const candidateTris = triangleCount(candidate);
+
+        if (candidateTris > previousTris * (1 - MIN_LOD_REDUCTION)) {
+          disposeMesh(candidate);
+          meshes.push(previous);
+          infos.push({ level, triangles: previousTris, shared: true });
+          continue;
+        }
+
+        candidate.setName(`${name}_LOD${level}`);
+        meshes.push(candidate);
+        infos.push({ level, triangles: candidateTris, shared: false });
       }
 
-      // Simplify from LOD0 every time rather than cascading: meshoptimizer
-      // gives a better 12% mesh from the original than from an already-lossy
-      // 35% one, and cascading compounds the error.
-      const candidate = simplifyMeshClone(doc, baseMesh, LOD_RATIOS[level], LOD_ERROR[level]);
-      const candidateTris = triangleCount(candidate);
-
-      if (candidateTris > previousTris * (1 - MIN_LOD_REDUCTION)) {
-        disposeMesh(candidate);
-        meshes.push(previous);
-        infos.push({ level, triangles: previousTris, bytes: 0, shared: true });
-        continue;
+      if (unlitFurthest && meshes[meshes.length - 1] !== meshes[0]) {
+        applyUnlit(doc, meshes[meshes.length - 1], unlitMaterials);
       }
+      baseMesh.setName(`${name}_LOD0`);
 
-      candidate.setName(`${name}_LOD${level}`);
-      meshes.push(candidate);
-      infos.push({
-        level,
-        triangles: candidateTris,
-        bytes: meshAccessorBytes(candidate, seenAccessors),
-        shared: false,
-      });
+      ladder = { meshes, infos };
+      ladders.set(baseMesh, ladder);
     }
 
-    if (unlitFurthest && meshes[meshes.length - 1] !== meshes[0]) {
-      applyUnlit(doc, meshes[meshes.length - 1], unlitMaterials);
-    }
-
-    baseMesh.setName(`${name}_LOD0`);
-
+    const { meshes, infos } = ladder;
     const group = doc.createNode(`${name}__LOD`);
     for (let level = 0; level < meshes.length; level++) {
       group.addChild(doc.createNode(`LOD${level}`).setMesh(meshes[level]));
       levelTris[level] += infos[level].triangles;
-      levelBytes[level] += infos[level].bytes;
       if (infos[level].shared) levelShared[level] += 1;
     }
 
@@ -586,11 +637,7 @@ function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
 
   return {
     parts,
-    levels: LOD_RATIOS.map((_, i) => ({
-      triangles: levelTris[i],
-      bytes: levelBytes[i],
-      shared: levelShared[i],
-    })),
+    levels: LOD_RATIOS.map((_, i) => ({ triangles: levelTris[i], shared: levelShared[i] })),
   };
 }
 
@@ -862,6 +909,7 @@ export interface IModelStats {
   readonly outputBytes: number;
   readonly srcTriangles: number;
   readonly lodTriangles: readonly number[];
+  /** Quantised vertex+index bytes per level. See `measureLodBytes`. */
   readonly lodBytes: readonly number[];
   readonly lodShared: readonly number[];
   readonly parts: number;
@@ -1033,6 +1081,8 @@ async function processOne(
     })
   );
 
+  const lodBytes = measureLodBytes(doc, LOD_RATIOS.length);
+
   // ── write ────────────────────────────────────────────────────────────────
   await mkdir(OUTPUT_DIR, { recursive: true });
   const glb = await io.writeBinary(doc);
@@ -1042,7 +1092,7 @@ async function processOne(
     level: index,
     file: path.posix.join('mdl', path.basename(glbPath)),
     triangles: level.triangles,
-    bytes: level.bytes,
+    bytes: lodBytes[index],
     screenDistance: screenDistanceFor(index, bounds),
   }));
 
@@ -1083,7 +1133,7 @@ async function processOne(
     outputBytes: glb.byteLength,
     srcTriangles,
     lodTriangles: lod.levels.map((l) => l.triangles),
-    lodBytes: lod.levels.map((l) => l.bytes),
+    lodBytes,
     lodShared: lod.levels.map((l) => l.shared),
     parts: lod.parts.length,
     textures: textures.count,
@@ -1160,12 +1210,10 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
   // `writeBinary` needs the meshopt encoder, and reading needs every Khronos
   // extension the source files use (KHR_texture_transform on the chainlink
   // fence, KHR_materials_ior/specular on the covered car).
-  const io = new NodeIO()
-    .registerExtensions(ALL_EXTENSIONS)
-    .registerDependencies({
-      'meshopt.encoder': MeshoptEncoder,
-      'meshopt.decoder': MeshoptDecoder,
-    });
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
+    'meshopt.encoder': MeshoptEncoder,
+    'meshopt.decoder': MeshoptDecoder,
+  });
 
   const cpus = os.cpus().length || 4;
   const concurrency = Math.max(1, Math.min(opts.concurrency || 2, models.length));
