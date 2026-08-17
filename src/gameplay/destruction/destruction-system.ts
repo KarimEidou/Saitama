@@ -777,7 +777,11 @@ export class DestructionSystem {
 
     const floors = this.collapsingFloorsFn(structure.layout, structure.isChunkDestroyed);
     if (floors.length === 0) return;
-    const queued = this.scheduler.enqueue(structure, floors, this.frameIndex);
+    // `frameIndex + 1`: a shockwave is handled BETWEEN updates, so the first
+    // wave belongs to the next frame. Enqueueing against the current index
+    // would make waves 0 and 1 come due on the same `update`, and a collapse
+    // that arrives in two beats instead of three is visibly closer to a pop.
+    const queued = this.scheduler.enqueue(structure, floors, this.frameIndex + 1);
     if (queued > 0) {
       this.stats.collapsesTriggered++;
       this.stats.floorsCollapsed += floors.length;

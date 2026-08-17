@@ -192,7 +192,7 @@ void main() {
        around every PUFF, and a plume becomes a pile of visibly separate
        bubbles. The tile's B channel follows the shape actually being drawn. */
     float rim = tex.b * clamp(0.72 - dot(n, -uSunView) * 0.55, 0.0, 1.1);
-    shaded += uSunColor * rim * 0.16;
+    shaded += uSunColor * rim * 0.09;
 #endif
     rgb = mix(rgb, shaded, vExtra.z);
   }

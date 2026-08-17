@@ -92,6 +92,15 @@ export abstract class HudScreen implements IHudScreen {
 
   frame(_model: IHudModel, _writer: FrameWriter): void {}
 
+  /**
+   * Android back / Escape. The base refuses it, so a screen that does not
+   * override this falls through to the manager's stack pop — which is the right
+   * default for every screen that is merely a view.
+   */
+  onBack(): boolean {
+    return false;
+  }
+
   /** Register a cleanup callback run on `dispose`. */
   protected onDispose(fn: () => void): void {
     this.teardown.push(fn);

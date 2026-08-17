@@ -410,20 +410,24 @@ const SHOTS: readonly ShotSpec[] = [
     minDelta: 2,
   },
   {
+    // THE MONEY SHOT. Looking back up the avenue, so the wave and its dust
+    // wall are coming at the camera rather than receding from it — from
+    // behind, a cone and a sphere look identical and the punch loses its
+    // direction entirely.
     file: 'vfx-serious-punch.png',
+    scenario: 'seriousPunch',
+    frames: 32,
+    camera: 'oncoming',
+    label: 'SERIOUS PUNCH — every effect at once, wave incoming',
+    minDelta: 8,
+  },
+  {
+    file: 'vfx-serious-punch-street.png',
     scenario: 'seriousPunch',
     frames: 26,
     camera: 'punch',
-    label: 'SERIOUS PUNCH — every effect at once',
+    label: 'the same punch from behind the fist, down the avenue',
     minDelta: 6,
-  },
-  {
-    file: 'vfx-serious-punch-aerial.png',
-    scenario: 'seriousPunch',
-    frames: 30,
-    camera: 'aerial',
-    label: 'the same punch from above, where the cone has a direction',
-    minDelta: 3,
   },
 ];
 

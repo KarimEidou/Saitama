@@ -77,7 +77,7 @@ export function hudStyles(): string {
 /* Registered properties                                                      */
 /* Registering a custom property as <number> gives it a TYPE, which is what   */
 /* lets it be transitioned and interpolated. Without this, --boredom is a     */
-/* token string and `transition: --boredom` does nothing at all.              */
+/* token string and transition: --boredom does nothing at all.              */
 /* ========================================================================== */
 @property --boredom{syntax:'<number>';inherits:true;initial-value:0}
 @property --charge{syntax:'<number>';inherits:true;initial-value:0}
@@ -337,7 +337,7 @@ ${allPalettes()}
 /* only while charging. It is not a copy of the input layer's ring on the      */
 /* punch button: that ring answers "how long have I held this", and this arc   */
 /* answers "what am I about to do to the neighbourhood".                       */
-/* Visibility is a NUMBER, not a class or an attribute: `--hud-on` is 0 or 1   */
+/* Visibility is a NUMBER, not a class or an attribute: --hud-on is 0 or 1   */
 /* and CSS derives opacity and the entry transform from it, so appearing and   */
 /* disappearing stay inside the custom-property-only rule.                     */
 .hud-charge{
@@ -410,7 +410,7 @@ ${allPalettes()}
 /* ========================================================================== */
 /* World-space markers (CSS2DRenderer positions these)                        */
 /* ========================================================================== */
-/* three writes `transform` and `display` on `.hud-marker` itself, so the      */
+/* three writes transform and display on .hud-marker itself, so the      */
 /* marker's OWN chrome must not depend on either — everything here is painted  */
 /* from custom properties and static geometry.                                 */
 .hud-markers{position:absolute;inset:0;overflow:hidden;pointer-events:none}

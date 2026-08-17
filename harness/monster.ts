@@ -837,7 +837,7 @@ function buildScene(): IScene {
       x: boss.brain.position.x,
       z: boss.brain.position.z,
       kind: 'boss',
-      radius: 3.4,
+      radius: 4.6,
       label: 'BOROS',
     },
     { x: world.player.x, z: world.player.z, kind: 'player', radius: 1.1, label: 'YOU' },
@@ -915,13 +915,13 @@ function draw(scene: IScene): void {
   ctx.save();
   ctx.setLineDash([9, 9]);
   for (const metres of [40, 80, 110]) {
-    ctx.strokeStyle = 'rgba(255,138,44,0.16)';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(255,138,44,0.30)';
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.arc(toX(0), toY(0), metres * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(255,168,80,0.30)';
+    ctx.fillStyle = 'rgba(255,178,96,0.55)';
     ctx.font = '500 10px ui-monospace, monospace';
     ctx.fillText(`${metres} m`, toX(0) + 5, toY(-metres) + 13);
     ctx.setLineDash([9, 9]);
@@ -1101,19 +1101,33 @@ function draw(scene: IScene): void {
     ctx.arc(toX(boss.x), toY(boss.z), boss.radius * scale * 5, 0, Math.PI * 2);
     ctx.fill();
 
+    // A ring of spikes: the top-down read for "this is the thing everything
+    // else in the picture is running away from".
+    ctx.strokeStyle = 'rgba(255,190,120,0.85)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const r0 = boss.radius * scale * 1.5;
+      const r1 = boss.radius * scale * (i % 2 === 0 ? 2.5 : 2);
+      ctx.beginPath();
+      ctx.moveTo(toX(boss.x) + Math.sin(a) * r0, toY(boss.z) + Math.cos(a) * r0);
+      ctx.lineTo(toX(boss.x) + Math.sin(a) * r1, toY(boss.z) + Math.cos(a) * r1);
+      ctx.stroke();
+    }
+
     ctx.fillStyle = COLOURS.boss;
     ctx.beginPath();
     ctx.arc(toX(boss.x), toY(boss.z), boss.radius * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#fff2d0';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.stroke();
     ctx.fillStyle = '#ffd9a3';
     ctx.font = '700 16px ui-monospace, monospace';
-    ctx.fillText('BOROS', toX(boss.x) + 20, toY(boss.z) - 14);
-    ctx.fillStyle = 'rgba(255,180,120,0.6)';
-    ctx.font = '500 10px ui-monospace, monospace';
-    ctx.fillText('DRAGON', toX(boss.x) + 20, toY(boss.z) - 2);
+    ctx.fillText('BOROS', toX(boss.x) + 24, toY(boss.z) - 15);
+    ctx.fillStyle = 'rgba(255,190,140,0.8)';
+    ctx.font = '600 11px ui-monospace, monospace';
+    ctx.fillText('DRAGON-TIER', toX(boss.x) + 24, toY(boss.z) - 1);
   }
 
   /* ---- banner --------------------------------------------------------- */
