@@ -26,7 +26,6 @@
  */
 
 import * as THREE from 'three';
-import type { BodyProfile } from '@/types';
 import {
   buildCivilian,
   buildHumanoid,
@@ -867,5 +866,3 @@ try {
   window.__HARNESS_ERROR__ = error instanceof Error ? error.stack ?? error.message : String(error);
   window.__HARNESS_READY__ = true;
 }
-
-export type { BodyProfile };
