@@ -17,6 +17,7 @@
 import { AudioSystem } from '@/audio';
 import { SOUND_KEYS, SOUND_SPECS, type SoundKey } from '@/audio';
 import { MUSIC_STATES, type MusicState } from '@/audio';
+import { REVERB_PRESET_NAMES, REVERB_PRESETS, type ReverbPreset } from '@/audio';
 import { EVENT_AUDIO_MAP, ALL_GAME_EVENT_TYPES } from '@/audio';
 import type { GameEventPayload, GameEventType, Vec3 } from '@/types';
 import { createEventBus } from '@/util';
@@ -288,6 +289,17 @@ addButton(ambienceEl, 'stop beds', 'Fade both ambience beds out.', () =>
   audio.playAmbience(undefined)
 );
 
+const envEl = $('environments');
+const envButtons = new Map<ReverbPreset, HTMLButtonElement>();
+for (const preset of REVERB_PRESET_NAMES) {
+  envButtons.set(
+    preset,
+    addButton(envEl, preset, REVERB_PRESETS[preset].description, () => {
+      audio.setEnvironment(preset);
+    })
+  );
+}
+
 const busesEl = $('buses');
 for (const category of ['sfx', 'music', 'ambience', 'voice', 'ui'] as const) {
   const label = document.createElement('label');
@@ -416,6 +428,7 @@ const statusParts = $('s-parts');
 const statusBar = $('s-bar');
 const statusGr = $('s-gr');
 const statusRate = $('s-rate');
+const statusEnv = $('s-env');
 
 let last = performance.now();
 function tick(now: number): void {
@@ -432,6 +445,10 @@ function tick(now: number): void {
     statusParts.textContent = audio.music.parts.join(', ') || '—';
     statusBar.textContent = String(audio.music.bar);
     statusGr.textContent = `${audio.mixer.gainReductionDb.toFixed(1)} dB`;
+    statusEnv.textContent = audio.environment;
+    for (const [preset, button] of envButtons) {
+      button.classList.toggle('on', audio.environment === preset);
+    }
     statusRate.textContent = `${audio.ctx.sampleRate} Hz`;
     for (const [state, button] of musicButtons) {
       button.classList.toggle('on', audio.music.isRunning && audio.music.state === state);

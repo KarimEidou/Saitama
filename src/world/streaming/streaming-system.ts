@@ -531,6 +531,10 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       const chunk = item.chunk;
       if (this.byIndex[chunk.index] !== chunk) continue; // evicted while waiting
 
+      // A rebuild replaces geometry the chunk already held; the accounting has
+      // to net the two off or the resident total drifts upward forever and the
+      // memory ceiling starts evicting a world that is not actually large.
+      const previousBytes = chunk.memoryBytes;
       const started = performance.now();
       const bytes = chunk.applyBuild(item.result, this.materials);
       const wasActive = chunk.isActive;
@@ -547,7 +551,7 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
         this.uploadCostEma * (1 - UPLOAD_COST_EMA_ALPHA) + cost * UPLOAD_COST_EMA_ALPHA;
       if (cost > this.peakChunkUploadMs) this.peakChunkUploadMs = cost;
 
-      this.totalBytes += bytes;
+      this.totalBytes += bytes - previousBytes;
       this.totalLoads++;
       this.loadsThisSecond++;
       this.generationTimeMs += item.result.generationTimeMs;
@@ -688,12 +692,21 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
   private publishChunkContent(chunk: StreamedChunk): void {
     const mode = RING_COLLIDER_MODE[chunk.builtRing] ?? 'none';
     if (this.colliderSink !== undefined) {
-      if (mode === 'none') this.colliderSink.clearChunkColliders(chunk.index);
-      else this.colliderSink.setChunkColliders(chunk.index, mode, chunk.colliders);
+      // An empty parcel registers NOTHING rather than an empty entry: a park
+      // chunk that publishes a zero-box collider set still costs the physics
+      // world a body handle and a map entry it can never use.
+      if (mode === 'none' || chunk.colliders.length === 0) {
+        this.colliderSink.clearChunkColliders(chunk.index);
+      } else {
+        this.colliderSink.setChunkColliders(chunk.index, mode, chunk.colliders);
+      }
     }
     if (this.crowdSink !== undefined) {
-      if (chunk.crowdMode === 'none') this.crowdSink.clearChunkCrowd(chunk.index);
-      else this.crowdSink.setChunkCrowd(chunk.index, chunk.crowdMode, chunk.crowd);
+      if (chunk.crowdMode === 'none' || chunk.crowd.length === 0) {
+        this.crowdSink.clearChunkCrowd(chunk.index);
+      } else {
+        this.crowdSink.setChunkCrowd(chunk.index, chunk.crowdMode, chunk.crowd);
+      }
     }
   }
 

@@ -616,11 +616,9 @@ export class LocomotionSolver {
     groundY: number,
     out: THREE.Vector3
   ): void {
-    const m = this.rig.metrics;
     const r = foot.progress;
-
-    const strikePitch = lerp(HEEL_STRIKE_PITCH, -0.06, g.runBlend);
-    const offPitch = TOE_OFF_PITCH * lerp(1, 0.85, g.runBlend);
+    const strikePitch = this.strikePitch(g);
+    const offPitch = TOE_OFF_PITCH * lerp(1, 0.92, g.runBlend) * g.activity;
 
     let pitch: number;
     if (r < ROLL_HEEL_END) {
@@ -630,28 +628,85 @@ export class LocomotionSolver {
     } else {
       pitch = lerp(0, offPitch, smootherstep(ROLL_TOE_START, 1, r));
     }
-    pitch *= g.activity;
     foot.pitch = pitch;
 
-    // The heel footprint in model space; the world lock makes this drift
-    // backwards at exactly the root's speed, whatever that speed is doing.
-    this.worldToModel(foot.plantWorld, _heelModel);
-    _heelModel.y = groundY;
+    // The ball footprint in model space. The world lock makes this drift
+    // backwards at exactly the root's speed, whatever that speed is doing —
+    // including while it is changing, which is where speed-driven procedural
+    // locomotion normally starts to skate.
+    this.worldToModel(foot.plantWorld, _ballModel);
+    _ballModel.y = groundY;
+    this.ballToAnkle(_ballModel, pitch, out);
+  }
 
-    if (pitch >= 0) {
-      // Rolling on the heel (or flat): ankle = heel - R(pitch) · heelLocal.
+  /** Ankle pitch at the instant of touchdown, for this gait. */
+  private strikePitch(g: GaitSolution): number {
+    // Walkers strike heel-first; runners land nearer the forefoot, and by
+    // sprint speed the heel never touches at all.
+    return lerp(HEEL_STRIKE_PITCH, -0.09, g.runBlend) * g.activity;
+  }
+
+  /**
+   * Ankle position from a ball footprint and a foot pitch.
+   *
+   * With the toes up the foot pivots on the HEEL, which sits a foot-length
+   * behind the ball; with the toes down it pivots on the ball itself. The two
+   * agree exactly at pitch zero — the foot is flat there — so the handover is
+   * continuous without any blending.
+   */
+  private ballToAnkle(ball: THREE.Vector3, pitch: number, out: THREE.Vector3): void {
+    const m = this.rig.metrics;
+    if (pitch > 0) {
       _pivotLocal.set(0, -m.ankleHeight, m.heelBack);
       rotateAboutX(_pivotLocal, pitch, _rotated);
-      out.copy(_heelModel).sub(_rotated);
+      out.set(ball.x, ball.y, ball.z + m.heelBack + m.footForward).sub(_rotated);
     } else {
-      // Rolling on the ball. Its footprint is fixed relative to the heel's,
-      // because the foot was flat when the pivot changed hands.
-      _ballModel.copy(_heelModel);
-      _ballModel.z -= m.heelBack + m.footForward;
       _pivotLocal.set(0, -m.ankleHeight, -m.footForward);
       rotateAboutX(_pivotLocal, pitch, _rotated);
-      out.copy(_ballModel).sub(_rotated);
+      out.copy(ball).sub(_rotated);
     }
+  }
+
+  /** Inverse of `ballToAnkle`. */
+  private ankleToBall(ankle: THREE.Vector3, pitch: number, out: THREE.Vector3): void {
+    const m = this.rig.metrics;
+    if (pitch > 0) {
+      _pivotLocal.set(0, -m.ankleHeight, m.heelBack);
+      rotateAboutX(_pivotLocal, pitch, _rotated);
+      out.copy(ankle).add(_rotated);
+      out.z -= m.heelBack + m.footForward;
+    } else {
+      _pivotLocal.set(0, -m.ankleHeight, -m.footForward);
+      rotateAboutX(_pivotLocal, pitch, _rotated);
+      out.copy(ankle).add(_rotated);
+    }
+  }
+
+  /**
+   * Where the ankle must be at the instant of touchdown.
+   *
+   * Shared by the swing trajectory and by the plant, so the two agree to the
+   * last decimal and the handover produces no pop. The height comes from the
+   * ground: whichever end of the sole is lowest under the strike pitch has to
+   * be exactly on the ground, and the ankle follows from that.
+   */
+  private touchdownAnkle(
+    g: GaitSolution,
+    groundY: number,
+    halfWidth: number,
+    sign: number,
+    zTouchdown: number,
+    out: THREE.Vector3
+  ): void {
+    const m = this.rig.metrics;
+    const pitch = this.strikePitch(g);
+    _pivotLocal.set(0, -m.ankleHeight, m.heelBack);
+    rotateAboutX(_pivotLocal, pitch, _rotated);
+    const heelY = _rotated.y;
+    _pivotLocal.set(0, -m.ankleHeight, -m.footForward);
+    rotateAboutX(_pivotLocal, pitch, _rotated);
+    const ballY = _rotated.y;
+    out.set(sign * halfWidth, groundY - Math.min(heelY, ballY), zTouchdown);
   }
 
   /** Ankle position during swing. */
@@ -672,10 +727,9 @@ export class LocomotionSolver {
     // frame, i.e. still ahead of the character by the distance left to cover.
     const swingDuration = Math.max(1e-4, (1 - g.duty) / Math.max(1e-4, g.cycleFrequency));
     const remaining = (1 - s) * swingDuration;
-    const strikePitch = lerp(HEEL_STRIKE_PITCH, -0.06, g.runBlend) * g.activity;
-    _pivotLocal.set(0, -m.ankleHeight, m.heelBack);
-    rotateAboutX(_pivotLocal, strikePitch, _rotated);
-    _to.set(foot.sign * halfWidth, groundY, zTouchdown - g.speed * remaining).sub(_rotated);
+    const strikePitch = this.strikePitch(g);
+    this.touchdownAnkle(g, groundY, halfWidth, foot.sign, zTouchdown, _to);
+    _to.z -= g.speed * remaining;
 
     // Smootherstep has zero derivative at both ends, so the ankle inherits
     // exactly the drift velocity of whichever world anchor it is nearest —
@@ -730,8 +784,20 @@ export class LocomotionSolver {
       // constraint in over the last third of swing produces the descent into
       // the step that real walking has, and makes the handover at touchdown
       // exact rather than a step change.
+      //
+      // The ramp is symmetric because toe-off has the same problem in reverse:
+      // release the constraint the frame a foot lifts and the pelvis springs
+      // up under a leg that has not moved yet, tearing the ankle off its own
+      // trajectory. Decaying the authority over the first sixth of swing is
+      // the pelvis rising off the pushing leg, which is also what really
+      // happens.
       const authority =
-        foot.phase === 'stance' ? 1 : smoothstep(0.62, 1, foot.progress);
+        foot.phase === 'stance'
+          ? 1
+          : Math.max(
+              smoothstep(0.62, 1, foot.progress),
+              1 - smoothstep(0, 0.16, foot.progress)
+            );
       if (authority <= 0) continue;
       _v0.setFromMatrixPosition(this.model[foot.chain.root]!);
       const target = _footTargets[foot.side];

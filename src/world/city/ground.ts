@@ -397,12 +397,14 @@ function emitCrater(
       const h0 = height(t0, jitter());
       const h1 = height(t1, jitter());
       const shade = 0.66 + t1 * 0.34;
+      // Wound tangential-then-radial so the face points up; the reverse
+      // order gives a bowl you can only see from underneath.
       builder.quad(
         GroundSlot.Lot,
         [pts[0][0], h0, pts[0][1]],
-        [pts[3][0], h1, pts[3][1]],
-        [pts[2][0], h1, pts[2][1]],
         [pts[1][0], h0, pts[1][1]],
+        [pts[2][0], h1, pts[2][1]],
+        [pts[3][0], h1, pts[3][1]],
         [pts[0][0] * uvScale, pts[0][1] * uvScale, pts[2][0] * uvScale, pts[2][1] * uvScale],
         shadeTint([0.82, 0.78, 0.72], shade)
       );

@@ -90,7 +90,10 @@ describe('RingAssigner', () => {
 
   it('does not thrash for a camera jittering on a boundary', () => {
     const boundary = RING_OUTER_CHUNKS[0]!;
-    const jitter: number[] = [];
+    // Walk in from clearly inside R0 so the chunk has a history to be sticky
+    // about, then park on the boundary. A chunk with no history takes the
+    // plain assignment, which is correct but is not what is under test.
+    const jitter: number[] = [boundary - 1];
     // 600 frames of +/- 0.25 chunks (24 m) of noise straddling the boundary —
     // a player standing on a street corner shifting their weight.
     for (let frame = 0; frame < 600; frame++) {
@@ -117,7 +120,9 @@ describe('RingAssigner', () => {
   it('counts one transition per crossing, not one per frame', () => {
     const boundary = RING_OUTER_CHUNKS[0]!;
     const wide = RING_HYSTERESIS_CHUNKS * 2;
-    const sequence: number[] = [];
+    // Prime the chunk inside R0 first: the very first assignment of a chunk is
+    // not a transition, it is an arrival.
+    const sequence: number[] = [boundary - wide];
     // Two full round trips well clear of the band: exactly four transitions.
     for (let lap = 0; lap < 2; lap++) {
       for (let i = 0; i < 20; i++) sequence.push(boundary + wide);

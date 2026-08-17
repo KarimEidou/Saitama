@@ -728,6 +728,110 @@ export async function writeRuntimeIndex(options: {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Whole-build validation                                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface IValidationReport {
+  readonly checked: number;
+  readonly problems: readonly string[];
+  /** Per-tier byte totals measured from the files on disk, not the index. */
+  readonly bytesByTier: Partial<Record<QualityTier, number>>;
+}
+
+/**
+ * Re-derive every claim in `assets.runtime.json` from the bytes on disk.
+ *
+ * Two independent checks per file, because they catch different failures.
+ * `ktx2check` is the reference validator and knows the container spec far
+ * better than this pipeline does — level index arithmetic, DFD consistency,
+ * padding, the lot. `ktx-parse` is used to assert the things only this
+ * pipeline knows it asked for: the format, the transfer function, the full mip
+ * chain, and that the sha256 in the index still describes the file next to it.
+ *
+ * The last one is what makes the index trustworthy rather than merely present:
+ * a stale entry pointing at a file that has since been rebuilt is exactly the
+ * kind of drift that ships broken assets while every individual tool passes.
+ */
+export async function validateOutputs(
+  tiers: readonly QualityTier[],
+  log: Logger
+): Promise<IValidationReport> {
+  const manifest = JSON.parse(await readFile(RUNTIME_INDEX, 'utf8')) as IRuntimeManifest;
+  const wanted = new Set(tiers);
+  const problems: string[] = [];
+  const bytesByTier: Partial<Record<QualityTier, number>> = {};
+  const seen = new Set<string>();
+  let checked = 0;
+
+  interface ICheckItem {
+    readonly entry: AnyAssetEntry;
+    readonly output: IAssetOutput;
+  }
+  const items: ICheckItem[] = [];
+  for (const entry of manifest.entries) {
+    for (const output of entry.outputs ?? []) {
+      if (!wanted.has(output.tier)) continue;
+      if (output.format !== 'ktx2') continue;
+      items.push({ entry, output });
+    }
+  }
+
+  for (const [index, { entry, output }] of items.entries()) {
+    const file = path.join(PUBLIC_ASSETS_DIR, output.file);
+    log.status(`validate  ${index + 1}/${items.length}  ${output.file}`);
+
+    const check = await ktx2check(file);
+    if (!check.ok) problems.push(`${output.file}: ktx2check — ${check.output.split('\n')[0]}`);
+
+    let facts: IKtx2Facts;
+    try {
+      facts = await inspectKtx2(file);
+    } catch (error) {
+      problems.push(`${output.file}: unreadable — ${(error as Error).message}`);
+      continue;
+    }
+
+    const expectation: IKtx2Expectation = { fullMipChain: true };
+    if (entry.kind === 'hdri') {
+      Object.assign(expectation, {
+        vkFormat: VK_FORMAT_R16G16B16A16_SFLOAT,
+        transferFunction: KHR_DF_TRANSFER_LINEAR,
+        supercompressionScheme: 2,
+      });
+    } else if (entry.kind === 'texture') {
+      Object.assign(expectation, {
+        vkFormat: VK_FORMAT_UNDEFINED,
+        colorModel: output.codec === 'uastc' ? KHR_DF_MODEL_UASTC : KHR_DF_MODEL_ETC1S,
+        transferFunction:
+          entry.colorSpace === 'srgb' ? KHR_DF_TRANSFER_SRGB : KHR_DF_TRANSFER_LINEAR,
+      });
+    }
+    if (output.width) Object.assign(expectation, { width: output.width });
+    if (output.height) Object.assign(expectation, { height: output.height });
+    problems.push(...checkKtx2(facts, expectation));
+
+    if (facts.sha256 !== output.sha256) {
+      problems.push(
+        `${output.file}: sha256 on disk ${facts.sha256.slice(0, 12)} does not match the ` +
+          `${output.sha256.slice(0, 12)} recorded in assets.runtime.json — the index is stale`
+      );
+    }
+    if (facts.bytes !== output.bytes) {
+      problems.push(`${output.file}: ${facts.bytes} bytes on disk, index says ${output.bytes}`);
+    }
+
+    if (!seen.has(output.file)) {
+      seen.add(output.file);
+      bytesByTier[output.tier] = (bytesByTier[output.tier] ?? 0) + facts.bytes;
+    }
+    checked += 1;
+  }
+  log.endStatus();
+
+  return { checked, problems, bytesByTier };
+}
+
+/* -------------------------------------------------------------------------- */
 /* CLI                                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -971,6 +1075,19 @@ async function main(): Promise<void> {
     tiers: options.tiers,
     encoder,
   });
+
+  if (options.validate) {
+    log.heading('validate');
+    const report = await validateOutputs(options.tiers, log);
+    for (const problem of report.problems) log.error(problem);
+    errors.push(...report.problems);
+    if (report.problems.length === 0) {
+      log.ok(
+        `${report.checked} KTX2 outputs pass ktx2check and match the format, transfer ` +
+          `function, mip chain and sha256 recorded in the index`
+      );
+    }
+  }
 
   log.heading('summary');
   for (const tier of ALL_TIERS) {

@@ -224,6 +224,12 @@ export interface IPlanBlock {
   readonly heightBias: number;
   /** Edges that face an arterial and therefore get the best frontage. */
   readonly frontage: readonly boolean[];
+  /**
+   * Sidewalk width in metres, measured outwards from the parcel outline to the
+   * kerb. Uniform per parcel: the widest of the bounding roads wins, because a
+   * pavement that changes width halfway along a block looks like a bug.
+   */
+  readonly sidewalk: number;
   /** Optional service alley splitting the parcel. */
   readonly alley?: { readonly axis: 'x' | 'z'; readonly offset: number; readonly width: number };
   readonly tags?: readonly string[];

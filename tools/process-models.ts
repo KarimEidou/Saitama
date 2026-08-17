@@ -12,7 +12,7 @@
  * and runnable standalone for iteration:
  *
  *   tsx tools/process-models.ts --tier mobile [--only fire_hydrant,street_lamp_*]
- *                              [--concurrency 2] [--force] [--validate]
+ *                       [--concurrency 2] [--force] [--validate] [--unlit-far]
  *
  * ── THE PIPELINE ───────────────────────────────────────────────────────────
  *   dedup → weld → join(by material) → LOD chain(simplify) → resample →
@@ -160,6 +160,14 @@ export interface ProcessOptions {
   readonly concurrency: number;
   /** Rebuild even when the content-addressed key says the output is current. */
   readonly force?: boolean;
+  /**
+   * Override `ITierPolicy.unlitFurthestLod` for this run. Optional and absent
+   * from the shared stage contract, which is harmless: an orchestrator that
+   * never sets it gets the tier default. It exists so the renderer workstream
+   * can A/B the far-LOD shading cost without editing this file. Part of the
+   * content-addressed key, so flipping it rebuilds.
+   */
+  readonly unlitFurthestLod?: boolean;
 }
 
 /** An `IAssetOutput` plus the id of the entry it belongs to. */
@@ -316,6 +324,14 @@ const TIER_POLICY: Readonly<Record<QualityTier, ITierPolicy>> = {
     unlitFurthestLod: false,
   },
 };
+
+/** The tier's policy with any per-run overrides applied. */
+function policyFor(tier: QualityTier, overrides: Pick<ProcessOptions, 'unlitFurthestLod'>): ITierPolicy {
+  const base = TIER_POLICY[tier];
+  return overrides.unlitFurthestLod === undefined
+    ? base
+    : { ...base, unlitFurthestLod: overrides.unlitFurthestLod };
+}
 
 /** Tier target used when a manifest entry does not declare one. */
 const FALLBACK_TARGET: Readonly<Record<QualityTier, ITierTarget>> = {
@@ -866,8 +882,12 @@ function outputPathFor(id: string, tier: QualityTier): string {
  * the bytes + the tool version. Equal key ⇒ byte-identical output ⇒ nothing
  * to do.
  */
-function outputKey(srcSha: string, tier: QualityTier, target: ITierTarget): string {
-  const policy = TIER_POLICY[tier];
+function outputKey(
+  srcSha: string,
+  tier: QualityTier,
+  target: ITierTarget,
+  policy: ITierPolicy
+): string {
   return sha256Of(
     JSON.stringify({
       tool: TOOL_VERSION,
@@ -912,12 +932,13 @@ async function processOne(
   io: NodeIO,
   log: Logger,
   force: boolean,
-  threads: number
+  threads: number,
+  policy: ITierPolicy
 ): Promise<IBuiltModel> {
   const startedAt = Date.now();
   const glbPath = outputPathFor(entry.id, tier);
   const sidecarPath = `${glbPath}.json`;
-  const key = outputKey(await sourceDigest(entry), tier, target);
+  const key = outputKey(await sourceDigest(entry), tier, target, policy);
 
   if (!force) {
     const sidecar = await readSidecar(sidecarPath);
@@ -954,7 +975,7 @@ async function processOne(
   const primitivesMerged = joinWithinMeshes(doc);
 
   // ── simplify into a three-level LOD chain ───────────────────────────────
-  const lod = buildLodGroups(doc, TIER_POLICY[tier].unlitFurthestLod);
+  const lod = buildLodGroups(doc, policy.unlitFurthestLod);
 
   // Clean up accessors orphaned by decimation. NODE is deliberately left out
   // of the property list: the LOD group nodes are the whole point of this
@@ -987,7 +1008,7 @@ async function processOne(
       {
         codec: target.codec === 'uastc' ? 'uastc' : 'etc1s',
         quality: target.quality,
-        maxDimension: target.maxDimension || TIER_POLICY[tier].maxDimension,
+        maxDimension: target.maxDimension || policy.maxDimension,
         zstdLevel: target.zstd === false ? 0 : (target.zstdLevel ?? 18),
         threads,
       },
@@ -998,7 +1019,6 @@ async function processOne(
   }
 
   // ── quantize + meshopt ───────────────────────────────────────────────────
-  const policy = TIER_POLICY[tier];
   await doc.transform(
     meshopt({
       encoder: MeshoptEncoder,
@@ -1156,6 +1176,7 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
     `models · ${models.length} assets · tier=${opts.tier} · concurrency=${concurrency} · ktx threads=${threads}`
   );
 
+  const policy = policyFor(opts.tier, opts);
   const errors: string[] = [];
   const results: IModelStats[] = [];
   const records: IModelAssetOutput[] = [];
@@ -1173,7 +1194,8 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
             io,
             log,
             opts.force === true,
-            threads
+            threads,
+            policy
           );
           results.push(built.stats);
           records.push(built.record);
@@ -1325,6 +1347,7 @@ function parseArgs(argv: readonly string[]): {
   concurrency: number;
   force: boolean;
   validate: boolean;
+  unlitFurthestLod?: boolean;
 } {
   const get = (flag: string): string | undefined => {
     const index = argv.indexOf(flag);
@@ -1340,6 +1363,7 @@ function parseArgs(argv: readonly string[]): {
     concurrency: Number(get('--concurrency') ?? 2),
     force: argv.includes('--force'),
     validate: argv.includes('--validate'),
+    unlitFurthestLod: argv.includes('--unlit-far') ? true : undefined,
   };
 }
 
