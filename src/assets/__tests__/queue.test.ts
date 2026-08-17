@@ -82,7 +82,10 @@ describe('LoadScheduler', () => {
     const scheduler = new LoadScheduler(1);
     const order: string[] = [];
     const blocker = gate('block');
-    const promises = [scheduler.schedule('blocker', 'normal', blocker.run)];
+    // Explicitly widened: the first element resolves to a string, so inference
+    // would pin this to Promise<string>[] and reject the void-returning jobs
+    // pushed below. Only scheduling order matters here, not payload type.
+    const promises: Promise<unknown>[] = [scheduler.schedule('blocker', 'normal', blocker.run)];
     for (const name of ['a', 'b', 'c']) {
       promises.push(
         scheduler.schedule(name, 'normal', async () => {
@@ -100,7 +103,10 @@ describe('LoadScheduler', () => {
     const scheduler = new LoadScheduler(1);
     const order: string[] = [];
     const blocker = gate('block');
-    const promises = [scheduler.schedule('blocker', 'normal', blocker.run)];
+    // Explicitly widened: the first element resolves to a string, so inference
+    // would pin this to Promise<string>[] and reject the void-returning jobs
+    // pushed below. Only scheduling order matters here, not payload type.
+    const promises: Promise<unknown>[] = [scheduler.schedule('blocker', 'normal', blocker.run)];
 
     promises.push(
       scheduler.schedule('late', PRIORITY.idle, async () => {
