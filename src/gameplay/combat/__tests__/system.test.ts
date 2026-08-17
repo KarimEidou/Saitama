@@ -217,16 +217,20 @@ describe('a full encounter through the synthetic input API', () => {
     expect(punches).toEqual([
       // The tap that deletes the monster.
       { kind: 'normal', intent: 'normal', range: TUNING.normalReachMetres },
-      // Beginning the charge ALSO throws a jab, because the input contract
-      // fires `punch.pressed` on the press edge — and because that press is
-      // only 0.25 s after the tap, it counts as the second link of a chain.
-      // At 23 m from the boss it whiffs harmlessly. See the note on
-      // `normalPunchOnPress` in tuning.ts; this is a live design question,
-      // not an accident.
-      { kind: 'consecutive', intent: 'normal', range: TUNING.normalReachMetres },
-      // The release: a fully charged 180 m cone at full intent.
+      // TWO punches, not three. Beginning the charge throws NOTHING — the tap
+      // is discriminated on release, so the wind-up no longer spends a free
+      // kill the player did not choose to make.
       { kind: 'serious', intent: 'full', range: TUNING.seriousRangeMaxMetres },
     ]);
+  });
+
+  it('throws nothing at all while the charge is being held', () => {
+    // The press at frame 45 and the release at frame 120 must produce exactly
+    // one punch between them, and it must be the serious one.
+    const kinds = run.bus.ofType('ShockwaveFired').map((e) => e.punchKind);
+    expect(kinds.filter((k) => k === 'normal')).toHaveLength(1);
+    expect(kinds.filter((k) => k === 'consecutive')).toHaveLength(0);
+    expect(kinds.filter((k) => k === 'serious')).toHaveLength(1);
   });
 
   it('kills the monster with the tap, in one, with no collateral', () => {
@@ -252,7 +256,7 @@ describe('a full encounter through the synthetic input API', () => {
   });
 
   it('the serious punch takes the boss, five civilians and three blocks', () => {
-    const serious = run.outcomes[2]!;
+    const serious = run.outcomes[1]!;
     expect(serious.punch.charge).toBe(1);
     expect(serious.punch.intent).toBe('full');
     expect(serious.hits.some((h) => h.targetId === 'boss-01')).toBe(true);
@@ -319,12 +323,14 @@ describe('a full encounter through the synthetic input API', () => {
     expect(result.debrisMassKg).toBeCloseTo(expectedMass, 3);
     expect(result.propertyDamageYen).toBeCloseTo(expectedMass * 5200, 0);
     expect(result.propertyDamageYen).toBeGreaterThan(2.8e9);
+    // The number a linear consumer should read instead. Bounded, always.
+    expect(result.propertyDamageScore).toBeGreaterThan(0.5);
+    expect(result.propertyDamageScore).toBeLessThan(1);
 
-    expect(result.normalPunches).toBe(2);
+    // One tap and one charge. The charge no longer costs a free jab.
+    expect(result.normalPunches).toBe(1);
     expect(result.seriousPunches).toBe(1);
-    // Two, not one: the press that began the charge landed inside the chain
-    // window opened by the tap, so it counted as a second link.
-    expect(result.longestChain).toBe(2);
+    expect(result.longestChain).toBe(1);
     // Both killing blows were seen by a living civilian.
     expect(result.witnessed).toBe(2);
 
@@ -332,18 +338,123 @@ describe('a full encounter through the synthetic input API', () => {
     expect(result.boredomAfter).toBeGreaterThan(result.boredomBefore);
   });
 
-  it('emits EncounterEnded carrying the invoice', () => {
+  it('emits EncounterEnded in the destruction system unit, NOT in yen', () => {
     const ended = run.bus.ofType('EncounterEnded');
     expect(ended).toHaveLength(1);
     expect(ended[0]!.outcome).toBe('victory');
     expect(ended[0]!.civiliansLost).toBe(5);
-    expect(ended[0]!.collateralCost).toBeCloseTo(run.result!.propertyDamageYen, 0);
+
+    // The event carries the sum of the per-chunk `ChunkDetached.collateralCost`
+    // figures, because that is what a consumer accumulating those chunks will
+    // reconcile it against. Handing it the yen invoice instead would be a
+    // four-order-of-magnitude unit mismatch that wins every comparison.
+    const chunkSum = run.bus
+      .ofType('ChunkDetached')
+      .reduce((total, event) => total + event.collateralCost, 0);
+    expect(ended[0]!.collateralCost).toBeCloseTo(chunkSum, 3);
+    expect(ended[0]!.collateralCost).toBeCloseTo(run.result!.collateralCost, 3);
+    expect(ended[0]!.collateralCost).toBeLessThan(run.result!.propertyDamageYen / 100);
   });
 
   it('never awards a restraint bonus for a fight that cost three city blocks', () => {
     const reasons = run.bus.ofType('BoredomChanged').map((e) => e.reason);
     expect(reasons).toContain('trivialVictory');
     expect(reasons).not.toContain('restraintBonus');
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Tap / hold discrimination                                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('the tap/hold discriminator', () => {
+  /** Hold `punch` for `frames`, release, run on, and report what came out. */
+  function holdFor(frames: number): { kinds: string[]; charges: (number | undefined)[] } {
+    const scene = createScene({ seed: `hold-${frames}` });
+    const input = createInputManager({ headless: true, exposeTestBridge: false });
+    managers.push(input);
+    input.syntheticEnabled = true;
+    input.synthetic.queue([
+      { frames, patch: { buttons: { punch: true } }, label: 'hold' },
+      { frames: 1, patch: { buttons: { punch: false } }, label: 'release' },
+      { frames: 10, label: 'after' },
+    ]);
+    for (let frame = 0; frame < frames + 12; frame++) {
+      const time = frame * DT;
+      scene.bus.setFrame(frame, time);
+      scene.combat.update(input.poll(frame, time), DT, time);
+    }
+    const waves = scene.bus.ofType('ShockwaveFired');
+    const result = {
+      kinds: waves.map((e) => e.punchKind as string),
+      charges: scene.bus.ofType('ShockwaveFired').map((_, i) => waves[i]!.power),
+    };
+    scene.combat.dispose();
+    return result;
+  }
+
+  it('a short press is a tap, and only a tap', () => {
+    // 4 frames = 67 ms, comfortably under the 140 ms discriminator.
+    const short = holdFor(4);
+    expect(short.kinds).toEqual(['normal']);
+  });
+
+  it('a press right at the threshold is still a tap', () => {
+    // 8 frames = 133 ms, just under 140.
+    expect(holdFor(8).kinds).toEqual(['normal']);
+  });
+
+  it('a press past the threshold is a charge, and throws NO jab', () => {
+    // 10 frames = 167 ms, just over.
+    expect(holdFor(10).kinds).toEqual(['serious']);
+  });
+
+  it('a long hold is a charge, and still throws no jab', () => {
+    expect(holdFor(80).kinds).toEqual(['serious']);
+  });
+
+  it('the discriminator sits where the tuning says it does', () => {
+    expect(TUNING.tapMaxHoldSeconds).toBeGreaterThanOrEqual(0.1);
+    expect(TUNING.tapMaxHoldSeconds).toBeLessThanOrEqual(0.18);
+    // And nowhere near the full charge — deferring the tap that far would be
+    // the latency this design exists to avoid.
+    expect(TUNING.tapMaxHoldSeconds).toBeLessThan(TUNING.seriousChargeSeconds * 0.2);
+  });
+
+  it('even the weakest serious punch opens a 40 m cone', () => {
+    // The two verbs must not blur at the boundary: the cheapest charge is
+    // still enormous, so the decision stays sharp.
+    const scene = createScene({ seed: 'weakest' });
+    const outcome = scene.combat.seriousPunch(0);
+    expect(outcome.punch.radius).toBe(TUNING.seriousRangeMinMetres);
+    expect(outcome.punch.intent).toBe('serious');
+    scene.combat.dispose();
+  });
+
+  it('charging next to a monster no longer kills it before the release', () => {
+    // The exact failure the press-edge model produced: the jab lands, the
+    // monster is already dead, and the serious punch levels the street for
+    // nothing. There must be no kill until the release.
+    const scene = createScene({ seed: 'no-free-jab' });
+    populateStreet(scene);
+    scene.attacker.moveTo(0, 1.4, -6.6);
+    scene.attacker.faceTowards(0, 1, -8);
+
+    const input = createInputManager({ headless: true, exposeTestBridge: false });
+    managers.push(input);
+    input.syntheticEnabled = true;
+    input.synthetic.press('punch');
+
+    for (let frame = 0; frame < 60; frame++) {
+      const time = frame * DT;
+      scene.bus.setFrame(frame, time);
+      scene.combat.update(input.poll(frame, time), DT, time);
+    }
+    expect(scene.bus.ofType('ShockwaveFired')).toHaveLength(0);
+    expect(scene.bus.ofType('EntityKilled')).toHaveLength(0);
+    expect(scene.combat.targets.get('monster-01')!.dead).toBe(false);
+    expect(scene.combat.diagnostics().charging).toBe(true);
+    scene.combat.dispose();
   });
 });
 

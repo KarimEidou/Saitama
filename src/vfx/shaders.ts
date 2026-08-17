@@ -253,9 +253,15 @@ void main() {
     float azimuth = baseAngle + (u - 0.5) * 2.0 * halfAngle;
     float ringRadius = max(0.0, radius - (1.0 - v) * thickness);
     float trailing = max(0.0, 1.0 - v);
-    float height = loft * pow(trailing, 0.70);
+    /* The exponent decides whether this is a WALL or a stripe painted on the
+       road. At 0.7 the bright pressure band — which sits just inside the
+       leading edge — is barely off the ground and reads as a lens flare
+       skidding along the tarmac. At 0.4 the shell stands up fast behind the
+       edge, so the band is a segment of a curtain and the dust behind it has
+       something to billow against. */
+    float height = loft * pow(trailing, 0.40);
     p = iOrigin.xyz + vec3(sin(azimuth) * ringRadius, height, cos(azimuth) * ringRadius);
-    heightFade = 1.0 - 0.5 * pow(trailing, 1.5);
+    heightFade = 1.0 - 0.45 * pow(trailing, 1.6);
   } else {
     /* AXIAL CONE — a surface of revolution about the punch direction. This is
        the air the fist is pushing, and it is the form that matches the combat
@@ -360,6 +366,14 @@ void main() {
 
   float alpha = clamp(body * 0.15 + lens * 0.20 + band * 0.36, 0.0, 1.0) * attenuation;
 
+  /* The edge keeps most of its coherence — breaking it up entirely destroys
+     the "wall of pressure" read — but a completely smooth arc looks like a
+     lens flare, so it takes a quarter of the arc hashing. */
+  float edgeStreak = 0.76 + 0.24 * streak;
+  band *= edgeStreak;
+  bandR *= edgeStreak;
+  bandB *= edgeStreak;
+
   vec3 rgb = vTint * (band * 1.35 + body * 0.09);
 #if VFX_QUALITY > 0
   rgb += vec3(bandR, band, bandB) * 0.42 * vTint;
@@ -431,7 +445,7 @@ float slLines(float k, float r, float density, float seed) {
   float h2 = slHash(cell + seed + 37.0);
   /* Most cells carry NO line. Evenly filled spokes read as a test pattern; the
      gaps are what make the field read as motion rather than as a sunburst. */
-  if (h < 0.68) return 0.0;
+  if (h < 0.74) return 0.0;
   float halfWidth = 0.010 + 0.075 * h2;
   float centre = 0.5 + (h2 - 0.5) * 0.5;
   float line = smoothstep(halfWidth, halfWidth * 0.15, abs(f - centre));
@@ -454,7 +468,7 @@ void main() {
   /* Lines strengthen toward the frame edge so the centre of the shot — the
      thing the player is actually looking at — stays clear. Speedlines that
      cover the subject are not style, they are an occlusion bug. */
-  lines *= mix(0.0, 1.0, smoothstep(0.45, 1.35, r));
+  lines *= mix(0.0, 1.0, smoothstep(0.58, 1.45, r));
 
   float alpha = clamp(lines * uIntensity, 0.0, 1.0);
   if (alpha < 0.004) discard;

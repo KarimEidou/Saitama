@@ -35,7 +35,8 @@ import type {
   IEventBus,
   Vec3,
 } from '@/types';
-import { ZONING_YEN_PER_KG, type ICombatTuning } from './tuning';
+import { saturate } from '@/util';
+import { PROPERTY_DAMAGE_HALF_YEN, ZONING_YEN_PER_KG, type ICombatTuning } from './tuning';
 import type { IEncounterResult } from './types';
 
 export interface IEncounterTrackerOptions {
@@ -203,6 +204,7 @@ export class EncounterTracker {
       alliesDowned: tally.alliesDowned,
       debrisMassKg: tally.debrisMassKg,
       propertyDamageYen: tally.propertyDamageYen,
+      propertyDamageScore: saturate(tally.propertyDamageYen, PROPERTY_DAMAGE_HALF_YEN),
       collateralCost: tally.collateralCost,
       witnessed: tally.witnessed,
       kills: tally.kills,
@@ -222,7 +224,14 @@ export class EncounterTracker {
       outcome,
       duration: Math.max(0, tally.endTime - tally.startTime),
       civiliansLost: result.civiliansLost,
-      collateralCost: result.propertyDamageYen,
+      // ── UNIT MATTERS HERE, AND IT IS NOT YEN ─────────────────────────────
+      // `collateralCost` on this event has to be in the SAME unit as
+      // `ChunkDetached.collateralCost`, because a consumer that accumulates
+      // the per-chunk figure and then reconciles it against the total will
+      // otherwise be comparing two quantities four orders of magnitude apart
+      // and the yen figure wins every time. The player-facing invoice is
+      // `IEncounterResult.propertyDamageYen`; this is the accounting figure.
+      collateralCost: result.collateralCost,
     });
     return result;
   }

@@ -37,6 +37,9 @@ import {
 } from './constants';
 import type { IObstacleRect } from './types';
 
+/** Clear of a façade by this much after a push-out, metres. */
+const EXIT_EPSILON = 1e-3;
+
 /** World X of a field cell's centre. */
 export function cellCentreX(gx: number): number {
   return FIELD_ORIGIN + (gx + 0.5) * FIELD_CELL;
@@ -286,10 +289,15 @@ export class ObstacleField {
       const dzMin = out.z - (r.minZ - margin);
       const dzMax = r.maxZ + margin - out.z;
       const best = Math.min(dxMin, dxMax, dzMin, dzMax);
-      if (best === dxMin) out.x = r.minX - margin;
-      else if (best === dxMax) out.x = r.maxX + margin;
-      else if (best === dzMin) out.z = r.minZ - margin;
-      else out.z = r.maxZ + margin;
+      // The extra epsilon matters: `rectAt` treats the boundary as INSIDE, so
+      // landing exactly on `maxX + margin` leaves the agent still "colliding".
+      // Every frame would then report a containment fix that moves nobody, and
+      // the diagnostic that is supposed to catch agents inside buildings would
+      // be permanently non-zero and therefore useless.
+      if (best === dxMin) out.x = r.minX - margin - EXIT_EPSILON;
+      else if (best === dxMax) out.x = r.maxX + margin + EXIT_EPSILON;
+      else if (best === dzMin) out.z = r.minZ - margin - EXIT_EPSILON;
+      else out.z = r.maxZ + margin + EXIT_EPSILON;
       moved += best;
     }
     return moved;

@@ -147,6 +147,9 @@
       "CivilianLost",
       "ImpulseApplied"
     ],
+    "punchKinds": [
+      "serious"
+    ],
     "boredom": 0.8985250000000001
   },
   "normal": {
@@ -179,6 +182,9 @@
       "BoredomChanged",
       "EntityKilled",
       "ImpulseApplied"
+    ],
+    "punchKinds": [
+      "normal"
     ],
     "boredom": 0.9250750000000001
   },
@@ -228,6 +234,9 @@
       "AllyDowned",
       "ImpulseApplied"
     ],
+    "punchKinds": [
+      "slam"
+    ],
     "boredom": 0.951625
   },
   "encounter": {
@@ -260,7 +269,6 @@
       "BoredomChanged",
       "EntityKilled",
       "ImpulseApplied",
-      "ShockwaveFired",
       "ShockwaveFired",
       "EntityKilled",
       "CivilianLost",
@@ -973,6 +981,11 @@
       "ChunkDetached",
       "EncounterEnded"
     ],
+    "punchKinds": [
+      "normal",
+      "serious"
+    ],
+    "encounterEndedCollateral": 8943000,
     "boredom": 1,
     "result": {
       "encounterId": "harness",
@@ -983,13 +996,14 @@
       "alliesDowned": 1,
       "debrisMassKg": 2981000,
       "propertyDamageYen": 15501200000,
+      "propertyDamageScore": 0.8611203697531276,
       "collateralCost": 8943000,
       "witnessed": 2,
       "kills": 10,
       "victory": true,
       "seriousPunches": 1,
-      "normalPunches": 2,
-      "longestChain": 2,
+      "normalPunches": 1,
+      "longestChain": 1,
       "boredomBefore": 0.951625,
       "boredomAfter": 1
     }

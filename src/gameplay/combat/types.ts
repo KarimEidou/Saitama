@@ -253,9 +253,50 @@ export interface IEncounterResult {
   readonly alliesDowned: number;
   /** Destroyed fracture-chunk mass in kilograms. */
   readonly debrisMassKg: number;
-  /** `debrisMassKg` weighted by the zoning value where each piece fell. */
+  /**
+   * `debrisMassKg` weighted by the zoning value where each piece fell.
+   *
+   * ╔══════════════════════════════════════════════════════════════════════╗
+   * ║  MAGNITUDE WARNING — READ BEFORE CONSUMING THIS FIELD                ║
+   * ║                                                                      ║
+   * ║  This is an INVOICE IN YEN and it is enormous. Representative        ║
+   * ║  figures, all real outputs of this system:                           ║
+   * ║                                                                      ║
+   * ║      a restrained fight ..................... 0                      ║
+   * ║      one shopfront .......................... ~1.0e9                 ║
+   * ║      one downtown block ..................... ~4.3e9                 ║
+   * ║      a fully charged serious punch .......... ~1.5e10                ║
+   * ║                                                                      ║
+   * ║  DO NOT multiply this by a per-unit rate and add it to a score. It   ║
+   * ║  is unbounded, it spans four decades between "careful" and           ║
+   * ║  "careless", and it will saturate any linear consumer on the first   ║
+   * ║  serious punch of the game.                                          ║
+   * ║                                                                      ║
+   * ║  Read `propertyDamageScore` instead. This field is for the HUD, the  ║
+   * ║  end-of-mission card and the player's guilt.                         ║
+   * ╚══════════════════════════════════════════════════════════════════════╝
+   */
   readonly propertyDamageYen: number;
-  /** Sum of the destruction system's own collateral estimates, as a cross-check. */
+  /**
+   * `propertyDamageYen` compressed to 0..1. THE FIELD A SCORE SHOULD READ.
+   *
+   * `saturate(yen, PROPERTY_DAMAGE_HALF_YEN)` — the same curve physics and
+   * audio use for unbounded punch power, for the same reason. A shopfront
+   * reads 0.29, a block 0.63, three blocks 0.86, a district 0.98, and nothing
+   * can ever push it past 1.
+   */
+  readonly propertyDamageScore: number;
+  /**
+   * Sum of the destruction system's own `ChunkDetached.collateralCost`
+   * estimates.
+   *
+   * IN DESTRUCTION'S UNIT, NOT IN YEN — which is precisely why this, and not
+   * `propertyDamageYen`, is what goes out on `EncounterEnded.collateralCost`.
+   * Progression accumulates the per-chunk figure directly off `ChunkDetached`
+   * and then takes the larger of the two; handing it a yen total there would
+   * be a four-order-of-magnitude unit mismatch that silently wins every
+   * comparison.
+   */
   readonly collateralCost: number;
   /** Did a civilian have line-of-sight when the killing blow landed. */
   readonly witnessed: number;

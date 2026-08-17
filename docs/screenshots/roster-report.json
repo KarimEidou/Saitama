@@ -82,7 +82,7 @@
         "triangles": 3460,
         "height": 1.73,
         "drawCalls": 1,
-        "textureBytes": 21567610,
+        "textureBytes": 27187977,
         "maps": [
           "map",
           "normalMap",
@@ -271,13 +271,13 @@
     ],
     "sceneCalls": 29,
     "sceneTriangles": 95242,
-    "totalTextureBytes": 327781564,
+    "totalTextureBytes": 333401931,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 4208,
-      "stdDev": 65.09393728770742,
+      "distinctColors": 3312,
+      "stdDev": 61.05615331194932,
       "magentaPixels": 0,
-      "meanLuma": 89.35463182290927
+      "meanLuma": 74.54772286457857
     },
     "proximityFadeCurve": [
       0,
@@ -329,13 +329,13 @@
       },
       "headHalfWidth": 0.0836
     },
-    "drawCalls": 8,
+    "drawCalls": 5,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 2336,
-      "stdDev": 92.98266607174199,
+      "distinctColors": 3974,
+      "stdDev": 97.99494332944826,
       "magentaPixels": 0,
-      "meanLuma": 66.28139479166322
+      "meanLuma": 102.79821846355198
     },
     "proximityFadeCurve": [
       0,
@@ -370,18 +370,18 @@
       }
     ],
     "metalness": {
-      "high": 0.1371927261352539,
-      "low": 0.7681407928466797,
-      "mean": 0.1903368220609777,
-      "maxRoughSpread": 0.20392156862745098
+      "high": 0.1371936798095703,
+      "low": 0.7680797576904297,
+      "mean": 0.19030677945006128,
+      "maxRoughSpread": 0.19607843137254902
     },
     "drawCalls": 2,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 6567,
-      "stdDev": 51.90624462638998,
+      "distinctColors": 6119,
+      "stdDev": 49.193126884370855,
       "magentaPixels": 0,
-      "meanLuma": 42.527537994820435
+      "meanLuma": 43.130503177088876
     },
     "proximityFadeCurve": [
       0,
@@ -398,14 +398,14 @@
     "drawCalls": 3,
     "triangles": 630962,
     "distinctPalettes": 206,
-    "textureBytes": 5391903,
+    "textureBytes": 6796995,
     "perCharacterTriangles": 1434,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 8945,
-      "stdDev": 64.69785685202291,
+      "distinctColors": 8644,
+      "stdDev": 59.446791493003325,
       "magentaPixels": 0,
-      "meanLuma": 86.38450942707486
+      "meanLuma": 78.73977580728366
     },
     "proximityFadeCurve": [
       0,

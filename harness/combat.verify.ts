@@ -96,12 +96,15 @@ interface IEncounterSummary {
   readonly civiliansSaved: number;
   readonly alliesSaved: number;
   readonly propertyDamageYen: number;
+  readonly propertyDamageScore: number;
+  readonly collateralCost: number;
   readonly debrisMassKg: number;
   readonly witnessed: number;
   readonly kills: number;
   readonly victory: boolean;
   readonly normalPunches: number;
   readonly seriousPunches: number;
+  readonly longestChain: number;
   readonly boredomBefore: number;
   readonly boredomAfter: number;
 }
@@ -113,6 +116,8 @@ interface ISnapshot {
   readonly structures: number;
   readonly punch: IPunchSummary | undefined;
   readonly eventTypes: string[];
+  readonly punchKinds: string[];
+  readonly encounterEndedCollateral: number | undefined;
   readonly boredom: number;
   readonly result: IEncounterSummary | undefined;
 }
@@ -351,10 +356,48 @@ async function main(): Promise<void> {
       if (result.seriousPunches !== 1) {
         failures.push(`the script threw ${result.seriousPunches} serious punches, expected 1`);
       }
-      if (result.normalPunches < 1) failures.push('the script threw no normal punches');
+      // ONE tap. The script taps once and then holds; if beginning the charge
+      // still threw a free jab this would be 2, and the most important
+      // decision in the game would be getting made by a button the player was
+      // still pressing.
+      if (result.normalPunches !== 1) {
+        failures.push(
+          `the script threw ${result.normalPunches} normal punches, expected 1 — ` +
+            `the charge wind-up is throwing a free jab again`
+        );
+      }
+      if (result.longestChain !== 1) {
+        failures.push(`the chain reached ${result.longestChain} from a single tap`);
+      }
       if (result.timeToKill <= 0) failures.push('timeToKill was not measured');
       if (result.boredomAfter <= result.boredomBefore) {
         failures.push('a fight of nothing but instant kills did not raise boredom');
+      }
+
+      // The bounded companion to the yen invoice: what a linear consumer reads.
+      if (!(result.propertyDamageScore > 0 && result.propertyDamageScore < 1)) {
+        failures.push(`propertyDamageScore is ${result.propertyDamageScore}, expected in (0, 1)`);
+      }
+      if (result.propertyDamageYen < 1e9) {
+        failures.push('levelling the street billed under a billion yen');
+      }
+    }
+
+    // -- the emit boundary carries the ACCOUNTING figure, not the invoice.
+    const ended = encounter.eventTypes.filter((t) => t === 'EncounterEnded').length;
+    if (ended !== 1) failures.push(`${ended} EncounterEnded events, expected 1`);
+    if (result !== undefined && encounter.encounterEndedCollateral !== undefined) {
+      if (Math.abs(encounter.encounterEndedCollateral - result.collateralCost) > 1) {
+        failures.push(
+          `EncounterEnded.collateralCost is ${encounter.encounterEndedCollateral}, ` +
+            `expected the ChunkDetached sum ${result.collateralCost}`
+        );
+      }
+      if (encounter.encounterEndedCollateral >= result.propertyDamageYen) {
+        failures.push(
+          'EncounterEnded.collateralCost is carrying the yen invoice — that is a ' +
+            'unit mismatch against the per-chunk figure progression accumulates'
+        );
       }
     }
 
@@ -400,6 +443,8 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(slam.punch, null, 2));
     console.log('\n──────── encounter result ────────');
     console.log(JSON.stringify(encounter.result, null, 2));
+    console.log('\n──────── punches thrown ────────');
+    console.log(encounter.punchKinds.join(' -> '));
     console.log('\n──────── event sequence (first 40) ────────');
     console.log(encounter.eventTypes.slice(0, 40).join(' -> '));
     console.log('\n──────── pixels ────────');

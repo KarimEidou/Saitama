@@ -16,6 +16,16 @@
  * same). The choice between the first two — reach the monster, or delete the
  * district — is the whole game loop, and `EncounterResult` is the bill.
  *
+ * Tap and hold share one button and are told apart on RELEASE, at 140 ms, so
+ * that beginning a charge never spends a free kill the player did not choose.
+ *
+ * ── TWO FIELDS ON `EncounterResult` THAT ARE EASY TO MISUSE ────────────────
+ * `propertyDamageYen` is an invoice and is unbounded (~1.5e10 for one serious
+ * punch downtown) — read `propertyDamageScore`, which is bounded 0..1, if you
+ * are feeding a score. `EncounterEnded.collateralCost` carries the
+ * destruction system's own unit, matching `ChunkDetached.collateralCost`, not
+ * yen.
+ *
  * ── WIRING IT UP ───────────────────────────────────────────────────────────
  *
  *   const combat = createCombatSystem({
@@ -61,6 +71,7 @@ export {
   THREAT_ORDER,
   ZONING_YEN_PER_KG,
   DEFAULT_ZONING_YEN_PER_KG,
+  PROPERTY_DAMAGE_HALF_YEN,
   isLethalIntent,
   resolveCombatTuning,
   tierScalar,

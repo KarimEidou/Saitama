@@ -862,6 +862,25 @@
               "size": 1024
             }
           ]
+        },
+        {
+          "id": "chr.civilian.mask",
+          "role": "mask",
+          "colorSpace": "linear",
+          "targetFormat": "png",
+          "tileable": false,
+          "files": [
+            {
+              "tier": "mobile",
+              "file": "chr/civilian/mask.mobile.png",
+              "size": 512
+            },
+            {
+              "tier": "high",
+              "file": "chr/civilian/mask.high.png",
+              "size": 1024
+            }
+          ]
         }
       ],
       "face": {

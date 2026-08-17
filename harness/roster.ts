@@ -33,7 +33,9 @@ import type { LodLevel } from '@/characters/mesh';
 import { buildHumanoid, createSkinnedMesh } from '@/characters/mesh';
 import {
   attachCrowdAttributes,
+  attachSoloCrowdColors,
   auditMaterial,
+  crowdColors,
   buildCrowdAttributes,
   characterDir,
   civilianEntry,
@@ -66,7 +68,7 @@ const params = new URLSearchParams(location.search);
 const MODE = (params.get('mode') ?? 'sheet') as Mode;
 
 const LAYOUT: Readonly<Record<Mode, { width: number; height: number }>> = {
-  sheet: { width: 1920, height: 1000 },
+  sheet: { width: 1920, height: 840 },
   face: { width: 1600, height: 900 },
   metal: { width: 1600, height: 900 },
   crowd: { width: 1600, height: 900 },
@@ -304,6 +306,9 @@ async function buildCharacter(
 ): Promise<BuiltCharacter> {
   const build = buildHumanoid(entry.recipe.profile, { ...entry.recipe.options, lod });
   prepareRosterGeometry(build);
+  // A crowd character rendered on its own still runs the tint injection, so it
+  // needs the four colour attributes present or it multiplies to black.
+  if (entry.crowd === true) attachSoloCrowdColors(build.geometry, crowdColors(entry.seed));
   const head = measureHead(build);
   const region = faceRegion(entry.face, head);
   const maps = await loadMaps(entry, tier);
@@ -489,12 +494,12 @@ function describe(built: BuiltCharacter): CharacterRow {
 
 async function runSheet(): Promise<Record<string, unknown>> {
   const entries = listRoster();
-  const camera = new THREE.PerspectiveCamera(30, WIDTH / HEIGHT, 0.5, 200);
+  const camera = new THREE.PerspectiveCamera(32, WIDTH / HEIGHT, 0.5, 200);
   addLights(14);
   addGround(80, 0);
 
   const perRow = 7;
-  const spacing = 2.6;
+  const spacing = 2.45;
   const rowDepth = 3.9;
   const rows: CharacterRow[] = [];
   const built: BuiltCharacter[] = [];
@@ -515,8 +520,8 @@ async function runSheet(): Promise<Record<string, unknown>> {
     rows.push(describe(character));
   }
 
-  camera.position.set(0, 3.2, 15.6);
-  camera.lookAt(0, 1.5, -2.0);
+  camera.position.set(0, 2.3, 13.6);
+  camera.lookAt(0, 1.75, -2.2);
   scene.add(camera);
 
   redraw = (): void => {
@@ -534,8 +539,10 @@ async function runSheet(): Promise<Record<string, unknown>> {
   for (const character of built) {
     const head = new THREE.Vector3(0, character.height + 0.16, 0).add(character.root.position);
     const point = project(head, camera);
-    // Stagger every other label so a tall neighbour cannot overwrite it.
-    const stagger = (built.indexOf(character) % 2) * 22;
+    // Stagger alternate labels, and lift the back row clear of the front one:
+    // the two rows share columns, so their labels project into the same band.
+    const index = built.indexOf(character);
+    const stagger = (index % 2) * 34 + Math.floor(index / perRow) * 30;
     const sub =
       character.entry.threat === undefined
         ? `${character.triangles} tris · ${character.drawCalls} call`

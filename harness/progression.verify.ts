@@ -170,18 +170,32 @@ async function buildHarness(): Promise<void> {
   await build(config);
 }
 
+/**
+ * Extra directories served alongside the bundle.
+ *
+ * `/assets` is BOTH Vite's own chunk directory (`build.assetsDir`) and the
+ * processed asset root under `public/`. That collision is not hypothetical: it
+ * silently 404s every JS chunk, the page loads as a blank white rectangle, and
+ * the only symptom is the harness never signalling ready. The build output is
+ * therefore checked FIRST and the mount is a fallback, so `/assets/three-*.js`
+ * comes from the bundle and `/assets/env/*.ktx2` comes from `public/`.
+ *
+ * `public/assets/` is ~200 MB and is mounted off disk rather than copied.
+ */
 const MOUNTS: readonly (readonly [string, string])[] = [
   ['/assets', path.join(ROOT, 'public', 'assets')],
   ['/basis', path.join(ROOT, 'node_modules', 'three', 'examples', 'jsm', 'libs', 'basis')],
 ];
 
 function resolveMount(pathname: string, fallbackDir: string): string {
+  const fromBuild = path.join(fallbackDir, pathname);
+  if (existsSync(fromBuild)) return fromBuild;
   for (const [prefix, dir] of MOUNTS) {
     if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
       return path.join(dir, pathname.slice(prefix.length));
     }
   }
-  return path.join(fallbackDir, pathname);
+  return fromBuild;
 }
 
 function serve(directory: string): Promise<{ server: Server; port: number }> {

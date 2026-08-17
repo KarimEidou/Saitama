@@ -201,11 +201,11 @@ function main(): void {
   // shoulder. SIDE lighting, not front or back: a front-lit plume is a flat
   // grey wall, and a purely back-lit street is a row of black slabs with the
   // sun disc parked in shot.
-  lighting.sunDirection.set(-0.74, -0.44, -0.51).normalize();
+  lighting.sunDirection.set(0.55, -0.66, -0.52).normalize();
   lighting.sunColor.setHex(0xffe6c2);
   lighting.sunIntensity = 3.2;
-  lighting.ambientColor.setHex(0x7d9bc8);
-  lighting.exposure = 0.78;
+  lighting.ambientColor.setHex(0x8caedd);
+  lighting.exposure = 0.86;
   lighting.envMapIntensity = 1;
   lighting.fogColor.setHex(0x9fb4cc);
   lighting.fogDensity = 0.0016;
@@ -483,8 +483,8 @@ function main(): void {
     {
       // Down the street from behind the punch: the default composition.
       street: {
-        eye: new THREE.Vector3(17, 15, 96),
-        target: new THREE.Vector3(-3, 11, -140),
+        eye: new THREE.Vector3(6, 16, 98),
+        target: new THREE.Vector3(-2, 12, -140),
         fov: 52,
       },
       // Close, low and three-quarter. The shot the freeze holds on.

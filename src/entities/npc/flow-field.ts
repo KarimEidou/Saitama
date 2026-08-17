@@ -378,10 +378,36 @@ export class FlowField {
         if (len < 1e-6) {
           dirX[i] = 0;
           dirZ[i] = 0;
-        } else {
-          dirX[i] = ax / len;
-          dirZ[i] = az / len;
+          continue;
         }
+        let ux = ax / len;
+        let uz = az / len;
+
+        // A weighted average of open neighbours can still aim at a BLOCKED
+        // diagonal: if +X and +Z are both open and +X+Z is a building corner,
+        // the mean of the two points straight at the corner. Left alone, the
+        // crowd shaves every corner in the city and the containment pass shoves
+        // them back out again, every frame, for ever. Drop the smaller
+        // component so the flow follows the open face instead.
+        const tx = cellX(cellCentreX(gx) + ux * FIELD_CELL);
+        const tz = cellZ(cellCentreZ(gz) + uz * FIELD_CELL);
+        if (obstacles.blocked[tz * FIELD_DIM + tx] === 1) {
+          if (Math.abs(ux) >= Math.abs(uz)) {
+            uz = 0;
+            ux = Math.sign(ux);
+          } else {
+            ux = 0;
+            uz = Math.sign(uz);
+          }
+          const rx = cellX(cellCentreX(gx) + ux * FIELD_CELL);
+          const rz = cellZ(cellCentreZ(gz) + uz * FIELD_CELL);
+          if (obstacles.blocked[rz * FIELD_DIM + rx] === 1) {
+            ux = 0;
+            uz = 0;
+          }
+        }
+        dirX[i] = ux;
+        dirZ[i] = uz;
       }
     }
   }

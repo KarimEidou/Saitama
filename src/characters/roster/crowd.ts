@@ -3,14 +3,14 @@
  *
  * Two hundred civilians, one geometry, one atlas, one material, one draw call.
  * The only thing that differs per instance is four colours, uploaded as
- * instanced vertex attributes and applied by the tint mask baked into the
- * atlas alpha (see `materials.ts`).
+ * instanced vertex attributes and applied through a single-channel tint mask
+ * baked alongside the atlas (see `materials.ts`).
  *
  * ── WHY A MASK RATHER THAN FOUR MATERIALS ─────────────────────────────────
  * The obvious alternative is one material per palette, which multiplies draw
  * calls by the number of palettes and defeats instancing entirely. The mask
- * costs one alpha channel that would otherwise be wasted — the atlas is opaque
- * — and one texture fetch that is already in flight.
+ * costs one small greyscale upload and one texture fetch, and it buys an
+ * unlimited wardrobe.
  *
  * ── DETERMINISM ───────────────────────────────────────────────────────────
  * Colours come from `civilianProfile(seed)`, the same function the mesh
@@ -110,6 +110,33 @@ export function attachCrowdAttributes(
   geometry.setAttribute('instanceCloth', new THREE.InstancedBufferAttribute(attributes.cloth, 3));
   geometry.setAttribute('instanceAccent', new THREE.InstancedBufferAttribute(attributes.accent, 3));
   geometry.setAttribute('instanceHair', new THREE.InstancedBufferAttribute(attributes.hair, 3));
+}
+
+/**
+ * Dress ONE non-instanced civilian.
+ *
+ * The crowd injection reads four vertex attributes. On an `InstancedMesh` they
+ * are instanced; on a plain mesh they are absent, and an absent attribute reads
+ * as (0, 0, 0) — which multiplies the civilian to solid black. That is not a
+ * hypothetical: it is what the first contact sheet showed. Attaching constant
+ * per-vertex colours makes a single civilian display correctly with the same
+ * material and the same shader.
+ */
+export function attachSoloCrowdColors(geometry: THREE.BufferGeometry, colors: CrowdColors): void {
+  const count = geometry.getAttribute('position').count;
+  const fill = (color: THREE.Color): THREE.Float32BufferAttribute => {
+    const array = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      array[i * 3] = color.r;
+      array[i * 3 + 1] = color.g;
+      array[i * 3 + 2] = color.b;
+    }
+    return new THREE.Float32BufferAttribute(array, 3);
+  };
+  geometry.setAttribute('instanceSkin', fill(colors.skin));
+  geometry.setAttribute('instanceCloth', fill(colors.cloth));
+  geometry.setAttribute('instanceAccent', fill(colors.accent));
+  geometry.setAttribute('instanceHair', fill(colors.hair));
 }
 
 /**

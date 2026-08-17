@@ -570,8 +570,8 @@ const TIERS: Readonly<Record<ThreatTier, TierSpec>> = {
     angular: 0.4,
     surface: 'armor',
     palettes: [
-      [0x24222c, 0x585469, 0x0d0c11],
-      [0x2c2422, 0x695a54, 0x110d0c],
+      [0x3c3950, 0x7d7796, 0x16141c],
+      [0x463a34, 0x8a7a70, 0x1a1512],
     ],
     plated: true,
     glow: 0x9fe8ff,

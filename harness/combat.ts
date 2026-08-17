@@ -868,6 +868,8 @@ export interface ICombatHarnessSnapshot {
       }
     | undefined;
   readonly eventTypes: string[];
+  readonly punchKinds: string[];
+  readonly encounterEndedCollateral: number | undefined;
   readonly boredom: number;
   readonly result: IEncounterResult | undefined;
 }
@@ -916,6 +918,12 @@ const harness: ICombatHarness = {
               forecastYen: outcome.collateralCost,
             },
       eventTypes: events.map((event) => event.type),
+      punchKinds: events
+        .filter((event) => event.type === 'ShockwaveFired')
+        .map((event) => (event as { punchKind: string }).punchKind),
+      encounterEndedCollateral: events
+        .filter((event) => event.type === 'EncounterEnded')
+        .map((event) => (event as { collateralCost: number }).collateralCost)[0],
       boredom: combat.boredom,
       result: lastResult,
     };

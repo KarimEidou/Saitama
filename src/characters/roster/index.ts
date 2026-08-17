@@ -49,6 +49,7 @@ export {
 export {
   CROWD_ATTRIBUTES,
   attachCrowdAttributes,
+  attachSoloCrowdColors,
   buildCrowdAttributes,
   crowdColors,
   distinctCrowdPalettes,

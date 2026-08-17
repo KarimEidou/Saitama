@@ -108,6 +108,8 @@ interface EffectSlot {
   shellGeneration: number;
   /** Lofted fronts throw dust much higher — used by omnidirectional blasts. */
   lofted: boolean;
+  /** Nominal metres per second of the leading edge. Drives the dust front. */
+  frontSpeed: number;
   attach: THREE.Object3D | undefined;
 }
 
@@ -423,6 +425,7 @@ export class VFXSystem implements IVFXSystem {
     slot.shell = -1;
     slot.shellGeneration = -1;
     slot.lofted = false;
+    slot.frontSpeed = 0;
     slot.attach = options.attachTo;
     slot.x = options.position.x;
     slot.y = options.position.y;
@@ -982,7 +985,7 @@ export class VFXSystem implements IVFXSystem {
       this.spawnShell(x, y + 0.6, z, 0, 1, 0, 1.15, range * 0.55, power * 0.85, 1, false, life * 1.15);
     }
 
-    const skirtAngle = omnidirectional ? Math.PI : Math.min(Math.PI, halfAngle * 2.4 + 0.45);
+    const skirtAngle = omnidirectional ? Math.PI : Math.min(Math.PI, halfAngle * 1.9 + 0.34);
     const shell = this.spawnShell(
       x,
       y + 0.25,
@@ -1015,8 +1018,9 @@ export class VFXSystem implements IVFXSystem {
     slot.shell = shell;
     slot.shellGeneration = this.shockwaves.generationOf(shell);
     slot.lofted = omnidirectional;
+    slot.frontSpeed = range / Math.max(0.05, life);
     slot.emitUntil = life * 1.25;
-    slot.rate = (95 + power * 300) * this.profile.particleScale;
+    slot.rate = (180 + power * 520) * this.profile.particleScale;
     slot.lifetime = Math.max(slot.lifetime, life * 1.25 + 4);
 
     /* --- the one-shot content that has to be there in frame one --------- */
@@ -1029,7 +1033,7 @@ export class VFXSystem implements IVFXSystem {
     // A pre-formed dust front, so the wave is already a WALL on the frame the
     // impact freeze holds — not a ring that has yet to grow one.
     if (shell >= 0) {
-      this.emitters.dustFront(rng, shell, speed, power, 26 + power * 46, omnidirectional);
+      this.emitters.dustFront(rng, shell, slot.frontSpeed, power, 34 + power * 54, omnidirectional);
     }
 
     // Ground damage: a star under the fist, plus fractures further along the
@@ -1103,7 +1107,7 @@ export class VFXSystem implements IVFXSystem {
     params.kind = kind;
     params.sharpness = 1.05 + power * 0.45;
     params.chroma = this.profile.shaderQuality > 0 ? 0.022 + power * 0.014 : 0;
-    params.loft = kind === 0 ? 0.15 + power * 0.09 : 0;
+    params.loft = kind === 0 ? 0.30 + power * 0.20 : 0;
     params.start = kind === 0 ? 0.1 : 0.14;
     params.seed = this.rng.next();
     _shellColor.setHex(SHOCK_COLOR);
@@ -1137,11 +1141,17 @@ export class VFXSystem implements IVFXSystem {
           const whole = Math.floor(slot.carry);
           if (whole > 0) {
             slot.carry -= whole;
-            const radius = this.shockwaves.radiusOf(slot.shell);
             const progress = this.shockwaves.progressOf(slot.shell);
-            // Edge speed from the expansion curve's derivative, so the dust it
-            // sheds inherits the right momentum as the wave decelerates.
-            const edgeSpeed = (radius / Math.max(0.05, slot.age)) * (1 - progress * 0.55);
+            // NOMINAL front speed, not `radius / age`.
+            //
+            // The expansion curve starts at a tenth of the range and is
+            // front-loaded, so `radius / age` on the first frame reports
+            // thousands of metres per second and the dust it sheds leaves the
+            // city before it has drawn. Dust does not travel at the shock's
+            // speed anyway — it is entrained air, which is why this is a
+            // fraction of the average front speed and decays as the wave
+            // gives up its energy.
+            const edgeSpeed = Math.min(240, slot.frontSpeed) * (1 - progress * 0.6);
             this.emitters.dustFront(
               this.rng,
               slot.shell,
@@ -1344,6 +1354,7 @@ function emptySlot(): EffectSlot {
     shell: -1,
     shellGeneration: -1,
     lofted: false,
+    frontSpeed: 0,
     attach: undefined,
   };
 }

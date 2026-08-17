@@ -204,12 +204,12 @@ export class EffectEmitters {
       const dx = p.x - this.shockwaves.originX(shellIndex);
       const dz = p.z - this.shockwaves.originZ(shellIndex);
       const length = Math.hypot(dx, dz) || 1;
-      const carried = edgeSpeed * rng.range(0.18, 0.42);
+      const carried = edgeSpeed * rng.range(0.06, 0.18);
       p.vx = (dx / length) * carried;
       p.vz = (dz / length) * carried;
       p.vy = rng.range(1.5, 5.5) * (lofted ? 2.4 : 1) * (0.5 + power);
 
-      p.size0 = 2.4 + radius * rng.range(0.03, 0.075) + power * 4;
+      p.size0 = 2.4 + radius * rng.range(0.05, 0.115) + power * 5;
       p.size1 = p.size0 * rng.range(2.1, 3.4);
       p.life = rng.range(2.6, 5.4) * (0.6 + power * 0.6);
       p.tile = rng.pick(DUST_TILES);

@@ -3,10 +3,10 @@
  * ║  COMBAT SYSTEM — THE THREE VERBS                                         ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  *
- *   TAP        Normal Punch. Instant, single target, lethal, 1.2 m of reach,
- *              almost no collateral. Rapid taps chain into Consecutive Normal
- *              Punches, which escalate in power and therefore — because the
- *              audio system derives pitch from power — in pitch and shake.
+ *   TAP        Normal Punch. Single target, lethal, 1.2 m of reach, almost no
+ *              collateral. Rapid taps chain into Consecutive Normal Punches,
+ *              which escalate in power and therefore — because the audio
+ *              system derives pitch from power — in pitch and shake.
  *
  *   HOLD       Serious Punch. Charges 0 to 1 over 1.2 s. Release fires a 22°
  *              cone that grows from 40 m to 180 m with charge and instantly
@@ -25,6 +25,12 @@
  * The Normal Punch costs nothing and requires you to physically reach the
  * monster before it reaches a civilian. That is the entire game loop, and
  * every number in `tuning.ts` exists to keep the two genuinely competitive.
+ *
+ * Both verbs come out of ONE button, so the two are told apart on RELEASE, at
+ * `tapMaxHoldSeconds`. Firing the jab on the press edge instead would be a
+ * frame faster and would mean every charge begins by spending a free kill the
+ * player never chose to make — the loop's most important decision, made
+ * wrongly, by a button they were still holding down.
  *
  * ── WHAT THIS FILE IS NOT ALLOWED TO DO ────────────────────────────────────
  * It reads `InputState` and emits `GameEvent`s. It does not draw the cone
