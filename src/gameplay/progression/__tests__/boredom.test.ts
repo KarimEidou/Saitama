@@ -100,27 +100,60 @@ describe('boredom throttles rank gain', () => {
     }
   });
 
-  it('measurably slows a real run of witnessed rescues', () => {
+  it('applies the throttle to every award', () => {
     const fresh = makeHarness();
     const jaded = makeHarness();
     jaded.bus.emit('BoredomChanged', { value: 1, previous: 0, reason: 'trivialVictory' });
 
+    const before = fresh.coordinator.progression.points;
+    fresh.coordinator.progression.addPoints(1000, 'test');
+    jaded.coordinator.progression.addPoints(1000, 'test');
+
+    const freshGain = fresh.coordinator.progression.points - before;
+    const jadedGain = jaded.coordinator.progression.points - before;
+    expect(freshGain).toBeCloseTo(1000, 6);
+    expect(jadedGain).toBeCloseTo(1000 * BOREDOM_RANK_FLOOR, 6);
+    fresh.dispose();
+    jaded.dispose();
+  });
+
+  it('measurably slows a real run of witnessed rescues', () => {
+    const fresh = makeHarness();
+    const jaded = makeHarness();
+
     for (const harness of [fresh, jaded]) {
       harness.crowd(ORIGIN, 12);
-      for (let i = 0; i < 20; i++) harness.saveCivilian(ORIGIN);
+      for (let i = 0; i < 20; i++) {
+        // Re-pin the jaded run each time. A rescue is itself an act of
+        // heroism and therefore DRAINS boredom — left alone, twenty of them
+        // would lift the throttle halfway through and the measurement would be
+        // of the drain rather than of the throttle.
+        if (harness === jaded) {
+          harness.bus.emit('BoredomChanged', { value: 1, previous: 0, reason: 'trivialVictory' });
+        }
+        harness.saveCivilian(ORIGIN);
+      }
       harness.tick(0.5);
     }
 
-    const freshPoints = fresh.coordinator.progression.points;
-    const jadedPoints = jaded.coordinator.progression.points;
-    expect(jadedPoints).toBeLessThan(freshPoints);
-    // The gains, not the totals — both start with the same 20 points.
-    const freshGain = freshPoints - 20;
-    const jadedGain = jadedPoints - 20;
+    const freshGain = fresh.coordinator.progression.points - 20;
+    const jadedGain = jaded.coordinator.progression.points - 20;
     expect(jadedGain).toBeLessThan(freshGain * 0.35);
     expect(jadedGain).toBeGreaterThan(0);
     fresh.dispose();
     jaded.dispose();
+  });
+
+  it('lifts as heroism drains boredom, without any other input', () => {
+    const harness = makeHarness();
+    harness.bus.emit('BoredomChanged', { value: 1, previous: 0, reason: 'trivialVictory' });
+    const throttled = harness.coordinator.boredom.rankGainMultiplier;
+
+    harness.crowd(ORIGIN, 12);
+    for (let i = 0; i < 12; i++) harness.saveCivilian(ORIGIN);
+
+    expect(harness.coordinator.boredom.rankGainMultiplier).toBeGreaterThan(throttled);
+    harness.dispose();
   });
 
   it('does NOT throttle penalties — the throttle is never a shield', () => {

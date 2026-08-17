@@ -25,7 +25,7 @@ import { QuestSystem } from './quest-system';
 import { RivalTracker } from './rivals';
 import { WitnessField } from './witness';
 import { QUEST_DEFS, type IQuestDef, type RuntimeQuest } from './quest-defs';
-import { BOREDOM_FUN_FIGHT_LOCK } from './constants';
+import { BOREDOM_FUN_FIGHT_LOCK, type HeroicDeed } from './constants';
 import { SaveManager, buildSave, type ISaveBackend, type IStoredSave } from './save-game';
 
 const log = createLogger('gameplay.progression');
@@ -121,6 +121,10 @@ export class ProgressionCoordinator {
   /* ---------------------------------------------------------------------- */
 
   buildSaveGame(playerPosition = { x: 0, y: 0, z: 0 }, playerYaw = 0, savedAt?: string): IStoredSave {
+    // Optional fields are OMITTED rather than written as `undefined`: the save
+    // validator rejects `undefined` outright, because a key that JSON silently
+    // drops is indistinguishable from one the game forgot to write.
+    const lunarAgeDays = (this.time as { lunarAgeDays?: number } | undefined)?.lunarAgeDays;
     return buildSave({
       worldSeed: this.worldSeed,
       progression: this.progression.snapshot(),
@@ -133,7 +137,7 @@ export class ProgressionCoordinator {
       extras: {
         rivals: this.rivals.serialise(),
         heroicDeeds: this.boredom.heroicHistory.map((record) => record.deed),
-        lunarAgeDays: (this.time as { lunarAgeDays?: number } | undefined)?.lunarAgeDays,
+        ...(lunarAgeDays === undefined ? {} : { lunarAgeDays }),
       },
       savedAt,
     });
@@ -142,6 +146,7 @@ export class ProgressionCoordinator {
   applySaveGame(save: IStoredSave): void {
     this.progression.restore(save.progression);
     this.rivals.restore(save.extras?.rivals);
+    this.boredom.restoreHistory((save.extras?.heroicDeeds ?? []) as readonly HeroicDeed[]);
     for (const [questId, state] of Object.entries(save.questStates)) {
       this.quests.restoreState(questId, state as QuestState, save.questProgress[questId]);
     }

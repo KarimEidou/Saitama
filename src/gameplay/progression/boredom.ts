@@ -132,6 +132,20 @@ export class BoredomModel {
   }
 
   /**
+   * Repopulate the heroism journal from a save.
+   *
+   * Deliberately does NOT re-apply the deltas: the boredom VALUE is restored
+   * separately by `restore()`, and replaying the log on top of it would drain
+   * boredom a second time for deeds the player already banked.
+   */
+  restoreHistory(deeds: readonly HeroicDeed[]): void {
+    this.history.length = 0;
+    for (const deed of deeds.slice(-this.historyLimit)) {
+      this.history.push({ deed, delta: HEROISM_BOREDOM_RELIEF[deed], time: 0 });
+    }
+  }
+
+  /**
    * Apply a delta and publish it.
    *
    * @returns the change actually applied after clamping, which is 0 when

@@ -103,7 +103,7 @@ describe('WitnessField', () => {
     expect(merged.count).toBe(3);
     expect(merged.corroboration).toBe(1);
     expect(merged.collateralReportRate).toBe(0.9);
-    expect(merged.heroIds.sort()).toEqual(['h1', 'h2']);
+    expect([...merged.heroIds].sort()).toEqual(['h1', 'h2']);
   });
 });
 
