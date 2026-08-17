@@ -28,7 +28,7 @@ import { collapsingFloors as cityCollapsingFloors } from '@/world/city';
 import { createEventBus } from '@/util';
 import { DestructionSystem } from '../destruction-system';
 import { damageSlot, pieceForChunk } from '../damage-address';
-import { FakeDestroyedAttribute, makeTower } from './fixtures';
+import { makeTower } from './fixtures';
 
 const CHUNK_INDEX = 137;
 const BUILDING_INDEX = 3;

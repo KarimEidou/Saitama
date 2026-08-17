@@ -36,7 +36,7 @@
  */
 
 import type * as THREE from 'three';
-import type { EntityId, FractureChunk, Vec3 } from '@/types';
+import type { EntityId, FractureChunk, StructureMaterial, Vec3 } from '@/types';
 
 /* -------------------------------------------------------------------------- */
 /* Geometry side                                                              */
@@ -115,7 +115,16 @@ export interface IStructureFloor {
 export interface IStructureLayout {
   readonly chunks: readonly IStructureChunk[];
   readonly floors: readonly IStructureFloor[];
-  readonly structureMaterial: string;
+  /**
+   * Typed as the shared `StructureMaterial` union, NOT as `string`.
+   *
+   * `CollapsingFloorsFn` takes this layout as a parameter, and parameters are
+   * checked contravariantly: widening this field to `string` would make the
+   * generator's own `collapsingFloors` un-assignable to the port and force a
+   * cast at every wiring site — which is exactly the drift this file exists to
+   * catch.
+   */
+  readonly structureMaterial: StructureMaterial;
   readonly totalMass: number;
   /** Fraction of support that must SURVIVE for a floor to stay standing. */
   readonly collapseSupportRatio: number;

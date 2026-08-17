@@ -103,9 +103,13 @@ describe('the normalised-Uint8 trap', () => {
     });
 
     system.detachChunk(structure, 12, 'external');
+    // The upload is REQUESTED immediately...
+    expect(attribute.needsUpdate).toBe(true);
+    // ...and the range is recorded when the batch flushes, coalesced across
+    // however many chunks the batch took. One chunk here, so one exact range.
+    system.update(1 / 60);
     expect(attribute.uploads).toBe(1);
     expect(attribute.updateRanges[0]).toEqual({ start: 12 * 40, count: 40 });
-    expect(attribute.needsUpdate).toBe(true);
     system.dispose();
   });
 
@@ -122,6 +126,7 @@ describe('the normalised-Uint8 trap', () => {
 
     expect(system.detachChunk(structure, 2, 'external')).toBe(true);
     expect(system.detachChunk(structure, 2, 'external')).toBe(false);
+    system.update(1 / 60);
     expect(attribute.uploads).toBe(1);
     expect(system.diagnostics.chunksDestroyed).toBe(1);
     system.dispose();
