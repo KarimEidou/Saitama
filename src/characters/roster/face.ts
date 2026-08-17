@@ -361,17 +361,50 @@ function drawEye(pen: Pen, style: FaceStyle, mood: Mood, eye: EyeGeom, id: strin
         ` Q ${n(eye.cx)} ${n(eye.cy + eye.ry * 1.25)} ${n(eye.cx - eye.rx)} ${n(eye.cy)} Z`;
       pen.path(d, sclera);
       pen.ellipse(eye.cx, eye.cy, eye.ry * 0.92, eye.ry * 0.92, iris);
-      pen.ellipse(eye.cx, eye.cy, eye.ry * 0.42 * mood.pupilScale, eye.ry * 0.46 * mood.pupilScale, pupil);
-      pen.ellipse(eye.cx - eye.rx * 0.22, eye.cy - eye.ry * 0.42, eye.rx * 0.16, eye.ry * 0.2, '#ffffff', 0.85);
+      pen.ellipse(
+        eye.cx,
+        eye.cy,
+        eye.ry * 0.42 * mood.pupilScale,
+        eye.ry * 0.46 * mood.pupilScale,
+        pupil
+      );
+      pen.ellipse(
+        eye.cx - eye.rx * 0.22,
+        eye.cy - eye.ry * 0.42,
+        eye.rx * 0.16,
+        eye.ry * 0.2,
+        '#ffffff',
+        0.85
+      );
       break;
     }
     case 'anime': {
       pen.ellipse(eye.cx, eye.cy, eye.rx, eye.ry, sclera);
       pen.ellipse(eye.cx, eye.cy + eye.ry * 0.06, eye.rx * 0.78, eye.ry * 0.84, iris);
-      pen.ellipse(eye.cx, eye.cy + eye.ry * 0.06, eye.rx * 0.4 * mood.pupilScale, eye.ry * 0.46 * mood.pupilScale, pupil);
+      pen.ellipse(
+        eye.cx,
+        eye.cy + eye.ry * 0.06,
+        eye.rx * 0.4 * mood.pupilScale,
+        eye.ry * 0.46 * mood.pupilScale,
+        pupil
+      );
       // Two highlights: the big one sells the volume, the small one the gloss.
-      pen.ellipse(eye.cx - eye.rx * 0.34, eye.cy - eye.ry * 0.4, eye.rx * 0.22, eye.ry * 0.26, '#ffffff', 0.95);
-      pen.ellipse(eye.cx + eye.rx * 0.3, eye.cy + eye.ry * 0.34, eye.rx * 0.12, eye.ry * 0.14, '#ffffff', 0.6);
+      pen.ellipse(
+        eye.cx - eye.rx * 0.34,
+        eye.cy - eye.ry * 0.4,
+        eye.rx * 0.22,
+        eye.ry * 0.26,
+        '#ffffff',
+        0.95
+      );
+      pen.ellipse(
+        eye.cx + eye.rx * 0.3,
+        eye.cy + eye.ry * 0.34,
+        eye.rx * 0.12,
+        eye.ry * 0.14,
+        '#ffffff',
+        0.6
+      );
       break;
     }
     case 'slit': {
@@ -399,19 +432,45 @@ function drawEye(pen: Pen, style: FaceStyle, mood: Mood, eye: EyeGeom, id: strin
           pen.ellipse(fx, fy, (eye.rx / cols) * 0.78, (eye.ry / rows) * 0.78, sclera, 0.3);
         }
       }
-      pen.ellipse(eye.cx - eye.rx * 0.3, eye.cy - eye.ry * 0.35, eye.rx * 0.26, eye.ry * 0.3, '#ffffff', 0.35);
+      pen.ellipse(
+        eye.cx - eye.rx * 0.3,
+        eye.cy - eye.ry * 0.35,
+        eye.rx * 0.26,
+        eye.ry * 0.3,
+        '#ffffff',
+        0.35
+      );
       break;
     }
     case 'socket': {
       pen.ellipse(eye.cx, eye.cy, eye.rx * 1.15, eye.ry * 1.25, hex(style.sclera));
-      pen.ellipse(eye.cx, eye.cy, eye.rx * 0.44 * mood.pupilScale, eye.ry * 0.5 * mood.pupilScale, iris);
+      pen.ellipse(
+        eye.cx,
+        eye.cy,
+        eye.rx * 0.44 * mood.pupilScale,
+        eye.ry * 0.5 * mood.pupilScale,
+        iris
+      );
       break;
     }
     case 'round': {
       pen.ellipse(eye.cx, eye.cy, eye.rx, eye.ry, sclera);
       pen.ellipse(eye.cx, eye.cy, eye.rx * 0.62, eye.ry * 0.62, iris);
-      pen.ellipse(eye.cx, eye.cy, eye.rx * 0.3 * mood.pupilScale, eye.ry * 0.3 * mood.pupilScale, pupil);
-      pen.ellipse(eye.cx - eye.rx * 0.28, eye.cy - eye.ry * 0.3, eye.rx * 0.18, eye.ry * 0.18, '#ffffff', 0.8);
+      pen.ellipse(
+        eye.cx,
+        eye.cy,
+        eye.rx * 0.3 * mood.pupilScale,
+        eye.ry * 0.3 * mood.pupilScale,
+        pupil
+      );
+      pen.ellipse(
+        eye.cx - eye.rx * 0.28,
+        eye.cy - eye.ry * 0.3,
+        eye.rx * 0.18,
+        eye.ry * 0.18,
+        '#ffffff',
+        0.8
+      );
       break;
     }
   }
@@ -455,7 +514,13 @@ function drawBrow(pen: Pen, style: FaceStyle, mood: Mood, side: -1 | 1): void {
   const midY = Math.min(innerY, outerY) - Math.abs(outer - inner) * 0.16;
 
   const width =
-    style.brow === 'bold' ? 0.011 : style.brow === 'angular' ? 0.009 : style.brow === 'thin' ? 0.0055 : 0.004;
+    style.brow === 'bold'
+      ? 0.011
+      : style.brow === 'angular'
+        ? 0.009
+        : style.brow === 'thin'
+          ? 0.0055
+          : 0.004;
   const opacity = style.brow === 'faint' ? 0.34 : 0.95;
   pen.stroke(
     `M ${n(inner)} ${n(innerY)} Q ${n(midX)} ${n(midY)} ${n(outer)} ${n(outerY)}`,
@@ -477,7 +542,10 @@ function drawMouth(pen: Pen, style: FaceStyle, mood: Mood): void {
       if (mood.mouthOpen > 0.001) {
         // Surprise opens even a line mouth. Without this the "surprised" tile
         // differs from neutral only in the eyes, which reads as a stare.
-        pen.ellipse(cx, cy + mood.mouthOpen * pen.sy * 0.3, halfWidth * 0.42, mood.mouthOpen * pen.sy, color);
+        // Rounder than tall: an open mouth drawn as a narrow vertical ellipse
+        // reads as a scratch, not as surprise.
+        const open = Math.min(mood.mouthOpen * pen.sy, halfWidth * 0.8);
+        pen.ellipse(cx, cy + open * 0.35, halfWidth * 0.62, open, color);
         break;
       }
       pen.stroke(
@@ -601,7 +669,14 @@ function drawMarking(pen: Pen, style: FaceStyle, region: FaceRegion): void {
       );
       for (let i = 0; i < 3; i++) {
         const t = (i + 0.5) / 3;
-        pen.ellipse(x0 + (x1 - x0) * t, top + (bottom - top) * (0.18 + 0.1 * t), 2.4, 2.4, color, 0.6);
+        pen.ellipse(
+          x0 + (x1 - x0) * t,
+          top + (bottom - top) * (0.18 + 0.1 * t),
+          2.4,
+          2.4,
+          color,
+          0.6
+        );
       }
       break;
     }

@@ -71,7 +71,7 @@ const LAYOUT: Readonly<Record<Mode, { width: number; height: number }>> = {
   sheet: { width: 1920, height: 840 },
   face: { width: 1600, height: 900 },
   metal: { width: 1600, height: 900 },
-  crowd: { width: 1600, height: 900 },
+  crowd: { width: 1600, height: 760 },
 };
 
 const WIDTH = LAYOUT[MODE].width;
@@ -143,8 +143,7 @@ async function loadMaps(entry: RosterEntry, tier: 'mobile' | 'high'): Promise<Lo
     const emissiveMap = entryGlows(entry)
       ? await loadTexture(`${dir}/emissive.${tier}.png`)
       : undefined;
-    const maskMap =
-      entry.crowd === true ? await loadTexture(`${dir}/mask.${tier}.png`) : undefined;
+    const maskMap = entry.crowd === true ? await loadTexture(`${dir}/mask.${tier}.png`) : undefined;
     const bytes =
       textureBytes(map) +
       textureBytes(normalMap) +
@@ -568,7 +567,7 @@ async function runFace(): Promise<Record<string, unknown>> {
   // right. Splitting by scissor rather than by distance means the expressions
   // are rendered at the same texel density as the portrait — the whole point
   // is to judge whether they are legible, and a wide shot would not show that.
-  const portraitWidth = Math.round(WIDTH * 0.52);
+  const portraitWidth = Math.round(WIDTH * 0.42);
   const hero = await buildCharacter(saitama, 0, 'high', 'neutral');
   hero.root.rotation.y = Math.PI + 0.2;
   scene.add(hero.root);
@@ -577,9 +576,10 @@ async function runFace(): Promise<Record<string, unknown>> {
   const strip: BuiltCharacter[] = [];
   for (let i = 0; i < expressions.length; i++) {
     const character = await buildCharacter(saitama, 0, 'high', expressions[i]!);
-    const column = i % 2;
-    const row = Math.floor(i / 2);
-    character.root.position.set(6 + column * 0.44, -row * 0.42, 0);
+    // One ROW, not a grid: stacked heads are occluded by the shoulders of the
+    // character in front of them, which is how the first attempt hid two of
+    // the four expressions entirely.
+    character.root.position.set(6 + i * 0.45, 0, 0);
     character.root.rotation.y = Math.PI;
     scene.add(character.root);
     strip.push(character);
@@ -590,8 +590,8 @@ async function runFace(): Promise<Record<string, unknown>> {
   camera.lookAt(0, eyeY - 0.015, 0);
 
   const grid = new THREE.PerspectiveCamera(26, (WIDTH - portraitWidth) / HEIGHT, 0.05, 40);
-  grid.position.set(6.22, eyeY - 0.21, 1.5);
-  grid.lookAt(6.22, eyeY - 0.21, 0);
+  grid.position.set(6.675, eyeY - 0.06, 3.4);
+  grid.lookAt(6.675, eyeY - 0.06, 0);
 
   redraw = (): void => {
     renderer.setScissorTest(true);
@@ -609,11 +609,11 @@ async function runFace(): Promise<Record<string, unknown>> {
   for (let i = 0; i < strip.length; i++) {
     const character = strip[i]!;
     const point = project(
-      new THREE.Vector3(0, character.height * 0.855, 0).add(character.root.position),
+      new THREE.Vector3(0, character.height * 0.8, 0).add(character.root.position),
       grid,
       { x: portraitWidth, width: WIDTH - portraitWidth }
     );
-    label(point.x, point.y - 26, expressions[i]!);
+    label(point.x, point.y + 18, expressions[i]!);
   }
   panelTitle(40, HEIGHT - 46, 'Saitama · the deadpan, at 1 m');
   panelTitle(portraitWidth + 40, HEIGHT - 46, 'the four expression tiles · one uniform apart');
@@ -648,9 +648,9 @@ async function runMetal(): Promise<Record<string, unknown>> {
   // close-up frames where the character was at construction time.
   character.root.updateMatrixWorld(true);
 
-  const wide = new THREE.PerspectiveCamera(30, WIDTH / 2 / HEIGHT, 0.05, 40);
-  wide.position.set(1.5, 1.35, 2.5);
-  wide.lookAt(0, 0.95, 0);
+  const wide = new THREE.PerspectiveCamera(36, WIDTH / 2 / HEIGHT, 0.05, 40);
+  wide.position.set(1.5, 1.4, 2.5);
+  wide.lookAt(0, 1.0, 0);
 
   // The forearm close-up. `getWorldPosition` already includes the root's
   // transform — running it through `localToWorld` as well (as this did) applies
@@ -673,8 +673,8 @@ async function runMetal(): Promise<Record<string, unknown>> {
   const close = new THREE.PerspectiveCamera(34, WIDTH / 2 / HEIGHT, 0.02, 20);
   close.position
     .copy(target)
-    .addScaledVector(outward, 0.34)
-    .add(new THREE.Vector3(0, 0.05, 0.34));
+    .addScaledVector(outward, 0.55)
+    .add(new THREE.Vector3(0, 0.06, 0.5));
   close.lookAt(target);
 
   redraw = (): void => {
@@ -790,8 +790,8 @@ async function runCrowd(): Promise<Record<string, unknown>> {
   scene.add(instanced);
 
   const camera = new THREE.PerspectiveCamera(34, WIDTH / HEIGHT, 0.3, 200);
-  camera.position.set(0, 3.4, 11.5);
-  camera.lookAt(0, 1.1, -6);
+  camera.position.set(0, 2.9, 11.0);
+  camera.lookAt(0, 1.45, -6);
   scene.add(camera);
 
   redraw = (): void => {
@@ -804,7 +804,11 @@ async function runCrowd(): Promise<Record<string, unknown>> {
   renderer.info.reset();
   renderer.render(scene, camera);
 
-  panelTitle(40, HEIGHT - 46, `${count} civilians · one atlas · per-instance tint`);
+  panelTitle(
+    40,
+    HEIGHT - 46,
+    `${count} civilians · one atlas · per-instance tint · bind pose (the crowd's motion comes from the VAT)`
+  );
 
   return {
     mode: 'crowd',
@@ -822,7 +826,7 @@ async function runCrowd(): Promise<Record<string, unknown>> {
 /* -------------------------------------------------------------------------- */
 
 async function main(): Promise<void> {
-  let environmentSource = 'none';
+  let environmentSource: string;
   try {
     const environment = await loadEnvironment();
     scene.environment = environment.env;

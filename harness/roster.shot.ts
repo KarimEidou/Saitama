@@ -92,7 +92,7 @@ const MODES: readonly Mode[] = [
   { name: 'sheet', file: 'roster-contact-sheet.png', width: 1920, height: 840 },
   { name: 'face', file: 'roster-face-saitama.png', width: 1600, height: 900 },
   { name: 'metal', file: 'roster-metal-genos.png', width: 1600, height: 900 },
-  { name: 'crowd', file: 'roster-crowd.png', width: 1600, height: 900 },
+  { name: 'crowd', file: 'roster-crowd.png', width: 1600, height: 760 },
 ];
 
 async function exists(file: string): Promise<boolean> {

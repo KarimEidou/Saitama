@@ -331,39 +331,56 @@ function main(): void {
   road.name = 'road';
   scene.add(road);
 
-  // Two rows of towers flanking a street that runs down -Z. The punch is fired
-  // along that street, so the cone recedes between them and the dust wall has
-  // facades to eat.
+  // A BLOCK GRID, not a single street.
+  //
+  // A 180-metre shockwave outruns a two-row street in a fifth of a second and
+  // spends the rest of its life expanding over bare ground, where its leading
+  // edge has nothing to be measured against and reads as a lens flare skidding
+  // over an empty plane. Blocks in both axes keep something in front of the
+  // wave for its whole life, and give the wave somewhere to be seen escaping
+  // INTO — which is most of what makes it read as travelling.
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const buildings = new THREE.Group();
   buildings.name = 'buildings';
   const streetHalfWidth = 17;
-  for (let side = -1; side <= 1; side += 2) {
-    let z = -8;
-    while (z > -430) {
-      const depth = 16 + random.next() * 26;
-      const width = 14 + random.next() * 20;
-      const height = 14 + Math.pow(random.next(), 1.6) * 78;
-      const mesh = new THREE.Mesh(boxGeometry, buildingMaterial);
-      mesh.scale.set(width, height, depth);
-      mesh.position.set(
-        side * (streetHalfWidth + width * 0.5 + random.next() * 5),
-        height * 0.5,
-        z - depth * 0.5
-      );
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      buildings.add(mesh);
-      z -= depth + 5 + random.next() * 7;
+  const BLOCK = 78;
+  const STREET = 2 * streetHalfWidth;
+  const PITCH = BLOCK + STREET;
+
+  for (let bz = 1; bz >= -5; bz--) {
+    for (let bx = -3; bx <= 3; bx++) {
+      // Leave the origin block open: the punch needs a plaza to happen in, and
+      // the camera needs a corridor to see down.
+      if (bx === 0 && bz >= -1) continue;
+      const blockX = bx * PITCH;
+      const blockZ = bz * PITCH;
+      const towers = 1 + (random.next() < 0.55 ? 1 : 0) + (random.next() < 0.25 ? 1 : 0);
+      for (let t = 0; t < towers; t++) {
+        const width = 20 + random.next() * (BLOCK - 30);
+        const depth = 20 + random.next() * (BLOCK - 30);
+        // Height falls off with distance from the centre, so the skyline has a
+        // downtown rather than being a uniform field of slabs.
+        const central = Math.max(0, 1 - Math.hypot(bx, bz + 1) / 4.5);
+        const height = 12 + Math.pow(random.next(), 1.5) * (30 + central * 90);
+        const mesh = new THREE.Mesh(boxGeometry, buildingMaterial);
+        mesh.scale.set(width, height, depth);
+        mesh.position.set(
+          blockX + (random.next() - 0.5) * (BLOCK - width),
+          height * 0.5,
+          blockZ + (random.next() - 0.5) * (BLOCK - depth)
+        );
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        buildings.add(mesh);
+      }
     }
   }
-  // A back wall of towers so the far end of the street is not empty sky, and
-  // so the shockwave's leading edge has something to be measured against.
-  for (let i = 0; i < 9; i++) {
+  // A distant back wall so the far end of the avenue is not empty sky.
+  for (let i = 0; i < 11; i++) {
     const height = 40 + random.next() * 90;
     const mesh = new THREE.Mesh(boxGeometry, buildingMaterial);
-    mesh.scale.set(26 + random.next() * 26, height, 26 + random.next() * 22);
-    mesh.position.set(-160 + i * 40 + random.next() * 12, height * 0.5, -470 - random.next() * 90);
+    mesh.scale.set(30 + random.next() * 30, height, 30 + random.next() * 24);
+    mesh.position.set(-260 + i * 52 + random.next() * 14, height * 0.5, -660 - random.next() * 90);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     buildings.add(mesh);
@@ -442,12 +459,12 @@ function main(): void {
     bus,
     camera,
     seed: 'saitama.vfx.harness',
-    cloudAltitude: 210,
+    cloudAltitude: 300,
   });
   // The multipliers put the dust in the same exposure bracket as the concrete
   // it is blowing off. Dust is translucent, so it takes a little under half the
   // scene's direct sun and a little over half its ambient.
-  vfx.setSun(lighting.sunDirection, 0xfff2e2, 0x93aed0, 1.5, 0.62);
+  vfx.setSun(lighting.sunDirection, 0xfff2e2, 0x93aed0, 1.3, 0.5);
   vfx.setFog(lighting.fogColor.getHex(), lighting.fogDensity);
   vfx.setViewport(window.innerWidth, window.innerHeight);
   scene.add(vfx.root);

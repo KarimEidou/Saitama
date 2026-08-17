@@ -122,7 +122,7 @@ function genosEntry(): RosterEntry {
       // Brushed alloy, not chrome: roughness 0.28 keeps a readable highlight
       // that travels along the limb as the camera moves, which is exactly the
       // cue that says "metal" rather than "grey".
-      metal: { roughness: 0.28, metalness: 1, detail: { tiles: 6.5, roughnessStrength: 0.95 } },
+      metal: { roughness: 0.28, metalness: 1, detail: { tiles: 3.5, roughnessStrength: 0.95 } },
       vent: { roughness: 0.66, metalness: 0.85 },
       joint: { roughness: 0.7, metalness: 0.12 },
       cloth: { roughness: 0.82, detail: { tiles: 30 } },

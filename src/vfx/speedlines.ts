@@ -53,7 +53,7 @@ export class Speedlines {
     this.enabled = profile.speedlines;
     this.material = createSpeedlinesMaterial(profile);
     this.material.uniforms.uDensity!.value = options.density ?? (profile.tier === 'low' ? 96 : 150);
-    this.material.uniforms.uInner!.value = options.innerRadius ?? 0.55;
+    this.material.uniforms.uInner!.value = options.innerRadius ?? 0.68;
     this.material.uniforms.uGlow!.value = options.glow ?? 1.15;
 
     this.mesh = new THREE.Mesh(createFullScreenGeometry(), this.material);

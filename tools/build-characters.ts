@@ -50,6 +50,7 @@ import path from 'node:path';
 import * as THREE from 'three';
 import sharp from 'sharp';
 import { Document, NodeIO, type Accessor } from '@gltf-transform/core';
+import { format, resolveConfig } from 'prettier';
 import { MeshBVH } from 'three-mesh-bvh';
 import type { HumanoidBuild, LodLevel } from '@/characters/mesh';
 import { buildHumanoid } from '@/characters/mesh';
@@ -110,7 +111,8 @@ const PROJECT_ATTRIBUTION = {
   license: 'MIT',
   author: 'Saitama project (procedural)',
   sourceUrl: 'https://github.com/saitama-one-punch',
-  modifications: 'Generated procedurally by tools/build-characters.ts; no third-party character art.',
+  modifications:
+    'Generated procedurally by tools/build-characters.ts; no third-party character art.',
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -728,7 +730,9 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
   for (const tier of TIERS) {
     const width = tier === 'high' ? region.tileWidth : Math.round(region.tileWidth / 2);
     const height = tier === 'high' ? stripHeight : Math.round(stripHeight / 2);
-    let image = sharp(strip, { raw: { width: region.tileWidth, height: stripHeight, channels: 4 } });
+    let image = sharp(strip, {
+      raw: { width: region.tileWidth, height: stripHeight, channels: 4 },
+    });
     if (tier !== 'high') image = image.resize(width, height, { kernel: 'lanczos3', fit: 'fill' });
     const stripPng = await image.png({ compressionLevel: 9, effort: 8 }).toBuffer();
     const name = `face.${tier}.png`;
@@ -829,7 +833,9 @@ interface ManifestAttribution {
   readonly year?: number;
 }
 
-async function cc0Attribution(ids: readonly string[]): Promise<Record<string, ManifestAttribution>> {
+async function cc0Attribution(
+  ids: readonly string[]
+): Promise<Record<string, ManifestAttribution>> {
   const manifest = await loadTextureManifest();
   const out: Record<string, ManifestAttribution> = {};
   for (const id of ids) {
@@ -933,7 +939,12 @@ async function writeSourceManifest(reports: readonly CharacterReport[]): Promise
     entries,
   };
 
-  await writeFile(MANIFEST_FILE, `${JSON.stringify(manifest, null, 2)}\n`);
+  // Formatted with the project's own Prettier config so the committed file is
+  // byte-identical to what `npm run format` would produce — otherwise every
+  // bake and every format pass would fight over the same file.
+  const prettierOptions = (await resolveConfig(MANIFEST_FILE)) ?? {};
+  const json = await format(JSON.stringify(manifest), { ...prettierOptions, parser: 'json' });
+  await writeFile(MANIFEST_FILE, json);
 }
 
 /** The build report, written next to the binaries and gitignored. */

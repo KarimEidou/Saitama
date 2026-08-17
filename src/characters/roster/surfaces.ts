@@ -139,12 +139,15 @@ export const DEFAULT_SURFACES: SurfaceStyleSet = {
     ao: 0.6,
     tint: 'none',
     detail: detail({
+      // Machined alloy is SMOOTH. The plate scan's rivets and dimples are
+      // there to break the highlight up, not to turn a forearm into a
+      // colander, so both the albedo and the normal come in at a third.
       material: 'mat.metal.plate.industrial',
       pattern: 'brushed',
-      tiles: 6,
-      albedoStrength: 0.5,
-      normalStrength: 0.5,
-      patternStrength: 0.25,
+      tiles: 3.5,
+      albedoStrength: 0.3,
+      normalStrength: 0.26,
+      patternStrength: 0.2,
       roughnessStrength: 0.9,
     }),
   },

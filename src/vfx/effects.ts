@@ -128,25 +128,25 @@ export class EffectEmitters {
       p.vy = rng.range(0.4, 2.2) * upward * (1 + power * 2.2);
 
       if (heavy) {
-        p.size0 = radius * rng.range(0.22, 0.95) + 1.2 + power * 3;
-        p.size1 = p.size0 * rng.range(1.9, 3.8);
+        p.size0 = radius * rng.range(0.22, 0.85) + 1.2 + power * 2.4;
+        p.size1 = p.size0 * rng.range(1.6, 2.6);
         p.life = rng.range(2.4, 5.2) * (0.55 + power * 0.75);
         p.gravity = -0.55;
         p.drag = 1.15;
         p.mode = SpriteMode.Upright;
-        p.alpha = rng.range(0.42, 0.68);
+        p.alpha = rng.range(0.34, 0.58);
         // The heavy fraction is the DARK mass the bright edge reads against.
         this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0.2, 0.9));
       } else {
         p.size0 = radius * rng.range(0.14, 0.3) + 0.8 + power * 1.2;
-        p.size1 = p.size0 * rng.range(2.6, 4.4);
+        p.size1 = p.size0 * rng.range(2.2, 3.4);
         p.life = rng.range(1.4, 3.4) * (0.5 + power * 0.7);
         // Fine dust is buoyant: it rises after the blast passes, which is what
         // makes a plume keep growing for seconds afterwards.
         p.gravity = 0.35;
         p.drag = 1.9;
         p.mode = SpriteMode.Billboard;
-        p.alpha = rng.range(0.22, 0.45);
+        p.alpha = rng.range(0.18, 0.38);
         this.tintBetween(p, this.dustColor, this.dustDark, rng.range(0, 0.45));
       }
 
@@ -190,7 +190,11 @@ export class EffectEmitters {
     const radius = this.shockwaves.radiusOf(shellIndex);
 
     for (let i = 0; i < n; i++) {
-      const u = rng.next();
+      // Triangular, not uniform: the dust bunches up in the middle of the arc,
+      // where the punch was actually aimed. A uniform spread puts as much mass
+      // at 60 degrees off-axis as it does straight ahead, and the wave stops
+      // having a direction.
+      const u = 0.5 + (rng.next() + rng.next() - 1) * 0.5;
       this.shockwaves.sampleFront(shellIndex, u, this.scratchVector);
       const outX = this.scratchVector.x;
       const outY = this.scratchVector.y;
@@ -212,9 +216,12 @@ export class EffectEmitters {
       p.vz = (dz / length) * carried;
       p.vy = rng.range(1.5, 9.0) * (lofted ? 2.2 : 1) * (0.5 + power);
 
-      p.size0 = 2.0 + radius * rng.range(0.035, 0.14) + power * 5;
-      p.size1 = p.size0 * rng.range(1.8, 3.6);
-      p.life = rng.range(2.6, 5.4) * (0.6 + power * 0.6);
+      // One puff in five is a tower. Even sizing makes a hedge; the outliers
+      // are what give the wall a skyline.
+      const tower = rng.next() < 0.2;
+      p.size0 = 2.0 + radius * rng.range(0.05, tower ? 0.30 : 0.15) + power * 6;
+      p.size1 = p.size0 * rng.range(1.5, 2.6);
+      p.life = rng.range(1.9, 3.8) * (0.6 + power * 0.6);
       p.tile = rng.pick(DUST_TILES);
       p.rot = rng.range(0, Math.PI * 2);
       p.rotVel = rng.range(-0.35, 0.35);
@@ -224,7 +231,7 @@ export class EffectEmitters {
       p.mode = SpriteMode.Upright;
       p.additive = 0;
       p.lit = 1;
-      p.alpha = rng.range(0.34, 0.62);
+      p.alpha = rng.range(0.34, 0.60);
       p.stretch = 0;
       p.fadeIn = 0.04;
       p.erode = 1.05;
@@ -232,6 +239,65 @@ export class EffectEmitters {
       p.aspect = 1;
       p.seed = rng.next();
       this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0.15, 1.0));
+      if (this.sprites.emit(p)) emitted++;
+      else break;
+    }
+    return emitted;
+  }
+
+  /**
+   * The eruption column at the impact point.
+   *
+   * A shockwave running along the ground is only half the picture: what says
+   * "something enormous just happened HERE" is the vertical mushroom of dust
+   * standing over the point of contact. It is narrow, fast and tall, and it is
+   * what gives the wave an origin the eye can find in a wide shot.
+   */
+  dustColumn(
+    rng: IRandom,
+    x: number,
+    y: number,
+    z: number,
+    radius: number,
+    power: number,
+    total: number,
+    height: number
+  ): number {
+    const p = this.sprite;
+    const n = this.count(total);
+    let emitted = 0;
+
+    for (let i = 0; i < n; i++) {
+      const t = i / Math.max(1, n - 1);
+      const [ox, oz] = rng.insideCircle(radius * (0.35 + t * 0.9));
+      p.x = x + ox;
+      p.y = y + 1 + Math.pow(t, 0.8) * height * 0.55;
+      p.z = z + oz;
+      // The head of the column outruns its base, which is what makes it billow
+      // outward at the top instead of rising as a cylinder.
+      p.vx = ox * 0.35;
+      p.vz = oz * 0.35;
+      p.vy = (8 + 34 * power) * rng.range(0.5, 1) * (0.45 + t * 0.9);
+      p.size0 = radius * rng.range(0.32, 0.95) + 1.5 + power * 3;
+      p.size1 = p.size0 * rng.range(1.8, 2.9);
+      p.life = rng.range(2.6, 5.0) * (0.55 + power * 0.7);
+      p.tile = rng.pick(DUST_TILES);
+      p.rot = rng.range(0, Math.PI * 2);
+      p.rotVel = rng.range(-0.4, 0.4);
+      p.gravity = -0.4;
+      p.drag = 1.05;
+      p.turbulence = 1.8 + power * 4.2;
+      p.mode = SpriteMode.Upright;
+      p.additive = 0;
+      p.lit = 1;
+      p.alpha = rng.range(0.32, 0.60);
+      p.stretch = 0;
+      p.fadeIn = 0.05;
+      p.erode = 1.05;
+      p.style = 0;
+      p.aspect = 1;
+      p.seed = rng.next();
+      this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0.1, 0.95));
       if (this.sprites.emit(p)) emitted++;
       else break;
     }
@@ -304,13 +370,14 @@ export class EffectEmitters {
     // Expanding ring pop — the small, fast read that says "contact".
     // The ring is the fastest read in the whole suite and must be GONE before
     // the eye can resolve it as a shape; left to linger it becomes a floating
-    // portal hanging in the street.
-    p.size0 = scale * 0.55;
-    p.size1 = scale * 5.5;
-    p.life = 0.17 + power * 0.09;
+    // portal hanging in the street, which is exactly what it did at a third of
+    // a second.
+    p.size0 = scale * 0.5;
+    p.size1 = scale * 3.2;
+    p.life = 0.11 + power * 0.05;
     p.tile = SpriteTile.Ring;
-    p.alpha = 0.6;
-    p.erode = 0.7;
+    p.alpha = 0.5;
+    p.erode = 1.05;
     p.rot = rng.range(0, Math.PI * 2);
     p.seed = rng.next();
     this.tint(p, this.shockColor, 0.9 + power * 1.1);
@@ -434,7 +501,10 @@ export class EffectEmitters {
       p.drag = 0.12;
       p.turbulence = 0;
       p.additive = 0;
-      p.lit = 1;
+      // Barely lit on purpose. Fully shaded, the fake sphere normal turns every
+      // chip into a grey marble; a chip of concrete against a lit dust cloud is
+      // a SILHOUETTE, and that is what gives the cloud depth.
+      p.lit = 0.3;
       p.alpha = 1;
       p.stretch = 0;
       p.fadeIn = 0.01;
@@ -442,7 +512,7 @@ export class EffectEmitters {
       p.style = 0;
       p.aspect = 1;
       p.seed = rng.next();
-      this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0, 0.4));
+      this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0, 0.22));
       if (!this.sprites.emit(p)) break;
     }
   }
@@ -628,8 +698,8 @@ export class EffectEmitters {
       p.vx = Math.cos(angle) * speed;
       p.vz = Math.sin(angle) * speed;
       p.vy = rng.range(-1.5, 3.5);
-      p.size0 = finalRadius * rng.range(0.16, 0.3);
-      p.size1 = p.size0 * rng.range(1.5, 2.4);
+      p.size0 = finalRadius * rng.range(0.09, 0.17);
+      p.size1 = p.size0 * rng.range(1.25, 1.9);
       p.life = life * rng.range(0.75, 1.15);
       p.tile = SpriteTile.Cloud;
       p.mode = SpriteMode.Billboard;
@@ -663,8 +733,8 @@ export class EffectEmitters {
       p.vx = 0;
       p.vz = 0;
       p.vy = 12 + power * 26;
-      p.size0 = finalRadius * rng.range(0.1, 0.19);
-      p.size1 = p.size0 * 2.1;
+      p.size0 = finalRadius * rng.range(0.06, 0.12);
+      p.size1 = p.size0 * 1.9;
       p.life = life * rng.range(0.55, 0.85);
       p.tile = SpriteTile.DustWisp;
       p.mode = SpriteMode.Upright;

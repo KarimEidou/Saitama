@@ -1,0 +1,68 @@
+MIT License
+
+Copyright (c) 2026 the Saitama project contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+SCOPE OF THIS LICENCE
+================================================================================
+
+The MIT licence above is not the whole story, because this repository is a fan
+project about somebody else's work. Read it as covering three things and
+excluding a fourth.
+
+1. IT COVERS THE CODE.
+   Everything under src/, tools/, scripts/, harness/, verification/ and the
+   build configuration. This is original work written for this project.
+
+2. IT COVERS THE ASSETS THIS PROJECT GENERATES.
+   Every character and monster mesh, every character texture atlas, the two
+   procedural materials, the city layout data and all synthesised audio are
+   produced by code in this repository and are released under the same terms.
+
+   Two of those — the procedural materials `mat.glass.window` and
+   `mat.road.markings` — are additionally dedicated to the public domain under
+   CC0-1.0 in tools/manifest/textures.json. That is a broader grant than this
+   one, not a narrower or conflicting one, and it stands.
+
+3. IT DOES NOT NEED TO COVER THE DOWNLOADED ASSETS, AND DOES NOT.
+   The materials, models and HDRI environments fetched by `npm run assets` come
+   from Poly Haven under CC0-1.0 — their authors have already dedicated them to
+   the public domain. They keep that status; nothing here restricts it. Every
+   one of them is credited by name in ATTRIBUTION.md anyway.
+
+4. IT DOES NOT COVER — AND CANNOT GRANT ANY RIGHT IN — ONE PUNCH MAN.
+   One Punch Man is created by ONE, illustrated by Yusuke Murata and published
+   by Shueisha; the anime is produced by Madhouse and J.C.Staff. They own it.
+   This project is unaffiliated with all of them, is not endorsed or approved
+   by any of them, and is not for sale.
+
+   No copyrighted One Punch Man material is included in this repository: no
+   artwork, no models, no audio, no music, no fonts, no logos, no screen
+   captures, no text from the manga or anime. Character names and the
+   hero-ranking premise are used referentially. Every asset that depicts a
+   character is original geometry this repository generates, which
+   ATTRIBUTION.md verifies mechanically rather than merely asserting.
+
+   Permission under the MIT licence to "use, copy, modify, merge, publish,
+   distribute, sublicense, and/or sell" is granted by the copyright holders of
+   THIS software over THIS software. It is not, and could not be, permission to
+   do any of those things with One Punch Man. Anyone redistributing this
+   project remains responsible for their own use of those names.

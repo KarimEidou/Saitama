@@ -866,7 +866,7 @@ export class VFXSystem implements IVFXSystem {
         this.emitters.hitSparks(rng, x, y + 0.4, z, slot.dx, slot.dy, slot.dz, power, 14 + power * 26);
         this.emitters.debrisChips(rng, x, y + 0.3, z, slot.dx, slot.dy, slot.dz, power, 5 + power * 10);
         this.emitters.dustPlume(rng, x, y + 0.3, z, 1.2 + scale * 0.6, power, 14 + power * 22, 1.3);
-        this.speedlines.burst(0.26 + power * 0.34, 3.4);
+        this.speedlines.burst(0.18 + power * 0.24, 3.6);
         if (this.camera) this.speedlines.setFocusWorld(x, y, z, this.camera);
         this.shake.addAtPosition(0.35 + power * 0.5, this.scratchVectorB.set(x, y, z), 55);
         slot.lifetime = 1.6 + power;
@@ -974,8 +974,10 @@ export class VFXSystem implements IVFXSystem {
     const rng = this.rng;
     const { x, y, z } = slot;
     const omnidirectional = halfAngle >= 2.6;
-    // Faster waves for stronger punches: 140 m/s at rest, ~400 m/s at full.
-    const speed = 140 + power * 260;
+    // Faster waves for stronger punches. Deliberately SUBSONIC-looking: a
+    // genuinely instantaneous wave is one frame of white and then nothing, and
+    // the whole payoff of the game is the player getting to watch it travel.
+    const speed = 120 + power * 190;
     const life = Math.min(2.2, Math.max(0.34, range / speed));
 
     if (!omnidirectional) {
@@ -985,7 +987,7 @@ export class VFXSystem implements IVFXSystem {
       this.spawnShell(x, y + 0.6, z, 0, 1, 0, 1.15, range * 0.55, power * 0.85, 1, false, life * 1.15);
     }
 
-    const skirtAngle = omnidirectional ? Math.PI : Math.min(Math.PI, halfAngle * 1.9 + 0.34);
+    const skirtAngle = omnidirectional ? Math.PI : Math.min(Math.PI, halfAngle * 1.5 + 0.30);
     const shell = this.spawnShell(
       x,
       y + 0.25,
@@ -1020,13 +1022,14 @@ export class VFXSystem implements IVFXSystem {
     slot.lofted = omnidirectional;
     slot.frontSpeed = range / Math.max(0.05, life);
     slot.emitUntil = life * 1.25;
-    slot.rate = (180 + power * 520) * this.profile.particleScale;
+    slot.rate = (150 + power * 420) * this.profile.particleScale;
     slot.lifetime = Math.max(slot.lifetime, life * 1.25 + 4);
 
     /* --- the one-shot content that has to be there in frame one --------- */
 
     this.emitters.impactFlash(rng, x, y + 1.1, z, power);
-    this.emitters.dustPlume(rng, x, y + 0.4, z, 3 + power * 7, power, 34 + power * 46, 1.5);
+    this.emitters.dustPlume(rng, x, y + 0.4, z, 3 + power * 6, power, 30 + power * 42, 2.0);
+    this.emitters.dustColumn(rng, x, y, z, 2.5 + power * 4.5, power, 12 + power * 20, 16 + power * 40);
     this.emitters.debrisChips(rng, x, y + 0.5, z, slot.dx, slot.dy, slot.dz, power, 8 + power * 18);
     this.emitters.hitSparks(rng, x, y + 1.1, z, slot.dx, slot.dy, slot.dz, power, 10 + power * 22);
 
@@ -1057,7 +1060,7 @@ export class VFXSystem implements IVFXSystem {
       );
     }
 
-    this.speedlines.burst(0.30 + power * 0.36, 2.6);
+    this.speedlines.burst(0.20 + power * 0.26, 3.0);
     if (this.camera) this.speedlines.setFocusWorld(x, y + 1, z, this.camera);
     this.shake.addAtPosition(0.45 + power * 0.55, this.scratchVectorB.set(x, y, z), 40 + range * 0.6);
 

@@ -32,10 +32,7 @@
  *   - Deterministic: same seed, byte-identical atlases.
  */
 
-export {
-  ATLAS_SIZE,
-  bakeCharacterAtlas,
-} from './atlas';
+export { ATLAS_SIZE, bakeCharacterAtlas } from './atlas';
 
 export {
   CLASS_MATCH_EPSILON,
@@ -108,13 +105,7 @@ export {
   type RosterUniforms,
 } from './materials';
 
-export {
-  THREAT_TIERS,
-  mookEntry,
-  monsterRecipe,
-  namedMonsters,
-  tierMooks,
-} from './monsters';
+export { THREAT_TIERS, mookEntry, monsterRecipe, namedMonsters, tierMooks } from './monsters';
 
 export {
   CROWD_SEED,

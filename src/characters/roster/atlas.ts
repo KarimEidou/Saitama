@@ -293,8 +293,7 @@ function regionDensities(
     const au = uv.getX(a);
     const av = uv.getY(a);
     const areaUv =
-      0.5 *
-      Math.abs((uv.getX(b) - au) * (uv.getY(c) - av) - (uv.getX(c) - au) * (uv.getY(b) - av));
+      0.5 * Math.abs((uv.getX(b) - au) * (uv.getY(c) - av) - (uv.getX(c) - au) * (uv.getY(b) - av));
 
     const name = REGION_NAMES[triRect[t]!]!;
     world[name] = (world[name] ?? 0) + area3;
@@ -329,7 +328,12 @@ function wrapIndex(value: number, size: number): number {
  * footprint-driven level choice costs a few milliseconds and removes it.
  */
 interface TilePyramid {
-  readonly levels: readonly { size: number; albedo: Uint8Array; normal: Uint8Array; arm: Uint8Array }[];
+  readonly levels: readonly {
+    size: number;
+    albedo: Uint8Array;
+    normal: Uint8Array;
+    arm: Uint8Array;
+  }[];
 }
 
 function halve(data: Uint8Array, size: number): Uint8Array {
@@ -339,8 +343,8 @@ function halve(data: Uint8Array, size: number): Uint8Array {
     for (let x = 0; x < half; x++) {
       const o = (y * half + x) * 3;
       for (let c = 0; c < 3; c++) {
-        const a = data[((y * 2) * size + x * 2) * 3 + c]!;
-        const b = data[((y * 2) * size + x * 2 + 1) * 3 + c]!;
+        const a = data[(y * 2 * size + x * 2) * 3 + c]!;
+        const b = data[(y * 2 * size + x * 2 + 1) * 3 + c]!;
         const d = data[((y * 2 + 1) * size + x * 2) * 3 + c]!;
         const e = data[((y * 2 + 1) * size + x * 2 + 1) * 3 + c]!;
         out[o + c] = (a + b + d + e + 2) >> 2;
@@ -678,7 +682,13 @@ function compositeFace(
       const o = (sy * patch.width + sx) * 4;
       const alpha = patch.rgba[o + 3]! / 255;
       if (alpha <= 0.002) continue;
-      apply(ty * size + tx, patch.rgba[o]! / 255, patch.rgba[o + 1]! / 255, patch.rgba[o + 2]! / 255, alpha);
+      apply(
+        ty * size + tx,
+        patch.rgba[o]! / 255,
+        patch.rgba[o + 1]! / 255,
+        patch.rgba[o + 2]! / 255,
+        alpha
+      );
     }
   }
 }
@@ -710,7 +720,8 @@ function dilate(data: Uint8Array, covered: Uint8Array, size: number, channels: n
           }
         }
         if (count === 0) continue;
-        for (let c = 0; c < channels; c++) data[texel * channels + c] = Math.round(accum[c]! / count);
+        for (let c = 0; c < channels; c++)
+          data[texel * channels + c] = Math.round(accum[c]! / count);
         next[texel] = 1;
         grew = true;
       }
@@ -871,7 +882,11 @@ export function bakeCharacterAtlas(
       sampleTile(mip.arm, mip.size, pu, pv, armSample);
       occlusion *= lerp(1, armSample[0]!, 0.7);
       rough = clamp01(
-        lerp(rough, rough * (armSample[1]! / Math.max(tile.meanRough, 1e-3)), detail.roughnessStrength)
+        lerp(
+          rough,
+          rough * (armSample[1]! / Math.max(tile.meanRough, 1e-3)),
+          detail.roughnessStrength
+        )
       );
       // Photographed metalness is unreliable on a CC0 scan; the class knows
       // better. It only ever multiplies down, never up.

@@ -176,7 +176,7 @@ export function createSpeedlinesMaterial(profile: IVFXTierProfile): THREE.Shader
       uFocus: { value: new THREE.Vector2(0, 0) },
       uColor: { value: new THREE.Color(0xffffff) },
       uIntensity: { value: 0 },
-      uInner: { value: 0.55 },
+      uInner: { value: 0.68 },
       uDensity: { value: 150 },
       uGlow: { value: 1.15 },
       uPhase: { value: 0 },

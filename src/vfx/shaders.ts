@@ -181,11 +181,13 @@ void main() {
        the shadowed side still carries bounce. */
     vec3 shade = uAmbientColor + uSunColor * (ndl * 0.72 + 0.28);
     shade *= mix(1.0, tex.g, 0.45);
-    float rim = tex.b * pow(1.0 - nz, 1.6) * clamp(0.7 - dot(n, -uSunView) * 0.5, 0.0, 1.2);
-    /* The rim is deliberately weak. Pushed harder it draws a bright ring around
-       every quad and a plume stops being a mass of dust and becomes a pile of
-       visibly separate bubbles. */
-    rgb = mix(rgb, rgb * shade + uSunColor * rim * 0.20, vExtra.z);
+    /* Rim light from the ATLAS silhouette band only.
+       Weighting it by the quad's own circular falloff — the obvious
+       pow(1 - nz, k) — draws a bright ring around every QUAD rather than
+       around every PUFF, and a plume becomes a pile of visibly separate
+       bubbles. The tile's B channel follows the shape actually being drawn. */
+    float rim = tex.b * clamp(0.72 - dot(n, -uSunView) * 0.55, 0.0, 1.1);
+    rgb = mix(rgb, rgb * shade + uSunColor * rim * 0.16, vExtra.z);
   }
 #endif
 
@@ -263,6 +265,13 @@ void main() {
        edge, so the band is a segment of a curtain and the dust behind it has
        something to billow against. */
     float height = loft * pow(trailing, 0.40);
+    /* Ragged along the arc. An even loft puts the bright pressure band at one
+       constant screen height and it reads as a laser line ruled across the
+       shot. Two incommensurate sines rather than a hashed cell: hashing per
+       cell steps the height discontinuously and the wall turns into a
+       sawtooth crown. */
+    float wobble = sin(u * 41.0 + iStyle.w * 37.0) * 0.5 + sin(u * 17.3 + iStyle.w * 11.0) * 0.5;
+    height *= 0.80 + 0.38 * (wobble * 0.5 + 0.5);
     p = iOrigin.xyz + vec3(sin(azimuth) * ringRadius, height, cos(azimuth) * ringRadius);
     heightFade = 1.0 - 0.45 * pow(trailing, 1.6);
   } else {
@@ -367,7 +376,7 @@ void main() {
   float fade = pow(max(0.0, 1.0 - life), 0.65);
   float attenuation = fade * vArc * intensity;
 
-  float alpha = clamp(body * 0.15 + lens * 0.20 + band * 0.36, 0.0, 1.0) * attenuation;
+  float alpha = clamp(body * 0.16 + lens * 0.22 + band * 0.46, 0.0, 1.0) * attenuation;
 
   /* The edge keeps most of its coherence — breaking it up entirely destroys
      the "wall of pressure" read — but a completely smooth arc looks like a
@@ -377,12 +386,12 @@ void main() {
   bandR *= edgeStreak;
   bandB *= edgeStreak;
 
-  vec3 rgb = vTint * (band * 1.35 + body * 0.09);
+  vec3 rgb = vTint * (band * 1.75 + body * 0.11);
 #if VFX_QUALITY > 0
-  rgb += vec3(bandR, band, bandB) * 0.42 * vTint;
+  rgb += vec3(bandR, band, bandB) * 0.62 * vTint;
   rgb += vec3(0.0, 0.025, 0.09) * lens;
 #else
-  rgb += band * 0.42 * vTint;
+  rgb += band * 0.62 * vTint;
 #endif
   rgb = max(rgb, vec3(0.0)) * attenuation;
 

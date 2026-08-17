@@ -284,9 +284,15 @@ function paintRing(seed: number): TilePainter {
     const dy = (v - 0.5) * 2;
     const dist = Math.hypot(dx, dy);
     const angle = Math.atan2(dy, dx);
-    const wobble = (valueNoise(Math.cos(angle) * 4 + 4, Math.sin(angle) * 4 + 4, 12, seed) - 0.5) * 0.07;
-    const band = Math.abs(dist - (0.78 + wobble));
-    const a = Math.pow(clamp01(1 - band / 0.2), 2.4);
+    const wobble =
+      (valueNoise(Math.cos(angle) * 4 + 4, Math.sin(angle) * 4 + 4, 12, seed) - 0.5) * 0.09;
+    const band = Math.abs(dist - (0.74 + wobble));
+    // Radial spokes through the band. A clean hoop reads as a portal hanging in
+    // the street; broken up it reads as air being shoved outward.
+    const spoke =
+      0.55 +
+      0.45 * valueNoise(Math.cos(angle) * 11 + 11, Math.sin(angle) * 11 + 11, 26, seed + 5);
+    const a = Math.pow(clamp01(1 - band / 0.30), 2.0) * spoke;
     out[0] = a;
     out[1] = 1;
     out[2] = a;

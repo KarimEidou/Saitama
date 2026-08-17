@@ -1,0 +1,94 @@
+{
+  "calm": {
+    "mode": "calm",
+    "seed": 20250817,
+    "buildings": 133,
+    "agents": 250,
+    "near": 16,
+    "mid": 234,
+    "farEstimate": 1585,
+    "moods": {
+      "commute": 250,
+      "gawk": 0,
+      "flee": 0,
+      "cower": 0,
+      "down": 0
+    },
+    "gawkFraction": 0,
+    "panicFraction": 0,
+    "peakFlee": 0,
+    "peakGawk": 0,
+    "peakCower": 0,
+    "crowdDrawCalls": 6,
+    "sceneDrawCalls": 20,
+    "crowdTriangles": 113000,
+    "instances": 250,
+    "archetypeMeshes": 6,
+    "distinctOffsets": 217,
+    "paletteBytes": 746496,
+    "simMsMean": 0.9591111111071788,
+    "simMsP95": 2.699999999254942,
+    "simMsMax": 61.40000000037253,
+    "alarmMs": 0.40000000037252903,
+    "flowMs": 0.19999999925494194,
+    "frames": 1800,
+    "frontSamples": [],
+    "frontSpeed": 0,
+    "frontFinal": 0,
+    "minSeparation": 0.5144532615566217,
+    "buildingPenetrations": 0,
+    "penetrationChecks": 89620,
+    "fleeConvergence": {
+      "tested": 0,
+      "converged": 0,
+      "cycles": 0,
+      "stalled": 0,
+      "longestWalk": 0
+    },
+    "commuteConvergence": {
+      "tested": 15720,
+      "converged": 15720,
+      "cycles": 0,
+      "stalled": 0,
+      "longestWalk": 10
+    },
+    "directionsIntoWalls": 0,
+    "saved": 0,
+    "lost": 0,
+    "witnessedSaves": 0,
+    "savedEvents": 0,
+    "lostEvents": 0,
+    "lostByPlayer": 0,
+    "savedByPlayer": 0,
+    "outcomesWithLineOfSight": 0,
+    "outcomesWithBystanders": 0,
+    "allies": [
+      {
+        "name": "Genos",
+        "health": 420,
+        "maxHealth": 420,
+        "reEngagements": 0,
+        "dead": false
+      },
+      {
+        "name": "Mumen Rider",
+        "health": 95,
+        "maxHealth": 95,
+        "reEngagements": 0,
+        "dead": false
+      },
+      {
+        "name": "Tatsumaki",
+        "health": 780,
+        "maxHealth": 780,
+        "reEngagements": 0,
+        "dead": false
+      }
+    ],
+    "allyDowned": [],
+    "mumenReEngagements": 6,
+    "determinismHash": 1403280473,
+    "determinismTwinHash": 1403280473,
+    "deterministic": true
+  }
+}
