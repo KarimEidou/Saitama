@@ -318,6 +318,25 @@ describe('Deep Sea King: the ally branch', () => {
     expect(recorder.ofType('AllyDowned')).toHaveLength(1);
   });
 
+  it('PLAYER SLOW — the clock is the script\'s 18 s, to the frame', () => {
+    // The beat is a WALL CLOCK the player cannot negotiate with, and its value
+    // is a number in `boss-scripts.ts` rather than an emergent property of
+    // anything. Asserted against the elapsed time the event was emitted at,
+    // because "it fires eventually" would still pass with the clock broken.
+    const { encounter, recorder } = scene('boss.deepSeaKing', { ...ALLY, position: { ...ALLY.position } });
+    encounter.begin(0);
+
+    const dt = 1 / 60;
+    let firedAt = -1;
+    for (let t = 0; t < 30; t += dt) {
+      encounter.update(dt, { x: -60, y: 0, z: 0 });
+      if (firedAt < 0 && recorder.ofType('AllyDowned').length > 0) firedAt = t + dt;
+    }
+    expect(firedAt).toBeGreaterThan(18 - dt * 2);
+    expect(firedAt).toBeLessThan(18 + dt * 2);
+    expect(recorder.ofType('AllyDowned')).toHaveLength(1);
+  });
+
   it('the fight is IDENTICAL either way — the branch costs him, not the boss', () => {
     const fast = scene('boss.deepSeaKing', { ...ALLY, position: { ...ALLY.position } });
     fast.encounter.begin(0);
