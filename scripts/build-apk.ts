@@ -416,9 +416,7 @@ function main(): void {
   } else {
     log(`pruning packaged assets to the "${tier}" tier …`);
     prune = pruneAssets(tier);
-    log(
-      `  kept    ${String(prune.keptFiles).padStart(4)} files  ${formatBytes(prune.keptBytes)}`
-    );
+    log(`  kept    ${String(prune.keptFiles).padStart(4)} files  ${formatBytes(prune.keptBytes)}`);
     log(
       `  dropped ${String(prune.droppedTier).padStart(4)} files  ` +
         `${formatBytes(prune.droppedTierBytes)}  (other tiers)`
@@ -428,7 +426,9 @@ function main(): void {
         `${formatBytes(prune.droppedScratchBytes)}  (pipeline scratch)`
     );
     for (const [group, v] of [...prune.byGroup].sort((a, b) => b[1].bytes - a[1].bytes)) {
-      log(`      ${group.padEnd(10)} ${String(v.files).padStart(4)} files  ${formatBytes(v.bytes)}`);
+      log(
+        `      ${group.padEnd(10)} ${String(v.files).padStart(4)} files  ${formatBytes(v.bytes)}`
+      );
     }
   }
 

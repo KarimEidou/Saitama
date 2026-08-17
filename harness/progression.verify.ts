@@ -653,11 +653,31 @@ async function main(): Promise<void> {
 
     /* ------------------------------------------------------ save round trip */
     console.log('\n── save round trip ─────────────────────────────────────────');
-    const roundTrip = await page.evaluate(async () => {
-      const module = await import('/harness/progression-save-probe.js').catch(() => undefined);
-      return module ? 'external' : 'inline';
-    });
-    void roundTrip;
+    const roundTrip = (await page.evaluate(() =>
+      window.__PROGRESSION_HARNESS__!.runSaveRoundTrip()
+    )) as {
+      backend: string;
+      exact: boolean;
+      bytes: number;
+      mismatches: string[];
+      rank: string;
+      boredom: number;
+      questStates: number;
+    };
+    report.saveRoundTrip = roundTrip;
+    console.log(
+      `  backend=${roundTrip.backend} bytes=${roundTrip.bytes} ` +
+        `rank="${roundTrip.rank}" boredom=${roundTrip.boredom.toFixed(4)} ` +
+        `quests=${roundTrip.questStates}`
+    );
+    if (!roundTrip.exact) {
+      fail(failures, `save round trip is NOT exact: ${roundTrip.mismatches.join(', ')}`);
+    } else {
+      pass(`save round trip is byte-exact through ${roundTrip.backend}`);
+    }
+    if (roundTrip.backend !== 'localStorage') {
+      fail(failures, `expected the localStorage backend in a browser, got "${roundTrip.backend}"`);
+    }
 
     /* --------------------------------------------------------- page health */
     const fatal = consoleErrors.filter(
@@ -703,6 +723,7 @@ declare global {
       step(dt?: number): void;
       settle(frames: number): void;
       runScenarios(): unknown;
+      runSaveRoundTrip(): Promise<unknown>;
       shotTimes(): unknown;
     };
   }

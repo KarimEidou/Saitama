@@ -66,24 +66,24 @@ function saitamaEntry(): RosterEntry {
     surfaces: {
       // A hero costume is matte cotton, not lycra. Roughness at 0.95 with a
       // woven normal is the difference between cloth and a bin bag.
-      cloth: { roughness: 0.95, detail: { tiles: 16, patternStrength: 0.9 } },
-      leather: { roughness: 0.44, detail: { tiles: 13 } },
-      cape: { roughness: 0.96, tone: 1, detail: { tiles: 7 } },
+      cloth: { roughness: 0.95, detail: { tiles: 28, patternStrength: 0.5 } },
+      leather: { roughness: 0.44, detail: { tiles: 20 } },
+      cape: { roughness: 0.96, tone: 1, detail: { tiles: 13 } },
       skin: { roughness: 0.58 },
     },
     face: baseFace({
       eye: 'dot',
       eyeSpread: 0.03,
-      eyeWidth: 0.0105,
-      eyeHeight: 0.0092,
-      eyeV: 0.7435,
+      eyeWidth: 0.0118,
+      eyeHeight: 0.0098,
+      eyeV: 0.7415,
       pupil: 0x16161a,
       sclera: 0x16161a,
       iris: 0x16161a,
       brow: 'none',
       mouth: 'line',
-      mouthWidth: 0.0165,
-      mouthV: 0.6595,
+      mouthWidth: 0.0175,
+      mouthV: 0.6625,
       mouthColor: 0x8a5148,
       shadow: 0x9c6a4c,
       blush: 0.35,
@@ -122,10 +122,10 @@ function genosEntry(): RosterEntry {
       // Brushed alloy, not chrome: roughness 0.28 keeps a readable highlight
       // that travels along the limb as the camera moves, which is exactly the
       // cue that says "metal" rather than "grey".
-      metal: { roughness: 0.28, metalness: 1, detail: { tiles: 5, roughnessStrength: 0.95 } },
+      metal: { roughness: 0.28, metalness: 1, detail: { tiles: 6.5, roughnessStrength: 0.95 } },
       vent: { roughness: 0.66, metalness: 0.85 },
       joint: { roughness: 0.7, metalness: 0.12 },
-      cloth: { roughness: 0.82, detail: { tiles: 18 } },
+      cloth: { roughness: 0.82, detail: { tiles: 30 } },
       hair: { roughness: 0.36 },
     },
     face: baseFace({
@@ -169,8 +169,8 @@ function tatsumakiEntry(): RosterEntry {
     surfaces: {
       // A fitted dress is a finer weave than a jumpsuit and takes a light
       // sheen; tiles go up and roughness comes down a little.
-      cloth: { roughness: 0.86, detail: { tiles: 22, patternStrength: 0.7 } },
-      hair: { roughness: 0.34, detail: { tiles: 11, patternStrength: 1 } },
+      cloth: { roughness: 0.86, detail: { tiles: 34, patternStrength: 0.4 } },
+      hair: { roughness: 0.34, detail: { tiles: 13, patternStrength: 0.65 } },
       skin: { roughness: 0.55 },
     },
     face: baseFace({
@@ -211,8 +211,8 @@ function mumenEntry(): RosterEntry {
       { hex: 0xdfe3e8, surface: 'hair', note: 'helmet shell' },
     ],
     surfaces: {
-      cloth: { roughness: 0.92, detail: { tiles: 17 } },
-      leather: { roughness: 0.48, detail: { tiles: 14 } },
+      cloth: { roughness: 0.92, detail: { tiles: 28 } },
+      leather: { roughness: 0.48, detail: { tiles: 22 } },
       // The helmet is a painted shell, so it borrows the painted-metal maps
       // and drops the hair strand pattern entirely.
       hair: {
@@ -288,7 +288,7 @@ export function civilianEntry(seed: number = CROWD_SEED): RosterEntry {
     recipe: { name: 'Civilian', profile, options },
     colors: paletteColors(palette),
     surfaces: {
-      cloth: { roughness: 0.9, detail: { tiles: 15 } },
+      cloth: { roughness: 0.9, detail: { tiles: 27 } },
       accent: { roughness: 0.88 },
     },
     face: baseFace({

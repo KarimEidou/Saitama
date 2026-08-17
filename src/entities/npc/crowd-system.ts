@@ -63,7 +63,7 @@ import { CrowdSteering, LAYER_HERO, LAYER_PLAYER, LAYER_THREAT, type IAvoidBody 
 import { FlowField } from './flow-field';
 import { HeroNpc, type IHeroWorld } from './hero-npc';
 import { NearCivilian, type ICivilianHost } from './near-civilian';
-import { ObstacleField, cellCentreX, cellCentreZ } from './obstacles';
+import { ObstacleField, cellCentreX, cellCentreZ, cellX, cellZ } from './obstacles';
 import { CrowdLedger, gatherWitnesses } from './witness';
 import {
   ENDANGERED_ALARM,
@@ -113,6 +113,12 @@ const DEFAULT_CROWD_SEED = 0xc17ce7;
 /** People per open 12 m cell, for the far-tier population estimate. */
 const FAR_PEOPLE_PER_CELL = 0.55;
 
+/** Metres the player may move before the band-local spawn list is rebuilt. */
+const SPAWN_ANCHOR_DRIFT = 28;
+
+/** Metres inside the band edge that new civilians appear. */
+const SPAWN_MARGIN = 6;
+
 export interface ICrowdSystemOptions {
   /** Scene the instanced crowd and near bodies are added to. */
   readonly scene?: THREE.Object3D;
@@ -159,10 +165,19 @@ export class CrowdSystem implements ICrowdSink {
 
   /** Crowd slots published by the streaming system, keyed by chunk index. */
   private readonly chunkSlots = new Map<number, readonly ICrowdSlot[]>();
-  /** Flat list of currently usable spawn points, rebuilt when chunks change. */
+  /**
+   * Spawn points inside the simulated band, shuffled.
+   *
+   * BAND-LOCAL, not world-wide, and that is the whole trick. A world-wide list
+   * is 16,000 entries in raster order starting at the far south-west corner of
+   * the map, so a cursor walking it rejects every candidate for being 900 m
+   * from the player and the crowd never populates at all. Rebuilt when the
+   * player moves `SPAWN_ANCHOR_DRIFT`, which at walking pace is a few seconds.
+   */
   private readonly spawnPoints: { x: number; z: number; yaw: number }[] = [];
   private spawnCursor = 0;
   private spawnPointsDirty = true;
+  private readonly spawnAnchor = { x: Infinity, z: Infinity };
 
   /** Bodies attached to agents, keyed by agent index. */
   private readonly nearBodies = new Map<number, NearCivilian>();
@@ -497,7 +512,7 @@ export class CrowdSystem implements ICrowdSink {
     this.alarm.update(dt, this.threats);
     this.flow.update(dt, this.obstacles, this.threats);
 
-    this.updatePopulation(dt);
+    this.updatePopulation();
 
     for (const body of this.nearBodies.values()) body.think(dt);
 
@@ -547,14 +562,20 @@ export class CrowdSystem implements ICrowdSink {
   /* Population                                                         */
   /* ------------------------------------------------------------------ */
 
-  private updatePopulation(dt: number): void {
-    void dt;
+  private updatePopulation(): void {
+    const anchorDx = this.player.x - this.spawnAnchor.x;
+    const anchorDz = this.player.z - this.spawnAnchor.z;
+    if (anchorDx * anchorDx + anchorDz * anchorDz > SPAWN_ANCHOR_DRIFT * SPAWN_ANCHOR_DRIFT) {
+      this.spawnPointsDirty = true;
+    }
     if (this.spawnPointsDirty) this.rebuildSpawnPoints();
 
     const nearIn = NEAR_RADIUS - TIER_HYSTERESIS;
     const nearOut = NEAR_RADIUS + TIER_HYSTERESIS;
     const midOut = MID_RADIUS + TIER_HYSTERESIS * 3;
 
+    // PASS 1: cull out-of-band agents and demote anyone who left the near
+    // radius, counting who is left in it.
     let alive = 0;
     let nearCount = 0;
     for (let i = 0; i < this.agents.extent; i++) {
@@ -573,14 +594,27 @@ export class CrowdSystem implements ICrowdSink {
       }
 
       alive++;
-      const tier = this.agents.tier[i]!;
-      if (tier === TIER_MID && distance < nearIn && nearCount < this.caps.near) {
-        this.agents.tier[i] = TIER_NEAR;
-      } else if (tier === TIER_NEAR && distance > nearOut) {
-        this.agents.tier[i] = TIER_MID;
-        this.detachBody(i);
+      if (this.agents.tier[i] === TIER_NEAR) {
+        if (distance > nearOut) {
+          this.agents.tier[i] = TIER_MID;
+          this.detachBody(i);
+        } else {
+          nearCount++;
+        }
       }
-      if (this.agents.tier[i] === TIER_NEAR) nearCount++;
+    }
+
+    // PASS 2: promote into whatever near budget is left. Two passes and not
+    // one, because a single pass makes the promotion decision for agent 3
+    // before it knows that agents 200 to 215 are already near — and the cap is
+    // a hard budget on skeletons, not a suggestion.
+    for (let i = 0; i < this.agents.extent && nearCount < this.caps.near; i++) {
+      if (this.agents.active[i] === 0 || this.agents.tier[i] !== TIER_MID) continue;
+      const dx = this.agents.posX[i]! - this.player.x;
+      const dz = this.agents.posZ[i]! - this.player.z;
+      if (dx * dx + dz * dz > nearIn * nearIn) continue;
+      this.agents.tier[i] = TIER_NEAR;
+      nearCount++;
     }
 
     // Fill the band back up. One spawn per frame at most when the crowd is
@@ -698,33 +732,72 @@ export class CrowdSystem implements ICrowdSink {
     return -1;
   }
 
-  /** Rebuild the spawn point list from chunk slots, or from open ground. */
+  /**
+   * Rebuild the band-local spawn list from chunk slots, or from open ground.
+   *
+   * Streaming's `ISpawnLayout` points are preferred when they exist — the
+   * layout generator already put them on pavements, facing sensible ways. The
+   * open-ground fallback is what lets this system run in a bare harness with no
+   * streaming attached at all, which is how it was developed.
+   */
   private rebuildSpawnPoints(): void {
     this.spawnPointsDirty = false;
     this.spawnPoints.length = 0;
     this.spawnCursor = 0;
+    this.spawnAnchor.x = this.player.x;
+    this.spawnAnchor.z = this.player.z;
+
+    const reach = MID_RADIUS - SPAWN_MARGIN;
+    const reachSq = reach * reach;
+    const inBand = (x: number, z: number): boolean => {
+      const dx = x - this.player.x;
+      const dz = z - this.player.z;
+      const d = dx * dx + dz * dz;
+      return d <= reachSq && d > 9;
+    };
 
     for (const slots of this.chunkSlots.values()) {
       for (const slot of slots) {
+        if (!inBand(slot.x, slot.z)) continue;
         if (!this.obstacles.isWalkable(slot.x, slot.z, 0.4)) continue;
         this.spawnPoints.push({ x: slot.x, z: slot.z, yaw: slot.rotationY });
       }
     }
-    if (this.spawnPoints.length > 0) return;
 
-    // Fallback: one point per open field cell, jittered off the cell centre so
-    // a spawned crowd does not appear on a visible 12 m lattice.
-    const rng = createRng(this.seed).derive('spawn-grid');
-    for (let gz = 0; gz < FIELD_DIM; gz++) {
-      for (let gx = 0; gx < FIELD_DIM; gx++) {
-        const i = gz * FIELD_DIM + gx;
-        if (!this.obstacles.isWalkableCell(i)) continue;
-        if (this.obstacles.clearance[i]! < 1) continue;
-        const x = cellCentreX(gx) + rng.range(-4.5, 4.5);
-        const z = cellCentreZ(gz) + rng.range(-4.5, 4.5);
-        if (!this.obstacles.isWalkable(x, z, 0.5)) continue;
-        this.spawnPoints.push({ x, z, yaw: rng.range(-Math.PI, Math.PI) });
+    if (this.spawnPoints.length === 0) {
+      // One point per open field cell in the band, jittered off the cell
+      // centre so a freshly-populated street does not appear on a visible 12 m
+      // lattice. The RNG is derived from the ANCHOR, not advanced from a
+      // running stream: the same player position must rebuild the same list
+      // however many times it is rebuilt.
+      const rng = createRng(this.seed).derive(
+        `spawn-grid:${Math.round(this.spawnAnchor.x)}:${Math.round(this.spawnAnchor.z)}`
+      );
+      const gx0 = cellX(this.player.x - reach);
+      const gx1 = cellX(this.player.x + reach);
+      const gz0 = cellZ(this.player.z - reach);
+      const gz1 = cellZ(this.player.z + reach);
+      for (let gz = gz0; gz <= gz1; gz++) {
+        for (let gx = gx0; gx <= gx1; gx++) {
+          const i = gz * FIELD_DIM + gx;
+          if (!this.obstacles.isWalkableCell(i)) continue;
+          const x = cellCentreX(gx) + rng.range(-4.5, 4.5);
+          const z = cellCentreZ(gz) + rng.range(-4.5, 4.5);
+          if (!inBand(x, z)) continue;
+          if (!this.obstacles.isWalkable(x, z, 0.5)) continue;
+          this.spawnPoints.push({ x, z, yaw: rng.range(-Math.PI, Math.PI) });
+        }
       }
+    }
+
+    // Shuffle so the cursor does not fill the band in raster order, which
+    // would put every new civilian on the northern edge of the simulation.
+    const shuffle = createRng(this.seed).derive('spawn-order');
+    for (let i = this.spawnPoints.length - 1; i > 0; i--) {
+      const j = shuffle.int(0, i);
+      const tmp = this.spawnPoints[i]!;
+      this.spawnPoints[i] = this.spawnPoints[j]!;
+      this.spawnPoints[j] = tmp;
     }
   }
 

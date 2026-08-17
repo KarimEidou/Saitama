@@ -111,6 +111,7 @@ interface LoadedMaps {
   readonly ormMap: THREE.Texture;
   readonly faceMap: THREE.Texture;
   readonly emissiveMap?: THREE.Texture;
+  readonly maskMap?: THREE.Texture;
   readonly bytes: number;
 }
 
@@ -140,13 +141,16 @@ async function loadMaps(entry: RosterEntry, tier: 'mobile' | 'high'): Promise<Lo
     const emissiveMap = entryGlows(entry)
       ? await loadTexture(`${dir}/emissive.${tier}.png`)
       : undefined;
+    const maskMap =
+      entry.crowd === true ? await loadTexture(`${dir}/mask.${tier}.png`) : undefined;
     const bytes =
       textureBytes(map) +
       textureBytes(normalMap) +
       textureBytes(ormMap) +
       textureBytes(faceMap) +
-      (emissiveMap === undefined ? 0 : textureBytes(emissiveMap));
-    return { map, normalMap, ormMap, faceMap, emissiveMap, bytes };
+      (emissiveMap === undefined ? 0 : textureBytes(emissiveMap)) +
+      (maskMap === undefined ? 0 : textureBytes(maskMap));
+    return { map, normalMap, ormMap, faceMap, emissiveMap, maskMap, bytes };
   })();
 
   mapCache.set(key, promise);
@@ -170,7 +174,7 @@ renderer.setSize(WIDTH, HEIGHT, false);
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 0.92;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -228,7 +232,16 @@ interface BuiltCharacter {
   readonly drawCalls: number;
 }
 
-/** A small deterministic display pose so nothing reads as a shop mannequin. */
+/**
+ * A relaxed standing pose.
+ *
+ * The generator's bind pose is a T-pose — correct for skinning, useless for a
+ * model sheet, and it makes a 3.5 m monster four metres wide. Dropping the arms
+ * to ~70 degrees is what turns a row of mannequins into a cast, and it is also
+ * what lets the sheet fit fourteen characters without them overlapping.
+ *
+ * Animation is a separate workstream; nothing here is meant to survive into it.
+ */
 function poseForDisplay(mesh: THREE.SkinnedMesh, seed: number): void {
   const bone = (name: string): THREE.Bone | undefined =>
     mesh.skeleton.bones.find((candidate) => candidate.name === name);
@@ -240,11 +253,14 @@ function poseForDisplay(mesh: THREE.SkinnedMesh, seed: number): void {
   const foreR = bone('RightForeArm');
   const spine = bone('Spine1');
   const head = bone('Head');
+  const drop = 1.16 + wave(0.3) * 0.07;
 
-  if (armL !== undefined) armL.rotation.z = -0.16 + wave(0.3) * 0.07;
-  if (armR !== undefined) armR.rotation.z = 0.16 - wave(1.1) * 0.07;
-  if (foreL !== undefined) foreL.rotation.y = -0.22 - wave(2.0) * 0.16;
-  if (foreR !== undefined) foreR.rotation.y = 0.22 + wave(2.6) * 0.16;
+  // The arms rest along -X (left) and +X (right); a rotation about Z swings
+  // them down towards the hips.
+  if (armL !== undefined) armL.rotation.z = drop;
+  if (armR !== undefined) armR.rotation.z = -drop;
+  if (foreL !== undefined) foreL.rotation.z = 0.22 + wave(2.0) * 0.12;
+  if (foreR !== undefined) foreR.rotation.z = -0.22 - wave(2.6) * 0.12;
   if (spine !== undefined) spine.rotation.y = wave(0.9) * 0.05;
   if (head !== undefined) head.rotation.y = wave(1.6) * 0.09;
   mesh.skeleton.bones[0]?.updateMatrixWorld(true);
@@ -335,7 +351,7 @@ function addGround(size: number, y = 0): THREE.Mesh {
 }
 
 function addLights(distance: number): void {
-  const sun = new THREE.DirectionalLight(0xfff2df, 2.4);
+  const sun = new THREE.DirectionalLight(0xfff4e4, 1.7);
   sun.position.set(distance * 0.6, distance * 1.1, distance * 0.9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -350,7 +366,7 @@ function addLights(distance: number): void {
   scene.add(sun);
 
   // A cool rim from behind separates dark monsters from a dark background.
-  const rim = new THREE.DirectionalLight(0x9fc4ff, 0.85);
+  const rim = new THREE.DirectionalLight(0xbcd4ff, 0.45);
   rim.position.set(-distance * 0.9, distance * 0.5, -distance);
   scene.add(rim);
 }
@@ -473,8 +489,8 @@ async function runSheet(): Promise<Record<string, unknown>> {
   addGround(80, 0);
 
   const perRow = 7;
-  const spacing = 2.35;
-  const rowDepth = 3.4;
+  const spacing = 2.6;
+  const rowDepth = 3.9;
   const rows: CharacterRow[] = [];
   const built: BuiltCharacter[] = [];
 
@@ -494,8 +510,8 @@ async function runSheet(): Promise<Record<string, unknown>> {
     rows.push(describe(character));
   }
 
-  camera.position.set(0, 2.9, 13.2);
-  camera.lookAt(0, 1.35, -1.7);
+  camera.position.set(0, 3.2, 15.6);
+  camera.lookAt(0, 1.5, -2.0);
   scene.add(camera);
 
   redraw = (): void => {
@@ -513,11 +529,13 @@ async function runSheet(): Promise<Record<string, unknown>> {
   for (const character of built) {
     const head = new THREE.Vector3(0, character.height + 0.16, 0).add(character.root.position);
     const point = project(head, camera);
+    // Stagger every other label so a tall neighbour cannot overwrite it.
+    const stagger = (built.indexOf(character) % 2) * 22;
     const sub =
       character.entry.threat === undefined
         ? `${character.triangles} tris · ${character.drawCalls} call`
         : `${character.entry.threat} · ${character.triangles} tris · ${character.drawCalls} call`;
-    label(point.x, point.y - 34, character.entry.name, sub);
+    label(point.x, point.y - 40 - stagger, character.entry.name, sub);
   }
 
   return {
@@ -603,20 +621,31 @@ async function runMetal(): Promise<Record<string, unknown>> {
   character.root.rotation.y = Math.PI + 0.5;
   scene.add(character.root);
 
-  const wide = new THREE.PerspectiveCamera(26, WIDTH / 2 / HEIGHT, 0.05, 40);
-  wide.position.set(1.05, 1.35, 1.85);
-  wide.lookAt(0, 1.1, 0);
+  // Matrices must be current before any bone world position is read, or the
+  // close-up frames where the character was at construction time.
+  character.root.updateMatrixWorld(true);
 
-  // The forearm close-up. The bone position is read from the rig so the crop
-  // follows the character rather than a hard-coded point in space.
+  const wide = new THREE.PerspectiveCamera(30, WIDTH / 2 / HEIGHT, 0.05, 40);
+  wide.position.set(1.5, 1.35, 2.5);
+  wide.lookAt(0, 0.95, 0);
+
+  // The forearm close-up. `getWorldPosition` already includes the root's
+  // transform — running it through `localToWorld` as well (as this did) applies
+  // the rotation twice and points the camera at empty space.
   const forearm = character.mesh.skeleton.bones.find((bone) => bone.name === 'LeftForeArm');
+  const hand = character.mesh.skeleton.bones.find((bone) => bone.name === 'LeftHand');
   const target = new THREE.Vector3();
+  const wrist = new THREE.Vector3();
   if (forearm !== undefined) forearm.getWorldPosition(target);
   else target.set(-0.32, 1.1, 0);
-  character.root.localToWorld(target);
+  if (hand !== undefined) hand.getWorldPosition(wrist);
+  else wrist.copy(target);
+  target.lerp(wrist, 0.45);
 
-  const close = new THREE.PerspectiveCamera(22, WIDTH / 2 / HEIGHT, 0.02, 20);
-  close.position.copy(target).add(new THREE.Vector3(0.24, 0.16, 0.42));
+  const close = new THREE.PerspectiveCamera(30, WIDTH / 2 / HEIGHT, 0.02, 20);
+  // Far enough back that the whole forearm is in frame: at 25 cm this was an
+  // abstract texture swatch rather than a limb.
+  close.position.copy(target).add(new THREE.Vector3(-0.36, 0.2, 0.52));
   close.lookAt(target);
 
   redraw = (): void => {

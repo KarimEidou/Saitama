@@ -890,8 +890,11 @@ export function bakeCharacterAtlas(
       const hr = height[texel + (x < size - 1 ? 1 : 0)]!;
       const hd = height[texel - (y > 0 ? size : 0)]!;
       const hu = height[texel + (y < size - 1 ? size : 0)]!;
-      let nx = (hl - hr) * 2.2 + detailNormal[o3]!;
-      let ny = (hd - hu) * 2.2 + detailNormal[o3 + 1]!;
+      // Sobel gain. Tuned by eye against the close-ups: at 2.2 a jumpsuit read
+      // as a knitted string vest and a machined forearm as corrugated iron.
+      // Cloth relief is a suggestion at arm's length, not a relief map.
+      let nx = (hl - hr) * 1.0 + detailNormal[o3]!;
+      let ny = (hd - hu) * 1.0 + detailNormal[o3 + 1]!;
       let nz = 1;
       const length = Math.hypot(nx, ny, nz) || 1;
       nx /= length;

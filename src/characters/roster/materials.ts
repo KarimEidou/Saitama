@@ -13,9 +13,9 @@
  *   FACE     samples a 4-tile expression strip inside the face rectangle and
  *            replaces the baked face. Swapping expression is a uniform write —
  *            no texture swap, no material swap, no draw call.
- *   CROWD    reads four instanced colour attributes and recolours by the tint
- *            mask baked into the atlas alpha, so one shared civilian sheet
- *            dresses an entire street.
+ *   CROWD    reads four instanced colour attributes and recolours by a
+ *            single-channel tint mask, so one shared civilian sheet dresses an
+ *            entire street.
  *   FADE     a 4x4 ordered-dither screen door driven by the camera's
  *            `armCollapseRatio`. Only the player's material carries it.
  *
@@ -42,7 +42,7 @@ import { EXPRESSIONS } from './types';
 
 /** The maps one character's material binds. */
 export interface RosterTextures {
-  /** Base colour; alpha carries the crowd tint mask. */
+  /** Base colour, opaque RGB. */
   readonly map: THREE.Texture;
   readonly normalMap: THREE.Texture;
   /** Packed AO (R) / roughness (G) / metalness (B). */
@@ -50,6 +50,14 @@ export interface RosterTextures {
   readonly emissiveMap?: THREE.Texture;
   /** Four stacked expression tiles, bottom tile = `EXPRESSIONS[0]`. */
   readonly faceMap?: THREE.Texture;
+  /**
+   * Single-channel per-instance tint mask. Crowd characters only.
+   *
+   * It is a separate map rather than the albedo's alpha channel because an
+   * all-zero alpha is a minefield: libvips flattens such an image on save and
+   * some browsers premultiply it to black on upload. See `AtlasMaps.mask`.
+   */
+  readonly maskMap?: THREE.Texture;
 }
 
 /** Options for one character's material. */
@@ -74,6 +82,7 @@ export interface RosterUniforms {
   readonly faceRect: { value: THREE.Vector4 };
   readonly faceSelect: { value: THREE.Vector2 };
   readonly faceMap: { value: THREE.Texture | null };
+  readonly crowdMask: { value: THREE.Texture | null };
   readonly proximityFade: { value: number };
 }
 
@@ -134,6 +143,7 @@ const CROWD_VERTEX_BODY = /* glsl */ `
 `;
 
 const CROWD_FRAGMENT_DECLARATIONS = /* glsl */ `
+uniform sampler2D crowdMask;
 varying vec3 vRosterSkin;
 varying vec3 vRosterCloth;
 varying vec3 vRosterAccent;
@@ -141,14 +151,14 @@ varying vec3 vRosterHair;
 `;
 
 /**
- * Recolour by the mask baked into the atlas alpha.
+ * Recolour by the baked tint mask.
  *
  * Levels are 0 (fixed), 0.25 hair, 0.5 skin, 0.75 accent, 1.0 cloth — read
  * with band tests rather than branches so every fragment costs the same.
  */
 const CROWD_FRAGMENT = /* glsl */ `
 #ifdef USE_MAP
-  float rosterMask = texture2D(map, vMapUv).a;
+  float rosterMask = texture2D(crowdMask, vMapUv).r;
   vec3 rosterTint = vec3(1.0);
   rosterTint = mix(rosterTint, vRosterHair, step(0.125, rosterMask) * step(rosterMask, 0.375));
   rosterTint = mix(rosterTint, vRosterSkin, step(0.375, rosterMask) * step(rosterMask, 0.625));
@@ -213,6 +223,7 @@ export function createRosterMaterial(
   prepare(textures.ormMap, false, anisotropy);
   if (textures.emissiveMap !== undefined) prepare(textures.emissiveMap, true, anisotropy);
   if (textures.faceMap !== undefined) prepare(textures.faceMap, true, anisotropy);
+  if (textures.maskMap !== undefined) prepare(textures.maskMap, false, anisotropy);
 
   // Built without an `emissiveMap` key when there is none: three warns loudly
   // about parameters whose value is `undefined`, and a warning per character
@@ -258,11 +269,12 @@ export function createRosterMaterial(
       ),
     },
     faceMap: { value: textures.faceMap ?? null },
+    crowdMask: { value: textures.maskMap ?? null },
     proximityFade: { value: 0 },
   };
 
   const useFace = textures.faceMap !== undefined && rect !== undefined;
-  const useCrowd = options.crowdTint === true;
+  const useCrowd = options.crowdTint === true && textures.maskMap !== undefined;
   const useFade = options.proximityFade === true;
   const features = `${useFace ? 'F' : '-'}${useCrowd ? 'C' : '-'}${useFade ? 'D' : '-'}`;
 
@@ -278,6 +290,7 @@ export function createRosterMaterial(
         .replace('#include <map_fragment>', `#include <map_fragment>\n${FACE_FRAGMENT}`);
     }
     if (useCrowd) {
+      shader.uniforms.crowdMask = uniforms.crowdMask;
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>\n${CROWD_VERTEX_DECLARATIONS}`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>\n${CROWD_VERTEX_BODY}`);

@@ -164,7 +164,7 @@ export class CrowdSteering {
 
     const bravado = agents.bravado[i]!;
     const gawkAt = ALARM_GAWK * (1.45 - bravado * 0.85);
-    const fleeAt = ALARM_FLEE * (0.55 + bravado * 0.95);
+    const fleeAt = ALARM_FLEE * (0.6 + bravado * 0.8);
 
     // Stamina: sprinting is a resource, and running out of it is what turns a
     // flight into a huddle. Without it a panicking crowd sprints forever and

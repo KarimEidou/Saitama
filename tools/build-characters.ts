@@ -7,7 +7,8 @@
  * For every entry in `@/characters/roster` this writes, into
  * `public/assets/chr/<name>/` (gitignored, re-derivable):
  *
- *   albedo.<tier>.png   base colour; ALPHA is the crowd tint mask
+ *   albedo.<tier>.png   base colour, opaque RGB
+ *   mask.<tier>.png     per-instance tint mask; crowd characters only
  *   orm.<tier>.png      AO (R) / roughness (G) / metalness (B)
  *   normal.<tier>.png   tangent-space normal
  *   emissive.<tier>.png only for characters that actually glow
@@ -371,7 +372,7 @@ async function writePng(
   file: string,
   data: Uint8Array,
   size: number,
-  channels: 3 | 4,
+  channels: 1 | 3 | 4,
   resizeTo?: number
 ): Promise<number> {
   let image = sharp(Buffer.from(data.buffer, data.byteOffset, data.byteLength), {
@@ -680,9 +681,9 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
   for (const tier of TIERS) {
     const size = Math.min(TIER_SIZE[tier]!, maps.size);
     const write = async (
-      role: 'albedo' | 'orm' | 'normal' | 'emissive',
+      role: 'albedo' | 'orm' | 'normal' | 'emissive' | 'mask',
       data: Uint8Array,
-      channels: 3 | 4
+      channels: 1 | 3 | 4
     ): Promise<void> => {
       const name = mapFileName(role, tier);
       const bytes = await writePng(path.join(dir, name), data, maps.size, channels, size);
@@ -699,10 +700,13 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
       // Uncompressed GPU footprint including the mip chain.
       gpuBytes[tier] += Math.round(size * size * channels * 1.34);
     };
-    await write('albedo', maps.albedo, 4);
+    await write('albedo', maps.albedo, 3);
     await write('orm', maps.orm, 3);
     await write('normal', maps.normal, 3);
     if (maps.emissive !== undefined) await write('emissive', maps.emissive, 3);
+    // Only the shared civilian sheet is ever recoloured per instance, so only
+    // it pays for the mask.
+    if (entry.crowd === true) await write('mask', maps.mask, 1);
   }
 
   // --- expression strip ---------------------------------------------------
@@ -851,7 +855,13 @@ async function writeSourceManifest(reports: readonly CharacterReport[]): Promise
     const entry = roster.get(report.id)!;
     const spec = materialSpecFor(entry);
     const glows = entryGlows(entry);
-    const roles = ['albedo', 'orm', 'normal', ...(glows ? ['emissive'] : [])];
+    const roles = [
+      'albedo',
+      'orm',
+      'normal',
+      ...(glows ? ['emissive'] : []),
+      ...(entry.crowd === true ? ['mask'] : []),
+    ];
 
     return {
       id: entry.id,

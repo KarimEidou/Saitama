@@ -623,6 +623,106 @@ function round(value: number, places = 2): number {
   return Math.round(value * factor) / factor;
 }
 
+export interface ISaveRoundTripResult {
+  readonly backend: string;
+  readonly exact: boolean;
+  readonly bytes: number;
+  readonly mismatches: readonly string[];
+  readonly rank: string;
+  readonly boredom: number;
+  readonly questStates: number;
+}
+
+/**
+ * Play a short session, write it, read it back, and compare byte for byte.
+ *
+ * Runs in the BROWSER rather than in Node so the real backend selection is
+ * exercised: `selectSaveBackend()` probes `localStorage` with an actual write
+ * here, which is the path the shipping web build takes. The Capacitor path
+ * needs a device and is covered by the backend unit tests.
+ */
+export async function runSaveRoundTrip(): Promise<ISaveRoundTripResult> {
+  const bus = createEventBus();
+  const coordinator = new ProgressionCoordinator({ bus, worldSeed: WORLD_SEED });
+  const stream = createRng('save-round-trip');
+
+  for (let i = 0; i < 16; i++) {
+    coordinator.witnesses.register(`civ${i}`, 'civilian', {
+      x: stream.range(-20, 20),
+      y: 0,
+      z: stream.range(-20, 20),
+    });
+  }
+  coordinator.quests.accept('quest.duty.quota');
+  for (let i = 0; i < 4; i++) {
+    const position = { x: i * 300, y: 0, z: 0 };
+    bus.emit('EncounterStarted', {
+      encounterId: `e${i}`,
+      threatTier: 'demon',
+      position,
+      radius: 50,
+      participantIds: ['ally.genos'],
+      isBoss: false,
+    });
+    bus.emit('EntityKilled', {
+      entityId: `m${i}`,
+      entityType: 'monster',
+      faction: 'monster',
+      position,
+      threatTier: 'demon',
+      specId: 'monster.generic',
+      intent: 'normal',
+      rewardPoints: 150,
+    });
+    bus.emit('EncounterEnded', {
+      encounterId: `e${i}`,
+      outcome: 'victory',
+      duration: 21,
+      civiliansLost: 0,
+      collateralCost: stream.range(0, 40000),
+    });
+  }
+  for (let i = 0; i < 7; i++) {
+    bus.emit('CivilianSaved', {
+      entityId: `s${i}`,
+      position: { x: 0, y: 0, z: 0 },
+      byPlayer: true,
+      reputationDelta: 1,
+    });
+  }
+  coordinator.update(3.25);
+
+  const position = { x: stream.range(-100, 100), y: 1.5, z: stream.range(-100, 100) };
+  const yaw = stream.range(-Math.PI, Math.PI);
+  const written = await coordinator.save(position, yaw);
+  const loaded = await coordinator.saves.load();
+
+  const before = JSON.stringify(written);
+  const after = JSON.stringify(loaded);
+  const mismatches: string[] = [];
+  if (before !== after) {
+    mismatches.push('serialised payloads differ');
+    // Narrow it down to the first differing key, which is what a human needs.
+    const a = JSON.parse(before) as Record<string, unknown>;
+    const b = (loaded ?? {}) as Record<string, unknown>;
+    for (const key of Object.keys(a)) {
+      if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) mismatches.push(`key "${key}"`);
+    }
+  }
+
+  const result: ISaveRoundTripResult = {
+    backend: coordinator.saves.backendName ?? 'unknown',
+    exact: before === after,
+    bytes: before.length,
+    mismatches,
+    rank: formatRank(coordinator.progression.state.rank),
+    boredom: coordinator.boredom.boredom,
+    questStates: Object.keys(written.questStates).length,
+  };
+  coordinator.dispose();
+  return result;
+}
+
 /* -------------------------------------------------------------------------- */
 /* The harness                                                                */
 /* -------------------------------------------------------------------------- */
@@ -1031,6 +1131,7 @@ declare global {
       step(dt?: number): void;
       settle(frames: number): void;
       runScenarios(): readonly IScenarioResult[];
+      runSaveRoundTrip(): Promise<ISaveRoundTripResult>;
       shotTimes(): typeof SHOT_TIMES;
     };
   }
@@ -1058,6 +1159,7 @@ if (canvas) {
       harness.renderPanel();
     },
     runScenarios: () => runScenarios(),
+    runSaveRoundTrip: () => runSaveRoundTrip(),
     shotTimes: () => SHOT_TIMES,
   };
   window.__PROGRESSION_HARNESS__ = api;

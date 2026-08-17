@@ -127,31 +127,57 @@ export interface ICombatTuning {
   /** `power` of an uncharged tap. Contract band for normal hits is 10–1000. */
   readonly normalPower: number;
   /**
-   * Intent stamped on a tap.
+   * Intent stamped on a tap. `'normal'`, and it stays `'normal'`.
    *
-   * NOTE FOR INTEGRATION: the renderer's `ImpactFreeze` qualifies on
-   * `['serious', 'full']` by default, so a `normal` tap kill will NOT hit-stop
-   * unless the renderer is constructed with `qualifyingIntents` widened. Set
-   * this to `'serious'` if you would rather buy the hit-stop from this side.
+   * ── ON RECORD, BECAUSE IT WAS DECIDED RATHER THAN DEFAULTED ──────────────
+   * The renderer's `ImpactFreeze` qualifies on `['serious', 'full']`, so a tap
+   * kill does not currently hit-stop — and one jab deleting a demon-tier
+   * monster is the signature moment of the whole franchise, so it cannot be
+   * silent. The fix is NOT to stamp `'serious'` on a punch that was not
+   * serious: the freeze is a reaction to SOMETHING DYING TO A PUNCH, not to
+   * how long a button was held, so keying it on lethality is the semantically
+   * correct model and it belongs on the renderer's side. That change is with
+   * the renderer workstream; this field stays honest.
+   *
+   * Do not "fix" a missing hit-stop by raising this.
    */
   readonly normalPunchIntent: LethalIntent;
   /** Knockback delta-v applied to a tap victim, m/s. */
   readonly normalKnockbackMps: number;
   /**
-   * Fire the tap on the PRESS edge (true) or on the release of a short press
-   * (false).
+   * Fire the tap on the PRESS edge (true) or discriminate tap from hold on
+   * RELEASE (false). SHIPS AS `false`.
    *
-   * `true` matches the input contract verbatim — "`buttons.punch.pressed` =
-   * throw the light punch NOW" — and is the only setting with zero latency,
-   * which matters more on a phone than anywhere else.
+   * ── WHY NOT THE PRESS EDGE, WHICH IS WHAT THE INPUT CONTRACT SUGGESTS ────
+   * `true` matches `buttons.punch.pressed` = "throw the light punch NOW" and
+   * has zero latency, which normally wins on a phone. It also means BEGINNING
+   * A CHARGE THROWS A FREE JAB: stand next to a monster, hold to charge, and
+   * the jab kills it before the wind-up finishes — so the serious punch lands
+   * on a corpse and levels three blocks for nothing. The most important
+   * decision in the game gets made for the player, wrongly, by a button they
+   * were still pressing. (It also let the wind-up jab inherit the chain
+   * multiplier and come out LOUDER than the punch before it.)
    *
-   * The cost is that beginning a charge next to a monster throws a free jab
-   * first, so the monster is already dead when the serious punch lands and the
-   * player levels three blocks for nothing. That is a legible mistake to make
-   * once, but if playtesting says otherwise, `false` defers the tap until
-   * release and costs one frame plus `seriousMinChargeSeconds` of latency.
+   * So the tap waits for release, and `tapMaxHoldSeconds` tells the two
+   * gestures apart. It costs ~140 ms on the light attack, which is inside the
+   * band players read as responsive and is what every charge-attack game
+   * does — and it is nowhere near the full charge time, which is what a naive
+   * deferral would have cost.
    */
   readonly normalPunchOnPress: boolean;
+  /**
+   * The tap/hold discriminator, in seconds. THE only threshold that separates
+   * the two verbs.
+   *
+   * Released at or before this: a tap, and the normal punch fires immediately
+   * on release. Still held past it: a charge, committed — the jab is never
+   * thrown, whatever happens next.
+   *
+   * 140 ms. Below ~100 ms a deliberate short hold reads as a tap and players
+   * cannot start a charge reliably; above ~180 ms the light attack starts to
+   * feel like it is lagging behind the thumb.
+   */
+  readonly tapMaxHoldSeconds: number;
 
   /* ---- consecutive normal punches ---- */
   /**

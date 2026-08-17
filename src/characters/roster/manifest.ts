@@ -15,7 +15,7 @@ import type { Expression, RosterEntry } from './types';
 import { EXPRESSIONS } from './types';
 
 /** Texture roles a baked character ships. */
-export type CharacterMapRole = 'albedo' | 'normal' | 'orm' | 'emissive' | 'face';
+export type CharacterMapRole = 'albedo' | 'normal' | 'orm' | 'emissive' | 'face' | 'mask';
 
 /** Asset id for one of a character's maps. */
 export function mapAssetId(entry: RosterEntry, role: CharacterMapRole): string {
@@ -87,5 +87,6 @@ export function entryAssetIds(entry: RosterEntry): string[] {
     mapAssetId(entry, 'face'),
   ];
   if (entryGlows(entry)) ids.push(mapAssetId(entry, 'emissive'));
+  if (entry.crowd === true) ids.push(mapAssetId(entry, 'mask'));
   return ids;
 }

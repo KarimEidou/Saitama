@@ -42,8 +42,10 @@ export interface IImpactFreezeOptions {
   /** Degrees the field of view narrows by at full intensity. */
   readonly fovPunchDegrees?: number;
   /**
-   * Intents that qualify as "lethal enough". A restrained tap that happens to
-   * finish off a wounded wolf-tier monster should not stop the world.
+   * Intents that qualify as "lethal enough". Defaults to all three: the freeze
+   * reacts to something dying to a punch, not to how long the button was held.
+   * Intent still scales the result, so a jab reads shorter and shallower than a
+   * serious punch rather than being silent.
    */
   readonly qualifyingIntents?: readonly LethalIntent[];
   /**
@@ -65,7 +67,25 @@ export interface IImpactFreezeState {
   readonly fovOffset: number;
 }
 
-const DEFAULT_INTENTS: readonly LethalIntent[] = ['serious', 'full'];
+/**
+ * The freeze keys on LETHALITY, not on how long a button was held.
+ *
+ * `normal` is included deliberately. Saitama's whole premise is that he ends
+ * fights with one unremarkable punch — a casual jab deleting a demon-tier
+ * monster IS the signature moment, and it cannot pass silently while only the
+ * charged attack gets a hit-stop. The combat system reports `intent` honestly
+ * (audio picks its punch voice from it, VFX scales the shockwave from it), so
+ * the weighting below is what separates a jab from a serious punch, not a lie
+ * about intent.
+ */
+const DEFAULT_INTENTS: readonly LethalIntent[] = ['normal', 'serious', 'full'];
+
+/**
+ * How much of `holdSeconds` a freeze actually holds, by intensity. A tap is
+ * frequent, so it gets a crisp stop rather than a cinematic pause — a full 90ms
+ * on every jab reads as sludge, especially mid-chain.
+ */
+const MIN_HOLD_FRACTION = 0.5;
 
 export class ImpactFreeze implements IDisposable {
   private readonly clock: IGameClock;
@@ -131,7 +151,9 @@ export class ImpactFreeze implements IDisposable {
       god: 1,
     };
     const weight = event.threatTier ? (tierWeight[event.threatTier] ?? 0.5) : 0.4;
-    const intentWeight = event.intent === 'full' ? 1 : 0.75;
+    // normal < serious < full. A jab that kills still stops the world, just
+    // briefly and without the vertigo punch.
+    const intentWeight = event.intent === 'full' ? 1 : event.intent === 'serious' ? 0.75 : 0.45;
     this.trigger(weight * intentWeight);
   }
 
@@ -192,11 +214,19 @@ export class ImpactFreeze implements IDisposable {
    *                   Passing the scaled delta here stretches a 90ms hit-stop
    *                   into more than two seconds.
    */
+  /**
+   * Hold duration for the CURRENT intensity. A weak hit (a lethal jab) gets a
+   * crisp stop; a full-power kill gets the whole cinematic beat.
+   */
+  private get effectiveHold(): number {
+    return this.holdSeconds * (MIN_HOLD_FRACTION + (1 - MIN_HOLD_FRACTION) * this.intensity);
+  }
+
   update(unscaledDt: number): void {
     if (!this.active || this.disposed) return;
     this.elapsed += unscaledDt;
 
-    const total = this.holdSeconds + this.recoverSeconds;
+    const total = this.effectiveHold + this.recoverSeconds;
     if (this.elapsed >= total) {
       this.active = false;
       this.intensity = 0;
@@ -209,7 +239,7 @@ export class ImpactFreeze implements IDisposable {
   }
 
   private apply(): void {
-    const hold = this.holdSeconds;
+    const hold = this.effectiveHold;
     const punch = this.fovPunchDegrees * this.intensity;
     // At low intensity the clock should not stop dead; blend the frozen scale
     // towards normal so a weak hit is a nudge and a full-power kill is a stop.
@@ -242,7 +272,7 @@ export class ImpactFreeze implements IDisposable {
   getState(): IImpactFreezeState {
     return {
       active: this.active,
-      phase: !this.active ? 'idle' : this.elapsed < this.holdSeconds ? 'hold' : 'recover',
+      phase: !this.active ? 'idle' : this.elapsed < this.effectiveHold ? 'hold' : 'recover',
       elapsed: this.elapsed,
       intensity: this.intensity,
       timeScale: this.clock.timeScale,

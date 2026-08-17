@@ -144,11 +144,26 @@ export const ALARM_GATE = 0.1;
 /** How fast alarm bleeds away once the threat stops feeding it, per second. */
 export const ALARM_DECAY = 0.42;
 
-/** Alarm at or above which a civilian stops to look. */
-export const ALARM_GAWK = 0.1;
+/**
+ * Alarm at or above which a civilian stops to look.
+ *
+ * Set against the measured field profile rather than picked: a dragon-level
+ * seed decays to this about 170 m out, which is roughly "same district, can
+ * hear it, can see the dust". Beyond that the city carries on, and it should —
+ * a City Z that panics uniformly out to the horizon has no gradient in it.
+ */
+export const ALARM_GAWK = 0.12;
 
-/** Alarm at or above which an average civilian runs. */
-export const ALARM_FLEE = 0.38;
+/**
+ * Alarm at or above which an average civilian runs.
+ *
+ * About 95 m from the same seed. The gap between this and `ALARM_GAWK` is
+ * where the whole character of the crowd lives, and it is deliberately wide:
+ * the ring of people who have stopped and got their phones out is much larger
+ * in area than the core of people running, which is exactly the image the
+ * source material opens half its fights with.
+ */
+export const ALARM_FLEE = 0.3;
 
 /** Alarm at or above which a cornered civilian gives up and cowers. */
 export const ALARM_COWER = 0.72;

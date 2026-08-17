@@ -59,8 +59,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
  * below — a silent upstream swap should fail loudly, not install something else.
  */
 const CMDLINE_TOOLS_BUILD = '13114758';
-const CMDLINE_TOOLS_URL =
-  `https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_BUILD}_latest.zip`;
+const CMDLINE_TOOLS_URL = `https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_BUILD}_latest.zip`;
 const CMDLINE_TOOLS_SHA256 = '7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee';
 const CMDLINE_TOOLS_BYTES = 164_760_899;
 
