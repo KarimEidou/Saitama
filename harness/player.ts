@@ -124,6 +124,8 @@ interface HarnessReport {
     lastAcceptedMs: number;
     firstRejectedFrames: number;
     firstRejectedMs: number;
+    /** Airborne time on the clock when the last accepted jump was requested. */
+    effectiveWindowMs: number;
   };
   buffer: {
     tunedWindowSec: number;
@@ -902,13 +904,12 @@ function measureCamera(): HarnessReport['camera'] {
   let lagPeak = 0;
   let lagFrames = 0;
   for (let i = 0; i < 60; i++) {
-    const before = sim.camera.position.clone();
     sim.step(poll());
     const diagnostics = sim.rig.camera.diagnostics();
     if (diagnostics.impactLag > 0) lagFrames++;
-    // The lag is a POSITION offset; measure it against where the camera would
-    // have been, which is the desired position the rig also records.
-    lagPeak = Math.max(lagPeak, Math.abs(before.distanceTo(sim.camera.position)));
+    // The lag is how far the OUTPUT position trails the position the rig would
+    // otherwise have used — not how far the camera moved this frame.
+    lagPeak = Math.max(lagPeak, diagnostics.impactLagOffsetM);
   }
 
   // Dash FOV.
@@ -979,11 +980,11 @@ const tmpDir = new THREE.Vector3();
 function measureClearance(): HarnessReport['clearance'] {
   const sim = makeSim(new THREE.Vector3(ALLEY_START_X - 4, 1.5, ALLEY_CENTRE_Z));
   clearInput();
+  // Aim the camera east and let the character follow: the movement stick is
+  // camera-relative, so pointing the camera IS pointing the run.
+  sim.rig.camera.yaw = -Math.PI / 2;
   manager.synthetic.setMove(0, 1);
   manager.synthetic.press('sprint');
-  // Face east, into the alley: the movement stick is camera-relative, so aim
-  // the camera and let the character follow.
-  sim.rig.camera.yaw = -Math.PI / 2;
 
   let frames = 0;
   let minClearance = Number.POSITIVE_INFINITY;
@@ -994,12 +995,21 @@ function measureClearance(): HarnessReport['clearance'] {
   let occludedFrames = 0;
   const exclude = [sim.controller.body.handle];
 
-  // ~9 s: enough to run the corridor, orbit through 360 degrees twice, and
-  // spend real time with the arm pointing straight into a wall.
-  const total = 540;
-  for (let i = 0; i < total; i++) {
-    // Orbit at 3/4 rate so the arm sweeps the full circle twice over the run.
-    manager.synthetic.setLook(0.75, 0);
+  // Phase 1 runs the corridor; phase 2 parks in the middle of it and orbits,
+  // so the arm spends real time pointing straight into a wall rather than
+  // glancing off one on the way past.
+  const ENTER = 120;
+  const ORBIT = 480;
+  for (let i = 0; i < ENTER + ORBIT; i++) {
+    if (i === ENTER) {
+      manager.synthetic.setMove(0, 0);
+      manager.synthetic.release('sprint');
+    }
+    if (i >= ENTER) {
+      // Yaw sweeps continuously; pitch sweeps through the whole tuned band, so
+      // the arm is driven into the ground and into the sky as well as the walls.
+      manager.synthetic.setLook(0.62, 0.6 * Math.sin((i - ENTER) / 22));
+    }
     sim.step(poll());
     frames++;
 
@@ -1050,7 +1060,7 @@ function measureClearance(): HarnessReport['clearance'] {
       if (hit !== undefined) minPivotClearance = Math.min(minPivotClearance, hit.distance);
     }
 
-    if (i === 300) {
+    if (i === ENTER + 150) {
       capturePose(
         sim,
         'alley',
@@ -1323,6 +1333,9 @@ async function main(): Promise<void> {
       lastAcceptedMs: round(lastAccepted * DT * 1000, 2),
       firstRejectedFrames: firstRejected,
       firstRejectedMs: round(firstRejected * DT * 1000, 2),
+      // The sweep counts frames AFTER the exit was observed, and one frame of
+      // airborne time is already on the clock by then.
+      effectiveWindowMs: round((lastAccepted + 1) * DT * 1000, 2),
     },
     buffer: {
       tunedWindowSec: DEFAULT_PLAYER_TUNING.locomotion.jumpBufferSeconds,

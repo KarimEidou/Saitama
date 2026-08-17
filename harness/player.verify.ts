@@ -103,6 +103,7 @@ interface HarnessReport {
     lastAcceptedMs: number;
     firstRejectedFrames: number;
     firstRejectedMs: number;
+    effectiveWindowMs: number;
   };
   buffer: {
     tunedWindowSec: number;
@@ -331,7 +332,9 @@ async function main(): Promise<void> {
       if (!l.createsCrater) failures.push('the hard landing did not register as a ground slam');
       if (!l.fromBus) failures.push('the landing was not sourced from the physics PlayerLanded event');
       if (l.playerLandedEvents < 1) failures.push('no PlayerLanded event was emitted');
-      if (l.groundSlamAffected < 0) failures.push('ground-slam reporting is broken');
+      if (l.groundSlamAffected < 1) {
+        failures.push('the ground slam moved no loose bodies');
+      }
       if (l.measuredHardLandSeconds < l.recoverySeconds - 0.05) {
         failures.push(
           `hard-landing recovery lasted ${l.measuredHardLandSeconds}s but was tuned for ` +
@@ -348,9 +351,15 @@ async function main(): Promise<void> {
       if (c.firstRejectedFrames < 0) {
         failures.push('coyote time accepted every delay — the window is not bounded');
       }
-      if (c.lastAcceptedMs > c.tunedWindowSec * 1000 + 40) {
+      if (c.effectiveWindowMs > c.tunedWindowSec * 1000 + 1) {
         failures.push(
-          `coyote window measured ${c.lastAcceptedMs} ms, far above the tuned ` +
+          `coyote window measured ${c.effectiveWindowMs} ms, above the tuned ` +
+            `${c.tunedWindowSec * 1000} ms`
+        );
+      }
+      if (c.effectiveWindowMs < c.tunedWindowSec * 1000 - 2 * (1000 / 60)) {
+        failures.push(
+          `coyote window measured only ${c.effectiveWindowMs} ms against a tuned ` +
             `${c.tunedWindowSec * 1000} ms`
         );
       }
@@ -392,6 +401,11 @@ async function main(): Promise<void> {
       }
       if (cam.impactLagFrames < 5) {
         failures.push(`impact lag lasted ${cam.impactLagFrames} frames — it never engaged`);
+      }
+      if (cam.impactLagPeakM < 0.05) {
+        failures.push(
+          `impact lag moved the camera by only ${cam.impactLagPeakM} m — it is not visible`
+        );
       }
       if (cam.fovSuspendedFrames < 10) {
         failures.push('the camera kept writing FOV while another system owned it');
@@ -501,9 +515,10 @@ async function main(): Promise<void> {
 
     console.log('\n── forgiveness windows ──');
     console.log(
-      `coyote               accepted up to ${fmt(r.coyote.lastAcceptedMs, 1)} ms after the ledge ` +
-        `(${r.coyote.lastAcceptedFrames} frames), rejected at ` +
-        `${fmt(r.coyote.firstRejectedMs, 1)} ms · tuned ${r.coyote.tunedWindowSec * 1000} ms`
+      `coyote               window ${fmt(r.coyote.effectiveWindowMs, 1)} ms of airborne time ` +
+        `(tuned ${r.coyote.tunedWindowSec * 1000} ms) · last accepted ` +
+        `${r.coyote.lastAcceptedFrames} frames after the exit was observed, first rejected at ` +
+        `${r.coyote.firstRejectedFrames}`
     );
     console.log(
       `jump buffer          accepted up to ${fmt(r.buffer.earliestAcceptedMs, 1)} ms before ` +
