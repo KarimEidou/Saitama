@@ -407,15 +407,27 @@ export class LocomotionSolver {
     // across the transition, which is why the two terms carry opposite signs
     // and why the vertical travel passes through a minimum near the walk→run
     // boundary — a real and slightly odd-looking property of real gait.
-    const bounceWalk = -Math.cos(4 * Math.PI * (p - 0.09)) * (1 - run);
+    const bounceWalk = -Math.cos(4 * Math.PI * p) * (1 - run);
     const bounceRun = Math.cos(4 * Math.PI * p) * run;
     // Modest authored amplitude: most of a walk's pelvis dip is not styling,
     // it is the geometric consequence of the legs splaying at double support,
     // and `applyReachLimit` produces that part for free. Authoring the full
     // travel here and then adding the geometric drop on top gives a bouncing
     // walk — a common and very visible procedural-animation smell.
-    const bounceAmplitude = m.legLength * lerp(0.028, 0.075, run) * a;
-    const crouch = m.legLength * (lerp(0.012, 0.05, run) * a + 0.03 * slouch);
+    const bounceAmplitude = m.legLength * lerp(0.022, 0.062, run) * a;
+    // A STANDING crouch, present even at zero speed.
+    //
+    // The bind pose stands with the legs dead straight, so the hip sits at
+    // exactly 100 % of leg length. Any reach ceiling below 1.0 therefore binds
+    // permanently, the limiter takes over the pelvis for the entire cycle, and
+    // the authored bounce above becomes dead code — which is precisely what
+    // happened here until it was measured. Parking the nominal hip a few
+    // centimetres below the ceiling puts the authored shape back in charge of
+    // the middle of the cycle and leaves the geometry to bind only at heel
+    // strike and toe-off, which is where it should. It also happens to be what
+    // people do: nobody stands with locked knees.
+    const crouch =
+      m.legLength * (0.032 + lerp(0.018, 0.05, run) * a + 0.03 * slouch);
     const authoredY = m.hipHeight - crouch + (bounceWalk + bounceRun) * bounceAmplitude;
 
     // --- Pelvis lateral sway, toward the stance foot ----------------------
