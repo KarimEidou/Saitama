@@ -216,7 +216,7 @@ describe('damage', () => {
   it('staggers on an interrupting hit and recovers on its own clock', () => {
     const { bus } = recordingBus();
     const brain = makeBrain('mob.tiger.brute', bus);
-    const view = world([makeTarget('player', 0, 8)]);
+    const view = world([makeTarget('player', 0, 28)]);
     tick(brain, view, 2);
     expect(brain.state).toBe('pursue');
 
@@ -231,7 +231,7 @@ describe('damage', () => {
   it('shrugs off a hit below the interrupt threshold', () => {
     const { bus } = recordingBus();
     const brain = makeBrain('mob.tiger.brute', bus);
-    const view = world([makeTarget('player', 0, 8)]);
+    const view = world([makeTarget('player', 0, 28)]);
     tick(brain, view, 2);
     brain.onDamaged(brain.archetype.maxHealth - 1, 1);
     expect(brain.state).toBe('pursue');

@@ -68,13 +68,25 @@ export function makeBrain(
   });
 }
 
-/** A perceivable target the brain can chase. Position is mutable. */
+/**
+ * A perceivable target the brain can chase.
+ *
+ * Fully mutable, unlike the read-only `IMonsterTarget` the brain consumes:
+ * tests move these around and kill them mid-simulation, which is exactly the
+ * behaviour the host performs on its own live records each frame.
+ */
+export type IMutableTarget = {
+  -readonly [K in keyof IMonsterTarget]: K extends 'position'
+    ? { x: number; y: number; z: number }
+    : IMonsterTarget[K];
+};
+
 export function makeTarget(
   id: string,
   x: number,
   z: number,
   overrides: Partial<Omit<IMonsterTarget, 'id' | 'position'>> = {}
-): IMonsterTarget & { position: { x: number; y: number; z: number } } {
+): IMutableTarget {
   return {
     id,
     faction: overrides.faction ?? 'hero',

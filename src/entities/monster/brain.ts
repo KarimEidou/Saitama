@@ -378,6 +378,11 @@ export class MonsterBrain {
       this.targetId = bestId;
       this.targetDistance = bestDistance;
       this.hasLineOfSight = bestVisible;
+      // Proof of progress, for the FSM watchdog. A chase across three
+      // districts is a legitimate three-minute stay in `pursue`, and the
+      // watchdog must not end it — but a `pursue` that has perceived nothing
+      // at all for 75 s really is stuck and should be rescued.
+      if (this.fsm.current === 'pursue') this.fsm.heartbeat();
       if (bestVisible) {
         this.secondsSinceSeen = 0;
         this.lastKnown.x = bestX;

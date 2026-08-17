@@ -18,6 +18,7 @@ import {
   spawnableArchetypes,
 } from '../archetypes';
 import { BOSS_SCRIPTS } from '../boss-scripts';
+import { MONSTER_STATE_TIMEOUT_SECONDS } from '../fsm';
 import type { DistrictType, ThreatTier } from '../types';
 
 const TIERS: readonly ThreatTier[] = ['wolf', 'tiger', 'demon', 'dragon', 'god'];
@@ -176,6 +177,27 @@ describe('archetype table', () => {
     expect(monsterArchetype('boss.vaccineMan').threatTier).toBe('demon');
     expect(monsterArchetype('boss.deepSeaKing').threatTier).toBe('dragon');
     expect(monsterArchetype('boss.boros').threatTier).toBe('dragon');
+  });
+
+  it('keeps every archetype inside the state machine watchdogs', () => {
+    // The table and the machine are written independently, so this is the only
+    // place the two can be checked against each other. A monster whose attack
+    // timeline outran the `attack` watchdog would be rescued mid-swing, every
+    // swing, forever — and the symptom would be a monster that never connects.
+    const longestMemory = Math.max(...MONSTER_ARCHETYPES.map((a) => a.memorySeconds));
+    expect(MONSTER_STATE_TIMEOUT_SECONDS.pursue).toBeGreaterThan(longestMemory);
+
+    const longestStagger = Math.max(...MONSTER_ARCHETYPES.map((a) => a.staggerSeconds));
+    expect(MONSTER_STATE_TIMEOUT_SECONDS.stagger).toBeGreaterThan(longestStagger);
+
+    for (const archetype of MONSTER_ARCHETYPES) {
+      for (const attack of archetype.attacks) {
+        const timeline = attack.windupSeconds + attack.activeSeconds + attack.recoverySeconds;
+        expect(timeline, `${archetype.id}/${attack.id}`).toBeLessThan(
+          MONSTER_STATE_TIMEOUT_SECONDS.attack
+        );
+      }
+    }
   });
 
   it('rewards higher tiers more, so the tier means something to progression', () => {

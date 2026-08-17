@@ -87,22 +87,34 @@ export const MONSTER_SELF_TRANSITIONS: ReadonlySet<MonsterState> = new Set<Monst
 /* -------------------------------------------------------------------------- */
 
 /**
- * Maximum seconds a monster may remain in each state before the machine
- * intervenes.
+ * Maximum seconds a monster may remain in each state WITHOUT A HEARTBEAT
+ * before the machine intervenes.
  *
  * `idle` and `dead` are `Infinity` and that is correct: idling forever is what
  * a monster with nothing to chase is supposed to do, and it has three
  * outgoing edges so it is not a trap. Every TRANSIENT state is finite.
  *
- * The numbers are generous — three times the longest legitimate stay — because
- * this is a safety net, not a design tool. A watchdog that fires during normal
- * play is a bug in the brain, and `MonsterFsm.watchdogTrips` counts them so it
- * shows up in the harness rather than as a monster standing very still.
+ * ── WHY "WITHOUT A HEARTBEAT" AND NOT SIMPLY "IN" ─────────────────────────
+ * A chase across three districts is a legitimate three-minute stay in
+ * `pursue`, and a watchdog that fired on residence alone would drop the target
+ * mid-chase — turning a safety net into a gameplay bug, which is the worst
+ * possible outcome for a mechanism whose entire job is to be invisible. So the
+ * owner may pet the timer (`heartbeat()`) when it can PROVE it is not stuck —
+ * the brain does it once per think in which it actually perceived its
+ * quarry — and a stay only counts against the limit when nothing is happening.
+ *
+ * The numbers are generous because this is a safety net, not a design tool.
+ * `pursue` must exceed the largest `memorySeconds` in the archetype table,
+ * since a monster tracking a target it has lost is working, not stuck;
+ * `__tests__/archetypes.test.ts` asserts that relationship rather than
+ * trusting it. A trip during normal play is a bug in the brain, and
+ * `MonsterFsm.watchdogTrips` counts them so it shows up in the harness rather
+ * than as a monster standing very still.
  */
 export const MONSTER_STATE_TIMEOUT_SECONDS: Readonly<Record<MonsterState, number>> = Object.freeze({
   idle: Number.POSITIVE_INFINITY,
   alerted: 8,
-  pursue: 45,
+  pursue: 75,
   attack: 6,
   stagger: 12,
   dead: Number.POSITIVE_INFINITY,
@@ -136,6 +148,8 @@ export class MonsterFsm implements IStateMachine<MonsterState> {
   private state: MonsterState;
   private prior: MonsterState | undefined;
   private elapsed = 0;
+  /** Seconds since the last `heartbeat()` or transition. Drives the watchdog. */
+  private sinceHeartbeat = 0;
 
   private enterListeners: Map<MonsterState, Listener[]> | undefined;
   private exitListeners: Map<MonsterState, Listener[]> | undefined;
@@ -184,9 +198,26 @@ export class MonsterFsm implements IStateMachine<MonsterState> {
     this.prior = this.state;
     this.state = next;
     this.elapsed = 0;
+    this.sinceHeartbeat = 0;
     this.transitions++;
     this.fire(this.enterListeners, next);
     return true;
+  }
+
+  /**
+   * "I am not stuck."
+   *
+   * Resets the WATCHDOG clock without touching `timeInState`, which several
+   * callers read as a real duration (`ALERT_ORIENT_SECONDS`, `staggerSeconds`,
+   * a phase's engaged time) and which must therefore keep counting.
+   *
+   * Call it only where the owner can genuinely demonstrate progress. The brain
+   * pets it once per think in which it perceived its target while pursuing —
+   * so a five-minute chase never trips, and a `pursue` that has perceived
+   * nothing for 75 s still does.
+   */
+  heartbeat(): void {
+    this.sinceHeartbeat = 0;
   }
 
   /**
@@ -197,8 +228,9 @@ export class MonsterFsm implements IStateMachine<MonsterState> {
    */
   update(dt: number): void {
     this.elapsed += dt;
+    this.sinceHeartbeat += dt;
     const limit = MONSTER_STATE_TIMEOUT_SECONDS[this.state];
-    if (this.elapsed <= limit) return;
+    if (this.sinceHeartbeat <= limit) return;
 
     const fallback = MONSTER_STATE_FALLBACK[this.state];
     if (fallback === this.state) return;
@@ -232,6 +264,7 @@ export class MonsterFsm implements IStateMachine<MonsterState> {
     this.prior = undefined;
     this.state = initial;
     this.elapsed = 0;
+    this.sinceHeartbeat = 0;
     this.transitions = 0;
     this.watchdogTrips = 0;
   }
