@@ -49,7 +49,7 @@
 
 import { spawn } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { read as readKTX2 } from 'ktx-parse';
@@ -137,8 +137,16 @@ export const PUBLIC_ASSETS_DIR = path.join(REPO_ROOT, 'public', 'assets');
 export const TEX_DIR = path.join(PUBLIC_ASSETS_DIR, 'tex');
 export const ENV_DIR = path.join(PUBLIC_ASSETS_DIR, 'env');
 export const MODEL_DIR = path.join(PUBLIC_ASSETS_DIR, 'mdl');
-/** Scratch for intermediate PNG/raw files. Same filesystem, always cleaned. */
-export const WORK_DIR = path.join(PUBLIC_ASSETS_DIR, '.work');
+/**
+ * Scratch for intermediate PNG/raw files. Same filesystem, always cleaned.
+ *
+ * Namespaced by pid because more than one build can be in flight at once —
+ * this repo is worked by parallel agents, and a second `assets:process` that
+ * wiped a shared scratch directory on exit would delete the first one's
+ * intermediates mid-encode. That failure looks like a random `vips2png: unable
+ * to write to target`, which is a genuinely miserable thing to debug.
+ */
+export const WORK_DIR = path.join(PUBLIC_ASSETS_DIR, '.work', String(process.pid));
 /** The index the game loads first. */
 export const RUNTIME_INDEX = path.join(PUBLIC_ASSETS_DIR, 'assets.runtime.json');
 /** Content-addressed skip cache. Lives beside the outputs it describes. */
@@ -453,8 +461,7 @@ export class ProcessCache {
       toolVersion: TOOL_VERSION,
       entries: Object.fromEntries([...this.entries].sort(([a], [b]) => (a < b ? -1 : 1))),
     };
-    await mkdir(path.dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(payload, null, 2) + '\n');
+    await writeFileAtomic(this.file, JSON.stringify(payload, null, 2) + '\n');
     this.dirty = false;
   }
 }
@@ -483,6 +490,20 @@ export function outputKey(parts: {
       parts.encoderVersion,
     ].join('|')
   );
+}
+
+/**
+ * Write via a temp file and rename.
+ *
+ * `rename` within a filesystem is atomic, so a reader never sees a half-written
+ * index and a second build racing the first loses cleanly rather than leaving
+ * behind truncated JSON that fails to parse on every subsequent run.
+ */
+async function writeFileAtomic(file: string, contents: string): Promise<void> {
+  const temp = `${file}.${process.pid}.tmp`;
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(temp, contents);
+  await rename(temp, file);
 }
 
 /** Streaming sha256 of a file on disk. */
@@ -731,9 +752,8 @@ export async function writeRuntimeIndex(options: {
     totalBytes,
   };
 
-  await mkdir(PUBLIC_ASSETS_DIR, { recursive: true });
   const json = JSON.stringify(manifest, null, 2) + '\n';
-  await writeFile(RUNTIME_INDEX, json);
+  await writeFileAtomic(RUNTIME_INDEX, json);
   return { file: RUNTIME_INDEX, bytes: Buffer.byteLength(json), totalBytes };
 }
 
