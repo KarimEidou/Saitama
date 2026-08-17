@@ -62,12 +62,21 @@ export function addShaderHook(material: THREE.Material, key: string, fn: ShaderH
     hooks = [];
     data.engineShaderHooks = hooks;
 
+    // A cache key assigned DIRECTLY onto the material (the crowd's
+    // `crowd-vat-…`, the roster's `roster:F-D`) describes GLSL the composed key
+    // knows nothing about. Installing the dispatcher over it without carrying it
+    // forward collapses every such material onto the same key — and three then
+    // hands one of them the other's compiled program.
+    const priorKey = Object.prototype.hasOwnProperty.call(material, 'customProgramCacheKey')
+      ? material.customProgramCacheKey.bind(material)
+      : undefined;
+
     const list = hooks;
     material.onBeforeCompile = function composedOnBeforeCompile(shader, renderer): void {
       for (let i = 0; i < list.length; i++) list[i]!.fn(shader, renderer);
     };
     material.customProgramCacheKey = function composedCacheKey(): string {
-      let out = 'engine:';
+      let out = priorKey === undefined ? 'engine:' : `engine:${priorKey()}|`;
       for (let i = 0; i < list.length; i++) out += list[i]!.key + '|';
       return out;
     };
@@ -88,6 +97,20 @@ export function addShaderHook(material: THREE.Material, key: string, fn: ShaderH
  *
  *   csm.setupMaterial( material );
  *   adoptAssignedHook( material, `csm${cascades}`, previousComposed );
+ *
+ * ── THE SLOT MAY HOLD A STRANGER ──────────────────────────────────────────
+ * `previousOnBeforeCompile` is only sometimes the composed dispatcher. Systems
+ * that predate this registry assign the slot outright — the crowd's VAT
+ * skinning, the roster's face/tint/dither injections, the city's damage mask.
+ * Restoring such a callback is not enough, because `addShaderHook` is about to
+ * install the dispatcher over the top of it and the injection would vanish with
+ * no error anywhere. The symptom is specific and was seen in the field: an
+ * instanced crowd whose vertex shader lost `vatSkinMatrix()` and rendered every
+ * civilian in bind pose while the near tier animated normally.
+ *
+ * So a foreign callback is REGISTERED as the chain's first hook instead. It
+ * keeps running, it keeps running first, and its own `customProgramCacheKey`
+ * rides along through `addShaderHook`.
  */
 export function adoptAssignedHook(
   material: THREE.Material,
@@ -97,6 +120,11 @@ export function adoptAssignedHook(
   const assigned = material.onBeforeCompile;
   if (previousOnBeforeCompile !== undefined) {
     material.onBeforeCompile = previousOnBeforeCompile;
+    if (!hasShaderHooks(material)) {
+      addShaderHook(material, 'assigned', (shader, renderer) => {
+        previousOnBeforeCompile.call(material, shader, renderer);
+      });
+    }
   }
   addShaderHook(material, key, (shader, renderer) => {
     assigned.call(material, shader, renderer);
