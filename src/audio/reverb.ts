@@ -50,6 +50,23 @@ const LINES = 4;
  */
 const BASE_DELAYS: readonly number[] = [0.0297, 0.0371, 0.0411, 0.0437];
 
+/**
+ * Resonance of the damping filter, IN DECIBELS.
+ *
+ * For `lowpass` and `highpass` the Web Audio specification defines `Q` as a
+ * resonance in dB rather than as a quality factor, so any positive value puts
+ * a peak ABOVE UNITY into the filter. This filter sits inside the feedback
+ * loop, where gain above unity is not a colouration but an oscillator: the
+ * offline probe caught an "alley" whose tail decayed to -53 dB and then
+ * climbed back to +22 dB over the next five seconds.
+ *
+ * A negative value is therefore mandatory, not stylistic. -3 dB is
+ * comfortably over-damped, and the loss it contributes is accounted for by
+ * calibrating the presets against measured decay rather than trusting the
+ * analytic feedback formula alone.
+ */
+const DAMPING_Q = -3;
+
 /** Stereo placement per line, so the tail is wide rather than centred. */
 const LINE_PAN: readonly number[] = [-0.85, 0.8, -0.4, 0.45];
 
@@ -94,7 +111,7 @@ export const REVERB_PRESETS: Record<ReverbPreset, IReverbSettings> = {
     rt60: 1.5,
     damping: 3800,
     preDelay: 0.018,
-    wet: 0.9,
+    wet: 0.55,
     description: 'Open city street: hard facades, sky above, medium tail.',
   },
   /**
@@ -106,16 +123,16 @@ export const REVERB_PRESETS: Record<ReverbPreset, IReverbSettings> = {
     rt60: 1.15,
     damping: 2600,
     preDelay: 0.009,
-    wet: 1,
+    wet: 0.6,
     description: 'Covered shopping arcade: close ceiling, early reflections, warm.',
   },
   /** Narrow, parallel walls, very short path lengths. Tight and edgy. */
   alley: {
     size: 0.32,
-    rt60: 0.62,
+    rt60: 0.45,
     damping: 3200,
     preDelay: 0.004,
-    wet: 1.05,
+    wet: 0.52,
     description: 'Narrow alley: short, tight, close walls.',
   },
   /** An ordinary room. Soft furnishings eat the top end quickly. */
@@ -124,7 +141,7 @@ export const REVERB_PRESETS: Record<ReverbPreset, IReverbSettings> = {
     rt60: 0.5,
     damping: 1900,
     preDelay: 0.006,
-    wet: 0.85,
+    wet: 0.5,
     description: 'Interior room: small, damped, dark.',
   },
   /**
@@ -133,11 +150,11 @@ export const REVERB_PRESETS: Record<ReverbPreset, IReverbSettings> = {
    */
   crater: {
     size: 1.65,
-    rt60: 3.2,
-    damping: 1400,
+    rt60: 5,
+    damping: 1900,
     preDelay: 0.03,
-    wet: 1.1,
-    description: 'Impact crater: enormous, dark, three-second tail.',
+    wet: 0.62,
+    description: 'Impact crater: enormous, dark, the longest tail in the city.',
   },
   /** Outside the city. Distant, sparse, mostly air. */
   openField: {
@@ -145,7 +162,7 @@ export const REVERB_PRESETS: Record<ReverbPreset, IReverbSettings> = {
     rt60: 2,
     damping: 5200,
     preDelay: 0.055,
-    wet: 0.42,
+    wet: 0.3,
     description: 'Open ground outside the city: distant, sparse, bright.',
   },
 };
@@ -155,6 +172,14 @@ export const REVERB_PRESET_NAMES = Object.keys(REVERB_PRESETS) as ReverbPreset[]
 
 /**
  * Feedback gain that decays by 60 dB over `rt60` for a given mean delay.
+ *
+ * This is the lossless-prototype answer and it is only a starting point: the
+ * damping filter in the loop contributes its own insertion loss, so the real
+ * decay is always faster than the formula predicts. The `rt60` values in the
+ * presets are therefore calibrated against MEASURED decay slopes rather than
+ * being treated as ground truth — the measured figures are what the tests
+ * assert on.
+ *
  * Clamped below 1 so the network can never self-oscillate, whatever a caller
  * asks for.
  */
@@ -213,7 +238,16 @@ export class ReverbSend {
       const damp = ctx.createBiquadFilter();
       damp.type = 'lowpass';
       damp.frequency.value = 3800;
-      damp.Q.value = 0.4;
+      // Q MUST be 0 here, and that is not a "no resonance" spelling of 0.707.
+      //
+      // For `lowpass` and `highpass` the Web Audio specification defines Q as a
+      // RESONANCE IN DECIBELS, not as a quality factor. Any positive value
+      // therefore puts a peak above unity gain into the filter — and this
+      // filter sits inside the feedback loop, so a peak of a fraction of a dB
+      // makes the whole network self-oscillate. The offline probe caught it as
+      // an "alley" whose tail decayed to -53 dB and then climbed back to
+      // +22 dB over the following five seconds.
+      damp.Q.value = DAMPING_Q;
       const fb = ctx.createGain();
       fb.gain.value = 0;
       const pan = ctx.createStereoPanner();

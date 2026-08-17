@@ -387,6 +387,24 @@ describe('locomotion', () => {
     expect(landing.sub100Attack).toBeGreaterThan(0.1);
   });
 
+  it('gives the jump a real onset, not just air', () => {
+    const jump = suite.get('move.jump');
+    const step = suite.get('move.footstep');
+    const punch = suite.get('punch.normal');
+    // Traversal is this character's primary verb, so a jump has to register as
+    // an act: louder than a footstep...
+    expect(jump.peak).toBeGreaterThan(step.peak * 2);
+    expect(jump.activeRms).toBeGreaterThan(step.activeRms * 1.5);
+    // ...but never competing with a punch.
+    expect(jump.peak).toBeLessThan(punch.peak);
+    // The push-off gives it low-end weight at the very start, which is the
+    // difference between an action and ambience.
+    expect(jump.sub100Attack).toBeGreaterThan(0.3);
+    expect(jump.onsetCount).toBeGreaterThanOrEqual(1);
+    // A leap pushes off harder still.
+    expect(suite.get('move.leap').peak).toBeGreaterThan(jump.peak);
+  });
+
   it('sweeps the jump upward and the dash through a dip', () => {
     const jump = suite.get('move.jump');
     // Rising bandpass: the high band fills up over the sound.
@@ -567,6 +585,120 @@ describe('mixer', () => {
     expect(m.extras.seriousGranted).toBe(1);
     // ...and the least important one does not.
     expect(m.extras.lowPriorityGranted).toBe(0);
+  });
+});
+
+describe('envelope anchoring', () => {
+  it('never lets an envelope sound before its trigger', () => {
+    // Regression guard. `cancelAndHoldAtTime` inserts no anchor event on a
+    // param that has never been automated, so the ramp that follows
+    // interpolates from time ZERO — every pooled voice spent the whole
+    // preceding buffer fading in at its oscillator's construction frequency.
+    // It cost the entire punch-chain family its low end and was invisible in
+    // any voice whose default happened to match its sweep start.
+    const m = suite.get('dsp.envelopeAnchor');
+    expect(m.extras.peakBeforeFirst, 'leaked before the first envelope').toBe(0);
+    expect(m.extras.peakInGap, 'leaked before the second envelope').toBe(0);
+    // ...and the envelopes themselves did fire.
+    expect(m.extras.peakOverall).toBeGreaterThan(0.3);
+  });
+});
+
+describe('reverb', () => {
+  it('is silent when the environment is anechoic', () => {
+    const none = suite.get('reverb.tail.none');
+    expect(none.extras.tailRms).toBe(0);
+    expect(none.extras.tailDuration).toBe(0);
+  });
+
+  it('decays instead of regenerating, in every environment', () => {
+    // A feedback network with any gain above unity in its loop does not sound
+    // like a bad room, it sounds like an oscillator. This is the assertion
+    // that catches it.
+    for (const preset of ['openStreet', 'arcade', 'alley', 'indoor', 'crater', 'openField']) {
+      const m = suite.get(`reverb.tail.${preset}`);
+      expect(m.extras.decaySlopeDb, `${preset} slope`).toBeLessThan(-10);
+      expect(m.extras.rt60, `${preset} rt60`).toBeGreaterThan(0.2);
+      expect(m.extras.rt60, `${preset} rt60`).toBeLessThan(6);
+      // A decaying tail is not perfectly monotone in 50 ms windows — modal
+      // beating makes it wobble — so this only has to be broadly true...
+      expect(m.extras.monotoneFraction, `${preset} monotonicity`).toBeGreaterThan(0.7);
+      // ...while THIS is the unambiguous one: by the end of the render the
+      // tail is tens of dB below its own peak. A regenerating network ends
+      // above where it started and cannot pass this at any threshold.
+      expect(m.extras.endVsPeakDb, `${preset} end vs peak`).toBeLessThan(-25);
+      expect(m.extras.tailRms, `${preset} level`).toBeGreaterThan(1e-5);
+      expect(m.peak, `${preset} peak`).toBeLessThanOrEqual(1);
+      expect(m.clipped, `${preset} clipping`).toBe(0);
+    }
+  });
+
+  it('makes the spaces of the city audibly different from each other', () => {
+    const alley = suite.get('reverb.tail.alley');
+    const street = suite.get('reverb.tail.openStreet');
+    const crater = suite.get('reverb.tail.crater');
+    const indoor = suite.get('reverb.tail.indoor');
+    // A crater rings for several times as long as an alley does.
+    expect(crater.extras.rt60!).toBeGreaterThan(alley.extras.rt60! * 2.5);
+    expect(street.extras.rt60!).toBeGreaterThan(indoor.extras.rt60! * 1.8);
+    expect(crater.extras.rt60!).toBeGreaterThan(street.extras.rt60!);
+    // And a big space is wider than a small one.
+    expect(crater.extras.tailWidth!).toBeGreaterThan(indoor.extras.tailWidth!);
+  });
+
+  it('keeps the tail out of the sub band', () => {
+    // Reverb below ~160 Hz turns every impact into mud, and this game's
+    // impacts live down there.
+    for (const preset of ['openStreet', 'crater', 'alley']) {
+      expect(suite.get(`reverb.tail.${preset}`).extras.tailSub, preset).toBeLessThan(0.05);
+    }
+  });
+
+  it('leaves the punch family dry', () => {
+    const dry = suite.get('env.punch.normal@none');
+    const wet = suite.get('env.punch.normal@openStreet');
+    // The punch sends 0.05. Whatever room it is in, essentially all of its
+    // energy must still be the punch itself: the transient is untouched, and
+    // what is left after it is 55 dB down.
+    expect(wet.peak).toBeCloseTo(dry.peak, 2);
+    expect(dry.extras.wetRatio, 'anechoic punch must be exactly dry').toBe(0);
+    expect(wet.extras.wetRatio, 'punch room content').toBeLessThan(0.002);
+    // Even in the most reverberant space in the game it stays a punch.
+    expect(suite.get('env.punch.normal@crater').extras.wetRatio!).toBeLessThan(0.006);
+  });
+
+  it('puts the big city sounds into the room', () => {
+    const dry = suite.get('env.collapse.building@none');
+    const street = suite.get('env.collapse.building@openStreet');
+    const crater = suite.get('env.collapse.building@crater');
+    // A collapse sends 0.45, so the room is a real part of the sound: four
+    // times as much of it survives the source in a street as in a vacuum, and
+    // an order of magnitude more again in a crater.
+    expect(street.extras.wetRatio!).toBeGreaterThan(dry.extras.wetRatio! * 4);
+    expect(crater.extras.wetRatio!).toBeGreaterThan(street.extras.wetRatio! * 5);
+    expect(street.activeDuration).toBeGreaterThan(dry.activeDuration * 1.15);
+    expect(crater.activeDuration).toBeGreaterThan(dry.activeDuration * 1.7);
+    // And in the same space, the collapse is far wetter than the punch is —
+    // which is the whole point of a per-voice send rather than a bus insert.
+    expect(crater.extras.wetRatio!).toBeGreaterThan(
+      suite.get('env.punch.normal@crater').extras.wetRatio! * 3
+    );
+    for (const m of [street, crater]) {
+      expect(m.peak).toBeLessThanOrEqual(1);
+      expect(m.clipped).toBe(0);
+    }
+  });
+
+  it('keeps the interface out of the world entirely', () => {
+    // UI sends zero, so no environment may touch it at all.
+    const dry = suite.get('env.ui.tap@none');
+    for (const preset of ['openStreet', 'crater']) {
+      const m = suite.get(`env.ui.tap@${preset}`);
+      expect(m.activeDuration, preset).toBeCloseTo(dry.activeDuration, 3);
+      expect(m.activeRms, preset).toBeCloseTo(dry.activeRms, 4);
+      // Not "almost none": exactly none.
+      expect(m.extras.wetRatio, preset).toBe(0);
+    }
   });
 });
 

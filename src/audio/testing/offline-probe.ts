@@ -626,15 +626,37 @@ export async function renderReverbTailProbe(
   const at = (from: number, to: number): Float32Array =>
     result.mono.subarray(Math.floor(from * sampleRate), Math.floor(to * sampleRate));
   const tail = result.mono.subarray(Math.floor(0.15 * sampleRate));
-  const early = A.rms(at(0.2, 0.4));
-  const late = A.rms(at(0.9, 1.1));
+
+  // Decay slope in dB/s, fitted over the tail's linear region — the standard
+  // way a real RT60 is measured, and far more meaningful than the ratio of two
+  // arbitrary windows: an FDN's echo density is still BUILDING for the first
+  // few hundred milliseconds, so an early window can legitimately be quieter
+  // than a later one even while the reverb is perfectly well behaved.
+  const step = 0.05;
+  const curve: number[] = [];
+  for (let t = 0.15; t + step < seconds; t += step) {
+    const r = A.rms(at(t, t + step));
+    curve.push(r > 0 ? 20 * Math.log10(r) : -200);
+  }
+  const from = 4;
+  const to = Math.min(curve.length - 1, 28);
+  const slope = to > from ? (curve[to]! - curve[from]!) / ((to - from) * step) : 0;
+  let monotone = 0;
+  for (let i = from + 1; i <= to; i++) if (curve[i]! <= curve[i - 1]! + 3) monotone++;
 
   result.extras.tailDuration = A.activeDuration(tail, sampleRate, 3e-4);
   result.extras.tailRms = A.rms(tail);
-  result.extras.earlyRms = early;
-  result.extras.lateRms = late;
-  // How many dB the tail loses between the two windows — the decay slope.
-  result.extras.decayDb = early > 0 && late > 0 ? 20 * Math.log10(early / late) : 99;
+  result.extras.tailPeakDb = Math.max(...curve);
+  result.extras.decaySlopeDb = slope;
+  // A network that is regenerating rather than decaying shows up here as a
+  // positive or near-zero slope, which is exactly the failure the damping
+  // filter's resonance caused.
+  result.extras.rt60 = slope < -1 ? -60 / slope : 999;
+  result.extras.monotoneFraction = to > from ? monotone / (to - from) : 0;
+  // The definitive non-divergence check: how far below its own peak the tail
+  // has fallen by the end of the render. A regenerating network ends ABOVE
+  // where it started, which no amount of window-by-window wobble can fake.
+  result.extras.endVsPeakDb = curve[curve.length - 1]! - Math.max(...curve);
   result.extras.tailWidth = A.stereoWidth(
     result.left.subarray(Math.floor(0.2 * sampleRate)),
     result.right.subarray(Math.floor(0.2 * sampleRate))
@@ -656,6 +678,14 @@ export async function renderReverbTailProbe(
 export async function renderEnvironmentProbe(
   key: SoundKey,
   preset: ReverbPreset,
+  /**
+   * When the dry sound has finished, in seconds from the trigger. Passed in
+   * explicitly rather than derived: the window has to sit immediately after
+   * the source stops, and `maxSeconds` is a worst-case ceiling that for most
+   * voices is several times their real length — placing the window by it lands
+   * in silence and compares one noise floor against another.
+   */
+  dryEndsAfter: number,
   options: IProbeOptions = {}
 ): Promise<IProbeMetrics> {
   const sampleRate = options.sampleRate ?? 44100;
@@ -665,6 +695,23 @@ export async function renderEnvironmentProbe(
     system.play(key, { intensity: spec.intensity, delay: TRIGGER_AT, pitchVariation: 0 });
     return { send: spec.reverbSend };
   });
+
+  // How much of the sound is ROOM rather than source.
+  //
+  // Measured as the level well after the dry signal has finished, relative to
+  // the dry peak. `activeRms` is useless for this: a quiet tail extends the
+  // sounding region and DROPS the average, so a dry sound and a wet one move
+  // the same number in the same direction.
+  const lateFrom = Math.min(TRIGGER_AT + dryEndsAfter, seconds - 1.2);
+  const late = result.mono.subarray(
+    Math.floor(lateFrom * sampleRate),
+    Math.floor((lateFrom + 1) * sampleRate)
+  );
+  const peak = A.peak(result.mono);
+  result.extras.lateRms = A.rms(late);
+  result.extras.wetRatio = peak > 0 ? A.rms(late) / peak : 0;
+  result.extras.lateFrom = lateFrom;
+
   return measure(
     `env.${key}@${preset}`,
     'mix',
@@ -1007,9 +1054,15 @@ export async function renderAllProbes(options: IProbeOptions = {}): Promise<IPro
   for (const speed of [4, 42]) out.push(await renderWindSpeedProbe(speed, options));
   out.push(await renderAnchorProbe(options));
   for (const preset of REVERB_PRESET_NAMES) out.push(await renderReverbTailProbe(preset, options));
-  for (const key of ['punch.normal', 'collapse.building', 'ui.tap'] as SoundKey[]) {
+  // Each key's window is placed just past the end of its dry sound.
+  const envKeys: [SoundKey, number][] = [
+    ['punch.normal', 0.3],
+    ['collapse.building', 3.5],
+    ['ui.tap', 0.15],
+  ];
+  for (const [key, dryEnds] of envKeys) {
     for (const preset of ['none', 'openStreet', 'crater'] as ReverbPreset[]) {
-      out.push(await renderEnvironmentProbe(key, preset, options));
+      out.push(await renderEnvironmentProbe(key, preset, dryEnds, options));
     }
   }
   return out;
