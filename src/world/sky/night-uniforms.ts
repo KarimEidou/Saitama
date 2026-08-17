@@ -162,8 +162,13 @@ export class NightUniforms {
   constructor(options: INightUniformOptions = {}) {
     this.uLampColor = { value: new THREE.Color(options.lampColor ?? 0xffc37a) };
     this.uWindowColor = { value: new THREE.Color(options.windowColor ?? 0xffd9a0) };
-    this.uLampIntensity.value = options.lampIntensity ?? 2.6;
-    this.uWindowIntensity.value = options.windowIntensity ?? 1.5;
+    // Tuned against ACES at the NIGHT exposure (~1.8), not at 1.0. A lamp head
+    // is a light source and should sit just at the knee; a window is a surface
+    // seen through glass and must stay well below it, or every pane clips to
+    // flat white and the whole warm/cool contrast of a night street is lost.
+    // 2.6 and 1.5 both blew out completely — this was found by looking.
+    this.uLampIntensity.value = options.lampIntensity ?? 1.1;
+    this.uWindowIntensity.value = options.windowIntensity ?? 0.6;
     this.uWindowCellSize.value = options.windowCellSize ?? 2.2;
   }
 

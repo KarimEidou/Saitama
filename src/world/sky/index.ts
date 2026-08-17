@@ -64,6 +64,7 @@ export {
   sh9FromArray,
   irradianceTowards,
   normaliseHue,
+  boostChroma,
   type IEnvironmentMeasurement,
   type EnvironmentMeasurements,
   type ISkyBlend,

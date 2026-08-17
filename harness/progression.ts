@@ -68,16 +68,24 @@ const CAMERA_TARGET = new THREE.Vector3(2, 9, -40);
 const WORLD_SEED = 0x5a17a4a;
 
 /**
- * Cascade profile used by the harness.
+ * Cascade profile used by the harness: 2 x 1024 over the FULL 200 m range.
  *
- * MEDIUM (2 x 1024 / 90 m), not HIGH (3 x 2048 / 200 m), and only because this
- * runs under SwiftShader. Three 2048-square depth passes is 12 million pixels
- * of software rasterisation PER FRAME on top of the main view, which turns a
- * six-shot run into a twenty-minute one and measures the CI machine rather
- * than the cycle. The cascades still move with the sun, still tighten at
- * night, and still receive the lighting state — which is the part under test.
+ * The shipping high tier is 3 x 2048 / 200 m. Three 2048-square depth passes
+ * is twelve million pixels of software rasterisation per frame on top of the
+ * main view, which under SwiftShader turns a six-shot run into a twenty-minute
+ * one and measures the CI machine rather than the cycle.
+ *
+ * The map SIZE and cascade COUNT are what cost; the RANGE is what decides
+ * whether a building 80 m down the street casts a shadow at all. So the range
+ * is kept at the shipping 200 m and only the resolution is dropped — the
+ * screenshots still show real cascaded shadows moving with the sun, which is
+ * the part under test.
  */
-const HARNESS_SHADOW_TIER = 'medium' as const;
+const HARNESS_SHADOW_PROFILE = {
+  ...renderProfileFor('high').shadows,
+  cascades: 2,
+  mapSize: 1024,
+};
 
 /**
  * Equirect width of the sky blend target here.
@@ -166,7 +174,10 @@ export interface IHarnessSnapshot {
   readonly radianceRebuilds: number;
   readonly radianceResolution: number;
   readonly environmentGpuBytes: number;
+  /** Materials wired to the shared night uniforms. Two: one lamp, one window. */
   readonly litMaterials: number;
+  /** Meshes those two materials cover. THE ratio the design claim rests on. */
+  readonly litMeshes: number;
   readonly drawCalls: number;
   readonly triangles: number;
   readonly programs: number;
@@ -260,11 +271,15 @@ function buildScene(nightUniforms: NightUniforms): ISceneBuild {
   );
   windowMaterials.push(windowMaterial);
 
-  for (let i = 0; i < 14; i++) {
+  // The near pair starts almost level with the camera so their shadows fall
+  // ACROSS the visible road at low sun. Buildings pushed far down the street
+  // cast just as correctly and none of it lands in frame.
+  for (let i = 0; i < 16; i++) {
     const side = i % 2 === 0 ? -1 : 1;
-    const depth = -18 - Math.floor(i / 2) * 30 - rng.range(0, 6);
+    const depth = 14 - Math.floor(i / 2) * 30 - rng.range(0, 6);
     const width = rng.range(14, 22);
     const height = rng.range(14, 46);
+    const bodyDepth = rng.range(16, 26);
     const wall = track(
       new THREE.MeshStandardMaterial({
         name: `harness.wall.${i}`,
@@ -274,7 +289,7 @@ function buildScene(nightUniforms: NightUniforms): ISceneBuild {
       })
     );
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, rng.range(16, 26)), wall);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, bodyDepth), wall);
     body.position.set(side * (22 + rng.range(0, 6)) + width * 0.5 * side, height * 0.5, depth);
     body.castShadow = true;
     body.receiveShadow = true;
@@ -282,18 +297,30 @@ function buildScene(nightUniforms: NightUniforms): ISceneBuild {
     triangles += 12;
 
     // Window bands: separate meshes sharing ONE material, which is the whole
-    // point — nightfall is a single uniform write, not a traversal.
+    // point — nightfall is a single uniform write, not a traversal. Sat just
+    // proud of the facade the camera can see, not at a random depth, or they
+    // float in front of the building like billboards.
     const bands = Math.max(2, Math.floor(height / 4.5));
     for (let b = 1; b < bands; b++) {
-      const band = new THREE.Mesh(new THREE.BoxGeometry(width * 0.86, 1.7, 0.4), windowMaterial);
-      band.position.set(
-        body.position.x - side * (width * 0.5 + 0.05) * 0,
-        b * (height / bands),
-        depth + rng.range(8, 13)
-      );
+      const band = new THREE.Mesh(new THREE.BoxGeometry(width * 0.86, 1.7, 0.3), windowMaterial);
+      band.position.set(body.position.x, b * (height / bands), depth + bodyDepth * 0.5 + 0.12);
       band.castShadow = false;
       band.receiveShadow = false;
       root.add(band);
+      triangles += 12;
+
+      // ...and one on the street-facing side, so the lit windows read from
+      // this camera even for the buildings edge-on to it.
+      const sideBand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 1.7, bodyDepth * 0.82),
+        windowMaterial
+      );
+      sideBand.position.set(
+        body.position.x - side * (width * 0.5 + 0.12),
+        b * (height / bands),
+        depth
+      );
+      root.add(sideBand);
       triangles += 12;
     }
   }
@@ -320,15 +347,20 @@ function buildScene(nightUniforms: NightUniforms): ISceneBuild {
 
   for (let i = 0; i < 12; i++) {
     const side = i % 2 === 0 ? -1 : 1;
-    const z = 30 - Math.floor(i / 2) * 34;
+    const z = 36 - Math.floor(i / 2) * 34;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 8, 6), poleMaterial);
     pole.position.set(side * 13, 4, z);
     pole.castShadow = true;
     root.add(pole);
     triangles += 24;
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 0.9), lampMaterial);
-    head.position.set(side * 12, 8.1, z);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.22, 0.22), poleMaterial);
+    arm.position.set(side * 11.8, 7.9, z);
+    root.add(arm);
+    triangles += 12;
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.55, 1.0), lampMaterial);
+    head.position.set(side * 10.7, 7.55, z);
     root.add(head);
     triangles += 12;
   }
@@ -474,7 +506,10 @@ export function runScenarios(): readonly IScenarioResult[] {
       outcome: 'victory',
       duration: 4,
       civiliansLost: 0,
-      collateralCost: 900000,
+      // Deliberately NOT enough to bottom out the ladder: a total that clamps
+      // at zero proves only that the clamp works. This is sized so the fall is
+      // a MEASURED fall of some fifty ranks.
+      collateralCost: 250000,
     });
     coordinator.update(1);
     const report = coordinator.progression.incidentReports.at(-1)!;
@@ -806,7 +841,7 @@ class ProgressionHarness {
     this.renderer.setLightingState(this.dayNight.lighting);
 
     this.shadows = new ShadowSystem(this.scene, this.camera, {
-      profile: renderProfileFor(HARNESS_SHADOW_TIER).shadows,
+      profile: HARNESS_SHADOW_PROFILE,
       lighting: this.dayNight.lighting,
     });
 
@@ -888,14 +923,24 @@ class ProgressionHarness {
     this.dayNight.update(dt);
     this.coordinator.update(dt);
     this.applySky(false);
-    this.shadows.update();
-    this.renderer.render(this.scene, this.camera);
+    this.drawFrame();
   }
 
   /** Render without advancing the clock. Used between screenshots. */
   renderOnce(): void {
     this.bus.setFrame(++this.frame, this.elapsed);
     this.applySky(false);
+    this.drawFrame();
+  }
+
+  private drawFrame(): void {
+    // `CSM.update()` fits the cascades to the camera FRUSTUM, which it reads
+    // off `camera.matrixWorld`. Three only refreshes that inside `render()`,
+    // so a camera that was positioned but never rendered gives the first frame
+    // an identity matrix and cascades fitted around the origin. Harmless in a
+    // running game, very visible in a screenshot harness that renders four
+    // frames and captures.
+    this.camera.updateMatrixWorld();
     this.shadows.update();
     this.renderer.render(this.scene, this.camera);
   }
@@ -983,6 +1028,7 @@ class ProgressionHarness {
       radianceResolution: envStats?.radianceResolution ?? 0,
       environmentGpuBytes: envStats?.gpuBytes ?? 0,
       litMaterials: this.nightUniforms.materialCount,
+      litMeshes: this.countLitMeshes(),
       drawCalls: stats.drawCalls,
       triangles: stats.triangles,
       programs: this.renderer.programCount,
@@ -1032,6 +1078,28 @@ class ProgressionHarness {
       },
       problems: this.problems,
     };
+  }
+
+  /**
+   * How many meshes the two lit materials actually cover.
+   *
+   * The design claim is "one uniform write lights every lamp and window in the
+   * city, with no traversal and no per-object state". Two materials over a few
+   * hundred meshes is that claim as a number.
+   */
+  private countLitMeshes(): number {
+    const lit = new Set<THREE.Material>([
+      ...this.build.lampMaterials,
+      ...this.build.windowMaterials,
+    ]);
+    let count = 0;
+    this.build.root.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      if (materials.some((material) => material && lit.has(material))) count++;
+    });
+    return count;
   }
 
   /** Everything the report wants that is not per-frame. */
@@ -1101,7 +1169,7 @@ class ProgressionHarness {
         ['skies loaded', snapshot.skiesLoaded.join(', ') || 'none'],
         ['radiance', `${snapshot.radianceResolution}px, ${snapshot.radianceRebuilds} rebuilds`],
         ['env VRAM', `${(snapshot.environmentGpuBytes / 1048576).toFixed(2)} MB`],
-        ['lit materials', String(snapshot.litMaterials)],
+        ['lit materials', `${snapshot.litMaterials} over ${snapshot.litMeshes} meshes`],
       ]),
       section('Hero Association', [
         ['rank', p.rank],
@@ -1195,7 +1263,14 @@ if (canvas) {
   };
   window.__PROGRESSION_HARNESS__ = api;
 
-  void harness.loadAssets('/assets', 'pmrem').then(() => {
+  // `?ibl=sh9` selects the MOBILE path: baked SH blended analytically into a
+  // LightProbe plus a 32 px specular-only probe. Verified separately, because
+  // it is the path that ships on phones and it reaches the same normalisation
+  // by a completely different route — a bug in one would not show in the other.
+  const requestedMode =
+    new URLSearchParams(window.location.search).get('ibl') === 'sh9' ? 'sh9' : 'pmrem';
+
+  void harness.loadAssets('/assets', requestedMode).then(() => {
     harness.setTimeOfDay(0.5);
     harness.renderOnce();
     harness.renderPanel();

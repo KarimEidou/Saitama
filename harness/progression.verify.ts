@@ -116,6 +116,7 @@ interface IHarnessSnapshot {
   radianceResolution: number;
   environmentGpuBytes: number;
   litMaterials: number;
+  litMeshes: number;
   drawCalls: number;
   triangles: number;
   programs: number;
@@ -141,9 +142,33 @@ interface IPixelStats {
   meanB: number;
   /** Blue minus red, normalised. Positive is a cool image. */
   coolness: number;
+  /** The same measure over the dark (ambient-lit) pixels only, luma < 64. */
+  coolnessShadow: number;
+  /**
+   * Fraction of pixels that are distinctly WARM (red exceeds blue by 12/255).
+   *
+   * The signature of ARTIFICIAL light. A daylit street has almost none: every
+   * surface is lit by the same white sun and a blue sky. A night street has a
+   * lot, because every lamp and window is sodium or tungsten. This
+   * discriminates day from night in a way brightness alone cannot, and unlike
+   * whole-frame "coolness" it is not cancelled out by the two effects pulling
+   * in opposite directions.
+   */
+  warmFraction: number;
   /** Fraction of pixels above 200/255 luma — the lit-window signature. */
   brightFraction: number;
+  /** Mean luma of a fixed patch of clear sky, present in all six shots. */
+  skyLuma: number;
+  /** Blue-minus-red over that same sky patch. */
+  skyCoolness: number;
 }
+
+/**
+ * A patch of open sky above the skyline, clear in every one of the six shots.
+ * Measuring the SKY directly is the cleanest available statement about the
+ * environment map, with no scene albedo or artificial light mixed in.
+ */
+const SKY_PATCH = { left: 232, top: 30, width: 136, height: 46 };
 
 /* -------------------------------------------------------------------------- */
 /* Build + serve                                                              */
@@ -248,15 +273,25 @@ function serve(directory: string): Promise<{ server: Server; port: number }> {
  * `meanLuma` and `coolness` are what actually distinguish midnight from noon.
  */
 async function analyse(file: string): Promise<IPixelStats> {
-  const image = sharp(file).removeAlpha();
-  const stats = await image.stats();
-  const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+  // Everything is computed from RAW BUFFERS, never from `sharp.stats()`.
+  // `stats()` measures the INPUT image and ignores the pipeline in front of
+  // it, so `sharp(f).extract(patch).stats()` silently returns whole-image
+  // numbers — which looks exactly like a working crop until you notice the
+  // sky patch and the frame mean are the same number to one decimal place.
+  const { data, info } = await sharp(file)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
   const channels = info.channels;
   let sumR = 0;
   let sumG = 0;
   let sumB = 0;
+  let shadowR = 0;
+  let shadowB = 0;
+  let shadowCount = 0;
   let bright = 0;
+  let warm = 0;
   const pixels = info.width * info.height;
   const seen = new Set<number>();
 
@@ -269,6 +304,12 @@ async function analyse(file: string): Promise<IPixelStats> {
     sumB += b;
     const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     if (luma > 200) bright++;
+    if (r - b > 12) warm++;
+    if (luma < 64) {
+      shadowR += r;
+      shadowB += b;
+      shadowCount++;
+    }
     // Quantise to 5 bits per channel so JPEG-ish noise does not inflate the
     // count into meaninglessness.
     seen.add(((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3));
@@ -277,8 +318,37 @@ async function analyse(file: string): Promise<IPixelStats> {
   const meanR = sumR / pixels;
   const meanG = sumG / pixels;
   const meanB = sumB / pixels;
+
+  // Per-channel standard deviation, averaged. The blank-frame gate.
+  let varR = 0;
+  let varG = 0;
+  let varB = 0;
+  for (let i = 0; i < data.length; i += channels) {
+    varR += (data[i]! - meanR) ** 2;
+    varG += (data[i + 1]! - meanG) ** 2;
+    varB += (data[i + 2]! - meanB) ** 2;
+  }
   const stdDev =
-    stats.channels.reduce((sum, channel) => sum + channel.stdev, 0) / stats.channels.length;
+    (Math.sqrt(varR / pixels) + Math.sqrt(varG / pixels) + Math.sqrt(varB / pixels)) / 3;
+
+  // The sky patch, summed straight out of the same raw buffer.
+  let skyR = 0;
+  let skyG = 0;
+  let skyB = 0;
+  let skyCount = 0;
+  const rowStride = info.width * channels;
+  for (let y = SKY_PATCH.top; y < SKY_PATCH.top + SKY_PATCH.height && y < info.height; y++) {
+    for (let x = SKY_PATCH.left; x < SKY_PATCH.left + SKY_PATCH.width && x < info.width; x++) {
+      const i = y * rowStride + x * channels;
+      skyR += data[i]!;
+      skyG += data[i + 1]!;
+      skyB += data[i + 2]!;
+      skyCount++;
+    }
+  }
+  skyR /= Math.max(1, skyCount);
+  skyG /= Math.max(1, skyCount);
+  skyB /= Math.max(1, skyCount);
 
   return {
     meanLuma: 0.2126 * meanR + 0.7152 * meanG + 0.0722 * meanB,
@@ -288,7 +358,12 @@ async function analyse(file: string): Promise<IPixelStats> {
     meanG,
     meanB,
     coolness: (meanB - meanR) / Math.max(1, meanR + meanB),
+    coolnessShadow:
+      shadowCount === 0 ? 0 : (shadowB - shadowR) / Math.max(1, shadowR + shadowB),
+    warmFraction: warm / pixels,
     brightFraction: bright / pixels,
+    skyLuma: 0.2126 * skyR + 0.7152 * skyG + 0.0722 * skyB,
+    skyCoolness: (skyB - skyR) / Math.max(1, skyR + skyB),
   };
 }
 
@@ -347,7 +422,10 @@ async function main(): Promise<void> {
     console.log(`  skies loaded    ${initial.skiesLoaded.join(', ') || 'NONE'}`);
     console.log(`  radiance        ${initial.radianceResolution}px`);
     console.log(`  env VRAM        ${(initial.environmentGpuBytes / 1048576).toFixed(2)} MB`);
-    console.log(`  lit materials   ${initial.litMaterials}`);
+    console.log(
+      `  lit materials   ${initial.litMaterials} shared across ${initial.litMeshes} meshes ` +
+        `(one uniform write lights all of them)`
+    );
     console.log('  normalisation (measured mean -> scale applied):');
     for (const row of initial.normalisation) {
       console.log(
@@ -424,6 +502,8 @@ async function main(): Promise<void> {
           `stdDev=${pixels.stdDev.toFixed(1).padStart(5)}  ` +
           `colours=${String(pixels.colours).padStart(5)}  ` +
           `cool=${pixels.coolness.toFixed(3).padStart(6)}  ` +
+          `skyLuma=${pixels.skyLuma.toFixed(1).padStart(5)}  ` +
+          `warm=${(pixels.warmFraction * 100).toFixed(2).padStart(5)}%  ` +
           `bright=${(pixels.brightFraction * 100).toFixed(2)}%`
       );
     }
@@ -512,17 +592,48 @@ async function main(): Promise<void> {
       pass('brightness is ordered midnight < dawn < noon');
     }
 
-    // Night must be cooler than noon: the Purkinje shift plus the night sky.
-    if (night.pixels.coolness <= noon.pixels.coolness) {
+    // THE SKY ITSELF, measured on a fixed patch of open sky with no scene
+    // albedo and no artificial light mixed in. This is the most direct
+    // statement available about the environment map.
+    report.skyPatch = shots.map((s) => ({
+      id: s.id,
+      luma: s.pixels.skyLuma,
+      coolness: s.pixels.skyCoolness,
+    }));
+    const skyRatio = midnight.pixels.skyLuma / Math.max(1e-6, noon.pixels.skyLuma);
+    if (skyRatio > 0.2) {
       fail(
         failures,
-        `nightfall is not cooler than noon (${night.pixels.coolness.toFixed(3)} vs ` +
-          `${noon.pixels.coolness.toFixed(3)})`
+        `the SKY is not dark at midnight: patch luma ${midnight.pixels.skyLuma.toFixed(1)} vs ` +
+          `noon ${noon.pixels.skyLuma.toFixed(1)} (ratio ${skyRatio.toFixed(3)})`
       );
     } else {
       pass(
-        `nightfall is cooler than noon (${night.pixels.coolness.toFixed(3)} vs ` +
-          `${noon.pixels.coolness.toFixed(3)})`
+        `the sky patch is ${(skyRatio * 100).toFixed(1)}% of noon at midnight ` +
+          `(${midnight.pixels.skyLuma.toFixed(1)} vs ${noon.pixels.skyLuma.toFixed(1)})`
+      );
+    }
+
+    // ARTIFICIAL LIGHT is the signature that separates night from a merely
+    // underexposed day. A daylit street is lit by one white sun and a blue sky
+    // and has almost no warm pixels; a night street is full of sodium.
+    //
+    // NOTE: whole-frame "coolness" deliberately is NOT asserted on. It is
+    // reported below, and it does not separate the two — night ambient is
+    // bluer, night LAMPS are much warmer, and the two cancel. Asserting on it
+    // would be asserting on an artefact of which effect happened to win.
+    if (night.pixels.warmFraction <= noon.pixels.warmFraction * 3) {
+      fail(
+        failures,
+        `night does not show the artificial-light signature: warm pixels ` +
+          `${(night.pixels.warmFraction * 100).toFixed(2)}% vs noon ` +
+          `${(noon.pixels.warmFraction * 100).toFixed(2)}%`
+      );
+    } else {
+      pass(
+        `night carries the artificial-light signature: ` +
+          `${(night.pixels.warmFraction * 100).toFixed(2)}% warm pixels vs ` +
+          `${(noon.pixels.warmFraction * 100).toFixed(2)}% at noon`
       );
     }
 
@@ -665,6 +776,107 @@ async function main(): Promise<void> {
       );
     } else {
       pass('the rescue evacuation timer expires into a failed state');
+    }
+
+    /* --------------------------------------------- the mobile SH9 path ---- */
+    //
+    // A SECOND page load, because the mobile path reaches the same
+    // normalisation by a completely different route: 27 baked floats per sky
+    // blended on the CPU into a LightProbe, plus a 32 px specular-only probe,
+    // with no full radiance convolution anywhere. A bug in one path would not
+    // show in the other, and this is the path that ships on phones.
+    console.log('\n── mobile SH9 path ─────────────────────────────────────────');
+    const mobilePage = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
+    const mobileShots: { id: string; sky: ISkySnapshot; pixels: IPixelStats }[] = [];
+    try {
+      await mobilePage.goto(`${url}?ibl=sh9`, { waitUntil: 'load' });
+      await mobilePage.waitForFunction(() => window.__PROGRESSION_HARNESS__?.ready === true, undefined, {
+        timeout: 300_000,
+      });
+      const mobileSetup = (await mobilePage.evaluate(() =>
+        window.__PROGRESSION_HARNESS__!.snapshot()
+      )) as IHarnessSnapshot;
+      report.mobileSetup = mobileSetup;
+      console.log(
+        `  IBL mode ${mobileSetup.iblMode}, specular probe ${mobileSetup.radianceResolution}px, ` +
+          `${(mobileSetup.environmentGpuBytes / 1048576).toFixed(2)} MB`
+      );
+
+      for (const id of ['midnight', 'noon'] as const) {
+        const shot = shotTimes.find((s) => s.id === id)!;
+        await mobilePage.evaluate((t) => window.__PROGRESSION_HARNESS__!.setTimeOfDay(t), shot.t);
+        await mobilePage.evaluate(() => window.__PROGRESSION_HARNESS__!.settle(4));
+        const file = path.join(OUT_DIR, `progression-sky-mobile-${id}.png`);
+        await mobilePage.screenshot({ path: file, clip: STAGE_CLIP });
+        const snapshot = (await mobilePage.evaluate(() =>
+          window.__PROGRESSION_HARNESS__!.snapshot()
+        )) as IHarnessSnapshot;
+        const pixels = await analyse(file);
+        mobileShots.push({ id, sky: snapshot.sky, pixels });
+        console.log(
+          `  ${id.padEnd(9)} pixels meanLuma=${pixels.meanLuma.toFixed(1).padStart(5)}  ` +
+            `skyLuma=${pixels.skyLuma.toFixed(1).padStart(5)}  ` +
+            `stdDev=${pixels.stdDev.toFixed(1).padStart(5)}  colours=${pixels.colours}`
+        );
+      }
+      report.mobileShots = mobileShots.map((s) => ({ id: s.id, sky: s.sky, pixels: s.pixels }));
+
+      const mobileMidnight = mobileShots.find((s) => s.id === 'midnight')!;
+      const mobileNoon = mobileShots.find((s) => s.id === 'noon')!;
+      const mobileRatio = mobileMidnight.pixels.meanLuma / Math.max(1e-6, mobileNoon.pixels.meanLuma);
+      report.mobileMidnightNoonRatio = mobileRatio;
+
+      if (mobileMidnight.pixels.stdDev <= 10 || mobileMidnight.pixels.colours <= 100) {
+        fail(failures, 'the SH9 path rendered a blank frame');
+      } else if (mobileRatio > 0.55) {
+        fail(
+          failures,
+          `the SH9 path makes midnight look like noon: ${mobileMidnight.pixels.meanLuma.toFixed(1)} ` +
+            `vs ${mobileNoon.pixels.meanLuma.toFixed(1)} (ratio ${mobileRatio.toFixed(3)}). The ` +
+            `blended baked SH is not being normalised against meanLuminance.`
+        );
+      } else {
+        pass(
+          `the mobile SH9 path is normalised too: midnight is ${(mobileRatio * 100).toFixed(1)}% ` +
+            `of noon (${mobileMidnight.pixels.meanLuma.toFixed(1)} vs ${mobileNoon.pixels.meanLuma.toFixed(1)})`
+        );
+      }
+      // `radianceResolution` is the width of PMREM's CUBE-UV ATLAS, not the
+      // cube face size: three lays the whole roughness chain out side by side,
+      // so a 32 px cube reports 336 and a 128 px cube reports 384. The claim is
+      // that the SH9 path keeps a probe (0 would render smooth metal black) and
+      // that it is smaller than the full-fat one.
+      if (mobileSetup.radianceResolution === 0) {
+        fail(failures, 'SH9 built no specular probe at all — smooth metal will render black');
+      } else if (mobileSetup.radianceResolution >= afterShots.radianceResolution) {
+        fail(
+          failures,
+          `SH9 radiance atlas is ${mobileSetup.radianceResolution}px, no smaller than PMREM's ` +
+            `${afterShots.radianceResolution}px`
+        );
+      } else {
+        pass(
+          `SH9 keeps a specular-only probe (${mobileSetup.radianceResolution}px atlas vs PMREM's ` +
+            `${afterShots.radianceResolution}px) so metal is not black`
+        );
+      }
+      const pmremBytes = afterShots.environmentGpuBytes;
+      if (mobileSetup.environmentGpuBytes >= pmremBytes) {
+        fail(
+          failures,
+          `SH9 uses ${(mobileSetup.environmentGpuBytes / 1048576).toFixed(2)} MB, no less than ` +
+            `PMREM's ${(pmremBytes / 1048576).toFixed(2)} MB`
+        );
+      } else {
+        pass(
+          `SH9 costs ${(mobileSetup.environmentGpuBytes / 1048576).toFixed(2)} MB against PMREM's ` +
+            `${(pmremBytes / 1048576).toFixed(2)} MB`
+        );
+      }
+      await mobilePage.close();
+    } catch (error) {
+      fail(failures, `SH9 path failed: ${String(error)}`);
+      await mobilePage.close().catch(() => undefined);
     }
 
     /* ------------------------------------------------------ save round trip */

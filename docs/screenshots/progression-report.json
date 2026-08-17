@@ -242,9 +242,10 @@
     "radianceResolution": 384,
     "environmentGpuBytes": 2621440,
     "litMaterials": 2,
-    "drawCalls": 141,
-    "triangles": 12566,
-    "programs": 8,
+    "litMeshes": 182,
+    "drawCalls": 274,
+    "triangles": 14234,
+    "programs": 10,
     "sky": {
       "timeOfDay": 0.5,
       "phase": "noon",
@@ -345,14 +346,18 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 11.769111388888888,
-        "stdDev": 16.33925527302539,
-        "colours": 236,
-        "meanR": 9.644503086419753,
-        "meanG": 12.020780864197532,
-        "meanB": 15.532237654320987,
-        "coolness": 0.23385610665536874,
-        "brightFraction": 0.00029012345679012345
+        "meanLuma": 16.995420224691358,
+        "stdDev": 37.69791629579572,
+        "colours": 260,
+        "meanR": 16.054191358024692,
+        "meanG": 17.12266975308642,
+        "meanB": 18.50645061728395,
+        "coolness": 0.07095525774698395,
+        "coolnessShadow": 0.17547753583433356,
+        "warmFraction": 0.03221604938271605,
+        "brightFraction": 0.02848456790123457,
+        "skyLuma": 1.4149054987212275,
+        "skyCoolness": 0.9588230945516376
       }
     },
     {
@@ -386,14 +391,18 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 54.818132348148154,
-        "stdDev": 36.77282241044125,
-        "colours": 610,
-        "meanR": 50.40800925925926,
-        "meanG": 54.944101851851855,
-        "meanB": 66.55634259259259,
-        "coolness": 0.1380620084467014,
-        "brightFraction": 0.0024228395061728393
+        "meanLuma": 51.332480890123456,
+        "stdDev": 34.642241752185534,
+        "colours": 623,
+        "meanR": 48.63633333333333,
+        "meanG": 51.26303703703704,
+        "meanB": 59.95945061728395,
+        "coolness": 0.10426847960414076,
+        "coolnessShadow": 0.27098027041273354,
+        "warmFraction": 0.06616358024691359,
+        "brightFraction": 0.0024228395061728393,
+        "skyLuma": 33.18450514705882,
+        "skyCoolness": 0.4661371246114886
       }
     },
     {
@@ -427,14 +436,18 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 160.3203178697531,
-        "stdDev": 54.87461120181114,
-        "colours": 385,
-        "meanR": 151.03683024691358,
-        "meanG": 161.47551234567902,
-        "meanB": 176.21331481481482,
-        "coolness": 0.07693345579160021,
-        "brightFraction": 0.2812654320987654
+        "meanLuma": 145.26066787962964,
+        "stdDev": 64.14378803442416,
+        "colours": 418,
+        "meanR": 137.88966358024692,
+        "meanG": 146.1281049382716,
+        "meanB": 158.37264197530865,
+        "coolness": 0.06913798350637872,
+        "coolnessShadow": 0.34398629728351343,
+        "warmFraction": 0.022959876543209877,
+        "brightFraction": 0.22301543209876543,
+        "skyLuma": 91.67168219309461,
+        "skyCoolness": 0.33575943366662464
       }
     },
     {
@@ -468,14 +481,18 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 172.99374293950618,
-        "stdDev": 51.79057108920412,
-        "colours": 397,
-        "meanR": 163.61962345679012,
-        "meanG": 174.18432098765433,
-        "meanB": 188.80311111111112,
-        "coolness": 0.0714581812810629,
-        "brightFraction": 0.35158333333333336
+        "meanLuma": 158.42228601666667,
+        "stdDev": 62.2474826771469,
+        "colours": 419,
+        "meanR": 150.89237345679012,
+        "meanG": 159.3306388888889,
+        "meanB": 171.59687654320987,
+        "coolness": 0.06420214964194854,
+        "coolnessShadow": 0.3343382506821457,
+        "warmFraction": 0.01925,
+        "brightFraction": 0.2892314814814815,
+        "skyLuma": 106.08341812659847,
+        "skyCoolness": 0.3066917219666653
       }
     },
     {
@@ -509,14 +526,18 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 70.02499759259258,
-        "stdDev": 38.70314371112651,
-        "colours": 468,
-        "meanR": 63.0821512345679,
-        "meanG": 70.36902160493827,
-        "meanB": 87.0610524691358,
-        "coolness": 0.1597068707944214,
-        "brightFraction": 0.002441358024691358
+        "meanLuma": 69.13986958827161,
+        "stdDev": 42.34743163433786,
+        "colours": 519,
+        "meanR": 65.2014413580247,
+        "meanG": 69.02831481481482,
+        "meanB": 81.842,
+        "coolness": 0.1131676359604404,
+        "coolnessShadow": 0.28888096507097655,
+        "warmFraction": 0.0795,
+        "brightFraction": 0.002441358024691358,
+        "skyLuma": 41.32499926470588,
+        "skyCoolness": 0.4419494850540487
       }
     },
     {
@@ -550,23 +571,59 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 15.325917274074072,
-        "stdDev": 18.726276944185948,
-        "colours": 258,
-        "meanR": 12.704175925925925,
-        "meanG": 15.65800925925926,
-        "meanB": 19.75625,
-        "coolness": 0.21725143379716505,
-        "brightFraction": 0.0004660493827160494
+        "meanLuma": 26.147822311111113,
+        "stdDev": 49.4365308707283,
+        "colours": 284,
+        "meanR": 25.35688888888889,
+        "meanG": 26.287731481481483,
+        "meanB": 27.090888888888887,
+        "coolness": 0.03306145795818059,
+        "coolnessShadow": 0.1517475391555075,
+        "warmFraction": 0.06166358024691358,
+        "brightFraction": 0.05748765432098765,
+        "skyLuma": 3.395771291560102,
+        "skyCoolness": 0.7380914142549706
       }
     }
   ],
-  "midnightNoonLumaRatio": 0.06803200618073454,
+  "midnightNoonLumaRatio": 0.10727922599793421,
   "closestPair": {
     "a": "midnight",
     "b": "night",
-    "delta": 4.553086256677406
+    "delta": 11.426030073747956
   },
+  "skyPatch": [
+    {
+      "id": "midnight",
+      "luma": 1.4149054987212275,
+      "coolness": 0.9588230945516376
+    },
+    {
+      "id": "dawn",
+      "luma": 33.18450514705882,
+      "coolness": 0.4661371246114886
+    },
+    {
+      "id": "morning",
+      "luma": 91.67168219309461,
+      "coolness": 0.33575943366662464
+    },
+    {
+      "id": "noon",
+      "luma": 106.08341812659847,
+      "coolness": 0.3066917219666653
+    },
+    {
+      "id": "dusk",
+      "luma": 41.32499926470588,
+      "coolness": 0.4419494850540487
+    },
+    {
+      "id": "night",
+      "luma": 3.395771291560102,
+      "coolness": 0.7380914142549706
+    }
+  ],
   "sunTravel": {
     "azimuthSpread": 302.36089252264645,
     "elevations": [
@@ -603,11 +660,11 @@
       "detail": {
         "peakPoints": 500,
         "peakRank": "C-Class Rank 340",
-        "collateralGross": 900000,
-        "collateralReported": 495000,
+        "collateralGross": 250000,
+        "collateralReported": 137500,
         "reportRate": 0.55,
-        "pointsAfter": 0,
-        "rankAfter": "C-Class Rank 390"
+        "pointsAfter": 280.48,
+        "rankAfter": "C-Class Rank 362"
       }
     },
     {
@@ -652,6 +709,200 @@
       }
     }
   ],
+  "mobileSetup": {
+    "ready": true,
+    "assetsLoaded": true,
+    "iblMode": "sh9",
+    "skiesLoaded": [
+      "dawn",
+      "day",
+      "dusk",
+      "night"
+    ],
+    "skiesMissing": [],
+    "normalisation": [
+      {
+        "sky": "dawn",
+        "meanLuminance": 1.0980531162976837,
+        "maxLuminance": 8.44295,
+        "scale": 0.9107027566860424,
+        "measured": true,
+        "hasBakedSH": true
+      },
+      {
+        "sky": "day",
+        "meanLuminance": 0.73268945997054,
+        "maxLuminance": 136998.2976,
+        "scale": 1.3648347009662292,
+        "measured": true,
+        "hasBakedSH": true
+      },
+      {
+        "sky": "dusk",
+        "meanLuminance": 0.9044060619958861,
+        "maxLuminance": 4.035887499999999,
+        "scale": 1.1056980288181093,
+        "measured": true,
+        "hasBakedSH": true
+      },
+      {
+        "sky": "night",
+        "meanLuminance": 0.712214196645703,
+        "maxLuminance": 554.8063999999999,
+        "scale": 1.4040719838353048,
+        "measured": true,
+        "hasBakedSH": true
+      }
+    ],
+    "radianceRebuilds": 2,
+    "radianceResolution": 336,
+    "environmentGpuBytes": 1458176,
+    "litMaterials": 2,
+    "litMeshes": 182,
+    "drawCalls": 274,
+    "triangles": 14234,
+    "programs": 10,
+    "sky": {
+      "timeOfDay": 0.5,
+      "phase": "noon",
+      "dayCount": 0,
+      "blendFrom": "day",
+      "blendTo": "day",
+      "blendAlpha": 1,
+      "skyLuminance": 1,
+      "exposure": 1,
+      "netLuminance": 1,
+      "sunElevationDegrees": 77.27561966408517,
+      "sunAzimuthDegrees": 198.49445599789829,
+      "sunIntensity": 3.075102901324336,
+      "moonIntensity": 0,
+      "moonIsKeyLight": false,
+      "nightFactor": 0,
+      "windowLitFraction": 0,
+      "streetLightsOn": false,
+      "shadowRadius": 200,
+      "fogDensity": 0.0014,
+      "fogColor": "#eaf0ff",
+      "ambientColor": "#faf9ff",
+      "groundColor": "#b3aba4",
+      "sunColor": "#fff4e2",
+      "hasMeasuredEnvironment": true
+    },
+    "progression": {
+      "rank": "C-Class Rank 388",
+      "heroClass": "C",
+      "rankNumber": 388,
+      "points": 20,
+      "reputation": 50,
+      "boredom": 0,
+      "rankGainMultiplier": 1,
+      "funFightsAvailable": true,
+      "killsTotal": 0,
+      "civiliansSaved": 0,
+      "civiliansLost": 0,
+      "propertyDamage": 0,
+      "witnesses": 20,
+      "genosRank": "S-Class Rank 17",
+      "genosSeatsAbove": 527,
+      "questCounts": {
+        "locked": 5,
+        "available": 5,
+        "active": 0,
+        "completed": 0,
+        "failed": 0
+      }
+    },
+    "problems": []
+  },
+  "mobileShots": [
+    {
+      "id": "midnight",
+      "sky": {
+        "timeOfDay": 0,
+        "phase": "midnight",
+        "dayCount": 0,
+        "blendFrom": "night",
+        "blendTo": "night",
+        "blendAlpha": 1,
+        "skyLuminance": 0.013999999999999995,
+        "exposure": 1.9797917687909907,
+        "netLuminance": 0.02771708476307386,
+        "sunElevationDegrees": -30.803323371758857,
+        "sunAzimuthDegrees": 4.665883564596697,
+        "sunIntensity": 0.08443782527005433,
+        "moonIntensity": 0.9933861796476979,
+        "moonIsKeyLight": true,
+        "nightFactor": 1,
+        "windowLitFraction": 0.35625000000000007,
+        "streetLightsOn": true,
+        "shadowRadius": 60,
+        "fogDensity": 0.0032,
+        "fogColor": "#6a7e97",
+        "ambientColor": "#bfcaff",
+        "groundColor": "#9597b3",
+        "sunColor": "#a8c4ff",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 20.748614533950615,
+        "stdDev": 38.65210849741515,
+        "colours": 277,
+        "meanR": 19.844762345679012,
+        "meanG": 20.88748765432099,
+        "meanB": 22.034444444444443,
+        "coolness": 0.05228566313920331,
+        "coolnessShadow": 0.11884782207092155,
+        "warmFraction": 0.03220370370370371,
+        "brightFraction": 0.028478395061728393,
+        "skyLuma": 1.4149054987212275,
+        "skyCoolness": 0.9588230945516376
+      }
+    },
+    {
+      "id": "noon",
+      "sky": {
+        "timeOfDay": 0.5,
+        "phase": "noon",
+        "dayCount": 0,
+        "blendFrom": "day",
+        "blendTo": "day",
+        "blendAlpha": 1,
+        "skyLuminance": 1,
+        "exposure": 1,
+        "netLuminance": 1,
+        "sunElevationDegrees": 77.27561966408517,
+        "sunAzimuthDegrees": 198.49445599789829,
+        "sunIntensity": 3.075102901324336,
+        "moonIntensity": 0,
+        "moonIsKeyLight": false,
+        "nightFactor": 0,
+        "windowLitFraction": 0,
+        "streetLightsOn": false,
+        "shadowRadius": 200,
+        "fogDensity": 0.0014,
+        "fogColor": "#eaf0ff",
+        "ambientColor": "#faf9ff",
+        "groundColor": "#b3aba4",
+        "sunColor": "#fff4e2",
+        "hasMeasuredEnvironment": true
+      },
+      "pixels": {
+        "meanLuma": 151.18691135432098,
+        "stdDev": 60.255113342366165,
+        "colours": 402,
+        "meanR": 142.35558641975308,
+        "meanG": 152.25233333333333,
+        "meanB": 166.63774074074075,
+        "coolness": 0.07858472072562042,
+        "coolnessShadow": 0.3420779038319694,
+        "warmFraction": 0.001154320987654321,
+        "brightFraction": 0.22164197530864196,
+        "skyLuma": 106.08341812659847,
+        "skyCoolness": 0.3066917219666653
+      }
+    }
+  ],
+  "mobileMidnightNoonRatio": 0.13723816663814403,
   "saveRoundTrip": {
     "backend": "localStorage",
     "exact": true,
