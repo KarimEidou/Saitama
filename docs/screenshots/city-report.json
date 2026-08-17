@@ -41,8 +41,8 @@
         "triangles": 6473596,
         "worstBlockCalls": 3
       },
-      "generationMs": 5044.0999999996275,
-      "buildMs": 745.6000000014901,
+      "generationMs": 4980.9000000003725,
+      "buildMs": 577.6999999992549,
       "materialsSynthesised": 0,
       "realMaterials": 39,
       "realModels": 26,
@@ -91,8 +91,8 @@
         "triangles": 1834184,
         "worstBlockCalls": 3
       },
-      "generationMs": 1449.4000000003725,
-      "buildMs": 267.09999999962747,
+      "generationMs": 1577.699999999255,
+      "buildMs": 180.7000000011176,
       "materialsSynthesised": 0,
       "realMaterials": 39,
       "realModels": 26,
@@ -102,10 +102,10 @@
       "usingRealTextures": true
     },
     "pixels": {
-      "stdDev": 58.153779862476675,
+      "stdDev": 58.15383300105293,
       "colours": 4985,
       "edgeDensity": 0.512984141024831,
-      "meanLuma": 98.01137649460485
+      "meanLuma": 98.01146981627296
     }
   },
   "skyline": {
@@ -141,8 +141,8 @@
         "triangles": 4365614,
         "worstBlockCalls": 3
       },
-      "generationMs": 3680.699999999255,
-      "buildMs": 515.5,
+      "generationMs": 4211.0999999996275,
+      "buildMs": 442.5,
       "materialsSynthesised": 0,
       "realMaterials": 39,
       "realModels": 26,
@@ -164,8 +164,8 @@
       "chunks": 49,
       "blocks": 51,
       "buildings": 730,
-      "triangles": 19608544,
-      "drawCallsRendered": 162,
+      "triangles": 20158848,
+      "drawCallsRendered": 178,
       "drawCallsPerBlockWorst": 3,
       "residentReport": {
         "chunks": 25,
@@ -191,8 +191,8 @@
         "triangles": 2109184,
         "worstBlockCalls": 3
       },
-      "generationMs": 2649.4000000003725,
-      "buildMs": 242.59999999962747,
+      "generationMs": 2522,
+      "buildMs": 238.5,
       "materialsSynthesised": 0,
       "realMaterials": 39,
       "realModels": 26,
@@ -202,10 +202,10 @@
       "usingRealTextures": true
     },
     "pixels": {
-      "stdDev": 57.390141135816606,
-      "colours": 5759,
-      "edgeDensity": 0.32131800088456436,
-      "meanLuma": 129.6648393117527
+      "stdDev": 47.820328019109006,
+      "colours": 5724,
+      "edgeDensity": 0.4254122701712264,
+      "meanLuma": 162.2347372411782
     }
   }
 }

@@ -344,26 +344,33 @@ function makeFractureView(): IView {
 
   // Take out floors 1-3 of everything near the camera. The holes land on the
   // baked chunk seams: one floor x one facade quadrant at a time.
+  //
+  // Quadrants 0 (+X, east) and 1 (+Z, south) specifically, because the camera
+  // below looks north-west and those are the two faces it can see. Destroying
+  // the far side of every building is a demonstration of nothing.
   let destroyedChunks = 0;
   for (const blockMesh of built.blockMeshes) {
     for (const [buildingId, layout] of Object.entries(blockMesh.fractures)) {
       for (const chunk of layout.chunks) {
         if (chunk.floor < 1 || chunk.floor > 3) continue;
-        if (chunk.quadrant !== 0 && chunk.quadrant !== 3) continue;
+        if (chunk.quadrant !== 0 && chunk.quadrant !== 1) continue;
         destroyFractureChunk(blockMesh, buildingId, chunk.index);
         destroyedChunks++;
       }
     }
   }
-  const camera = new THREE.PerspectiveCamera(52, aspect(), 0.2, 1200);
-  camera.position.set(148, 34, -268);
-  camera.lookAt(86, 12, -344);
+  // Far enough back to frame a whole block: the east and south faces of the
+  // parcel in chunk (1,-4), which are the two the destruction pass removes.
+  const camera = new THREE.PerspectiveCamera(50, aspect(), 0.2, 1200);
+  camera.position.set(238, 46, -238);
+  camera.lookAt(140, 12, -338);
   return {
     built,
     camera,
     label:
       `Baked fracture: ${destroyedChunks} chunks removed — floors 2-4, east and ` +
-      `north quadrants. Every hole lands on a seam the generator baked in.`,
+      `south quadrants. Every hole is a seam the generator baked in; the floor ` +
+      `slabs behind them were always there.`,
   };
 }
 
