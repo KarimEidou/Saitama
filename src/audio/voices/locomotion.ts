@@ -367,6 +367,22 @@ interface WhooshShape {
   readonly toneGain: number;
   readonly toneFrom: number;
   readonly toneTo: number;
+  /**
+   * PUSH-OFF: a downward sine thump at the instant the move starts.
+   *
+   * A whoosh alone is air, not an action — it has no onset, so it reads as
+   * ambience rather than as something the player did. This is the ground
+   * taking the character's weight, and for a character who cracks pavement
+   * when he jumps it is the more important half of the sound.
+   */
+  readonly thumpGain: number;
+  readonly thumpFrom: number;
+  readonly thumpTo: number;
+  readonly thumpDecay: number;
+  /** Highpassed noise transient: the surface itself failing. */
+  readonly crackGain: number;
+  readonly crackHz: number;
+  readonly crackDecay: number;
 }
 
 const WHOOSHES: Record<string, WhooshShape> = {
@@ -384,6 +400,15 @@ const WHOOSHES: Record<string, WhooshShape> = {
     toneGain: 0,
     toneFrom: 0,
     toneTo: 0,
+    // Traversal is this character's primary verb, so the jump has to register
+    // as an ACT. It stays well under a punch, but it now has an onset.
+    thumpGain: 0.6,
+    thumpFrom: 105,
+    thumpTo: 44,
+    thumpDecay: 0.17,
+    crackGain: 0.3,
+    crackHz: 2800,
+    crackDecay: 0.03,
   },
   /**
    * Fall-then-rise with a pitch-bent tone: reads as something passing the
@@ -402,6 +427,14 @@ const WHOOSHES: Record<string, WhooshShape> = {
     toneGain: 0.22,
     toneFrom: 620,
     toneTo: 180,
+    // A dash is lateral, so it pushes off far less than a jump does.
+    thumpGain: 0.22,
+    thumpFrom: 130,
+    thumpTo: 62,
+    thumpDecay: 0.09,
+    crackGain: 0.18,
+    crackHz: 3400,
+    crackDecay: 0.02,
   },
   /** A heavier version used for a leap that leaves the ground cracked. */
   leap: {
@@ -417,6 +450,14 @@ const WHOOSHES: Record<string, WhooshShape> = {
     toneGain: 0.18,
     toneFrom: 140,
     toneTo: 420,
+    // A leap leaves the ground cracked; it is the heaviest push-off there is.
+    thumpGain: 0.78,
+    thumpFrom: 120,
+    thumpTo: 34,
+    thumpDecay: 0.3,
+    crackGain: 0.4,
+    crackHz: 2400,
+    crackDecay: 0.06,
   },
 };
 
@@ -430,6 +471,10 @@ export class WhooshVoice extends SynthVoice {
   private readonly noiseGain: GainNode;
   private readonly tone: OscillatorNode;
   private readonly toneGain: GainNode;
+  private readonly thump: OscillatorNode;
+  private readonly thumpGain: GainNode;
+  private readonly crackHp: BiquadFilterNode;
+  private readonly crackGain: GainNode;
 
   constructor(
     ctx: BaseAudioContext,
@@ -460,7 +505,23 @@ export class WhooshVoice extends SynthVoice {
     this.tone.connect(this.toneGain).connect(this.trim);
     this.tone.start();
 
-    this.tune(this.tone);
+    this.thump = ctx.createOscillator();
+    this.thump.type = 'sine';
+    this.thump.frequency.value = 105;
+    this.thumpGain = ctx.createGain();
+    this.thumpGain.gain.value = 0;
+    this.thump.connect(this.thumpGain).connect(this.trim);
+    this.thump.start();
+
+    this.crackHp = ctx.createBiquadFilter();
+    this.crackHp.type = 'highpass';
+    this.crackHp.frequency.value = 2800;
+    this.crackHp.Q.value = 0.7;
+    this.crackGain = ctx.createGain();
+    this.crackGain.gain.value = 0;
+    this.noise.connect(this.crackHp).connect(this.crackGain).connect(this.trim);
+
+    this.tune(this.tone, this.thump);
   }
 
   protected override schedule(p: ITriggerParams): number {
@@ -492,6 +553,35 @@ export class WhooshVoice extends SynthVoice {
       s.release * speed
     );
 
+    // Push-off: the onset that makes this an action rather than air.
+    let thumpEnd = t;
+    if (s.thumpGain > 0) {
+      sweep(this.thump.frequency, t, s.thumpFrom * vary, s.thumpTo * vary, s.thumpDecay * 0.35, nq);
+      thumpEnd = percussive(
+        this.thumpGain.gain,
+        t,
+        s.thumpGain * lerp(0.55, 1, power),
+        0.0015,
+        s.thumpDecay * lerp(0.75, 1.2, power)
+      );
+    } else {
+      resetParam(this.thumpGain.gain, t, 0);
+    }
+
+    let crackEnd = t;
+    if (s.crackGain > 0) {
+      resetParam(this.crackHp.frequency, t, Math.min(s.crackHz * vary, nq * 0.45));
+      crackEnd = percussive(
+        this.crackGain.gain,
+        t,
+        s.crackGain * lerp(0.5, 1, power),
+        0.0005,
+        s.crackDecay
+      );
+    } else {
+      resetParam(this.crackGain.gain, t, 0);
+    }
+
     let toneEnd = t;
     if (s.toneGain > 0) {
       sweep(
@@ -514,16 +604,20 @@ export class WhooshVoice extends SynthVoice {
       resetParam(this.toneGain.gain, t, 0);
     }
 
-    return Math.max(noiseEnd, toneEnd) - t;
+    return Math.max(noiseEnd, toneEnd, thumpEnd, crackEnd) - t;
   }
 
   protected override teardown(): void {
     SynthVoice.stopSource(this.noise);
     SynthVoice.stopSource(this.tone);
+    SynthVoice.stopSource(this.thump);
     this.trim.disconnect();
     this.bp.disconnect();
     this.noiseGain.disconnect();
     this.toneGain.disconnect();
+    this.thumpGain.disconnect();
+    this.crackHp.disconnect();
+    this.crackGain.disconnect();
   }
 }
 

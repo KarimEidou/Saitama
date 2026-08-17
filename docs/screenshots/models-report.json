@@ -1,0 +1,425 @@
+{
+  "generatedAt": "2026-08-17T05:13:38.699Z",
+  "sheets": [
+    {
+      "name": "models-contact-sheet.png",
+      "file": "/home/user/Saitama/docs/screenshots/models-contact-sheet.png",
+      "size": "1680x1020",
+      "stdDev": 54.26,
+      "distinctColours": 3169,
+      "blank": false,
+      "stats": [
+        {
+          "url": "/public/assets/mdl/model.prop.fire_hydrant.mobile.glb",
+          "label": "fire_hydrant",
+          "meshes": 10,
+          "triangles": 86316,
+          "textured": 10,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            0.87,
+            0.8,
+            0.32
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.street_lamp_01.mobile.glb",
+          "label": "street_lamp_01",
+          "meshes": 2,
+          "triangles": 30610,
+          "textured": 2,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.7,
+            3.87,
+            0.39
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.barrel_stove.mobile.glb",
+          "label": "barrel_stove",
+          "meshes": 1,
+          "triangles": 9216,
+          "textured": 1,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.59,
+            0.86,
+            0.59
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.metal_trash_can.mobile.glb",
+          "label": "metal_trash_can",
+          "meshes": 8,
+          "triangles": 13960,
+          "textured": 8,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            1.85,
+            0.91,
+            0.56
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.covered_car.mobile.glb",
+          "label": "covered_car",
+          "meshes": 5,
+          "triangles": 12592,
+          "textured": 5,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            1.79,
+            1.41,
+            4.38
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.old_tyre.mobile.glb",
+          "label": "old_tyre",
+          "meshes": 1,
+          "triangles": 2880,
+          "textured": 1,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.6,
+            0.6,
+            0.17
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.security_camera_01.mobile.glb",
+          "label": "security_camera_01",
+          "meshes": 2,
+          "triangles": 13571,
+          "textured": 2,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.17,
+            0.29,
+            0.55
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.utility_box_01.mobile.glb",
+          "label": "utility_box_01",
+          "meshes": 1,
+          "triangles": 4404,
+          "textured": 1,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.52,
+            1.12,
+            0.43
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.concrete_road_barrier.mobile.glb",
+          "label": "concrete_road_barrier",
+          "meshes": 1,
+          "triangles": 60928,
+          "textured": 1,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            1.55,
+            0.83,
+            0.64
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.street_rat.mobile.glb",
+          "label": "street_rat",
+          "meshes": 1,
+          "triangles": 57216,
+          "textured": 1,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.03,
+            0.03,
+            0.15
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.boombox.mobile.glb",
+          "label": "boombox",
+          "meshes": 2,
+          "triangles": 10168,
+          "textured": 2,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            0.72,
+            0.47,
+            0.19
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_chainlink_fence.mobile.glb",
+          "label": "modular_chainlink_fence",
+          "meshes": 26,
+          "triangles": 89232,
+          "textured": 26,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            8.11,
+            2.52,
+            2.15
+          ]
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "name": "models-lod-chain.png",
+      "file": "/home/user/Saitama/docs/screenshots/models-lod-chain.png",
+      "size": "1380x1080",
+      "stdDev": 46.23,
+      "distinctColours": 1600,
+      "blank": false,
+      "stats": [
+        {
+          "url": "/public/assets/mdl/model.prop.street_lamp_01.mobile.glb",
+          "label": "street_lamp_01 LOD0",
+          "level": 0,
+          "meshes": 2,
+          "triangles": 30610,
+          "textured": 2,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.7,
+            3.87,
+            0.39
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.street_lamp_01.mobile.glb",
+          "label": "street_lamp_01 LOD1",
+          "level": 1,
+          "meshes": 2,
+          "triangles": 10710,
+          "textured": 2,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.7,
+            3.87,
+            0.39
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.street_lamp_01.mobile.glb",
+          "label": "street_lamp_01 LOD2",
+          "level": 2,
+          "meshes": 2,
+          "triangles": 3672,
+          "textured": 2,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            0.7,
+            3.87,
+            0.39
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.fire_hydrant.mobile.glb",
+          "label": "fire_hydrant LOD0",
+          "level": 0,
+          "meshes": 10,
+          "triangles": 86316,
+          "textured": 10,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            0.87,
+            0.8,
+            0.32
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.fire_hydrant.mobile.glb",
+          "label": "fire_hydrant LOD1",
+          "level": 1,
+          "meshes": 10,
+          "triangles": 30200,
+          "textured": 10,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            0.87,
+            0.8,
+            0.32
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.prop.fire_hydrant.mobile.glb",
+          "label": "fire_hydrant LOD2",
+          "level": 2,
+          "meshes": 10,
+          "triangles": 10296,
+          "textured": 10,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            0.87,
+            0.8,
+            0.32
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_metal_gutter.mobile.glb",
+          "label": "modular_metal_gutter LOD0",
+          "level": 0,
+          "meshes": 12,
+          "triangles": 16490,
+          "textured": 12,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            2.27,
+            1.84,
+            1.51
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_metal_gutter.mobile.glb",
+          "label": "modular_metal_gutter LOD1",
+          "level": 1,
+          "meshes": 12,
+          "triangles": 5758,
+          "textured": 12,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            2.27,
+            1.84,
+            1.51
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_metal_gutter.mobile.glb",
+          "label": "modular_metal_gutter LOD2",
+          "level": 2,
+          "meshes": 12,
+          "triangles": 2219,
+          "textured": 12,
+          "untextured": 0,
+          "maps": 1,
+          "extent": [
+            2.27,
+            1.84,
+            1.51
+          ]
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "name": "models-modular-kits.png",
+      "file": "/home/user/Saitama/docs/screenshots/models-modular-kits.png",
+      "size": "1380x680",
+      "stdDev": 45.34,
+      "distinctColours": 846,
+      "blank": false,
+      "stats": [
+        {
+          "url": "/public/assets/mdl/model.building.modular_urban_apartments_facade.mobile.glb",
+          "label": "modular_urban_apartments_facade",
+          "meshes": 193,
+          "triangles": 270045,
+          "textured": 193,
+          "untextured": 0,
+          "maps": 4,
+          "extent": [
+            51.53,
+            17,
+            6.67
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_factory_facade.mobile.glb",
+          "label": "modular_factory_facade",
+          "meshes": 263,
+          "triangles": 175014,
+          "textured": 263,
+          "untextured": 0,
+          "maps": 5,
+          "extent": [
+            53.33,
+            29,
+            5.36
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_electricity_poles.mobile.glb",
+          "label": "modular_electricity_poles",
+          "meshes": 103,
+          "triangles": 200610,
+          "textured": 103,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            13.12,
+            7,
+            1.96
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_street_seating.mobile.glb",
+          "label": "modular_street_seating",
+          "meshes": 16,
+          "triangles": 25156,
+          "textured": 16,
+          "untextured": 0,
+          "maps": 4,
+          "extent": [
+            4.34,
+            0.95,
+            0.77
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.modular_fire_escape.mobile.glb",
+          "label": "modular_fire_escape",
+          "meshes": 7,
+          "triangles": 11322,
+          "textured": 7,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            6.66,
+            9.76,
+            1.42
+          ]
+        },
+        {
+          "url": "/public/assets/mdl/model.building.rollershutter_door.mobile.glb",
+          "label": "rollershutter_door",
+          "meshes": 2,
+          "triangles": 1104,
+          "textured": 2,
+          "untextured": 0,
+          "maps": 2,
+          "extent": [
+            3.08,
+            2.4,
+            0.3
+          ]
+        }
+      ],
+      "pageErrors": []
+    }
+  ]
+}

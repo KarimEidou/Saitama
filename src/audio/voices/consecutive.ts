@@ -66,19 +66,42 @@ class HitUnit {
     noise.connect(this.bodyFilter).connect(this.bodyGain).connect(destination);
   }
 
-  /** Schedule one hit. Returns the time at which it falls silent. */
-  hit(t: number, pitch: number, gain: number, decay: number, nyquist: number): number {
-    // The sub sweep must COMPLETE while the amplitude envelope is still
-    // substantial. An earlier version swept over 55 % of the decay, which put
-    // 95 % of the sub energy above 100 Hz — the offline probe measured the
-    // chain at 0.4 % of its power below 100 Hz and the hits sounded like
-    // taps. Sweeping in the first third of the decay, from a lower start,
-    // moves the energy where the weight actually is.
-    sweep(this.sub.frequency, t, 118 * pitch, 44 * pitch, decay * 0.32, nyquist);
-    const subEnd = percussive(this.subGain.gain, t, 0.6 * gain, 0.0012, decay);
+  /**
+   * Schedule one hit. Returns the time at which it falls silent.
+   *
+   * ── WHERE THE WEIGHT COMES FROM ──────────────────────────────────────
+   * The sub's pitch drop has to LAND while the amplitude envelope is still
+   * loud. What matters is not the sweep's duration in the abstract but how
+   * early it crosses 100 Hz relative to the decay, because everything after
+   * that point is what the ear reads as weight.
+   *
+   * This was measured wrong twice. Sweeping over a fixed FRACTION of the
+   * decay works for a fast chain (short decay, short sweep) and fails badly
+   * for a slow one: at 100 ms spacing the flurry's decay is 80 ms, so a
+   * 32 % sweep only reached the bottom at -23 dB and the probe measured
+   * 0.4 % of its attack power below 100 Hz against 94 % in 100-200 Hz. The
+   * hits had no weight at all.
+   *
+   * So the sweep is now capped at an ABSOLUTE 22 ms — the range a real
+   * percussive pitch envelope actually falls in, regardless of how long the
+   * tail rings — and the endpoints are per-variant, so a slow chain can
+   * start below 100 Hz and be weighty from its first millisecond while a
+   * fast chain starts higher and stays legible instead of turning to mud.
+   */
+  hit(
+    t: number,
+    pitch: number,
+    gain: number,
+    decay: number,
+    subFrom: number,
+    subTo: number,
+    nyquist: number
+  ): number {
+    sweep(this.sub.frequency, t, subFrom * pitch, subTo * pitch, Math.min(decay * 0.32, 0.022), nyquist);
+    const subEnd = percussive(this.subGain.gain, t, 0.68 * gain, 0.0012, decay);
 
     sweep(this.bodyFilter.frequency, t, 1100 * pitch, 260 * pitch, decay * 0.35, nyquist);
-    const bodyEnd = percussive(this.bodyGain.gain, t, 0.3 * gain, 0.0015, decay * 0.55);
+    const bodyEnd = percussive(this.bodyGain.gain, t, 0.26 * gain, 0.0015, decay * 0.55);
 
     sweep(this.tick.frequency, t, 3400 * pitch, 900 * pitch, 0.006, nyquist);
     const tickEnd = percussive(this.tickGain.gain, t, 0.17 * gain, 0.0004, 0.012);
@@ -105,6 +128,13 @@ interface ChainShape {
   /** Frequency multiplier applied per hit index. */
   readonly pitchStep: number;
   readonly decay: number;
+  /**
+   * Sub sweep endpoints in Hz. Per-variant because how early the sweep
+   * crosses 100 Hz — not its duration — is what decides whether a hit has
+   * weight, and that depends on how far apart the hits are.
+   */
+  readonly subFrom: number;
+  readonly subTo: number;
 }
 
 const SHAPES: Record<string, ChainShape> = {
@@ -116,8 +146,15 @@ const SHAPES: Record<string, ChainShape> = {
     intervalTighten: 0.03,
     pitchStep: 1.045,
     decay: 0.1,
+    subFrom: 108,
+    subTo: 41,
   },
   /** A short two-to-four hit flurry used for ordinary combos. */
+  /**
+   * A short two-to-four hit combo. Widely spaced, so its sub starts BELOW
+   * 100 Hz and is weighty from the first millisecond — a fast chain can rely
+   * on accumulating tails for its low end, a slow one cannot.
+   */
   flurry: {
     minHits: 2,
     maxHits: 5,
@@ -125,6 +162,8 @@ const SHAPES: Record<string, ChainShape> = {
     intervalTighten: 0.02,
     pitchStep: 1.06,
     decay: 0.13,
+    subFrom: 94,
+    subTo: 36,
   },
   /** Machine-gun tier: the fastest the character throws them. */
   barrage: {
@@ -134,6 +173,8 @@ const SHAPES: Record<string, ChainShape> = {
     intervalTighten: 0.018,
     pitchStep: 1.028,
     decay: 0.075,
+    subFrom: 118,
+    subTo: 46,
   },
 };
 
@@ -159,6 +200,10 @@ export interface IChainHit {
    * the rise audible and the chain read as distinct punches.
    */
   readonly decay: number;
+  /** Sub sweep start in Hz, before the per-hit pitch multiplier. */
+  readonly subFrom: number;
+  /** Sub sweep end in Hz, before the per-hit pitch multiplier. */
+  readonly subTo: number;
   readonly isFinisher: boolean;
 }
 
@@ -189,6 +234,8 @@ export function chainSchedule(variant: string, intensity: number, rate = 1): ICh
       pitch: clamp(rate * (isFinisher ? rise * 0.82 : rise), 0.25, 4),
       gain: isFinisher ? 1.15 : lerp(0.7, 1, i / Math.max(count - 1, 1)),
       decay: isFinisher ? shape.decay * 2.6 : bodyDecay,
+      subFrom: shape.subFrom,
+      subTo: shape.subTo,
       isFinisher,
     });
   }
@@ -217,7 +264,10 @@ export class ConsecutiveVoice extends SynthVoice {
   ) {
     super(ctx, key, category, destination);
     this.trim = ctx.createGain();
-    this.trim.gain.value = 0.55;
+    // Raised from 0.55 once the envelope-anchor bug was fixed: the chain had
+    // been carrying a spurious fade-in tone that inflated its level, and with
+    // that gone the real hits were quieter than a single punch.
+    this.trim.gain.value = 0.9;
     this.trim.connect(this.output);
 
     this.noise = createNoiseSource(ctx, 'white', noiseOffset);
@@ -248,7 +298,7 @@ export class ConsecutiveVoice extends SynthVoice {
       // less than the debris scheduler: a punch chain SHOULD be tight.
       const jitter = (p.rng.next() - 0.5) * interval * 0.12;
       const t = p.time + hit.offset + jitter;
-      end = Math.max(end, unit.hit(t, hit.pitch, hit.gain, hit.decay, nq));
+      end = Math.max(end, unit.hit(t, hit.pitch, hit.gain, hit.decay, hit.subFrom, hit.subTo, nq));
     }
     return end - p.time;
   }

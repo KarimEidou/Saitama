@@ -53,6 +53,16 @@ class BusStrip implements IAudioBus {
   readonly input: GainNode;
   readonly volumeGain: GainNode;
   readonly duckGain: GainNode;
+  /**
+   * Reverb sends for this bus.
+   *
+   * Voices tap their own send level pre-fader, but the send then passes
+   * through THIS node, which tracks the bus volume and mute. That is the
+   * post-fader aux of a real console: turning a bus down takes its reverb
+   * with it, instead of leaving disembodied tails behind.
+   */
+  readonly sendInput: GainNode;
+  private readonly sendVolume: GainNode;
 
   private volumeValue: number;
   private mutedValue = false;
@@ -70,6 +80,17 @@ class BusStrip implements IAudioBus {
     this.volumeGain.gain.value = this.volumeValue;
     this.duckGain.gain.value = 1;
     this.input.connect(this.volumeGain).connect(this.duckGain).connect(destination);
+
+    this.sendInput = ctx.createGain();
+    this.sendInput.gain.value = 1;
+    this.sendVolume = ctx.createGain();
+    this.sendVolume.gain.value = this.volumeValue;
+    this.sendInput.connect(this.sendVolume);
+  }
+
+  /** Route this strip's sends into an effect input. */
+  connectSend(target: AudioNode): void {
+    this.sendVolume.connect(target);
   }
 
   get volume(): number {
@@ -78,7 +99,9 @@ class BusStrip implements IAudioBus {
 
   set volume(value: number) {
     this.volumeValue = clamp01(value);
-    this.volumeGain.gain.value = this.mutedValue ? 0 : this.volumeValue;
+    const applied = this.mutedValue ? 0 : this.volumeValue;
+    this.volumeGain.gain.value = applied;
+    this.sendVolume.gain.value = applied;
   }
 
   get muted(): boolean {
@@ -87,7 +110,9 @@ class BusStrip implements IAudioBus {
 
   set muted(value: boolean) {
     this.mutedValue = value;
-    this.volumeGain.gain.value = value ? 0 : this.volumeValue;
+    const applied = value ? 0 : this.volumeValue;
+    this.volumeGain.gain.value = applied;
+    this.sendVolume.gain.value = applied;
   }
 
   duck(to: number, seconds: number, now: number): void {
@@ -134,6 +159,8 @@ class BusStrip implements IAudioBus {
     this.input.disconnect();
     this.volumeGain.disconnect();
     this.duckGain.disconnect();
+    this.sendInput.disconnect();
+    this.sendVolume.disconnect();
   }
 }
 
@@ -218,6 +245,16 @@ export class Mixer {
   /** The node a voice on `category` should connect to. */
   input(category: AudioCategory): GainNode {
     return this.strip(category).input;
+  }
+
+  /** The node a voice on `category` should route its reverb send into. */
+  sendInput(category: AudioCategory): GainNode {
+    return this.strip(category).sendInput;
+  }
+
+  /** Route every bus's post-fader send into an effect input. */
+  connectSends(target: AudioNode): void {
+    for (const strip of this.strips.values()) strip.connectSend(target);
   }
 
   private strip(category: AudioCategory): BusStrip {

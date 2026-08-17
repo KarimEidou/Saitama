@@ -53,6 +53,15 @@ export interface ITriggerParams {
   readonly intensity: number;
   /** Voice-specific variant selector (material, threat tier, surface, ...). */
   readonly variant?: string;
+  /**
+   * Reverb send amount 0..1.
+   *
+   * Taken PRE-panner on purpose: a distant source should send the same amount
+   * of signal to the room as a near one, so that distance increases the wet/dry
+   * ratio the way it does in reality. Tapping post-panner would attenuate the
+   * send along with the dry and make everything sound equally close.
+   */
+  readonly send?: number;
   /** Deterministic randomness for this instance. */
   readonly rng: IRandom;
   /** World position for 3D playback. Omit for a 2D (UI/music) sound. */
@@ -83,6 +92,8 @@ export abstract class SynthVoice {
   private readonly spatialGain: GainNode;
   private readonly dryGain: GainNode;
   readonly panner: PannerNode;
+  /** Reverb send tap, created only when a reverb is attached. */
+  private sendGain: GainNode | undefined;
 
   private disposed = false;
 
@@ -102,6 +113,17 @@ export abstract class SynthVoice {
 
     this.output.connect(this.spatialGain).connect(this.panner).connect(destination);
     this.output.connect(this.dryGain).connect(destination);
+  }
+
+  /**
+   * Route this voice into a reverb send. Called once, after construction.
+   * Voices with no reverb attached simply have no send node at all.
+   */
+  attachSend(reverbInput: AudioNode): void {
+    if (this.sendGain || this.disposed) return;
+    this.sendGain = this.ctx.createGain();
+    this.sendGain.gain.value = 0;
+    this.output.connect(this.sendGain).connect(reverbInput);
   }
 
   /**
@@ -134,7 +156,16 @@ export abstract class SynthVoice {
     this.output.gain.cancelScheduledValues(t);
     this.output.gain.setValueAtTime(Math.max(p.gain, 0), t);
 
+    this.applySend(p.send ?? 0, t);
+
     return this.schedule(p);
+  }
+
+  /** Write the send level. No-op when no reverb is attached. */
+  protected applySend(amount: number, time: number): void {
+    if (!this.sendGain) return;
+    this.sendGain.gain.cancelScheduledValues(time);
+    this.sendGain.gain.setValueAtTime(Math.max(amount, 0), time);
   }
 
   /** Move a playing 3D instance (used by `attachTo` follow behaviour). */
@@ -204,6 +235,7 @@ export abstract class SynthVoice {
     this.spatialGain.disconnect();
     this.dryGain.disconnect();
     this.panner.disconnect();
+    this.sendGain?.disconnect();
   }
 
   /** Subclasses stop their free-running generators here. */
@@ -270,6 +302,11 @@ export abstract class SustainedVoice extends SynthVoice {
 
   /** Steer the voice. Implementations must glide, never jump. */
   abstract setIntensity(intensity: number, time: number, glideSeconds?: number): void;
+
+  /** Set the reverb send for a bed, which is never "triggered". */
+  setSend(amount: number, time: number): void {
+    this.applySend(amount, time);
+  }
 }
 
 /* -------------------------------------------------------------------------- */

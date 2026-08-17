@@ -100,17 +100,54 @@ export function holdAt(param: AudioParam, time: number): void {
     holdable.cancelAndHoldAtTime(time);
   } else {
     param.cancelScheduledValues(time);
-    param.setValueAtTime(param.value, time);
   }
+  // ANCHOR — do not remove.
+  //
+  // `cancelAndHoldAtTime` only inserts a hold event when there was automation
+  // to cancel. On a param that has never been automated it leaves the timeline
+  // EMPTY, and a `linearRampToValueAtTime` that follows then has no preceding
+  // event to start from, so it interpolates all the way from time zero.
+  //
+  // In a pooled synthesiser that is catastrophic and almost invisible: the
+  // FIRST hit on a voice sounds correct because the voice's output gain is
+  // still closed, while every later hit spends the whole preceding buffer
+  // fading in at its oscillator's construction frequency. The offline probe
+  // saw it as a punch chain pinned to a steady 129 Hz — the default value of
+  // its sub oscillator — with no low end at all.
+  //
+  // Writing an explicit anchor covers both cases: when the hold did insert
+  // one, this same-time write is ignored; when it did not, `param.value` is
+  // the param's true constant value, which is exactly what should be held.
+  param.setValueAtTime(param.value, time);
 }
 
 /**
- * Freeze, then jump to `value` at `time`. Used for parameters that should
- * restart exactly (oscillator/filter frequency at the top of a sweep) rather
- * than glide from wherever the previous instance left them.
+ * Jump a param to `value` at `time`, discarding anything scheduled after it.
+ * Used for parameters that must restart EXACTLY — an oscillator or filter
+ * frequency at the top of a sweep — rather than glide from wherever the
+ * previous instance left them.
+ *
+ * ── WHY NOT `cancelAndHoldAtTime` HERE ─────────────────────────────────────
+ * It looks like the better primitive, and for the gain envelopes it is. But
+ * `cancelAndHoldAtTime(t)` inserts an implicit event AT t holding the current
+ * value, and a `setValueAtTime(v, t)` immediately afterwards lands on the same
+ * instant. The specification says the later insertion wins; Chromium keeps the
+ * hold. The consequence is silent and severe: the jump is ignored and every
+ * sweep starts from whatever the node was constructed with instead of from its
+ * intended value.
+ *
+ * The offline probe caught this as a punch chain whose sub sat at a steady
+ * 129 Hz — its oscillator's constructor default — instead of sweeping from
+ * 94 Hz down through the sub band. It was invisible in the voices whose
+ * construction value happened to equal their sweep start, which is most of
+ * them, which is exactly what made it hard to see.
+ *
+ * `cancelScheduledValues` has no such ambiguity. The trade-off it brings —
+ * an interrupted ramp reverts for the interval before `time` — only affects
+ * the pitch of a tail that is being replaced anyway.
  */
 export function resetParam(param: AudioParam, time: number, value: number): void {
-  holdAt(param, time);
+  param.cancelScheduledValues(time);
   param.setValueAtTime(value, time);
 }
 

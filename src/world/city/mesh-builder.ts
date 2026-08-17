@@ -396,12 +396,14 @@ export class MeshBuilder {
       const z1 = cz + Math.sin(a1) * radius;
       const u0 = ((i / segments) * circumference) * uvScale;
       const u1 = (((i + 1) / segments) * circumference) * uvScale;
+      // Wound backwards around the ring: with +Z on the "south" side of a Y-up
+      // right-handed world, forward winding puts the normals inside the tube.
       this.quad(
         slot,
-        [x0, y0, z0],
         [x1, y0, z1],
-        [x1, y1, z1],
+        [x0, y0, z0],
         [x0, y1, z0],
+        [x1, y1, z1],
         [u0, y0 * uvScale, u1, y1 * uvScale],
         color
       );
@@ -413,11 +415,11 @@ export class MeshBuilder {
         this.triangle(
           slot,
           [cx, y1, cz],
-          [cx + Math.cos(a0) * radius, y1, cz + Math.sin(a0) * radius],
           [cx + Math.cos(a1) * radius, y1, cz + Math.sin(a1) * radius],
+          [cx + Math.cos(a0) * radius, y1, cz + Math.sin(a0) * radius],
           [0.5, 0.5],
-          [0.5 + Math.cos(a0) * 0.5, 0.5 + Math.sin(a0) * 0.5],
           [0.5 + Math.cos(a1) * 0.5, 0.5 + Math.sin(a1) * 0.5],
+          [0.5 + Math.cos(a0) * 0.5, 0.5 + Math.sin(a0) * 0.5],
           color
         );
       }
@@ -607,10 +609,26 @@ export interface IMergedGeometry {
   readonly offsets: readonly IMergeOffsets[];
 }
 
-/** Merge geometries slot-major so the result still has one group per material. */
+/** Rigid placement applied to a source while merging: yaw, then translate. */
+export interface IPlacement {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly rotationY: number;
+}
+
+/**
+ * Merge geometries slot-major so the result still has one group per material.
+ *
+ * `placements`, when supplied, transforms each source as it is copied.
+ * Buildings are generated in their own local space — which is what keeps
+ * fracture centroids in "the parent's LOCAL space" as `FractureChunk`
+ * requires — and baked into world space exactly here, once.
+ */
 export function mergeGeometries(
   sources: readonly IGeometryBuffers[],
-  slotCount = MAT_SLOT_COUNT
+  slotCount = MAT_SLOT_COUNT,
+  placements?: readonly IPlacement[]
 ): IMergedGeometry {
   let totalVertices = 0;
   const slotTotals = new Array<number>(slotCount).fill(0);
@@ -637,9 +655,30 @@ export function mergeGeometries(
   const offsets: IMergeOffsets[] = [];
   let vertexCursor = 0;
 
-  for (const src of sources) {
-    positions.set(src.positions, vertexCursor * 3);
-    normals.set(src.normals, vertexCursor * 3);
+  for (let s = 0; s < sources.length; s++) {
+    const src = sources[s];
+    const place = placements ? placements[s] : undefined;
+    if (place) {
+      const cos = Math.cos(place.rotationY);
+      const sin = Math.sin(place.rotationY);
+      for (let v = 0; v < src.vertexCount; v++) {
+        const px = src.positions[v * 3];
+        const py = src.positions[v * 3 + 1];
+        const pz = src.positions[v * 3 + 2];
+        positions[(vertexCursor + v) * 3] = px * cos + pz * sin + place.x;
+        positions[(vertexCursor + v) * 3 + 1] = py + place.y;
+        positions[(vertexCursor + v) * 3 + 2] = -px * sin + pz * cos + place.z;
+        const nx = src.normals[v * 3];
+        const ny = src.normals[v * 3 + 1];
+        const nz = src.normals[v * 3 + 2];
+        normals[(vertexCursor + v) * 3] = nx * cos + nz * sin;
+        normals[(vertexCursor + v) * 3 + 1] = ny;
+        normals[(vertexCursor + v) * 3 + 2] = -nx * sin + nz * cos;
+      }
+    } else {
+      positions.set(src.positions, vertexCursor * 3);
+      normals.set(src.normals, vertexCursor * 3);
+    }
     uvs.set(src.uvs, vertexCursor * 2);
     colors.set(src.colors, vertexCursor * 3);
 

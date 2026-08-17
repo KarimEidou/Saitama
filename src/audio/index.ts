@@ -31,6 +31,15 @@ export { AudioSystem, type IAudioSystemOptions, type ISynthPlayOptions } from '.
 export { Mixer, AUDIO_CATEGORIES, type IMixerOptions } from './mixer';
 
 export {
+  ReverbSend,
+  REVERB_PRESETS,
+  REVERB_PRESET_NAMES,
+  feedbackForRt60,
+  type IReverbSettings,
+  type ReverbPreset,
+} from './reverb';
+
+export {
   SOUND_KEYS,
   SOUND_SPECS,
   VOICE_CLASSES,

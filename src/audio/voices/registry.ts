@@ -260,6 +260,18 @@ export interface ISoundSpec {
   readonly maxSeconds: number;
   /** Random pitch spread applied per instance, as a fraction. */
   readonly pitchVariation: number;
+  /**
+   * Reverb send amount 0..1.
+   *
+   * The punch family sits near zero deliberately — a punch that rings is a
+   * punch that feels soft, and the dryness of the impacts is the whole
+   * identity of this game's combat. Everything that is supposed to belong to
+   * the CITY rather than to the fist — shockwaves, collapses, monsters, the
+   * crowd — sends generously, which is what makes an alley sound different
+   * from an open street. Interface sound sends nothing at all: the UI is not
+   * in the world.
+   */
+  readonly reverbSend: number;
   /** Distance model override. Big sounds carry much further. */
   readonly spatial?: ISpatialSettings;
   /** One-line description, surfaced in the audition harness. */
@@ -282,6 +294,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.55,
     maxSeconds: 0.5,
     pitchVariation: 0.06,
+    reverbSend: 0.05,
     spatial: MID,
     description: 'Ordinary punch: sub sweep, noise body, contact tick.',
   },
@@ -294,6 +307,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.3,
     maxSeconds: 0.35,
     pitchVariation: 0.06,
+    reverbSend: 0.04,
     spatial: NEAR,
     description: 'Pulled punch used around civilians. Less sub, softer contact.',
   },
@@ -306,6 +320,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.85,
     maxSeconds: 0.7,
     pitchVariation: 0.05,
+    reverbSend: 0.07,
     spatial: MID,
     description: 'Committed strike: uppercut or slam. Deeper and longer.',
   },
@@ -318,6 +333,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.6,
     maxSeconds: 2.2,
     pitchVariation: 0.03,
+    reverbSend: 0.05,
     spatial: MID,
     description: 'Consecutive Normal Punches: a chain with rising pitch per hit.',
   },
@@ -330,6 +346,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.5,
     maxSeconds: 1.2,
     pitchVariation: 0.04,
+    reverbSend: 0.05,
     spatial: MID,
     description: 'A short two-to-four hit combo.',
   },
@@ -342,6 +359,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.9,
     maxSeconds: 2.6,
     pitchVariation: 0.02,
+    reverbSend: 0.05,
     spatial: MID,
     description: 'The fastest chain the character throws.',
   },
@@ -354,6 +372,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.4,
     maxSeconds: 0.4,
     pitchVariation: 0.12,
+    reverbSend: 0.06,
     spatial: NEAR,
     description: 'Dull body/ragdoll contact for physics impulses.',
   },
@@ -366,6 +385,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.85,
     maxSeconds: 4,
     pitchVariation: 0.02,
+    reverbSend: 0.4,
     spatial: HUGE,
     description: 'Serious punch. Resonant lowpass sweep, sub drop, long air tail.',
   },
@@ -378,6 +398,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 1,
     maxSeconds: 6.5,
     pitchVariation: 0,
+    reverbSend: 0.5,
     spatial: HUGE,
     description: 'Serious Series: Table Flip. Longer, lower, apocalyptic.',
   },
@@ -390,6 +411,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.6,
     maxSeconds: 2,
     pitchVariation: 0.04,
+    reverbSend: 0.3,
     spatial: FAR,
     description: 'The smaller blast wake of a heavy strike.',
   },
@@ -402,6 +424,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.4,
     maxSeconds: 2,
     pitchVariation: 0.15,
+    reverbSend: 0.28,
     spatial: MID,
     description: 'Granular concrete debris cloud, density driven by chunk count.',
   },
@@ -414,6 +437,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.4,
     maxSeconds: 2,
     pitchVariation: 0.15,
+    reverbSend: 0.4,
     spatial: MID,
     description: 'Glass debris: bright, high-Q, long ringing grains.',
   },
@@ -426,6 +450,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.4,
     maxSeconds: 2.2,
     pitchVariation: 0.15,
+    reverbSend: 0.4,
     spatial: MID,
     description: 'Metal debris: resonant, clanging grains.',
   },
@@ -438,6 +463,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.4,
     maxSeconds: 1.8,
     pitchVariation: 0.15,
+    reverbSend: 0.25,
     spatial: MID,
     description: 'Wood debris: short, mid-range, dry grains.',
   },
@@ -450,6 +476,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.7,
     maxSeconds: 8,
     pitchVariation: 0.05,
+    reverbSend: 0.45,
     spatial: HUGE,
     description: 'Mid-rise collapse: groan, brown-noise rumble, crackle, settle.',
   },
@@ -462,6 +489,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.9,
     maxSeconds: 12,
     pitchVariation: 0.03,
+    reverbSend: 0.5,
     spatial: HUGE,
     description: 'Tower collapse. Longer, lower, far more material.',
   },
@@ -474,6 +502,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.5,
     maxSeconds: 4,
     pitchVariation: 0.08,
+    reverbSend: 0.35,
     spatial: FAR,
     description: 'A facade shedding: short, material-dominated.',
   },
@@ -486,6 +515,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.7,
     maxSeconds: 6,
     pitchVariation: 0.05,
+    reverbSend: 0.4,
     spatial: FAR,
     description: 'Threat-tiered roar. FM source, formant body, growl roughness.',
   },
@@ -498,6 +528,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.7,
     maxSeconds: 4,
     pitchVariation: 0.07,
+    reverbSend: 0.42,
     spatial: FAR,
     description: 'High, inharmonic shriek.',
   },
@@ -510,6 +541,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.5,
     maxSeconds: 2,
     pitchVariation: 0.1,
+    reverbSend: 0.22,
     spatial: MID,
     description: 'Took a hit and survived. Short, clipped, falling.',
   },
@@ -522,6 +554,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.8,
     maxSeconds: 7,
     pitchVariation: 0.06,
+    reverbSend: 0.38,
     spatial: FAR,
     description: 'Pitch collapses, growl slows, throat rattles out.',
   },
@@ -534,6 +567,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.5,
     maxSeconds: 0.6,
     pitchVariation: 0.1,
+    reverbSend: 0.14,
     spatial: NEAR,
     description: 'Surface-dependent footstep: scuff plus body thump.',
   },
@@ -546,6 +580,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.5,
     maxSeconds: 3,
     pitchVariation: 0.07,
+    reverbSend: 0.25,
     spatial: MID,
     description: 'Touchdown. Becomes a crater at high impact speed.',
   },
@@ -558,6 +593,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.5,
     maxSeconds: 0.8,
     pitchVariation: 0.09,
+    reverbSend: 0.12,
     spatial: NEAR,
     description: 'Rising air whoosh on the way up.',
   },
@@ -570,6 +606,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.6,
     maxSeconds: 0.8,
     pitchVariation: 0.08,
+    reverbSend: 0.12,
     spatial: NEAR,
     description: 'Fall-then-rise pass-by whoosh with a bent tone.',
   },
@@ -582,6 +619,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.8,
     maxSeconds: 1.4,
     pitchVariation: 0.06,
+    reverbSend: 0.25,
     spatial: MID,
     description: 'A leap big enough to crack the ground it left.',
   },
@@ -594,6 +632,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0,
     maxSeconds: Number.POSITIVE_INFINITY,
     pitchVariation: 0,
+    reverbSend: 0,
     description: 'Sustained wind. Three bands, centre frequency rises with speed.',
   },
   'ambience.crowd': {
@@ -605,6 +644,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.3,
     maxSeconds: Number.POSITIVE_INFINITY,
     pitchVariation: 0,
+    reverbSend: 0.18,
     description: 'Sustained crowd bed with sparse vocal blips; density-driven.',
   },
   'crowd.cheer': {
@@ -616,6 +656,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.6,
     maxSeconds: 2.5,
     pitchVariation: 0.05,
+    reverbSend: 0.3,
     spatial: FAR,
     description: 'Relief and applause when a civilian is saved.',
   },
@@ -628,6 +669,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.6,
     maxSeconds: 1.6,
     pitchVariation: 0.05,
+    reverbSend: 0.25,
     spatial: FAR,
     description: 'A collective intake of breath.',
   },
@@ -640,6 +682,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.8,
     maxSeconds: 3.5,
     pitchVariation: 0.05,
+    reverbSend: 0.35,
     spatial: FAR,
     description: 'Screaming and scattering: a fight going wrong.',
   },
@@ -652,6 +695,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.6,
     maxSeconds: 0.2,
     pitchVariation: 0.02,
+    reverbSend: 0,
     description: 'Button press. As small as a sound can be and still register.',
   },
   'ui.confirm': {
@@ -663,6 +707,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.7,
     maxSeconds: 0.5,
     pitchVariation: 0,
+    reverbSend: 0,
     description: 'Accepted: a rising perfect fifth.',
   },
   'ui.deny': {
@@ -674,6 +719,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.7,
     maxSeconds: 0.6,
     pitchVariation: 0,
+    reverbSend: 0,
     description: 'Rejected: a falling, bending minor third with grit.',
   },
   'ui.alert': {
@@ -685,6 +731,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.9,
     maxSeconds: 1,
     pitchVariation: 0,
+    reverbSend: 0,
     description: 'Threat detected. Two repeated falling pulses.',
   },
   'ui.rankUp': {
@@ -696,6 +743,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 1,
     maxSeconds: 2.5,
     pitchVariation: 0,
+    reverbSend: 0,
     description: 'Promotion: ascending arpeggio over a rising shimmer.',
   },
   'ui.victory': {
@@ -707,6 +755,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.9,
     maxSeconds: 2,
     pitchVariation: 0,
+    reverbSend: 0,
     description: 'Encounter won. Shorter and warmer than a promotion.',
   },
   'ui.dark': {
@@ -718,6 +767,7 @@ export const SOUND_SPECS: Record<SoundKey, ISoundSpec> = {
     intensity: 0.9,
     maxSeconds: 3,
     pitchVariation: 0,
+    reverbSend: 0,
     description: 'Something went wrong. Beating semitone, sinking, uncomfortable.',
   },
 };

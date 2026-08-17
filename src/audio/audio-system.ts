@@ -51,6 +51,7 @@ import {
 import { CrowdBedVoice } from './voices/crowd';
 import { WindVoice } from './voices/locomotion';
 import { MusicDirector } from './music/director';
+import { ReverbSend, REVERB_PRESETS, type ReverbPreset } from './reverb';
 import { MUSIC_STATES, type MusicState } from './music/patterns';
 import { resolveEventAudio, type IAudioCue } from './event-map';
 
@@ -96,6 +97,12 @@ export interface ISynthPlayOptions extends Omit<IPlayOptions, 'position'> {
   readonly variant?: string;
   /** 0..1 "how hard". Overrides the key's default. */
   readonly intensity?: number;
+  /**
+   * Reverb send override 0..1. Defaults to the key's own value. Useful when
+   * the same sound is heard from a different acoustic position — a punch
+   * heard from inside a building sends far more than one heard in the open.
+   */
+  readonly send?: number;
 }
 
 export interface IAudioSystemOptions {
@@ -113,6 +120,12 @@ export interface IAudioSystemOptions {
   readonly bypassMaster?: boolean;
   /** Start the ambience beds as soon as the system unlocks. */
   readonly autoStartAmbience?: boolean;
+  /**
+   * Acoustic environment at construction. Pass `'none'` to render voices dry,
+   * which is what the per-voice offline probes do so that they measure the
+   * VOICE rather than the room around it.
+   */
+  readonly environment?: ReverbPreset;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -284,6 +297,7 @@ export class AudioSystem implements IAudioSystem {
   readonly ctx: BaseAudioContext;
   readonly mixer: Mixer;
   readonly music: MusicDirector;
+  readonly reverb: ReverbSend;
 
   readonly maxVoices: number;
 
@@ -328,6 +342,13 @@ export class AudioSystem implements IAudioSystem {
     this.music = new MusicDirector(this.ctx, this.mixer.input('music'), {
       seed: (options.seed ?? DEFAULT_SEED) ^ 0xc0da,
     });
+
+    // The wet return lands on the master bus, below the per-bus faders that
+    // already scaled the sends, so it is neither double-attenuated nor able to
+    // escape the master limiter.
+    this.reverb = new ReverbSend(this.ctx, this.mixer.masterBus);
+    this.mixer.connectSends(this.reverb.input);
+    this.reverb.setPreset(options.environment ?? 'openStreet', 0, 0);
 
     // An offline context has no autoplay policy and no user gesture: it is
     // unlocked by definition, which is what lets the render tests drive the
@@ -429,6 +450,7 @@ export class AudioSystem implements IAudioSystem {
       rng: this.rng.derive(spec.key),
       position: options.position ?? options.attachTo?.position,
       spatial: spec.spatial,
+      send: options.send ?? spec.reverbSend,
     });
 
     const endTime = time + duration + (options.fadeIn ?? 0);
@@ -456,6 +478,7 @@ export class AudioSystem implements IAudioSystem {
     const now = this.ctx.currentTime;
     const intensity = clamp01(options.intensity ?? spec.intensity);
     voice.start(now, intensity, options.fadeIn ?? 0.6);
+    voice.setSend(options.send ?? spec.reverbSend, now);
     const handle = new SynthSoundHandle({
       id: this.nextHandleId++,
       key: spec.key,
@@ -620,6 +643,29 @@ export class AudioSystem implements IAudioSystem {
     if (this.ambienceRunning) {
       this.crowd().setIntensity(this.crowdDensity, this.ctx.currentTime, 1.5);
     }
+  }
+
+  /**
+   * Set the acoustic environment.
+   *
+   * The city is 1.5 km across and the spaces in it are not interchangeable: a
+   * covered arcade, a narrow alley, an open street and the crater a serious
+   * punch just left should not sound alike. This is a per-frame parameter like
+   * crowd density and player speed — the world system calls it as the listener
+   * moves between spaces, and the reverb glides rather than cutting.
+   */
+  setEnvironment(preset: ReverbPreset, glideSeconds = 0.6): void {
+    this.reverb.setPreset(preset, this.ctx.currentTime, glideSeconds);
+  }
+
+  /** The acoustic environment currently in force. */
+  get environment(): ReverbPreset {
+    return this.reverb.preset;
+  }
+
+  /** Every selectable environment, for the audition harness. */
+  get environments(): Readonly<typeof REVERB_PRESETS> {
+    return REVERB_PRESETS;
   }
 
   /** Ambient (not speed-driven) wind level, 0..1. */
@@ -803,9 +849,12 @@ export class AudioSystem implements IAudioSystem {
     if (!bank) {
       const spec = VOICE_CLASSES[id];
       const destination = this.mixer.input(spec.category);
-      bank = new VoiceBank<SynthVoice>(id, spec.poolSize, (index) =>
-        spec.create(this.ctx, destination, index)
-      );
+      const sendTarget = this.mixer.sendInput(spec.category);
+      bank = new VoiceBank<SynthVoice>(id, spec.poolSize, (index) => {
+        const voice = spec.create(this.ctx, destination, index);
+        voice.attachSend(sendTarget);
+        return voice;
+      });
       this.banks.set(id, bank);
     }
     return bank;
@@ -816,6 +865,7 @@ export class AudioSystem implements IAudioSystem {
     if (!voice) {
       const spec = VOICE_CLASSES[id];
       voice = spec.create(this.ctx, this.mixer.input(spec.category), 0) as SustainedVoice;
+      voice.attachSend(this.mixer.sendInput(spec.category));
       this.sustainedVoices.set(id, voice);
     }
     return voice;
@@ -848,6 +898,7 @@ export class AudioSystem implements IAudioSystem {
     for (const voice of this.sustainedVoices.values()) voice.dispose();
     this.sustainedVoices.clear();
     this.music.dispose();
+    this.reverb.dispose();
     this.mixer.dispose();
     if (isLiveContext(this.ctx)) {
       void (this.ctx as AudioContext).close().catch(() => undefined);

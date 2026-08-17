@@ -29,6 +29,8 @@ import { THREAT_TIERS } from '../voices/monster';
 import type { ThreatTier } from '@/types';
 import type { DebrisVoice } from '../voices/debris';
 import type { CrowdBedVoice } from '../voices/crowd';
+import { REVERB_PRESET_NAMES, type ReverbPreset } from '../reverb';
+import { percussive } from '../dsp';
 import * as A from './analysis';
 
 /* -------------------------------------------------------------------------- */
@@ -116,6 +118,12 @@ export interface IProbeOptions {
   /** Force PCM to be returned. */
   readonly includePcm?: boolean;
   readonly seed?: number;
+  /**
+   * Acoustic environment. Defaults to `'none'`: a per-voice probe must measure
+   * the VOICE, not the room around it, and leaving reverb on would lengthen
+   * every tail and blur every spectral measurement.
+   */
+  readonly environment?: ReverbPreset;
 }
 
 /** Probes whose raw PCM is shipped back for independent Node-side analysis. */
@@ -156,6 +164,7 @@ function systemFor(ctx: OfflineAudioContext, options: IProbeOptions): AudioSyste
     bypassMaster: options.bypassMaster ?? false,
     seed: options.seed ?? 0x51ee7,
     autoStartAmbience: false,
+    environment: options.environment ?? 'none',
   });
   // Flat buses so a probe measures the VOICE, not the default mix balance.
   for (const category of ['sfx', 'music', 'ambience', 'voice', 'ui'] as const) {
@@ -525,6 +534,148 @@ export async function renderRetriggerProbe(options: IProbeOptions = {}): Promise
 }
 
 /**
+ * ENVELOPE ANCHOR REGRESSION GUARD.
+ *
+ * Schedules a percussive envelope — through the real `dsp` helper, on a bare
+ * graph — at 0.3 s, and measures everything before it.
+ *
+ * This exists because of a bug that was invisible for a long time and cost the
+ * entire punch-chain family its low end: `cancelAndHoldAtTime` inserts no
+ * anchor event on a param that has never been automated, so the ramp that
+ * follows interpolates from time ZERO. Every pooled voice spent the whole
+ * preceding buffer fading in at its oscillator's construction frequency.
+ *
+ * The assertion is absolute: the buffer before the trigger must be exactly
+ * silent, and the second envelope on a second unit must not leak into the gap
+ * before it.
+ */
+export async function renderAnchorProbe(options: IProbeOptions = {}): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const seconds = 0.9;
+  const first = 0.1;
+  const second = 0.6;
+
+  const ctx = offlineContext(seconds, sampleRate);
+  const build = (hz: number, at: number): void => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = hz;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    percussive(gain.gain, at, 0.5, 0.002, 0.08);
+  };
+  // Two independent units, the second scheduled far later — exactly the
+  // arrangement a punch chain creates.
+  build(440, first);
+  build(880, second);
+
+  const buffer = await ctx.startRendering();
+  const left = Float32Array.from(buffer.getChannelData(0));
+  const right = buffer.numberOfChannels > 1 ? Float32Array.from(buffer.getChannelData(1)) : left;
+  const mono = A.downmix(left, right);
+
+  const beforeFirst = mono.subarray(0, Math.floor(first * sampleRate) - 2);
+  // Well after the first envelope has died and well before the second starts.
+  const gap = mono.subarray(Math.floor(0.4 * sampleRate), Math.floor((second - 0.01) * sampleRate));
+
+  const result: RenderResult = {
+    left,
+    right,
+    mono,
+    sampleRate,
+    seconds,
+    extras: {
+      peakBeforeFirst: A.peak(beforeFirst),
+      peakInGap: A.peak(gap),
+      peakOverall: A.peak(mono),
+      firstAt: first,
+      secondAt: second,
+    },
+  };
+  return measure(
+    'dsp.envelopeAnchor',
+    'mix',
+    'Two percussive envelopes on separate units: nothing may sound before either.',
+    result,
+    first,
+    options.includePcm ?? false
+  );
+}
+
+/**
+ * Pure reverb tail.
+ *
+ * A UI tick — 30 ms long, and the only voice family that normally sends
+ * nothing — is fired with its send forced to full. Everything after 150 ms is
+ * therefore the room and nothing else, which makes the decay measurable
+ * directly instead of having to be separated from a dry signal.
+ */
+export async function renderReverbTailProbe(
+  preset: ReverbPreset,
+  options: IProbeOptions = {}
+): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const seconds = 6;
+  const result = await render(seconds, sampleRate, { ...options, environment: preset }, (system) => {
+    system.play('ui.tap', { intensity: 1, delay: TRIGGER_AT, pitchVariation: 0, send: 1 });
+    return { };
+  });
+
+  const at = (from: number, to: number): Float32Array =>
+    result.mono.subarray(Math.floor(from * sampleRate), Math.floor(to * sampleRate));
+  const tail = result.mono.subarray(Math.floor(0.15 * sampleRate));
+  const early = A.rms(at(0.2, 0.4));
+  const late = A.rms(at(0.9, 1.1));
+
+  result.extras.tailDuration = A.activeDuration(tail, sampleRate, 3e-4);
+  result.extras.tailRms = A.rms(tail);
+  result.extras.earlyRms = early;
+  result.extras.lateRms = late;
+  // How many dB the tail loses between the two windows — the decay slope.
+  result.extras.decayDb = early > 0 && late > 0 ? 20 * Math.log10(early / late) : 99;
+  result.extras.tailWidth = A.stereoWidth(
+    result.left.subarray(Math.floor(0.2 * sampleRate)),
+    result.right.subarray(Math.floor(0.2 * sampleRate))
+  );
+  result.extras.tailCentroid = A.spectralCentroid(at(0.2, 0.6), sampleRate);
+  result.extras.tailSub = A.bandFraction(at(0.2, 0.6), sampleRate, 0, 150);
+
+  return measure(
+    `reverb.tail.${preset}`,
+    'mix',
+    `Pure reverb tail of the "${preset}" environment.`,
+    result,
+    TRIGGER_AT,
+    options.includePcm ?? false
+  );
+}
+
+/** One voice rendered inside an environment, for dry/wet comparison. */
+export async function renderEnvironmentProbe(
+  key: SoundKey,
+  preset: ReverbPreset,
+  options: IProbeOptions = {}
+): Promise<IProbeMetrics> {
+  const sampleRate = options.sampleRate ?? 44100;
+  const seconds = Math.min(secondsFor(key) + 3, 14);
+  const spec = SOUND_SPECS[key];
+  const result = await render(seconds, sampleRate, { ...options, environment: preset }, (system) => {
+    system.play(key, { intensity: spec.intensity, delay: TRIGGER_AT, pitchVariation: 0 });
+    return { send: spec.reverbSend };
+  });
+  return measure(
+    `env.${key}@${preset}`,
+    'mix',
+    `${key} in the "${preset}" environment.`,
+    result,
+    TRIGGER_AT,
+    options.includePcm ?? false
+  );
+}
+
+/**
  * Chain pitch rise.
  *
  * Slices the render at exactly the times the voice scheduled its hits — taken
@@ -823,6 +974,11 @@ export function probeNames(): string[] {
     'ambience.crowd@0.9',
     'move.wind@4',
     'move.wind@42',
+    'dsp.envelopeAnchor',
+    ...REVERB_PRESET_NAMES.map((p) => `reverb.tail.${p}`),
+    ...['punch.normal', 'collapse.building', 'ui.tap'].flatMap((k) =>
+      ['none', 'openStreet', 'crater'].map((p) => `env.${k}@${p}`)
+    ),
   ];
 }
 
@@ -847,6 +1003,13 @@ export async function renderAllProbes(options: IProbeOptions = {}): Promise<IPro
   }
   for (const density of [0.05, 0.9]) out.push(await renderCrowdDensityProbe(density, options));
   for (const speed of [4, 42]) out.push(await renderWindSpeedProbe(speed, options));
+  out.push(await renderAnchorProbe(options));
+  for (const preset of REVERB_PRESET_NAMES) out.push(await renderReverbTailProbe(preset, options));
+  for (const key of ['punch.normal', 'collapse.building', 'ui.tap'] as SoundKey[]) {
+    for (const preset of ['none', 'openStreet', 'crater'] as ReverbPreset[]) {
+      out.push(await renderEnvironmentProbe(key, preset, options));
+    }
+  }
   return out;
 }
 
@@ -882,6 +1045,9 @@ export function installProbeApi(): void {
     renderVariantProbe,
     renderCrowdDensityProbe,
     renderWindSpeedProbe,
+    renderAnchorProbe,
+    renderReverbTailProbe,
+    renderEnvironmentProbe,
     probeNames,
     PCM_PROBES,
   };

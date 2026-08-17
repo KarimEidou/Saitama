@@ -81,8 +81,10 @@ import { promisify } from 'node:util';
 
 import {
   Document,
+  Logger as GLTFLogger,
   NodeIO,
   PropertyType,
+  Verbosity,
   type Material,
   type Mesh,
   type Primitive,
@@ -185,6 +187,8 @@ export interface ProcessResult {
    * to read it.
    */
   readonly models: readonly IModelAssetOutput[];
+  /** Per-model timings and before/after counts, for the CLI's report table. */
+  readonly stats: readonly IModelStats[];
 }
 
 /** Per-model result, shaped so it can be spliced into the asset manifest. */
@@ -212,13 +216,21 @@ export interface IModelAssetOutput {
  * input. It is folded into the content-addressed output key, so bumping it
  * invalidates every cached build — which is the point.
  */
-const TOOL_VERSION = 'process-models@3';
+const TOOL_VERSION = 'process-models@4';
 
 /** Where built models land. Served by Vite from `/assets/mdl/…`. */
 const OUTPUT_DIR = path.join(REPO_ROOT, 'public', 'assets', 'mdl');
 
-/** KTX2 encodes are cached here so a second tier, or `--force`, stays cheap. */
-const KTX_CACHE_DIR = path.join(REPO_ROOT, 'assets', 'generated', '.cache', 'models-ktx2');
+/**
+ * KTX2 encodes are cached here so a second tier, or `--force`, stays cheap.
+ *
+ * Deliberately inside this stage's own output directory rather than the shared
+ * `assets/generated/` tree: sibling asset workstreams run concurrently and
+ * treat that tree as theirs to clean, and a `rm -rf` landing between `ktx`
+ * writing its output and this process reading it back is an unreproducible
+ * mid-run ENOENT. Owning the directory removes the question.
+ */
+const KTX_CACHE_DIR = path.join(REPO_ROOT, 'public', 'assets', 'mdl', '.cache');
 
 /**
  * The `ktx` ELF, not the npm shim. See the header note: the shim writes a
@@ -576,11 +588,26 @@ function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
  * out of this untouched. Verified against gltf-transform 4.4.2's
  * `compactPrimitive`, which guards every disposal with
  * `listParents().length === 1`.
+ *
+ * MORPH TARGETS ARE THE EXCEPTION, and they are why this function exists
+ * instead of a one-liner. `compactPrimitive` rewrites target attributes with
+ * `target.swap(src, dst)` — a mutation of the PrimitiveTarget itself, which
+ * `Primitive.clone()` shares by reference. Simplifying the clone therefore
+ * used to reach back and re-point the ORIGINAL primitive's targets at
+ * decimated accessors, leaving LOD0 with a 5,478-vertex base and a
+ * 1,917-vertex morph target. The Khronos validator catches it as
+ * MESH_PRIMITIVE_MORPH_TARGET_INVALID_ATTRIBUTE_COUNT; `rusted_wheel_rim_01`
+ * and `_02` are the two assets in this kit that carry shape keys. Cloning
+ * each target gives the LOD its own, and the original is left alone.
  */
 function simplifyMeshClone(doc: Document, source: Mesh, ratio: number, error: number): Mesh {
-  const mesh = doc.createMesh();
+  const mesh = doc.createMesh().setWeights([...source.getWeights()]);
   for (const prim of source.listPrimitives()) {
     const clone = prim.clone();
+    for (const target of clone.listTargets()) {
+      clone.removeTarget(target);
+      clone.addTarget(target.clone());
+    }
     if (clone.getIndices() && getGLPrimitiveCount(clone) > 0) {
       simplifyPrimitive(clone, {
         ratio,
@@ -672,9 +699,12 @@ async function encodeTextureToKTX2(
   const format = ktxFormatFor(texture, srgb);
   const [width, height] = fitSize(size[0], size[1], params.maxDimension);
 
+  // Deliberately NOT keyed on TOOL_VERSION: a KTX2 file is a pure function of
+  // its source pixels and these encoder flags, so a change anywhere else in
+  // the pipeline has no business throwing away 90 seconds of encoding.
   const cacheKey = sha256Of(
     [
-      TOOL_VERSION,
+      'ktx2/1',
       sha256Of(Buffer.from(image)),
       params.codec,
       params.quality,
@@ -786,6 +816,19 @@ async function compressTextures(
 /* Stage 4 — per-model driver                                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * What one model produced, returned in memory.
+ *
+ * `processModels` used to re-read the sidecar it had just written to collect
+ * this. Reading back what you already hold is a pointless round-trip and, with
+ * several models in flight and other agents on the same filesystem, one more
+ * way for a run to disagree with itself about what it built.
+ */
+interface IBuiltModel {
+  readonly stats: IModelStats;
+  readonly record: IModelAssetOutput;
+}
+
 /** Everything the sidecar remembers so a rerun can decide to do nothing. */
 interface ISidecar {
   readonly key: string;
@@ -870,7 +913,7 @@ async function processOne(
   log: Logger,
   force: boolean,
   threads: number
-): Promise<IModelStats> {
+): Promise<IBuiltModel> {
   const startedAt = Date.now();
   const glbPath = outputPathFor(entry.id, tier);
   const sidecarPath = `${glbPath}.json`;
@@ -881,7 +924,10 @@ async function processOne(
     if (sidecar?.key === key && existsSync(glbPath)) {
       const onDisk = await stat(glbPath);
       if (onDisk.size === sidecar.record.output.bytes) {
-        return { ...sidecar.stats, ms: Date.now() - startedAt, cached: true };
+        return {
+          stats: { ...sidecar.stats, ms: Date.now() - startedAt, cached: true },
+          record: sidecar.record,
+        };
       }
     }
   }
@@ -891,6 +937,10 @@ async function processOne(
   const gltfPath = sourcePath(rootFile.path);
 
   const doc = await io.read(gltfPath);
+  // gltf-transform narrates every transform at INFO. With 39 documents in
+  // flight that buries the pipeline's own progress line, so it is turned down
+  // to warnings and errors — the numbers that matter are measured here anyway.
+  doc.setLogger(new GLTFLogger(Verbosity.WARN));
   const root = doc.getRoot();
   const srcTriangles = root.listMeshes().reduce((sum, mesh) => sum + triangleCount(mesh), 0);
 
@@ -1036,7 +1086,7 @@ async function processOne(
     `${entry.providerAssetId}: ${srcTriangles} → ${lod.levels.map((l) => l.triangles).join('/')} tris, ` +
       `${formatBytes(glb.byteLength)}, ${textures.count} textures`
   );
-  return stats;
+  return { stats, record };
 }
 
 /**
@@ -1081,7 +1131,7 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
     .filter((entry) => matchesFilter(entry, filters));
 
   if (models.length === 0) {
-    return { written: 0, skipped: 0, bytes: 0, errors: [], outputs: [], models: [] };
+    return { written: 0, skipped: 0, bytes: 0, errors: [], outputs: [], models: [], stats: [] };
   }
 
   await mkdir(OUTPUT_DIR, { recursive: true });
@@ -1116,7 +1166,7 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
       limiter.run(async () => {
         const target = entry.tiers[opts.tier] ?? FALLBACK_TARGET[opts.tier];
         try {
-          const stats = await processOne(
+          const built = await processOne(
             entry,
             opts.tier,
             target,
@@ -1125,9 +1175,8 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
             opts.force === true,
             threads
           );
-          results.push(stats);
-          const sidecar = await readSidecar(`${outputPathFor(entry.id, opts.tier)}.json`);
-          if (sidecar) records.push(sidecar.record);
+          results.push(built.stats);
+          records.push(built.record);
         } catch (error) {
           errors.push(`${entry.id}: ${(error as Error).message}`);
           log.error(`${entry.providerAssetId}: ${(error as Error).message}`);
@@ -1176,6 +1225,7 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
     errors,
     outputs: records.map((record) => ({ ...record.output, assetId: record.id })),
     models: records,
+    stats: results,
   };
 }
 
@@ -1298,16 +1348,7 @@ async function main(): Promise<void> {
   const log = new Logger();
   const result = await processModels(args);
 
-  const rows = await Promise.all(
-    result.models.map(async (record) => {
-      const sidecar = await readSidecar(
-        path.join(OUTPUT_DIR, `${record.id}.${args.tier}.glb.json`)
-      );
-      return sidecar?.stats;
-    })
-  );
-  const stats = rows.filter((row): row is IModelStats => row !== undefined);
-  stats.sort((a, b) => b.outputBytes - a.outputBytes);
+  const stats = [...result.stats].sort((a, b) => b.outputBytes - a.outputBytes);
 
   log.heading(`per-model (${args.tier})`);
   console.log(
@@ -1343,6 +1384,11 @@ async function main(): Promise<void> {
     let failed = 0;
     for (const record of result.models) {
       const file = outputPathFor(record.id, args.tier);
+      if (!existsSync(file)) {
+        failed += 1;
+        log.error(`${path.basename(file)}: missing — nothing to validate`);
+        continue;
+      }
       const report = await validateGlb(file);
       if (report.errors.length > 0) {
         failed += 1;
