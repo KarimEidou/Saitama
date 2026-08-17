@@ -5,7 +5,7 @@
  * `OfflineAudioContext` in headless Chromium and measured. No mocks, no
  * stubs: the graph under test is the graph that ships.
  *
- * Four families of assertion, applied to all thirty-five voices:
+ * Four families of assertion, applied to all thirty-eight voices:
  *
  *  1. NOT SILENT      — RMS and peak above a floor. A voice that produces
  *                       nothing is the failure mode this whole system exists

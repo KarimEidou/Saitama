@@ -10,9 +10,9 @@
  *    `punch.normal`, `punch.heavy` and `impact.body` are the same graph with a
  *    different variant — so adding a new sound is usually free.
  *
- * This is what keeps the node count fixed. Thirty-five distinct sounds run on
- * sixteen pools; the whole engine allocates its graph once, at unlock, and
- * never again.
+ * This is what keeps the node count fixed. Thirty-eight distinct sounds run on
+ * sixteen pools, and pools are built lazily on first use, so a session only
+ * pays for the graphs it actually plays.
  *
  * `maxSeconds` is the longest tail a key can produce. The offline render tests
  * use it to size their buffers, and the voice bank uses the reported duration

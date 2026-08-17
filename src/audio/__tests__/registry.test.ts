@@ -43,7 +43,7 @@ const VARIANT_SOURCES: Partial<Record<string, readonly string[]>> = {
 describe('registry structure', () => {
   it('catalogues every key exactly once', () => {
     expect(SOUND_KEYS.length).toBe(new Set(SOUND_KEYS).size);
-    expect(SOUND_KEYS.length).toBeGreaterThanOrEqual(35);
+    expect(SOUND_KEYS.length).toBe(38);
     for (const key of SOUND_KEYS) expect(SOUND_SPECS[key].key).toBe(key);
   });
 

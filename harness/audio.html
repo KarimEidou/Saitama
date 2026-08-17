@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Audio Harness — synthesised game audio</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d0f13;
+        --panel: #171b22;
+        --panel-2: #1f242d;
+        --line: #2c333f;
+        --text: #e7ecf3;
+        --dim: #97a3b6;
+        --accent: #ffd23f;
+        --accent-2: #4fc3f7;
+        --danger: #ff5c5c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+      }
+      body {
+        padding: 16px 16px 96px;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+        letter-spacing: 0.02em;
+      }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--dim);
+        margin: 0 0 10px;
+      }
+      p.lede {
+        color: var(--dim);
+        margin: 0 0 18px;
+        max-width: 74ch;
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 8px;
+      }
+      button {
+        font: inherit;
+        color: var(--text);
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 9px 10px;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          border-color 0.12s;
+        min-height: 44px;
+      }
+      button:hover {
+        background: #29313d;
+        border-color: #3d485a;
+      }
+      button:active {
+        background: var(--accent);
+        color: #14181e;
+      }
+      button.wide {
+        text-align: center;
+      }
+      button.on {
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px var(--accent);
+      }
+      button .k {
+        display: block;
+        font-weight: 600;
+      }
+      button .d {
+        display: block;
+        color: var(--dim);
+        font-size: 11px;
+        line-height: 1.35;
+        margin-top: 2px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: center;
+      }
+      label.slider {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 190px;
+        flex: 1 1 190px;
+        font-size: 12px;
+        color: var(--dim);
+      }
+      label.slider b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      input[type='range'] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+      #unlock {
+        background: var(--accent);
+        color: #14181e;
+        font-weight: 700;
+        border: 0;
+        padding: 14px 20px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 15px;
+      }
+      #status {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #0a0c10ee;
+        border-top: 1px solid var(--line);
+        padding: 10px 16px;
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+        color: var(--dim);
+        backdrop-filter: blur(6px);
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      #status b {
+        color: var(--text);
+      }
+      .locked section {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      code {
+        background: #10141a;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body class="locked">
+    <h1>Audio harness</h1>
+    <p class="lede">
+      Every sound below is <strong>synthesised at runtime</strong> from oscillators, filters and
+      procedurally generated noise. There are no audio files in this project and no audio bytes in
+      the bundle. Browsers block audio until a real gesture, so unlock first.
+    </p>
+
+    <button id="unlock">Tap to unlock audio</button>
+
+    <section id="sec-events">
+      <h2>Game events</h2>
+      <p class="lede">
+        These fire real <code>GameEvent</code> payloads through the event bus. Nothing calls the
+        audio system directly — this is exactly the path gameplay uses.
+      </p>
+      <div class="grid" id="events"></div>
+    </section>
+
+    <section id="sec-voices">
+      <h2>Voices</h2>
+      <div class="row" style="margin-bottom: 12px">
+        <label class="slider"
+          ><span>Intensity <b id="intensity-v">0.7</b></span
+          ><input id="intensity" type="range" min="0" max="1" step="0.01" value="0.7"
+        /></label>
+        <label class="slider"
+          ><span>Distance <b id="distance-v">0 m</b></span
+          ><input id="distance" type="range" min="0" max="200" step="1" value="0"
+        /></label>
+        <label class="slider"
+          ><span>Azimuth <b id="azimuth-v">0°</b></span
+          ><input id="azimuth" type="range" min="-180" max="180" step="1" value="0"
+        /></label>
+      </div>
+      <div class="grid" id="voices"></div>
+    </section>
+
+    <section id="sec-music">
+      <h2>Music — intensity layers</h2>
+      <p class="lede">
+        Layers add and drop <em>parts</em> on the next bar line; they are not crossfaded stems.
+        Boredom eats the arrangement away until only a single sustained tone is left.
+      </p>
+      <div class="grid" id="music"></div>
+      <div class="row" style="margin-top: 12px">
+        <label class="slider"
+          ><span>Boredom <b id="boredom-v">0.00</b></span
+          ><input id="boredom" type="range" min="0" max="1" step="0.01" value="0"
+        /></label>
+      </div>
+    </section>
+
+    <section id="sec-ambience">
+      <h2>Ambience</h2>
+      <div class="row">
+        <label class="slider"
+          ><span>Nearby civilians <b id="civilians-v">12</b></span
+          ><input id="civilians" type="range" min="0" max="120" step="1" value="12"
+        /></label>
+        <label class="slider"
+          ><span>Player speed <b id="speed-v">0 m/s</b></span
+          ><input id="speed" type="range" min="0" max="60" step="1" value="0"
+        /></label>
+        <label class="slider"
+          ><span>Ambient wind <b id="wind-v">0.15</b></span
+          ><input id="wind" type="range" min="0" max="1" step="0.01" value="0.15"
+        /></label>
+      </div>
+      <div class="grid" style="margin-top: 12px" id="ambience"></div>
+    </section>
+
+    <section id="sec-mixer">
+      <h2>Mixer</h2>
+      <div class="row" id="buses"></div>
+      <div class="grid" style="margin-top: 12px" id="mixer-actions"></div>
+    </section>
+
+    <div id="status">
+      <span>state <b id="s-state">locked</b></span>
+      <span>voices <b id="s-voices">0</b></span>
+      <span>music <b id="s-music">—</b></span>
+      <span>parts <b id="s-parts">—</b></span>
+      <span>bar <b id="s-bar">0</b></span>
+      <span>limiter <b id="s-gr">0.0 dB</b></span>
+      <span>ctx <b id="s-rate">—</b></span>
+    </div>
+
+    <script type="module" src="./audio.ts"></script>
+  </body>
+</html>

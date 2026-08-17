@@ -24,7 +24,7 @@
 
 import type { AudioCategory } from '@/types';
 import { clamp, clamp01, lerp } from '@/util';
-import { percussive, resetParam, sweep } from '../dsp';
+import { percussive, sweep } from '../dsp';
 import { createNoiseSource } from '../noise';
 import { SynthVoice, type ITriggerParams } from '../voice';
 
