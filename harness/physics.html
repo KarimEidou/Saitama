@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Physics Harness — Saitama</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #e8e6e1;
+        --dim: #9aa0a6;
+        --accent: #ffd23f;
+        --ok: #6ee7a8;
+        --bad: #ff6b6b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #0a0c10;
+        color: var(--ink);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        overflow: hidden;
+      }
+      #gl {
+        position: fixed;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        max-width: 430px;
+        max-height: calc(100% - 24px);
+        overflow: auto;
+        padding: 12px 14px;
+        background: rgba(8, 10, 14, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        font-size: 11.5px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        backdrop-filter: blur(3px);
+      }
+      #panel h1 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .bad {
+        color: var(--bad);
+      }
+      .dim {
+        color: var(--dim);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <div id="panel"><h1>Physics harness</h1><span class="dim">booting…</span></div>
+    <script type="module" src="./physics.ts"></script>
+  </body>
+</html>
