@@ -90,13 +90,15 @@ import {
   COLLIDER_RADIUS,
   FULL_DETAIL_RADIUS,
   IMPOSTOR_ALBEDO,
-  IMPOSTOR_FACADE_SHADE,
   IMPOSTOR_GLASS_TINT,
   IMPOSTOR_GLAZED_FRACTION,
   IMPOSTOR_GROUND_COLOUR,
   IMPOSTOR_GROUND_DEPTH,
   IMPOSTOR_HEIGHT_SCALE,
   IMPOSTOR_PLAN_SCALE,
+  IMPOSTOR_SHADE_BASE,
+  IMPOSTOR_SHADE_HEIGHT,
+  IMPOSTOR_SHADE_RISE,
   REDUCED_DETAIL_RADIUS,
   RESIDENT_RADIUS_BY_TIER,
   STREAM_INTERVAL_SECONDS,
@@ -183,8 +185,10 @@ interface ISkylineBox {
   readonly maxX: number;
   readonly maxZ: number;
   readonly height: number;
-  /** Packed 0xRRGGBB façade tint, as `generateBuilding` bakes it. */
-  readonly facade: number;
+  /** Packed 0xRRGGBB façade tint at the pavement — the dark end of the ramp. */
+  readonly facadeBase: number;
+  /** Packed 0xRRGGBB façade tint at the parapet — the bright end. */
+  readonly facadeTop: number;
   readonly roof: number;
 }
 
@@ -226,18 +230,24 @@ function packTint(tint: readonly [number, number, number]): number {
 }
 
 /**
- * What a façade AVERAGES to at a distance, rather than what it is painted.
+ * What a façade LOOKS like at height `y`, rather than what it is painted.
  *
- * See `IMPOSTOR_FACADE_SHADE` for the derivation: a silhouette shows bare wall,
- * a real building shows wall plus glass under a baked sky-occlusion ramp, and
- * the difference is a third of the brightness.
+ * See `IMPOSTOR_SHADE_BASE` for the derivation: a silhouette shows bare wall, a
+ * real building shows wall plus glass under a sky-occlusion ramp that runs from
+ * pavement-dark to parapet-bright. Evaluated at the box's bottom and top
+ * vertices, this is that ramp — the gradient every distant block gets for free,
+ * because the vertices to hang it on are already there.
  */
-function facadeAverage(tint: readonly [number, number, number]): number {
-  const wall = 1 - IMPOSTOR_GLAZED_FRACTION;
+function facadeAt(tint: readonly [number, number, number], y: number, height: number): number {
+  const shade =
+    IMPOSTOR_SHADE_BASE +
+    IMPOSTOR_SHADE_RISE * Math.min(1, y / Math.max(IMPOSTOR_SHADE_HEIGHT, height));
+  const wall = (1 - IMPOSTOR_GLAZED_FRACTION) * shade;
+  const glass = IMPOSTOR_GLAZED_FRACTION;
   return packTint([
-    tint[0] * IMPOSTOR_FACADE_SHADE * wall + IMPOSTOR_GLASS_TINT[0] * IMPOSTOR_GLAZED_FRACTION,
-    tint[1] * IMPOSTOR_FACADE_SHADE * wall + IMPOSTOR_GLASS_TINT[1] * IMPOSTOR_GLAZED_FRACTION,
-    tint[2] * IMPOSTOR_FACADE_SHADE * wall + IMPOSTOR_GLASS_TINT[2] * IMPOSTOR_GLAZED_FRACTION,
+    tint[0] * wall + IMPOSTOR_GLASS_TINT[0] * glass,
+    tint[1] * wall + IMPOSTOR_GLASS_TINT[1] * glass,
+    tint[2] * wall + IMPOSTOR_GLASS_TINT[2] * glass,
   ]);
 }
 
@@ -319,15 +329,17 @@ function blockSilhouettes(
     const { floors, tint } = readBuildRng(buildRng, params, block, lot.isCorner, lot.isPrimary);
     const bounds = polygonBounds(lot.footprint);
     const rgb = tintToRgb(tint);
+    // `computeFloorTops`: the ground floor is taller than the rest.
+    const height = params.floorHeight * (params.groundFloorScale + floors - 1);
     out.push({
       chunk,
       minX: bounds.minX,
       minZ: bounds.minZ,
       maxX: bounds.maxX,
       maxZ: bounds.maxZ,
-      // `computeFloorTops`: the ground floor is taller than the rest.
-      height: params.floorHeight * (params.groundFloorScale + floors - 1),
-      facade: facadeAverage(rgb),
+      height,
+      facadeBase: facadeAt(rgb, 0, height),
+      facadeTop: facadeAt(rgb, height, height),
       roof: packTint(shadeTint(rgb, 0.62)),
     });
   }
@@ -354,6 +366,7 @@ function landmarkSilhouettes(index: ICityPlanIndex): ISkylineBox[] {
     }
     if (!Number.isFinite(minX)) continue;
     const rgb = tintToRgb(landmark.tint);
+    const height = landmark.floors * landmark.floorHeight;
     out.push({
       // The chunk `indexPlan` files this landmark under, so residency
       // suppresses the silhouette exactly when the real one is built.
@@ -365,8 +378,9 @@ function landmarkSilhouettes(index: ICityPlanIndex): ISkylineBox[] {
       minZ,
       maxX,
       maxZ,
-      height: landmark.floors * landmark.floorHeight,
-      facade: facadeAverage(rgb),
+      height,
+      facadeBase: facadeAt(rgb, 0, height),
+      facadeTop: facadeAt(rgb, height, height),
       roof: packTint(shadeTint(rgb, 0.62)),
     });
   }
@@ -420,14 +434,22 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
   let i = 0;
   let maxY = 0;
 
-  /** Append one quad, wound counter-clockwise as seen from the normal. */
+  /**
+   * Append one quad, wound counter-clockwise as seen from the normal.
+   *
+   * `lower` paints vertices A and B, `upper` paints C and D. Every wall quad
+   * below is emitted with its two ground vertices first and its two parapet
+   * vertices last, which is what turns the city's sky-occlusion ramp into a
+   * per-vertex gradient at no cost. Flat quads pass the same colour twice.
+   */
   const quad = (
     ax: number, ay: number, az: number,
     bx: number, by: number, bz: number,
     cx: number, cy: number, cz: number,
     dx: number, dy: number, dz: number,
     nx: number, ny: number, nz: number,
-    colour: number,
+    lower: number,
+    upper: number,
     chunk: number
   ): void => {
     const p = v * 3;
@@ -435,16 +457,14 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
     positions[p + 3] = bx; positions[p + 4] = by; positions[p + 5] = bz;
     positions[p + 6] = cx; positions[p + 7] = cy; positions[p + 8] = cz;
     positions[p + 9] = dx; positions[p + 10] = dy; positions[p + 11] = dz;
-    const r = (colour >> 16) & 0xff;
-    const g = (colour >> 8) & 0xff;
-    const b = colour & 0xff;
     for (let k = 0; k < 4; k++) {
+      const colour = k < 2 ? lower : upper;
       normals[p + k * 3] = nx;
       normals[p + k * 3 + 1] = ny;
       normals[p + k * 3 + 2] = nz;
-      colors[p + k * 3] = r;
-      colors[p + k * 3 + 1] = g;
-      colors[p + k * 3 + 2] = b;
+      colors[p + k * 3] = (colour >> 16) & 0xff;
+      colors[p + k * 3 + 1] = (colour >> 8) & 0xff;
+      colors[p + k * 3 + 2] = colour & 0xff;
       chunkIds[v + k] = chunk;
     }
     indices[i] = v; indices[i + 1] = v + 1; indices[i + 2] = v + 2;
@@ -463,6 +483,7 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
     WORLD_MIN, groundY, WORLD_MIN,
     0, 1, 0,
     IMPOSTOR_GROUND_COLOUR,
+    IMPOSTOR_GROUND_COLOUR,
     IMPOSTOR_ALWAYS_VISIBLE
   );
 
@@ -477,13 +498,14 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
     const z1 = midZ + halfZ;
     const y1 = box.height * IMPOSTOR_HEIGHT_SCALE;
     if (y1 > maxY) maxY = y1;
-    const side = box.facade;
+    const lo = box.facadeBase;
+    const hi = box.facadeTop;
     const c = box.chunk;
-    quad(x1, 0, z1, x1, 0, z0, x1, y1, z0, x1, y1, z1, 1, 0, 0, side, c);
-    quad(x0, 0, z0, x0, 0, z1, x0, y1, z1, x0, y1, z0, -1, 0, 0, side, c);
-    quad(x0, 0, z1, x1, 0, z1, x1, y1, z1, x0, y1, z1, 0, 0, 1, side, c);
-    quad(x1, 0, z0, x0, 0, z0, x0, y1, z0, x1, y1, z0, 0, 0, -1, side, c);
-    quad(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, 0, 1, 0, box.roof, c);
+    quad(x1, 0, z1, x1, 0, z0, x1, y1, z0, x1, y1, z1, 1, 0, 0, lo, hi, c);
+    quad(x0, 0, z0, x0, 0, z1, x0, y1, z1, x0, y1, z0, -1, 0, 0, lo, hi, c);
+    quad(x0, 0, z1, x1, 0, z1, x1, y1, z1, x0, y1, z1, 0, 0, 1, lo, hi, c);
+    quad(x1, 0, z0, x0, 0, z0, x0, y1, z0, x1, y1, z0, 0, 0, -1, lo, hi, c);
+    quad(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, 0, 1, 0, box.roof, box.roof, c);
   }
 
   // The mesh is the world. Its bounding sphere is the world's, and the mesh is
