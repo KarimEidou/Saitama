@@ -38,7 +38,14 @@ export const WORLD_SEED_KEY = 'city-z';
  */
 export const SPAWN_POSITION = { x: 9, y: 1.4, z: 40 } as const;
 
-/** Facing, radians. 0 is +Z: straight up the road, buildings to the right. */
+/**
+ * Facing, radians, in THREE.JS convention — forward is local -Z, so yaw 0
+ * looks down the road towards decreasing z with the block on the left.
+ *
+ * The convention matters: `PlayerController` derives its own yaw as
+ * `atan2(-dx, -dz)` and `MonsterBrain` uses `(+sin, +cos)`. Anything in
+ * `src/game` that turns a yaw into a direction has to say which one it means.
+ */
 export const SPAWN_YAW = 0;
 
 /** Time of day at a fresh start. 0.34 is mid-morning: long shadows, full sun. */
