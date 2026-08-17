@@ -55,6 +55,13 @@ const VIEWPORT = { width: 960, height: 540 };
  */
 const PROGRAM_BUDGET = 24;
 
+/**
+ * The top row of the sphere grid — metalness 1.0 — at the harness's fixed
+ * camera pose. Without a specular probe these pixels are near-black; with one
+ * they carry a sky reflection.
+ */
+const METAL_SPHERE_CROP = { left: 380, top: 95, width: 210, height: 65 };
+
 const SWIFTSHADER_ARGS = [
   '--use-angle=swiftshader',
   '--enable-unsafe-swiftshader',
@@ -102,6 +109,7 @@ interface HarnessSnapshot {
   medianFrameMs: number;
   materialCount: number;
   materialSignatures: string[];
+  specularOnlyMaterials: number;
   warmup: {
     materials: number;
     meshes: number;
@@ -117,6 +125,8 @@ interface HarnessSnapshot {
     passNames: string[];
     msaaSamples: number;
     bloomScale: number;
+    bloomKind: string;
+    bloomBytes: number;
   };
   shadows: {
     cascades: number;
@@ -132,6 +142,8 @@ interface HarnessSnapshot {
     resolution: number;
     hasSphericalHarmonics: boolean;
     lastBuildMs: number;
+    specularOnly: boolean;
+    specularCubeSize: number;
   };
   memory: {
     textureCount: number;
@@ -250,6 +262,25 @@ async function analyse(file: string): Promise<PixelReport> {
     stdDev,
     mean,
     distinctColors: seen.size,
+  };
+}
+
+/**
+ * Mean and spread of one rectangle of a screenshot.
+ *
+ * Used to make a claim about a specific part of the image rather than the frame
+ * as a whole — "the metal spheres are not black" is invisible in a whole-frame
+ * mean, because they are a small fraction of the pixels.
+ */
+async function analyseRegion(
+  file: string,
+  region: { left: number; top: number; width: number; height: number }
+): Promise<{ mean: number; stdDev: number }> {
+  const stats = await sharp(file).extract(region).stats();
+  const channels = stats.channels.slice(0, 3);
+  return {
+    mean: channels.reduce((sum, channel) => sum + channel.mean, 0) / channels.length,
+    stdDev: channels.reduce((sum, channel) => sum + channel.stdev, 0) / channels.length,
   };
 }
 
@@ -417,8 +448,37 @@ async function verifyTier(
       check(snap.environment.mode === 'sh9', '[low] expected the spherical-harmonic IBL path');
       check(snap.environment.hasSphericalHarmonics, '[low] SH coefficients were not produced');
       check(
-        snap.environment.gpuBytes === 0,
-        `[low] SH path should hold no environment VRAM (${snap.environment.gpuBytes} bytes)`
+        snap.environment.specularOnly,
+        '[low] SH path did not build the specular-only probe — smooth metal would render black'
+      );
+      check(
+        snap.environment.specularCubeSize === 32,
+        `[low] specular probe cube size is ${snap.environment.specularCubeSize}, expected 32`
+      );
+      // A full PMREM of a real 4096-wide HDRI is ~25 MB. The whole point of the
+      // specular-only probe is that it is a rounding error next to that.
+      check(
+        snap.environment.gpuBytes > 0 && snap.environment.gpuBytes < 512 * 1024,
+        `[low] specular probe is ${(snap.environment.gpuBytes / 1024).toFixed(0)} KB; ` +
+          `expected a few hundred KB at most`
+      );
+      // Every managed material must carry the cancellation, or it is lit by the
+      // SH probe AND the probe texture — a full stop of over-exposure that is
+      // easy to mistake for "the new lighting looks brighter".
+      check(
+        snap.specularOnlyMaterials === snap.materialCount,
+        `[low] only ${snap.specularOnlyMaterials}/${snap.materialCount} materials cancel ` +
+          `the environment map's diffuse term; the rest are double-lit`
+      );
+      const metal = await analyseRegion(shotPath, METAL_SPHERE_CROP);
+      check(
+        metal.mean > 30,
+        `[low] the smooth-metal spheres are near-black (crop mean ${metal.mean.toFixed(1)}/255) — ` +
+          `the specular probe is not reaching them`
+      );
+      console.log(
+        `metal crop     mean ${metal.mean.toFixed(1)}/255, stdDev ${metal.stdDev.toFixed(1)} ` +
+          `(SH diffuse + ${(snap.environment.gpuBytes / 1024).toFixed(0)} KB specular probe)`
       );
       check(snap.shadows.cascades === 1, `[low] expected 1 cascade, got ${snap.shadows.cascades}`);
       check(
@@ -432,12 +492,26 @@ async function verifyTier(
       check(snap.post.mode === 'mid', `[medium] unexpected post mode "${snap.post.mode}"`);
       check(snap.environment.mode === 'pmrem', '[medium] expected the PMREM IBL path');
       check(
+        snap.specularOnlyMaterials === 0,
+        `[medium] ${snap.specularOnlyMaterials} materials are cancelling environment ` +
+          `diffuse on a full-PMREM path, which would under-light them`
+      );
+      check(
         snap.shadows.cascades === 2,
         `[medium] expected 2 cascades, got ${snap.shadows.cascades}`
       );
       check(
+        snap.post.bloomKind === 'dual',
+        `[medium] expected the 3-program dual-filter bloom, got "${snap.post.bloomKind}"`
+      );
+      check(
         snap.programs <= PROGRAM_BUDGET,
         `[medium] ${snap.programs} shader programs exceeds the budget of ${PROGRAM_BUDGET}`
+      );
+      notes.push(
+        `[medium] ${snap.programs}/${PROGRAM_BUDGET} programs — ` +
+          `${PROGRAM_BUDGET - snap.programs} spare for the character, VFX and world ` +
+          `workstreams' own material archetypes`
       );
     }
 
@@ -484,8 +558,11 @@ async function verifyTier(
         `post           ${snap.post.mode} | ${snap.post.direct ? 'direct-to-framebuffer' : snap.post.passNames.join(' -> ')}`,
         `shadows        ${snap.shadows.cascades} x ${snap.shadows.mapSize} over ${snap.shadows.maxDistance}m ` +
           `(${(snap.shadows.shadowMapBytes / 1024 / 1024).toFixed(1)} MB) | blobs ${snap.shadows.blobShadows}`,
-        `ibl            ${snap.environment.mode} ${(snap.environment.gpuBytes / 1024 / 1024).toFixed(2)} MB ` +
-          `in ${snap.environment.lastBuildMs.toFixed(0)}ms`,
+        `ibl            ${snap.environment.mode}` +
+          `${snap.environment.specularOnly ? ` + ${snap.environment.specularCubeSize}px specular-only probe` : ''} ` +
+          `${(snap.environment.gpuBytes / 1024).toFixed(0)} KB in ${snap.environment.lastBuildMs.toFixed(0)}ms`,
+        `bloom          ${snap.post.bloomKind}` +
+          `${snap.post.bloomBytes > 0 ? ` pyramid ${(snap.post.bloomBytes / 1024).toFixed(0)} KB` : ''}`,
         `textures       ${snap.memory.textureCount} / ${(snap.memory.textureBytes / 1024 / 1024).toFixed(2)} MB`,
         `geometry       ${snap.memory.geometryCount} / ${(snap.memory.geometryBytes / 1024 / 1024).toFixed(2)} MB ` +
           `| ${snap.memory.instanceCount} instances`,

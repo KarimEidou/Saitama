@@ -8,16 +8,28 @@
  *             Costs ~8-12 MB of VRAM and a burst of GPU work at load.
  *
  *   'sh9'   — 9 spherical-harmonic coefficients projected on the CPU become a
- *             `THREE.LightProbe`. Diffuse irradiance is within a couple of
- *             percent of PMREM; specular falls back to an analytic ambient
- *             tint. Zero environment VRAM, zero GPU work at load.
+ *             `THREE.LightProbe` for DIFFUSE, plus a deliberately tiny PMREM
+ *             (32px cube by default) used for SPECULAR ONLY. A few hundred KB
+ *             instead of tens of megabytes.
  *
  * ── WHY THE SPLIT IS NOT AN OPTIMISATION DETAIL ────────────────────────────
  * On a 3 GB Android device the PMREM's VRAM competes directly with streamed
  * city textures, and its load-time GPU burst lands while the loader is already
- * uploading everything else. Meanwhile the difference on a 5-inch screen, in
- * an outdoor scene lit mostly by one strong sun, is close to invisible. This is
- * the single biggest "looks the same, costs nothing" trade in the renderer.
+ * uploading everything else. `PMREMGenerator` sizes its cube from the SOURCE
+ * (`equirect.width / 4`), so a real 4096-wide HDRI produces a 1024px cube —
+ * around 25 MB. Diffuse irradiance is a 9-coefficient signal by nature, so
+ * spending megabytes on it is pure waste.
+ *
+ * ── WHY SPECULAR STILL NEEDS A TEXTURE ─────────────────────────────────────
+ * Spherical harmonics cannot represent a reflection: they are band-limited to
+ * the second order, and a mirror needs every frequency the environment has. An
+ * SH-only path therefore renders smooth metal as BLACK, because there is
+ * literally nothing for it to reflect. City Z is corrugated iron, chainlink,
+ * fire escapes, street lamps, shutters and utility boxes — black metal reads as
+ * a broken renderer, not as a performance trade. So the mobile path keeps a
+ * minimal radiance map purely for the specular lobe, and cancels its diffuse
+ * contribution so the SH probe is not double-counted (see
+ * `MaterialLib.setSpecularOnlyEnvironment`).
  *
  * ── SOURCE-AGNOSTIC BY CONTRACT ────────────────────────────────────────────
  * `setEnvironment()` accepts any `THREE.Texture`. The asset workstream supplies
@@ -28,6 +40,7 @@
 import * as THREE from 'three';
 import type { IDisposable, ILightingState } from '@/types';
 import { createLogger } from '@/util';
+import { downsampleEquirect } from './equirect';
 import { averageIrradiance, projectEquirectToSH9 } from './sh9';
 
 const log = createLogger('engine.ibl');
@@ -50,6 +63,21 @@ export interface IEnvironmentLightingOptions {
    * the generator each time costs more than holding it.
    */
   readonly disposeGeneratorAfterBuild?: boolean;
+  /**
+   * Cube-face size of the SPECULAR-only probe built alongside SH9 diffuse.
+   * 0 disables it, which returns smooth metals to black — do not ship that.
+   * 32 is the sweet spot: enough angular detail to read as a reflection at
+   * arm's length, small enough that the whole map is a few hundred KB.
+   * Ignored on the 'pmrem' path, which already has a full radiance map.
+   */
+  readonly specularCubeSize?: number;
+  /**
+   * Called when the specular-only mode turns on or off, so the material layer
+   * can cancel the environment map's DIFFUSE contribution. Without this the SH
+   * probe and the probe texture both light the surface and everything is a
+   * stop too bright.
+   */
+  readonly onSpecularOnlyChanged?: (specularOnly: boolean) => void;
 }
 
 /** What the current environment actually costs, for the debug HUD. */
@@ -63,6 +91,13 @@ export interface IEnvironmentStats {
   readonly hasSphericalHarmonics: boolean;
   /** Milliseconds the last `setEnvironment()` took. */
   readonly lastBuildMs: number;
+  /**
+   * True when the environment map is present for SPECULAR only and diffuse
+   * comes from the SH probe.
+   */
+  readonly specularOnly: boolean;
+  /** Cube-face size of the specular probe on the SH path. */
+  readonly specularCubeSize: number;
 }
 
 export class EnvironmentLighting implements IDisposable {
@@ -84,6 +119,11 @@ export class EnvironmentLighting implements IDisposable {
   private lastBuildMs = 0;
   private resolution = 0;
   private disposed = false;
+  private readonly specularCubeSize: number;
+  private readonly onSpecularOnlyChanged: ((specularOnly: boolean) => void) | undefined;
+  private specularOnlyActive = false;
+  /** Downsampled equirect owned by the specular build; disposed with it. */
+  private specularSource: THREE.DataTexture | undefined;
 
   /**
    * Analytic ambient standing in for specular reflection on the SH path.
@@ -103,6 +143,8 @@ export class EnvironmentLighting implements IDisposable {
     this.showBackgroundValue = options.showBackground ?? true;
     this.backgroundBlurValue = options.backgroundBlur ?? 0;
     this.disposeGeneratorAfterBuild = options.disposeGeneratorAfterBuild ?? true;
+    this.specularCubeSize = Math.max(0, options.specularCubeSize ?? 32);
+    this.onSpecularOnlyChanged = options.onSpecularOnlyChanged;
 
     this.fallbackAmbient = new THREE.HemisphereLight(0x9dbdf0, 0x3a3128, 0);
     this.fallbackAmbient.name = 'ibl.fallbackAmbient';
@@ -207,12 +249,15 @@ export class EnvironmentLighting implements IDisposable {
       resolution: this.resolution,
       hasSphericalHarmonics: this.probe !== undefined,
       lastBuildMs: this.lastBuildMs,
+      specularOnly: this.specularOnlyActive,
+      specularCubeSize: this.specularOnlyActive ? this.specularCubeSize : 0,
     };
   }
 
   /* ---------------------------------------------------------------------- */
 
   private buildPmrem(texture: THREE.Texture): void {
+    this.setSpecularOnly(false);
     this.pmrem ??= new THREE.PMREMGenerator(this.renderer);
     // Compiling the equirect shader up front keeps the compile out of the
     // first `fromEquirectangular()` call, which otherwise stalls mid-load.
@@ -249,15 +294,63 @@ export class EnvironmentLighting implements IDisposable {
     this.probe = new THREE.LightProbe(sh, 1);
     this.probe.name = 'ibl.sh9';
     this.scene.add(this.probe);
-    // No radiance map exists on this path, so nothing can be reflected. A weak
-    // hemisphere light tinted to the environment's average keeps metals and
-    // smooth dielectrics from reading as black holes.
-    const average = averageIrradiance(sh);
-    this.fallbackAmbient.color.copy(average);
-    this.fallbackAmbient.groundColor.copy(average).multiplyScalar(0.35);
-    this.fallbackAmbient.intensity = 0.35;
     this.scene.environment = null;
     this.resolution = 0;
+
+    const built = this.specularCubeSize > 0 ? this.buildSpecularProbe(texture) : false;
+    this.setSpecularOnly(built);
+
+    if (built) {
+      // Diffuse comes from the SH probe, specular from the tiny radiance map.
+      // Nothing else is needed, so the analytic ambient stays off.
+      this.fallbackAmbient.intensity = 0;
+    } else {
+      // No radiance map at all: nothing can be reflected, and smooth metal
+      // would render black. A weak hemisphere light tinted to the
+      // environment's average is the least-bad stand-in.
+      const average = averageIrradiance(sh);
+      this.fallbackAmbient.color.copy(average);
+      this.fallbackAmbient.groundColor.copy(average).multiplyScalar(0.35);
+      this.fallbackAmbient.intensity = 0.35;
+    }
+  }
+
+  /**
+   * Build the tiny specular-only radiance probe for the SH path.
+   *
+   * The source equirect is first box-filtered down to `specularCubeSize * 4`
+   * wide, because `PMREMGenerator` takes its cube size from the source and has
+   * no other way to be asked for something small. `scene.environment` then
+   * carries a radiance map that is a few hundred KB rather than tens of MB, and
+   * `setSpecularOnly()` tells the material layer to cancel its diffuse term so
+   * the SH probe is not counted twice.
+   *
+   * @returns true when a probe was built.
+   */
+  private buildSpecularProbe(texture: THREE.Texture): boolean {
+    const source = downsampleEquirect(texture, this.specularCubeSize * 4) ?? texture;
+    if (source !== texture) this.specularSource = source as THREE.DataTexture;
+    source.mapping = THREE.EquirectangularReflectionMapping;
+
+    this.pmrem ??= new THREE.PMREMGenerator(this.renderer);
+    this.pmrem.compileEquirectangularShader();
+    const target = this.pmrem.fromEquirectangular(source);
+    this.envRenderTarget = target;
+    this.resolution = target.width;
+    this.scene.environment = target.texture;
+
+    if (this.disposeGeneratorAfterBuild) {
+      this.pmrem.dispose();
+      this.pmrem = undefined;
+    }
+    return true;
+  }
+
+  /** Publish the specular-only flag to whoever cancels the diffuse term. */
+  private setSpecularOnly(active: boolean): void {
+    if (active === this.specularOnlyActive) return;
+    this.specularOnlyActive = active;
+    this.onSpecularOnlyChanged?.(active);
   }
 
   private applyBackground(texture: THREE.Texture): void {
@@ -267,7 +360,11 @@ export class EnvironmentLighting implements IDisposable {
     }
     // Prefer the PMREM output as the background: it is already resident, and
     // reusing it avoids a second full-resolution equirect texture on the GPU.
-    const background = this.envRenderTarget?.texture ?? texture;
+    // EXCEPT on the specular-only path, where that map is a deliberately tiny
+    // 32px probe — fine for a reflection, a blurry mess as the visible sky.
+    const background = this.specularOnlyActive
+      ? texture
+      : (this.envRenderTarget?.texture ?? texture);
     this.backgroundTexture = background;
     this.scene.background = background;
     this.scene.backgroundBlurriness = this.backgroundBlurValue;
@@ -303,6 +400,9 @@ export class EnvironmentLighting implements IDisposable {
     if (this.backgroundTexture && this.scene.background === this.backgroundTexture) {
       this.scene.background = null;
     }
+    this.specularSource?.dispose();
+    this.specularSource = undefined;
+    this.setSpecularOnly(false);
     this.backgroundTexture = undefined;
     this.resolution = 0;
   }

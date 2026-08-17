@@ -54,11 +54,28 @@ export interface PostTierProfile {
    */
   readonly mode: 'off' | 'mid' | 'high';
   readonly bloom: boolean;
+  /**
+   * Which bloom implementation to build.
+   *
+   * 'dual'   — dual-filter / Kawase pyramid. THREE shader programs, and fewer
+   *            texture fetches per pixel than a separable Gaussian. The default
+   *            wherever the program budget matters, i.e. every mobile tier.
+   * 'unreal' — three's `UnrealBloomPass`. NINE programs (five per-mip separable
+   *            blurs plus high-pass, composite, copy and blit). Slightly softer
+   *            falloff, and affordable only on desktop, where the budget is not
+   *            the binding constraint.
+   */
+  readonly bloomKind: 'dual' | 'unreal';
   /** Render scale of the bloom chain. 0.25 = quarter res. */
   readonly bloomScale: number;
+  /** Pyramid levels for 'dual'. Blur width comes from depth, not kernel size. */
+  readonly bloomIterations: number;
   readonly bloomThreshold: number;
   readonly bloomStrength: number;
+  /** Blur radius for 'unreal'. Ignored by 'dual'. */
   readonly bloomRadius: number;
+  /** Soft-knee width around the threshold for 'dual'. Ignored by 'unreal'. */
+  readonly bloomKnee: number;
   /** Apply the baked 32³ colour-grading LUT in the output pass. */
   readonly lut: boolean;
   readonly ssao: boolean;
@@ -183,10 +200,13 @@ const LOW_PROFILE: RenderTierProfile = {
   post: {
     mode: 'off',
     bloom: false,
+    bloomKind: 'dual',
     bloomScale: 0.25,
+    bloomIterations: 4,
     bloomThreshold: 1.0,
     bloomStrength: 0.35,
     bloomRadius: 0.4,
+    bloomKnee: 0.35,
     lut: false,
     ssao: false,
     ssaoScale: 0.5,
@@ -222,10 +242,16 @@ const MEDIUM_PROFILE: RenderTierProfile = {
   post: {
     mode: 'mid',
     bloom: true,
+    // The tier that ships to phones takes the 3-program bloom. Measured:
+    // 24 -> 18 live programs, which is the headroom the character, VFX and
+    // world workstreams need for their own material archetypes.
+    bloomKind: 'dual',
     bloomScale: 0.25,
+    bloomIterations: 4,
     bloomThreshold: 1.0,
     bloomStrength: 0.35,
     bloomRadius: 0.45,
+    bloomKnee: 0.35,
     lut: true,
     ssao: false,
     ssaoScale: 0.5,
@@ -267,10 +293,16 @@ const HIGH_PROFILE: RenderTierProfile = {
   post: {
     mode: 'high',
     bloom: true,
+    // Desktop is not program-budget bound, so it keeps `UnrealBloomPass` for
+    // its slightly wider, softer falloff. Swap to 'dual' if the extra nine
+    // programs ever start mattering here too.
+    bloomKind: 'unreal',
     bloomScale: 0.25,
+    bloomIterations: 5,
     bloomThreshold: 1.0,
     bloomStrength: 0.35,
     bloomRadius: 0.5,
+    bloomKnee: 0.3,
     lut: true,
     ssao: true,
     ssaoScale: 0.5,

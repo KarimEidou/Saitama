@@ -29,11 +29,18 @@
  * they must follow the output pass.
  *
  * ── PROGRAM BUDGET NOTE ────────────────────────────────────────────────────
- * `UnrealBloomPass` costs EIGHT shader programs on its own: five separable blur
+ * `UnrealBloomPass` costs NINE shader programs on its own: five separable blur
  * materials (one per mip, each with a different KERNEL_RADIUS define), a
- * luminosity high-pass, a composite, and a copy/blend material. That is a third
- * of the whole-game budget for one effect, which is why bloom is off entirely
- * on the low tier and why every other effect here is fused rather than chained.
+ * luminosity high-pass, a composite, a copy and a basic blit. That was more
+ * than a third of the whole-game budget for one effect, so the mobile tiers use
+ * `DualFilterBloomPass` instead — three programs, and fewer texture fetches per
+ * pixel. Desktop keeps the Unreal path, where the budget is not the binding
+ * constraint. See `PostTierProfile.bloomKind`.
+ *
+ * That substitution is why every other effect here is fused rather than
+ * chained: the anime pass folds motion blur, chromatic aberration, speed lines
+ * and vignette into one program, and the output pass folds tone mapping,
+ * grading and vignette into another.
  */
 
 import * as THREE from 'three';
@@ -50,6 +57,7 @@ import { bakeLutStrip, ANIME_GRADE, type IGradeOptions } from './lut';
 import { OutputLutPass } from './output-lut-pass';
 import { HalfResSSAOPass } from './ssao-pass';
 import { AnimeCompositePass } from './anime-composite-pass';
+import { DualFilterBloomPass } from './dual-filter-bloom-pass';
 
 const log = createLogger('engine.post');
 
@@ -94,6 +102,10 @@ export interface IPostProcessingStats {
   /** True when no composer exists and rendering is direct-to-framebuffer. */
   readonly direct: boolean;
   readonly bloomScale: number;
+  /** Which bloom implementation is live, or 'none'. */
+  readonly bloomKind: 'none' | 'dual' | 'unreal';
+  /** Bytes held by the dual-filter pyramid. 0 for the Unreal path. */
+  readonly bloomBytes: number;
   readonly msaaSamples: number;
 }
 
@@ -108,7 +120,7 @@ export class PostProcessing implements IPostProcessing {
   private composer: EffectComposer | undefined;
   private composerTarget: THREE.WebGLRenderTarget | undefined;
   private renderPass: RenderPass | undefined;
-  private bloomPass: ScaledBloomPass | undefined;
+  private bloomPass: ScaledBloomPass | DualFilterBloomPass | undefined;
   private outputPass: OutputLutPass | undefined;
   private ssaoPass: HalfResSSAOPass | undefined;
   private animePass: AnimeCompositePass | undefined;
@@ -204,14 +216,30 @@ export class PostProcessing implements IPostProcessing {
     }
 
     if (profile.bloom) {
-      this.bloomPass = new ScaledBloomPass(
-        new THREE.Vector2(this.width, this.height),
-        profile.bloomStrength,
-        profile.bloomRadius,
-        profile.bloomThreshold
-      );
-      this.bloomPass.setRenderScale(profile.bloomScale);
-      this.addPass(this.bloomPass, `Bloom(${Math.round(profile.bloomScale * 100)}%)`);
+      if (profile.bloomKind === 'unreal') {
+        const unreal = new ScaledBloomPass(
+          new THREE.Vector2(this.width, this.height),
+          profile.bloomStrength,
+          profile.bloomRadius,
+          profile.bloomThreshold
+        );
+        unreal.setRenderScale(profile.bloomScale);
+        this.bloomPass = unreal;
+        this.addPass(unreal, `UnrealBloom(${Math.round(profile.bloomScale * 100)}%)`);
+      } else {
+        const dual = new DualFilterBloomPass({
+          strength: profile.bloomStrength,
+          threshold: profile.bloomThreshold,
+          knee: profile.bloomKnee,
+          scale: profile.bloomScale,
+          iterations: profile.bloomIterations,
+        });
+        this.bloomPass = dual;
+        this.addPass(
+          dual,
+          `DualFilterBloom(${Math.round(profile.bloomScale * 100)}%, ${profile.bloomIterations} levels)`
+        );
+      }
     }
 
     if (profile.lut) this.lut = bakeLutStrip(this.grade);
@@ -447,6 +475,9 @@ export class PostProcessing implements IPostProcessing {
       passNames: [...this.passLabels],
       direct: this.composer === undefined,
       bloomScale: this.profile.bloom ? this.profile.bloomScale : 0,
+      bloomKind: this.profile.bloom ? this.profile.bloomKind : 'none',
+      bloomBytes:
+        this.bloomPass instanceof DualFilterBloomPass ? this.bloomPass.gpuBytes : 0,
       msaaSamples: this.profile.msaaSamples,
     };
   }

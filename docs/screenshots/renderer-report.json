@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-17T04:40:35.155Z",
+  "generatedAt": "2026-08-17T04:53:35.680Z",
   "viewport": {
     "width": 960,
     "height": 540
@@ -8,7 +8,7 @@
   "tiers": {
     "low": {
       "programs": 14,
-      "programsByShader": "physical x7, depth x5, 0 x1, 4 x1",
+      "programsByShader": "physical x7, depth x5, 3 x1, 7 x1",
       "drawCalls": 76,
       "triangles": 97920,
       "materials": 31,
@@ -24,7 +24,7 @@
         "meshes": 8,
         "compiled": 14,
         "programsAfter": 14,
-        "durationMs": 231.30000000074506,
+        "durationMs": 452.20000000018626,
         "destinations": [
           "direct"
         ]
@@ -35,7 +35,9 @@
         "passCount": 0,
         "passNames": [],
         "msaaSamples": 0,
-        "bloomScale": 0
+        "bloomScale": 0,
+        "bloomKind": "none",
+        "bloomBytes": 0
       },
       "shadows": {
         "cascades": 1,
@@ -47,14 +49,16 @@
       },
       "environment": {
         "mode": "sh9",
-        "gpuBytes": 0,
-        "resolution": 0,
+        "gpuBytes": 344064,
+        "resolution": 336,
         "hasSphericalHarmonics": true,
-        "lastBuildMs": 9.5
+        "lastBuildMs": 64.29999999981374,
+        "specularOnly": true,
+        "specularCubeSize": 32
       },
       "memory": {
-        "textureCount": 8,
-        "textureBytes": 2643285,
+        "textureCount": 9,
+        "textureBytes": 2987349,
         "geometryCount": 9,
         "geometryBytes": 51400,
         "materialCount": 32,
@@ -69,16 +73,16 @@
       "screenshot": {
         "width": 960,
         "height": 540,
-        "stdDev": 54.6778468180318,
-        "mean": 106.64963863168725,
-        "distinctColors": 5901
+        "stdDev": 49.0062370131299,
+        "mean": 126.23712255658437,
+        "distinctColors": 6252
       }
     },
     "medium": {
-      "programs": 24,
-      "programsByShader": "physical x7, 9 x6, depth x5, 14 x2, 3 x1, 5 x1, 7 x1, 12 x1",
-      "drawCalls": 124,
-      "triangles": 146796,
+      "programs": 19,
+      "programsByShader": "physical x7, depth x5, 7 x5, 3 x1, 5 x1",
+      "drawCalls": 119,
+      "triangles": 146791,
       "materials": 31,
       "materialSignatures": [
         "standard/T-D/mnrla/O/-/F/-",
@@ -92,7 +96,7 @@
         "meshes": 8,
         "compiled": 14,
         "programsAfter": 14,
-        "durationMs": 475.1000000005588,
+        "durationMs": 393.6000000005588,
         "destinations": [
           "offscreen"
         ]
@@ -103,11 +107,13 @@
         "passCount": 3,
         "passNames": [
           "RenderPass",
-          "Bloom(25%)",
+          "DualFilterBloom(25%, 4 levels)",
           "Output+LUT+Vignette"
         ],
         "msaaSamples": 0,
-        "bloomScale": 0.25
+        "bloomScale": 0.25,
+        "bloomKind": "dual",
+        "bloomBytes": 343200
       },
       "shadows": {
         "cascades": 2,
@@ -122,7 +128,9 @@
         "gpuBytes": 688128,
         "resolution": 336,
         "hasSphericalHarmonics": false,
-        "lastBuildMs": 26.199999999254942
+        "lastBuildMs": 27.09999999962747,
+        "specularOnly": false,
+        "specularCubeSize": 0
       },
       "memory": {
         "textureCount": 8,
@@ -141,9 +149,9 @@
       "screenshot": {
         "width": 960,
         "height": 540,
-        "stdDev": 51.22547586010567,
-        "mean": 82.41164994855967,
-        "distinctColors": 8328
+        "stdDev": 49.85755553892799,
+        "mean": 75.96956018518519,
+        "distinctColors": 7171
       }
     },
     "high": {
@@ -164,7 +172,7 @@
         "meshes": 8,
         "compiled": 14,
         "programsAfter": 14,
-        "durationMs": 438,
+        "durationMs": 441.79999999981374,
         "destinations": [
           "offscreen"
         ]
@@ -176,13 +184,15 @@
         "passNames": [
           "RenderPass",
           "SSAO(50%, 8 samples)",
-          "Bloom(25%)",
+          "UnrealBloom(25%)",
           "Output+LUT+Vignette",
           "AnimeComposite",
           "FXAA"
         ],
         "msaaSamples": 0,
-        "bloomScale": 0.25
+        "bloomScale": 0.25,
+        "bloomKind": "unreal",
+        "bloomBytes": 0
       },
       "shadows": {
         "cascades": 3,
@@ -197,7 +207,9 @@
         "gpuBytes": 688128,
         "resolution": 336,
         "hasSphericalHarmonics": false,
-        "lastBuildMs": 18.700000000186265
+        "lastBuildMs": 22.200000000186265,
+        "specularOnly": false,
+        "specularCubeSize": 0
       },
       "memory": {
         "textureCount": 8,
@@ -223,7 +235,8 @@
     }
   },
   "notes": [
-    "[high] 30 shader programs with the full chain (RenderPass -> SSAO(50%, 8 samples) -> Bloom(25%) -> Output+LUT+Vignette -> AnimeComposite -> FXAA) — desktop tier, not subject to the mobile 24-program budget",
+    "[medium] 19/24 programs — 5 spare for the character, VFX and world workstreams' own material archetypes",
+    "[high] 30 shader programs with the full chain (RenderPass -> SSAO(50%, 8 samples) -> UnrealBloom(25%) -> Output+LUT+Vignette -> AnimeComposite -> FXAA) — desktop tier, not subject to the mobile 24-program budget",
     "[behaviour] after a live medium->high switch the context holds 38 programs (both tiers' programs are resident; this is why per-tier counts are measured in separate contexts)"
   ]
 }

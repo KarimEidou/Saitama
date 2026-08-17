@@ -117,6 +117,27 @@ interface GlobalUniforms {
 
 const DEFAULT_PROGRAM_BUDGET = 24;
 
+/** Define that switches a material's environment map to specular-only. */
+const SPECULAR_ONLY_DEFINE = 'ENGINE_SPECULAR_ONLY_ENV';
+
+/**
+ * Cancels the environment map's DIFFUSE contribution, leaving its specular
+ * lobe intact.
+ *
+ * three keeps the two apart in separate variables: `irradiance` accumulates
+ * ambient lights and the light probe, while `iblIrradiance` accumulates the
+ * environment map. `radiance` — the specular lobe — is untouched. Zeroing
+ * `iblIrradiance` immediately after the chunk that fills it is therefore an
+ * exact, one-line cancellation with no chunk to reimplement and nothing to
+ * re-sync when three changes.
+ *
+ * The small loss is that `iblIrradiance` also feeds multiple-scattering energy
+ * compensation inside `RE_IndirectSpecular`, so very rough metal ends a few
+ * percent darker than it strictly should. That is a far better error than
+ * counting diffuse irradiance twice, which is a full stop of over-exposure.
+ */
+const SPECULAR_ONLY_FRAGMENT = '\tiblIrradiance = vec3( 0.0 );';
+
 export class MaterialLib implements IDisposable {
   private readonly records = new Map<string, MaterialRecord>();
   private readonly signatures = new Map<string, number>();
@@ -135,6 +156,7 @@ export class MaterialLib implements IDisposable {
   private readonly emptyDamageMask: THREE.DataTexture;
   private disposed = false;
   private budgetWarned = false;
+  private specularOnlyEnv = false;
 
   /**
    * Shared uniform objects. Injected materials receive these EXACT objects, so
@@ -233,6 +255,8 @@ export class MaterialLib implements IDisposable {
 
     const signature = this.signatureFor(request, features, material);
     this.signatures.set(signature, (this.signatures.get(signature) ?? 0) + 1);
+
+    if (this.specularOnlyEnv) applySpecularOnlyEnvironment(material, true);
 
     const record: MaterialRecord = { material, spec, features, signature, ownedTextures, handles };
     this.records.set(spec.id, record);
@@ -341,7 +365,11 @@ export class MaterialLib implements IDisposable {
 
     this.bindTextures(request, pbr, ownedTextures, handles);
 
-    if (hasAnyFeature(features)) {
+    // The hook is installed for EVERY standard/physical material, even one with
+    // no feature flags: the specular-only environment fix below is a global
+    // toggle that has to reach all of them. An empty feature set injects nothing
+    // and costs no extra program — the cache key just gains a constant suffix.
+    if (spec.kind === 'standard' || spec.kind === 'physical') {
       this.installInjections(pbr, request, features);
     }
 
@@ -445,7 +473,6 @@ export class MaterialLib implements IDisposable {
           `albedo map; triplanar needs a texture to project. Disabling it.`
       );
       effective = { ...effective, triplanar: false };
-      if (!hasAnyFeature(effective)) return;
     }
 
     material.defines = { ...(material.defines ?? {}), ...featureDefines(effective) };
@@ -459,6 +486,16 @@ export class MaterialLib implements IDisposable {
     const key = `mat${featureKey(effective)}${hasNormalMap ? 'n' : ''}${hasOrm ? 'o' : ''}`;
 
     addShaderHook(material, key, (shader) => {
+      // ---- specular-only environment ----------------------------------
+      // Driven by `material.defines`, which three already folds into the
+      // program cache key, so toggling it cannot hand back a stale program.
+      if (material.defines?.[SPECULAR_ONLY_DEFINE]) {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <lights_fragment_maps>',
+          `#include <lights_fragment_maps>\n${SPECULAR_ONLY_FRAGMENT}`
+        );
+      }
+
       if (effective.triplanar) {
         shader.uniforms.uEngineTriplanarScale = local.scale;
         shader.uniforms.uEngineTriplanarSharpness = local.sharpness;
@@ -541,6 +578,34 @@ export class MaterialLib implements IDisposable {
       1 / Math.max(1e-3, sizeX),
       1 / Math.max(1e-3, sizeZ)
     );
+  }
+
+  /**
+   * Switch every managed PBR material to a SPECULAR-ONLY environment map.
+   *
+   * The mobile IBL path takes diffuse irradiance from a 9-coefficient
+   * spherical-harmonic light probe and specular from a deliberately tiny
+   * radiance map. three would light the surface from BOTH, so the environment
+   * map's diffuse term has to be cancelled — see `SPECULAR_ONLY_FRAGMENT`.
+   *
+   * Materials created AFTER this call inherit the setting automatically.
+   *
+   * CAVEAT, same class as shadow registration: a `MeshStandardMaterial` built
+   * outside this library gets no injection and will be lit twice. Route
+   * materials through `acquire()`, or call `applySpecularOnlyEnvironment()` on
+   * the stray one.
+   */
+  setSpecularOnlyEnvironment(enabled: boolean): void {
+    if (enabled === this.specularOnlyEnv) return;
+    this.specularOnlyEnv = enabled;
+    for (const record of this.records.values()) {
+      applySpecularOnlyEnvironment(record.material, enabled);
+    }
+  }
+
+  /** Whether managed materials are cancelling environment diffuse. */
+  get specularOnlyEnvironment(): boolean {
+    return this.specularOnlyEnv;
   }
 
   /** Global dust floor applied everywhere, on top of the mask. 0..1. */
@@ -653,6 +718,30 @@ export class MaterialLib implements IDisposable {
     this.missingTexture = undefined;
     this.emptyDamageMask.dispose();
   }
+}
+
+/**
+ * Toggle specular-only environment lighting on a single material.
+ *
+ * Exported for materials that did not come from `MaterialLib` — the injection
+ * itself lives in the library's shader hook, so this only flips the define that
+ * activates it. A material with no engine hook is unaffected.
+ */
+export function applySpecularOnlyEnvironment(material: THREE.Material, enabled: boolean): void {
+  material.defines ??= {};
+  const already = Boolean(material.defines[SPECULAR_ONLY_DEFINE]);
+  if (already === enabled) return;
+  if (enabled) {
+    material.defines[SPECULAR_ONLY_DEFINE] = '1';
+  } else {
+    delete material.defines[SPECULAR_ONLY_DEFINE];
+  }
+  material.needsUpdate = true;
+}
+
+/** True when this material is cancelling its environment map's diffuse term. */
+export function hasSpecularOnlyEnvironment(material: THREE.Material): boolean {
+  return Boolean(material.defines?.[SPECULAR_ONLY_DEFINE]);
 }
 
 /* -------------------------------------------------------------------------- */

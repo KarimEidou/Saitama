@@ -33,57 +33,9 @@
 
 import * as THREE from 'three';
 import { createLogger } from '@/util';
+import { createEquirectReader } from './equirect';
 
 const log = createLogger('engine.sh9');
-
-/** Numeric image payload a `DataTexture` can carry. */
-type TexelArray = Float32Array | Uint16Array | Uint8Array | Uint8ClampedArray;
-
-interface ReadableImage {
-  data?: TexelArray;
-  width?: number;
-  height?: number;
-}
-
-/** Half-float (Uint16) needs decoding; everything else is read directly. */
-function makeReader(
-  data: TexelArray,
-  type: THREE.TextureDataType,
-  colorSpace: string
-): (index: number) => number {
-  if (type === THREE.HalfFloatType && data instanceof Uint16Array) {
-    return (index) => THREE.DataUtils.fromHalfFloat(data[index]!);
-  }
-  if (data instanceof Float32Array) {
-    return (index) => data[index]!;
-  }
-  // Byte data: normalise, and undo the sRGB transfer when the texture is
-  // tagged as colour. An LDR "HDRI" is unusual but a caller may hand us one.
-  const isSrgb = colorSpace === THREE.SRGBColorSpace;
-  return (index) => {
-    const value = data[index]! / 255;
-    return isSrgb ? srgbToLinear(value) : value;
-  };
-}
-
-/** IEC 61966-2-1 sRGB electro-optical transfer function. */
-function srgbToLinear(c: number): number {
-  return c < 0.04045 ? c * 0.0773993808 : Math.pow(c * 0.9478672986 + 0.0521327014, 2.4);
-}
-
-/** How many components each texel occupies. */
-function channelsFor(format: THREE.AnyPixelFormat): number {
-  switch (format) {
-    case THREE.RedFormat:
-      return 1;
-    case THREE.RGFormat:
-      return 2;
-    case THREE.RGBAFormat:
-      return 4;
-    default:
-      return 4;
-  }
-}
 
 /**
  * Project an equirectangular radiance texture onto 9 SH coefficients.
@@ -100,21 +52,15 @@ export function projectEquirectToSH9(
   texture: THREE.Texture,
   intensity = 1
 ): THREE.SphericalHarmonics3 | null {
-  const image = texture.image as ReadableImage | undefined;
-  const data = image?.data;
-  const width = image?.width ?? 0;
-  const height = image?.height ?? 0;
-
-  if (!data || width < 2 || height < 2) {
+  const reader = createEquirectReader(texture);
+  if (!reader) {
     log.warn(
       `environment texture "${texture.name || 'unnamed'}" has no readable pixel ` +
         `data; SH projection is unavailable (compressed or DOM-image source).`
     );
     return null;
   }
-
-  const channels = channelsFor(texture.format);
-  const read = makeReader(data, texture.type, texture.colorSpace);
+  const { width, height, channels, read } = reader;
 
   const sh = new THREE.SphericalHarmonics3();
   const coefficients = sh.coefficients;

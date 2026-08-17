@@ -60,13 +60,13 @@ const DOWNSAMPLE_FRAGMENT = /* glsl */ `
 	varying vec2 vUv;
 
 	void main() {
-		vec2 half = uTexel * 0.5;
+		vec2 halfTexel = uTexel * 0.5;
 
 		vec3 sum = texture2D( tSource, vUv ).rgb * 4.0;
-		sum += texture2D( tSource, vUv + vec2( -half.x, -half.y ) ).rgb;
-		sum += texture2D( tSource, vUv + vec2(  half.x,  half.y ) ).rgb;
-		sum += texture2D( tSource, vUv + vec2(  half.x, -half.y ) ).rgb;
-		sum += texture2D( tSource, vUv + vec2( -half.x,  half.y ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2( -halfTexel.x, -halfTexel.y ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2(  halfTexel.x,  halfTexel.y ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2(  halfTexel.x, -halfTexel.y ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2( -halfTexel.x,  halfTexel.y ) ).rgb;
 		vec3 color = sum * 0.125;
 
 		if ( uPrefilter > 0.5 ) {
@@ -97,16 +97,16 @@ const UPSAMPLE_FRAGMENT = /* glsl */ `
 	varying vec2 vUv;
 
 	void main() {
-		vec2 half = uTexel * 0.5;
+		vec2 halfTexel = uTexel * 0.5;
 
-		vec3 sum = texture2D( tSource, vUv + vec2( -half.x * 2.0, 0.0 ) ).rgb;
-		sum += texture2D( tSource, vUv + vec2( -half.x, half.y ) ).rgb * 2.0;
-		sum += texture2D( tSource, vUv + vec2( 0.0, half.y * 2.0 ) ).rgb;
-		sum += texture2D( tSource, vUv + vec2( half.x, half.y ) ).rgb * 2.0;
-		sum += texture2D( tSource, vUv + vec2( half.x * 2.0, 0.0 ) ).rgb;
-		sum += texture2D( tSource, vUv + vec2( half.x, -half.y ) ).rgb * 2.0;
-		sum += texture2D( tSource, vUv + vec2( 0.0, -half.y * 2.0 ) ).rgb;
-		sum += texture2D( tSource, vUv + vec2( -half.x, -half.y ) ).rgb * 2.0;
+		vec3 sum = texture2D( tSource, vUv + vec2( -halfTexel.x * 2.0, 0.0 ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2( -halfTexel.x, halfTexel.y ) ).rgb * 2.0;
+		sum += texture2D( tSource, vUv + vec2( 0.0, halfTexel.y * 2.0 ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2( halfTexel.x, halfTexel.y ) ).rgb * 2.0;
+		sum += texture2D( tSource, vUv + vec2( halfTexel.x * 2.0, 0.0 ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2( halfTexel.x, -halfTexel.y ) ).rgb * 2.0;
+		sum += texture2D( tSource, vUv + vec2( 0.0, -halfTexel.y * 2.0 ) ).rgb;
+		sum += texture2D( tSource, vUv + vec2( -halfTexel.x, -halfTexel.y ) ).rgb * 2.0;
 
 		gl_FragColor = vec4( sum / 12.0, 1.0 );
 	}

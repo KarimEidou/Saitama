@@ -47,6 +47,7 @@ import {
   createOrmTexture,
   createProceduralSkyTexture,
   estimateSceneMemory,
+  hasSpecularOnlyEnvironment,
   formatBytes,
   renderProfileFor,
   submitCrowdBlobShadows,
@@ -82,6 +83,8 @@ interface IHarnessSnapshot {
   readonly medianFrameMs: number;
   readonly materialCount: number;
   readonly materialSignatures: readonly string[];
+  /** Managed materials whose environment map is cancelled to specular-only. */
+  readonly specularOnlyMaterials: number;
   readonly warmup: {
     materials: number;
     meshes: number;
@@ -97,6 +100,8 @@ interface IHarnessSnapshot {
     passNames: readonly string[];
     msaaSamples: number;
     bloomScale: number;
+    bloomKind: string;
+    bloomBytes: number;
   };
   readonly shadows: {
     cascades: number;
@@ -112,6 +117,8 @@ interface IHarnessSnapshot {
     resolution: number;
     hasSphericalHarmonics: boolean;
     lastBuildMs: number;
+    specularOnly: boolean;
+    specularCubeSize: number;
   };
   readonly memory: ISceneMemoryReport;
   readonly clock: { timeScale: number; elapsed: number; unscaledElapsed: number };
@@ -690,7 +697,7 @@ function main(): void {
         `programs    ${stats.programs}    materials ${materials.size} / ${materials.programCount} sig`,
         `buffer      ${renderer.width}x${renderer.height} @ dpr ${renderer.pixelRatio.toFixed(2)} x${renderer.governor.scale.toFixed(2)}`,
         `shadows     ${shadows.cascadeCount}x${profile.shadows.mapSize} / ${shadows.cascadeRange}m   blobs ${shadows.blobShadows.count}`,
-        `ibl         ${environment.mode}  ${formatBytes(environment.getStats().gpuBytes)}`,
+        `ibl         ${environment.mode}${environment.getStats().specularOnly ? ' +spec' : ''}  ${formatBytes(environment.getStats().gpuBytes)}`,
         `textures    ${memory.textureCount} / ${formatBytes(memory.textureBytes)}`,
         `timeScale   ${clock.timeScale.toFixed(3)}   fov ${camera.fov.toFixed(1)}`,
       ].join('\n');
@@ -699,6 +706,19 @@ function main(): void {
   requestAnimationFrame(tick);
 
   /* -------------------------- control surface --------------------------- */
+
+  /**
+   * How many managed materials carry the specular-only define. On the SH path
+   * this must be ALL of them: a material that misses it is lit by the SH probe
+   * AND the probe texture, i.e. a stop too bright.
+   */
+  function countSpecularOnlyMaterials(): number {
+    let count = 0;
+    materials.forEach((material) => {
+      if (hasSpecularOnlyEnvironment(material)) count++;
+    });
+    return count;
+  }
 
   const harness: IRenderHarness = {
     get ready(): boolean {
@@ -737,6 +757,7 @@ function main(): void {
         medianFrameMs: renderer.governor.medianFrameMs,
         materialCount: materials.size,
         materialSignatures: [...materials.programSignatures.keys()],
+        specularOnlyMaterials: countSpecularOnlyMaterials(),
         warmup: {
           materials: warmupReport.materials,
           meshes: warmupReport.meshes,
@@ -752,6 +773,8 @@ function main(): void {
           passNames: [...postStats.passNames],
           msaaSamples: postStats.msaaSamples,
           bloomScale: postStats.bloomScale,
+          bloomKind: postStats.bloomKind,
+          bloomBytes: postStats.bloomBytes,
         },
         shadows: {
           cascades: shadowStats.cascades,
@@ -767,6 +790,8 @@ function main(): void {
           resolution: environmentStats.resolution,
           hasSphericalHarmonics: environmentStats.hasSphericalHarmonics,
           lastBuildMs: environmentStats.lastBuildMs,
+          specularOnly: environmentStats.specularOnly,
+          specularCubeSize: environmentStats.specularCubeSize,
         },
         memory: estimateSceneMemory(scene),
         clock: {
