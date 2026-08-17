@@ -476,8 +476,7 @@ export class PostProcessing implements IPostProcessing {
       direct: this.composer === undefined,
       bloomScale: this.profile.bloom ? this.profile.bloomScale : 0,
       bloomKind: this.profile.bloom ? this.profile.bloomKind : 'none',
-      bloomBytes:
-        this.bloomPass instanceof DualFilterBloomPass ? this.bloomPass.gpuBytes : 0,
+      bloomBytes: this.bloomPass instanceof DualFilterBloomPass ? this.bloomPass.gpuBytes : 0,
       msaaSamples: this.profile.msaaSamples,
     };
   }

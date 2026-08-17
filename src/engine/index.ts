@@ -64,11 +64,7 @@ export { projectEquirectToSH9, averageIrradiance, serializeSH9, deserializeSH9 }
 
 export { createProceduralSkyTexture, type IProceduralSkyOptions } from './procedural-sky';
 
-export {
-  createEquirectReader,
-  downsampleEquirect,
-  type IEquirectReader,
-} from './equirect';
+export { createEquirectReader, downsampleEquirect, type IEquirectReader } from './equirect';
 
 /* Materials -------------------------------------------------------------- */
 export {
@@ -137,10 +133,7 @@ export {
 
 export { OutputLutPass, type IOutputLutPassOptions } from './post/output-lut-pass';
 export { HalfResSSAOPass, type IHalfResSSAOOptions } from './post/ssao-pass';
-export {
-  DualFilterBloomPass,
-  type IDualFilterBloomOptions,
-} from './post/dual-filter-bloom-pass';
+export { DualFilterBloomPass, type IDualFilterBloomOptions } from './post/dual-filter-bloom-pass';
 export { AnimeCompositePass, type IAnimeCompositeOptions } from './post/anime-composite-pass';
 export {
   bakeLutStrip,

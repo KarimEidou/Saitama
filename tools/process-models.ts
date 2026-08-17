@@ -75,7 +75,8 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import {
@@ -110,7 +111,7 @@ import {
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 
-import type { IAssetLOD, IAssetOutput, QualityTier } from '@/types';
+import type { IAssetLOD, IAssetOutput, IMeshCompressionProfile, QualityTier } from '@/types';
 import {
   Limiter,
   Logger,
@@ -198,6 +199,8 @@ export interface IModelAssetOutput {
   readonly parts: readonly string[];
   readonly materials: number;
   readonly textures: number;
+  /** Exactly what was applied, for `IModelAsset.meshCompression`. */
+  readonly meshCompression: IMeshCompressionProfile;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -313,7 +316,7 @@ const FALLBACK_TARGET: Readonly<Record<QualityTier, ITierTarget>> = {
 /* Small helpers                                                              */
 /* -------------------------------------------------------------------------- */
 
-const { R, G, B, A } = TextureChannel;
+const { R, G, A } = TextureChannel;
 
 function toArray(value: string | readonly string[] | undefined): readonly string[] {
   if (value === undefined) return [];
@@ -989,6 +992,18 @@ async function processOne(
     parts: lod.parts,
     materials: root.listMaterials().length,
     textures: root.listTextures().length,
+    meshCompression: {
+      // The manifest asks for Draco. It gets meshopt instead: the two are
+      // mutually exclusive, and meshopt decodes an order of magnitude faster
+      // on a phone CPU while quantising to the same bit budgets. Recorded
+      // here as what was ACTUALLY applied, not what was requested.
+      ...meshProfileFor(target),
+      simplifyRatio: LOD_RATIOS[0],
+      draco: false,
+      meshopt: true,
+      positionBits: policy.positionBits,
+      normalBits: policy.normalBits,
+    },
   };
 
   const stats: IModelStats = {
@@ -1227,8 +1242,10 @@ export interface IValidationReport {
  * build failure; KTX2 payloads legitimately raise informational notices.
  */
 export async function validateGlb(file: string): Promise<IValidationReport> {
-  // `gltf-validator` is a Dart-to-JS bundle and ships no typings.
-  const validator = (await import(/* @vite-ignore */ 'gltf-validator')) as unknown as {
+  // `gltf-validator` is a Dart-to-JS CommonJS bundle and ships no typings, so
+  // it is pulled in through `createRequire` and given a hand-written shape
+  // rather than fought with a module declaration this workstream cannot add.
+  const validator = createRequire(import.meta.url)('gltf-validator') as {
     validateBytes(
       bytes: Uint8Array,
       options?: Record<string, unknown>
