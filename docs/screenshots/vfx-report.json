@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-17T07:50:22.945Z",
+  "generatedAt": "2026-08-17T08:45:14.292Z",
   "viewport": {
     "width": 1280,
     "height": 720
@@ -66,13 +66,13 @@
       }
     },
     "high": {
-      "vfxDrawCalls": 8,
-      "vfxPrograms": 0,
-      "vfxTriangles": 17330,
-      "scenePrograms": 29,
+      "vfxDrawCalls": 4,
+      "vfxPrograms": 1,
+      "vfxTriangles": 8665,
+      "scenePrograms": 28,
       "totalPrograms": 29,
       "sceneDrawCalls": 279,
-      "totalDrawCalls": 287,
+      "totalDrawCalls": 283,
       "programsByShader": "20 x6, physical x4, 15 x4, depth x3, 13 x3, 23 x3, 3 x1, 5 x1, 7 x1, 9 x1, 11 x1, 18 x1",
       "capacities": {
         "tier": "high",
@@ -98,23 +98,23 @@
     "vfx-shockwave-cone.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 50.83562675773853,
-      "mean": 67.60775788483797,
-      "distinctColors": 6333
+      "stdDev": 50.85079410884024,
+      "mean": 67.44439850983797,
+      "distinctColors": 6274
     },
     "vfx-shockwave-ring.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 50.069443573568016,
-      "mean": 79.71145760995371,
-      "distinctColors": 7521
+      "stdDev": 50.362270821261866,
+      "mean": 79.33219039351853,
+      "distinctColors": 7384
     },
     "vfx-dust-plume.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 52.3665793922483,
-      "mean": 65.16239691840278,
-      "distinctColors": 5733
+      "stdDev": 43.852875679152355,
+      "mean": 48.540403284143515,
+      "distinctColors": 4903
     },
     "vfx-speedlines.png": {
       "width": 1280,
@@ -126,63 +126,70 @@
     "vfx-debris-trails.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 51.3479360940914,
-      "mean": 63.52411747685185,
-      "distinctColors": 5875
+      "stdDev": 44.572569538042615,
+      "mean": 43.6253761574074,
+      "distinctColors": 4883
     },
     "vfx-ground-cracks.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 52.18951520604068,
-      "mean": 61.82334309895833,
-      "distinctColors": 5177
+      "stdDev": 19.266032934499467,
+      "mean": 28.56667787905093,
+      "distinctColors": 2957
     },
     "vfx-cloud-parting.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 61.03440535869396,
-      "mean": 127.98010018807871,
-      "distinctColors": 6115
+      "stdDev": 61.15875878113974,
+      "mean": 128.17455041956018,
+      "distinctColors": 6074
     },
     "vfx-impact-flash.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 51.605533109366995,
-      "mean": 67.55216579861111,
-      "distinctColors": 5894
+      "stdDev": 47.18901872853811,
+      "mean": 45.55232241030092,
+      "distinctColors": 5158
     },
     "vfx-serious-punch.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 50.33218046994465,
-      "mean": 68.45923719618055,
-      "distinctColors": 6543
+      "stdDev": 58.00422881870292,
+      "mean": 71.78705150462963,
+      "distinctColors": 7123
+    },
+    "vfx-serious-punch-street.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 50.91842782369013,
+      "mean": 68.35941044560185,
+      "distinctColors": 6608
     },
     "vfx-tier-high.png": {
       "width": 1280,
       "height": 720,
-      "stdDev": 48.79968834430628,
-      "mean": 62.18409505208333,
-      "distinctColors": 6000
+      "stdDev": 48.79334476970723,
+      "mean": 61.92351164641204,
+      "distinctColors": 5933
     }
   },
   "impactFreeze": {
     "width": 1280,
     "height": 720,
-    "stdDev": 54.17309916690538,
-    "mean": 71.13220883969909,
-    "distinctColors": 6506
+    "stdDev": 53.663365348602525,
+    "mean": 71.14361942997685,
+    "distinctColors": 6427
   },
   "allocation": {
     "supported": true,
-    "frames": 300,
+    "frames": 4000,
     "simBytes": 0,
     "simBytesPerFrame": 0,
-    "frameBytes": 0,
-    "frameBytesPerFrame": 0,
+    "frameBytes": 700000,
+    "frameBytesPerFrame": 175,
     "spritesDuringSample": 615,
-    "heapBefore": 11900000,
-    "heapAfter": 11900000
+    "heapBefore": 12700000,
+    "heapAfter": 12700000
   },
   "determinism": {
     "meanAbsolutePixelDifference": 0
@@ -190,6 +197,7 @@
   "notes": [
     "[low] VFX cost 4/12 draw calls and 0/5 programs (scene 12 -> 12 programs, 38 -> 42 draws), 1,685 triangles, 0.67 MB of generated atlases",
     "[medium] VFX cost 4/12 draw calls and 0/5 programs (scene 17 -> 17 programs, 82 -> 86 draws), 4,411 triangles, 2.67 MB of generated atlases",
-    "[high] VFX cost 8/12 draw calls and 0/5 programs (scene 29 -> 29 programs, 279 -> 287 draws), 17,330 triangles, 2.67 MB of generated atlases"
+    "[alloc] heap growth over 4000 simulation frames was below Chrome's 100 KB reporting quantum, i.e. under 26 bytes per frame",
+    "[high] VFX cost 4/12 draw calls and 1/5 programs (scene 28 -> 29 programs, 279 -> 283 draws), 8,665 triangles, 2.67 MB of generated atlases"
   ]
 }

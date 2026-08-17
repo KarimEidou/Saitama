@@ -166,13 +166,20 @@ ${allPalettes()}
   top:var(--hud-sa-t);left:var(--hud-sa-l);right:var(--hud-sa-r);
   display:grid;
   grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  grid-template-rows:auto auto;
   align-items:start;
   gap:var(--hud-gap);
   pointer-events:none;
 }
-.hud-top__left{display:flex;flex-direction:column;gap:var(--hud-gap);align-items:flex-start;min-width:0}
-.hud-top__centre{display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
-.hud-top__right{display:flex;flex-direction:column;gap:var(--hud-gap);align-items:flex-end;min-width:0}
+.hud-top__left{grid-area:1 / 1;display:flex;flex-direction:column;gap:var(--hud-gap);align-items:flex-start;min-width:0}
+.hud-top__centre{grid-area:1 / 2;display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
+.hud-top__right{grid-area:1 / 3;display:flex;flex-direction:column;gap:var(--hud-gap);align-items:flex-end;min-width:0}
+/* The tracker is a PLACED GRID ITEM rather than a member of a column.
+   In landscape it hangs under the centre column, which is the only region of a
+   390 px-tall viewport that is neither under a hand nor holding a live readout;
+   in portrait it becomes fixed to the bottom-left, above the thumb reserve. Two
+   very different places, one element, no duplicated DOM. */
+.hud-tracker{grid-area:2 / 2;justify-self:center}
 
 /* ---- rank chip --------------------------------------------------------- */
 .hud-rankchip{display:flex;align-items:center;gap:8px;padding:5px 10px 6px}
@@ -413,7 +420,14 @@ ${allPalettes()}
 /* three writes transform and display on .hud-marker itself, so the      */
 /* marker's OWN chrome must not depend on either — everything here is painted  */
 /* from custom properties and static geometry.                                 */
-.hud-markers{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+/* The host is FULL-BLEED on purpose: CSS2DRenderer projects into the box it
+   was given, so insetting it would shift every marker sideways by the notch
+   width. Markers are clipped to the safe box instead, which keeps the
+   projection honest and still stops a pin drawing under a cutout. */
+.hud-markers{
+  position:absolute;inset:0;overflow:hidden;pointer-events:none;
+  clip-path:inset(var(--hud-sa-t) var(--hud-sa-r) var(--hud-sa-b) var(--hud-sa-l));
+}
 .hud-marker{
   position:absolute;pointer-events:none;
   display:flex;flex-direction:column;align-items:center;gap:2px;
@@ -639,10 +653,17 @@ ${allPalettes()}
 /* the reserve is measured from the bottom and portrait has 844 px of height. */
 @media (orientation:portrait) and (max-width:460px){
   .hud-top{grid-template-columns:minmax(0,1fr) minmax(0,1fr);row-gap:6px}
-  .hud-top__centre{grid-column:1 / -1;grid-row:2;order:3}
+  .hud-top__left{grid-area:1 / 1}
+  .hud-top__right{grid-area:1 / 2}
+  .hud-top__centre{grid-area:2 / 1 / auto / -1;align-items:flex-start}
   .hud-boredom{width:min(200px,50vw)}
+  /* FIXED, not absolute. .hud-top is itself absolutely positioned with an
+     auto height, so an absolutely-positioned child resolving bottom against
+     IT lands above the top of the screen — which is precisely the bug the
+     safe-area assertion caught, at y = -208. Fixed resolves against the
+     viewport, which is what "above the thumb" means. */
   .hud-tracker{
-    position:absolute;left:var(--hud-sa-l);
+    position:fixed;left:var(--hud-sa-l);
     bottom:calc(var(--hud-sa-b) + var(--hud-thumb-reserve));
     width:min(260px,68vw);
   }

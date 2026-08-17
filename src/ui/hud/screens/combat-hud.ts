@@ -451,13 +451,17 @@ export class CombatHudScreen extends HudScreen {
         children: [
           el(doc, 'div', {
             className: 'hud-top__left',
-            children: [rankChip, this.boredom, this.tracker],
+            children: [rankChip, this.boredom],
           }),
           el(doc, 'div', {
             className: 'hud-top__centre',
             children: [this.encounterCard, this.bossCard],
           }),
           rightColumn,
+          // Placed by the stylesheet, not by its position in this list: under
+          // the centre column in landscape, fixed to the bottom-left in
+          // portrait. See `.hud-tracker` in styles.ts.
+          this.tracker,
         ],
       }),
       pauseButton,

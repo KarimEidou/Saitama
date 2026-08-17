@@ -1,0 +1,3655 @@
+{
+  "inputGeometry": {
+    "pivotPx": 16,
+    "slots": [
+      {
+        "id": "punch",
+        "right": 65.32757352618998,
+        "bottom": 86.4470758088533,
+        "size": 84,
+        "reach": 150.35492041767827
+      },
+      {
+        "id": "jump",
+        "right": 148.514328810792,
+        "bottom": 46.59334339076564,
+        "size": 64,
+        "reach": 187.65168007589847
+      },
+      {
+        "id": "dash",
+        "right": 18.37352727547054,
+        "bottom": 151.9792865412692,
+        "size": 60,
+        "reach": 183.0858910616379
+      },
+      {
+        "id": "interact",
+        "right": 129.21172777037475,
+        "bottom": 137.4047144687823,
+        "size": 66,
+        "reach": 221.61528610283162
+      }
+    ],
+    "maxReach": 221.61528610283162,
+    "hudReserve": 240,
+    "stickReserve": 200
+  },
+  "regions": {
+    "whole": {
+      "meanLuma": 37.323964544686866,
+      "stdDev": 29.48968903166542,
+      "colours": 1138,
+      "width": 2532,
+      "height": 1170
+    },
+    "band": {
+      "meanLuma": 42.44400500557322,
+      "stdDev": 32.65248963075381,
+      "colours": 516,
+      "width": 2532,
+      "height": 360
+    },
+    "corridor": {
+      "meanLuma": 31.502936862322425,
+      "stdDev": 27.597708581057788,
+      "colours": 527,
+      "width": 1013,
+      "height": 351
+    }
+  },
+  "measurement": {
+    "frames": 120,
+    "properties": [
+      "--boredom",
+      "--n-i",
+      "--n-f",
+      "--collateral",
+      "--charge",
+      "--hud-intent",
+      "--hud-intent-label"
+    ],
+    "offending": [],
+    "directWrites": [],
+    "reads": [],
+    "layoutShift": 0,
+    "layoutShiftObserved": true,
+    "setPropertyCalls": 511,
+    "writerWrites": 511,
+    "writerSkipped": 1893
+  },
+  "snapshot.phone-landscape": {
+    "scene": "combat",
+    "activeScreen": "hud",
+    "stack": [
+      "hud"
+    ],
+    "modalOpen": false,
+    "boredom": 0.5060454732033068,
+    "rank": {
+      "heroName": "Caped Baldy",
+      "heroClass": "C",
+      "rank": 388,
+      "points": 12.4,
+      "pointsToNextRank": 33.6,
+      "rankGainMultiplier": 0.8251131270761984,
+      "reputation": 41,
+      "rankProgress": 0.27
+    },
+    "rivals": 3,
+    "quests": 6,
+    "tracked": "quest.rescue.tunnel",
+    "alerts": [],
+    "markers": 0,
+    "encounter": {
+      "id": "encounter.mosquito",
+      "name": "Mosquito Girl",
+      "tier": "demon",
+      "isBoss": false,
+      "elapsed": 6.60000000000008,
+      "civiliansSaved": 6,
+      "civiliansLost": 2,
+      "collateralYen": 5955561528.127368,
+      "collateralScore": 0.6897232674222894,
+      "debrisPieces": 1445,
+      "debrisMassKg": 91400,
+      "witnesses": 9
+    },
+    "invoice": null,
+    "settings": {
+      "qualityTier": "medium",
+      "resolutionScale": 1,
+      "stickLayout": "floating",
+      "stickHand": "left",
+      "invertLookY": false,
+      "lookSensitivity": 1,
+      "hapticsEnabled": true,
+      "palette": "default",
+      "hudScale": 1,
+      "reducedMotion": false,
+      "showCollateralTicker": true
+    },
+    "insets": {
+      "top": 0,
+      "right": 34,
+      "bottom": 21,
+      "left": 59
+    },
+    "viewport": {
+      "width": 844,
+      "height": 390
+    },
+    "cumulativeLayoutShift": 0.03726273126150782
+  },
+  "snapshot.phone-portrait": {
+    "scene": "pause",
+    "activeScreen": "hud",
+    "stack": [
+      "hud"
+    ],
+    "modalOpen": false,
+    "boredom": 0.31,
+    "rank": {
+      "heroName": "Caped Baldy",
+      "heroClass": "C",
+      "rank": 388,
+      "points": 12.4,
+      "pointsToNextRank": 33.6,
+      "rankGainMultiplier": 0.8251131270761984,
+      "reputation": 41,
+      "rankProgress": 0.27
+    },
+    "rivals": 3,
+    "quests": 6,
+    "tracked": "quest.rescue.tunnel",
+    "alerts": [],
+    "markers": 0,
+    "encounter": {
+      "id": "encounter.mosquito",
+      "name": "Mosquito Girl",
+      "tier": "demon",
+      "isBoss": false,
+      "elapsed": 6.566666666666663,
+      "civiliansSaved": 0,
+      "civiliansLost": 0,
+      "collateralYen": 0,
+      "collateralScore": 0,
+      "debrisPieces": 0,
+      "debrisMassKg": 0,
+      "witnesses": 0
+    },
+    "invoice": null,
+    "settings": {
+      "qualityTier": "medium",
+      "resolutionScale": 1,
+      "stickLayout": "floating",
+      "stickHand": "left",
+      "invertLookY": false,
+      "lookSensitivity": 1,
+      "hapticsEnabled": true,
+      "palette": "default",
+      "hudScale": 1,
+      "reducedMotion": false,
+      "showCollateralTicker": true
+    },
+    "insets": {
+      "top": 59,
+      "right": 0,
+      "bottom": 34,
+      "left": 0
+    },
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cumulativeLayoutShift": 0.00008199818120978922
+  },
+  "snapshot.tablet": {
+    "scene": "combat-charging",
+    "activeScreen": "hud",
+    "stack": [
+      "hud"
+    ],
+    "modalOpen": false,
+    "boredom": 0.5907320479505631,
+    "rank": {
+      "heroName": "Caped Baldy",
+      "heroClass": "C",
+      "rank": 388,
+      "points": 12.4,
+      "pointsToNextRank": 33.6,
+      "rankGainMultiplier": 0.8251131270761984,
+      "reputation": 41,
+      "rankProgress": 0.27
+    },
+    "rivals": 3,
+    "quests": 6,
+    "tracked": "quest.rescue.tunnel",
+    "alerts": [],
+    "markers": 0,
+    "encounter": {
+      "id": "encounter.mosquito",
+      "name": "Mosquito Girl",
+      "tier": "demon",
+      "isBoss": false,
+      "elapsed": 6.533333333333331,
+      "civiliansSaved": 6,
+      "civiliansLost": 2,
+      "collateralYen": 5553857829.706441,
+      "collateralScore": 0.6194251201986272,
+      "debrisPieces": 1404,
+      "debrisMassKg": 91400,
+      "witnesses": 9
+    },
+    "invoice": null,
+    "settings": {
+      "qualityTier": "medium",
+      "resolutionScale": 1,
+      "stickLayout": "floating",
+      "stickHand": "left",
+      "invertLookY": false,
+      "lookSensitivity": 1,
+      "hapticsEnabled": true,
+      "palette": "default",
+      "hudScale": 1,
+      "reducedMotion": false,
+      "showCollateralTicker": true
+    },
+    "insets": {
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "left": 0
+    },
+    "viewport": {
+      "width": 1024,
+      "height": 768
+    },
+    "cumulativeLayoutShift": 0.015536109606424969
+  },
+  "shots": {
+    "hud-loading-phone-landscape.png": {
+      "meanLuma": 10.004193724188053,
+      "stdDev": 19.76838040860196,
+      "colours": 673,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-combat-phone-landscape.png": {
+      "meanLuma": 37.323964544686866,
+      "stdDev": 29.48968903166542,
+      "colours": 1138,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-combat-boss-phone-landscape.png": {
+      "meanLuma": 36.126229368728765,
+      "stdDev": 29.19015625912237,
+      "colours": 1184,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-quests-phone-landscape.png": {
+      "meanLuma": 27.13142528463944,
+      "stdDev": 23.566164255225566,
+      "colours": 869,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-rank-phone-landscape.png": {
+      "meanLuma": 19.190671200141978,
+      "stdDev": 28.56150048357415,
+      "colours": 585,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-results-phone-landscape.png": {
+      "meanLuma": 24.182776798667362,
+      "stdDev": 18.552683112129834,
+      "colours": 750,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-pause-phone-landscape.png": {
+      "meanLuma": 16.19772934343392,
+      "stdDev": 23.299578947673588,
+      "colours": 331,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-settings-phone-landscape.png": {
+      "meanLuma": 31.17524031564145,
+      "stdDev": 21.322915611396436,
+      "colours": 971,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-idle-phone-landscape.png": {
+      "meanLuma": 37.350838558145185,
+      "stdDev": 25.418017305745288,
+      "colours": 857,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-combat-alert-phone-landscape.png": {
+      "meanLuma": 35.120936073100964,
+      "stdDev": 27.180745689612273,
+      "colours": 979,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-combat-charging-phone-landscape.png": {
+      "meanLuma": 37.47266917337882,
+      "stdDev": 29.700549113412997,
+      "colours": 1167,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-combat-bored-phone-landscape.png": {
+      "meanLuma": 36.423226875590984,
+      "stdDev": 27.74254967918476,
+      "colours": 894,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-markers-phone-landscape.png": {
+      "meanLuma": 36.955762660791954,
+      "stdDev": 29.68002158166145,
+      "colours": 1268,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-palette-deuteranopia.png": {
+      "meanLuma": 37.60413136416411,
+      "stdDev": 30.804139591740583,
+      "colours": 1171,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-palette-protanopia.png": {
+      "meanLuma": 37.641126200859084,
+      "stdDev": 30.99014848927876,
+      "colours": 1173,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-palette-tritanopia.png": {
+      "meanLuma": 37.494567286381496,
+      "stdDev": 30.202252047024313,
+      "colours": 1349,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-palette-highContrast.png": {
+      "meanLuma": 38.60232765507618,
+      "stdDev": 33.78091016311337,
+      "colours": 1197,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-loading-phone-portrait.png": {
+      "meanLuma": 10.434112475579003,
+      "stdDev": 21.882326914369067,
+      "colours": 674,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-combat-phone-portrait.png": {
+      "meanLuma": 51.11767035580384,
+      "stdDev": 38.36321441048779,
+      "colours": 1071,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-combat-boss-phone-portrait.png": {
+      "meanLuma": 49.43495906319523,
+      "stdDev": 38.07052548745303,
+      "colours": 1116,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-quests-phone-portrait.png": {
+      "meanLuma": 37.18392415012133,
+      "stdDev": 28.16115101258771,
+      "colours": 1067,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-rank-phone-portrait.png": {
+      "meanLuma": 39.542572808971514,
+      "stdDev": 27.693343722699954,
+      "colours": 1267,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-results-phone-portrait.png": {
+      "meanLuma": 33.147005979231416,
+      "stdDev": 24.79727964472447,
+      "colours": 982,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-pause-phone-portrait.png": {
+      "meanLuma": 39.704911715581844,
+      "stdDev": 29.410091925243915,
+      "colours": 876,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-settings-phone-portrait.png": {
+      "meanLuma": 20.973619462348527,
+      "stdDev": 30.38401183749196,
+      "colours": 491,
+      "width": 1170,
+      "height": 2532
+    },
+    "hud-loading-tablet.png": {
+      "meanLuma": 9.35515954282814,
+      "stdDev": 19.554951702280587,
+      "colours": 649,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-combat-tablet.png": {
+      "meanLuma": 43.13628430003484,
+      "stdDev": 29.552366521299792,
+      "colours": 1058,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-combat-boss-tablet.png": {
+      "meanLuma": 42.634731514320094,
+      "stdDev": 29.62645689323221,
+      "colours": 1100,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-quests-tablet.png": {
+      "meanLuma": 33.12377062189393,
+      "stdDev": 20.999802935313376,
+      "colours": 960,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-rank-tablet.png": {
+      "meanLuma": 23.333863964313164,
+      "stdDev": 22.19306851116654,
+      "colours": 764,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-results-tablet.png": {
+      "meanLuma": 14.613701146096837,
+      "stdDev": 20.485581285096885,
+      "colours": 488,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-pause-tablet.png": {
+      "meanLuma": 24.70116477498247,
+      "stdDev": 17.154985580000673,
+      "colours": 646,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-settings-tablet.png": {
+      "meanLuma": 22.740299290998006,
+      "stdDev": 21.964492587740487,
+      "colours": 724,
+      "width": 2048,
+      "height": 1536
+    }
+  },
+  "panels": {
+    "loading@phone-landscape": [
+      {
+        "id": "loading-track",
+        "screen": "boot",
+        "x": 274.5,
+        "y": 186.59375,
+        "width": 320,
+        "height": 3,
+        "text": ""
+      }
+    ],
+    "combat@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "GOING THROUGH THE MOTIONSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 365.5,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 621.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 632,
+        "y": 64,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 334.5,
+        "y": 132,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      }
+    ],
+    "combat-boss@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "GOING THROUGH THE MOTIONSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 364.546875,
+        "y": 8,
+        "width": 139.890625,
+        "height": 54,
+        "text": "THREAT DRAGONDeep Sea King:"
+      },
+      {
+        "id": "boss",
+        "screen": "hud",
+        "x": 284.5,
+        "y": 68,
+        "width": 300,
+        "height": 40,
+        "text": "PHASE 2"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 621.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 632,
+        "y": 64,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 334.5,
+        "y": 132,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      }
+    ],
+    "quests@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "quests",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "quests",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "quests",
+        "x": 334.5,
+        "y": 115,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "quests",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "quests",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "quests",
+        "x": 69,
+        "y": 18,
+        "width": 731,
+        "height": 341,
+        "text": "Requests3 active requests · 1 resolvedWOLFRoute 7 Tunnel Col"
+      },
+      {
+        "id": "quests-close",
+        "screen": "quests",
+        "x": 714,
+        "y": 304,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "rank@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "rank",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "rank",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "rank",
+        "x": 334.5,
+        "y": 115,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "rank",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "rank",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "rank",
+        "x": 69,
+        "y": 18,
+        "width": 731,
+        "height": 341,
+        "text": "Hero AssociationRegister of active heroesC-388Caped Baldy12."
+      },
+      {
+        "id": "standing",
+        "screen": "rank",
+        "x": 84,
+        "y": 78,
+        "width": 701,
+        "height": 43.09375,
+        "text": "C-388Caped Baldy12.4 hero points · 33.6 to the next seat · r"
+      },
+      {
+        "id": "rank-close",
+        "screen": "rank",
+        "x": 714,
+        "y": 304,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "results@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "results",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "results",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "results",
+        "x": 334.5,
+        "y": 115,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "results",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "results",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "results",
+        "x": 114.5,
+        "y": 18,
+        "width": 640,
+        "height": 341,
+        "text": "Incident resolvedMosquito Girl · threat DEMONResolved in1.4s"
+      },
+      {
+        "id": "results-dismiss",
+        "screen": "results",
+        "x": 664.890625,
+        "y": 304,
+        "width": 74.609375,
+        "height": 44,
+        "text": "File it"
+      }
+    ],
+    "pause@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "pause",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "pause",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "pause",
+        "x": 365.5,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "pause",
+        "x": 621.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "pause",
+        "x": 632,
+        "y": 64,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "pause",
+        "x": 334.5,
+        "y": 132,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "pause",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "pause",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "pause",
+        "x": 224.5,
+        "y": 40.53125,
+        "width": 420,
+        "height": 295.9375,
+        "text": "PausedCaped Baldy · C-388ResumeRequestsHero AssociationSetti"
+      },
+      {
+        "id": "pause-resume",
+        "screen": "pause",
+        "x": 239.5,
+        "y": 100.53125,
+        "width": 390,
+        "height": 44,
+        "text": "Resume"
+      },
+      {
+        "id": "pause-quests",
+        "screen": "pause",
+        "x": 239.5,
+        "y": 152.53125,
+        "width": 390,
+        "height": 44,
+        "text": "Requests"
+      },
+      {
+        "id": "pause-rank",
+        "screen": "pause",
+        "x": 239.5,
+        "y": 204.53125,
+        "width": 390,
+        "height": 44,
+        "text": "Hero Association"
+      },
+      {
+        "id": "pause-settings",
+        "screen": "pause",
+        "x": 239.5,
+        "y": 256.53125,
+        "width": 390,
+        "height": 44,
+        "text": "Settings"
+      }
+    ],
+    "settings@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "settings",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "settings",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "settings",
+        "x": 334.5,
+        "y": 115,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "settings",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "settings",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "settings",
+        "x": 69,
+        "y": 18,
+        "width": 731,
+        "height": 341,
+        "text": "SettingsApplied immediatelyRenderQualityShadows and bloom. T"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 627.578125,
+        "y": 113,
+        "width": 44,
+        "height": 38,
+        "text": "low"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 674.578125,
+        "y": 113,
+        "width": 60.25,
+        "height": 38,
+        "text": "medium"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 737.828125,
+        "y": 113,
+        "width": 44.171875,
+        "height": 38,
+        "text": "high"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 544.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "50%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 591.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "60%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 638.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "75%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 685.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "85%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 732.828125,
+        "y": 171,
+        "width": 49.171875,
+        "height": 38,
+        "text": "100%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 663.46875,
+        "y": 268,
+        "width": 66.328125,
+        "height": 38,
+        "text": "Floating"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 732.796875,
+        "y": 268,
+        "width": 49.203125,
+        "height": 38,
+        "text": "Fixed"
+      },
+      {
+        "id": "settings-close",
+        "screen": "settings",
+        "x": 714,
+        "y": 304,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "idle@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 334.5,
+        "y": 115,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
+        "text": ""
+      }
+    ],
+    "combat-alert@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 365.5,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 621.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 632,
+        "y": 64,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 334.5,
+        "y": 132,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
+        "text": ""
+      },
+      {
+        "id": "alerts",
+        "screen": "hud",
+        "x": 212,
+        "y": 12,
+        "width": 420,
+        "height": 46.5,
+        "text": "THREAT LEVEL DEMONThreat to an entire city"
+      },
+      {
+        "id": "hud-panel",
+        "screen": "hud",
+        "x": 212,
+        "y": 12,
+        "width": 420,
+        "height": 46.5,
+        "text": "THREAT LEVEL DEMONThreat to an entire city"
+      }
+    ],
+    "combat-charging@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "GOING THROUGH THE MOTIONSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 365.5,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 621.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 632,
+        "y": 64,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 334.5,
+        "y": 132,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 347,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      }
+    ],
+    "combat-bored@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "NUMBRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 365.5,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 621.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 632,
+        "y": 64,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 334.5,
+        "y": 132,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
+        "text": ""
+      }
+    ],
+    "markers@phone-landscape": [
+      {
+        "id": "hud-marker",
+        "screen": "hud",
+        "x": 387.59375,
+        "y": 148.82310485839844,
+        "width": 68.8125,
+        "height": 41,
+        "text": "Mosquito Girl25 m"
+      },
+      {
+        "id": "hud-marker",
+        "screen": "hud",
+        "x": 236.41845703125,
+        "y": 154.49111938476562,
+        "width": 76.40625,
+        "height": 41,
+        "text": "Route 7 Tunnel35 m"
+      },
+      {
+        "id": "hud-marker",
+        "screen": "hud",
+        "x": 510.64599609375,
+        "y": 162.16404724121094,
+        "width": 158.40625,
+        "height": 41,
+        "text": "Supermarket — sale ends 18:0035 m"
+      },
+      {
+        "id": "hud-marker",
+        "screen": "hud",
+        "x": 530.1697387695312,
+        "y": 205.4905242919922,
+        "width": 39.8125,
+        "height": 38,
+        "text": "Civilian20 m"
+      },
+      {
+        "id": "hud-marker",
+        "screen": "hud",
+        "x": 258.2837829589844,
+        "y": 192.8723907470703,
+        "width": 62.609375,
+        "height": 41,
+        "text": "Mumen Rider20 m"
+      },
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 59,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 59,
+        "y": 66,
+        "width": 190,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 365.5,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 621.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 632,
+        "y": 64,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 334.5,
+        "y": 132,
+        "width": 200,
+        "height": 115.640625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 770,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
+        "text": ""
+      }
+    ],
+    "loading@phone-portrait": [
+      {
+        "id": "loading-track",
+        "screen": "boot",
+        "x": 74.09375,
+        "y": 428.28125,
+        "width": 241.796875,
+        "height": 3,
+        "text": ""
+      }
+    ],
+    "combat@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 8,
+        "y": 59,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 8,
+        "y": 119,
+        "width": 195,
+        "height": 43,
+        "text": "GOING THROUGH THE MOTIONSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 8,
+        "y": 185,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 193.1875,
+        "y": 59,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 204,
+        "y": 117,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 8,
+        "y": 468.109375,
+        "width": 260,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 342,
+        "y": 59,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 103,
+        "y": 696,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      }
+    ],
+    "combat-boss@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 8,
+        "y": 59,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 8,
+        "y": 119,
+        "width": 195,
+        "height": 43,
+        "text": "GOING THROUGH THE MOTIONSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 8,
+        "y": 185,
+        "width": 139.890625,
+        "height": 54,
+        "text": "THREAT DRAGONDeep Sea King:"
+      },
+      {
+        "id": "boss",
+        "screen": "hud",
+        "x": 8,
+        "y": 245,
+        "width": 226.1875,
+        "height": 40,
+        "text": "PHASE 2"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 193.1875,
+        "y": 59,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 204,
+        "y": 117,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 8,
+        "y": 468.109375,
+        "width": 260,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 342,
+        "y": 59,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 103,
+        "y": 696,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      }
+    ],
+    "quests@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "screen": "quests",
+        "x": 8,
+        "y": 59,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "quests",
+        "x": 8,
+        "y": 119,
+        "width": 195,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "quests",
+        "x": 8,
+        "y": 468.109375,
+        "width": 260,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "quests",
+        "x": 342,
+        "y": 59,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "quests",
+        "x": 103,
+        "y": 696,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "quests",
+        "x": 18,
+        "y": 69,
+        "width": 354,
+        "height": 731,
+        "text": "Requests3 active requests · 1 resolvedWOLFRoute 7 Tunnel Col"
+      },
+      {
+        "id": "quests-close",
+        "screen": "quests",
+        "x": 286,
+        "y": 745,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "rank@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "screen": "rank",
+        "x": 8,
+        "y": 59,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "rank",
+        "x": 8,
+        "y": 119,
+        "width": 195,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "rank",
+        "x": 8,
+        "y": 468.109375,
+        "width": 260,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "rank",
+        "x": 342,
+        "y": 59,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "rank",
+        "x": 103,
+        "y": 696,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "rank",
+        "x": 18,
+        "y": 69,
+        "width": 354,
+        "height": 731,
+        "text": "Hero AssociationRegister of active heroesC-388Caped Baldy12."
+      },
+      {
+        "id": "standing",
+        "screen": "rank",
+        "x": 33,
+        "y": 129,
+        "width": 324,
+        "height": 85.25,
+        "text": "C-388Caped Baldy12.4 hero points · 33.6 to the next seat · r"
+      },
+      {
+        "id": "rank-close",
+        "screen": "rank",
+        "x": 286,
+        "y": 745,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "results@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "screen": "results",
+        "x": 8,
+        "y": 59,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "results",
+        "x": 8,
+        "y": 119,
+        "width": 195,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "results",
+        "x": 8,
+        "y": 468.109375,
+        "width": 260,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "results",
+        "x": 342,
+        "y": 59,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "results",
+        "x": 103,
+        "y": 696,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "results",
+        "x": 18,
+        "y": 79.90625,
+        "width": 354,
+        "height": 709.171875,
+        "text": "Incident resolvedMosquito Girl · threat DEMONResolved in1.4s"
+      },
+      {
+        "id": "invoice-total",
+        "screen": "results",
+        "x": 33,
+        "y": 568.90625,
+        "width": 324,
+        "height": 60,
+        "text": "Hero points awarded+0.0held on the ladder"
+      },
+      {
+        "id": "results-dismiss",
+        "screen": "results",
+        "x": 282.390625,
+        "y": 734.078125,
+        "width": 74.609375,
+        "height": 44,
+        "text": "File it"
+      }
+    ],
+    "pause@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "screen": "pause",
+        "x": 8,
+        "y": 59,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "pause",
+        "x": 8,
+        "y": 119,
+        "width": 195,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "pause",
+        "x": 8,
+        "y": 185,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "pause",
+        "x": 193.1875,
+        "y": 59,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "pause",
+        "x": 204,
+        "y": 117,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "pause",
+        "x": 8,
+        "y": 468.109375,
+        "width": 260,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "pause",
+        "x": 342,
+        "y": 59,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "pause",
+        "x": 103,
+        "y": 696,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "pause",
+        "x": 18,
+        "y": 286.53125,
+        "width": 354,
+        "height": 295.9375,
+        "text": "PausedCaped Baldy · C-388ResumeRequestsHero AssociationSetti"
+      },
+      {
+        "id": "pause-resume",
+        "screen": "pause",
+        "x": 33,
+        "y": 346.53125,
+        "width": 324,
+        "height": 44,
+        "text": "Resume"
+      },
+      {
+        "id": "pause-quests",
+        "screen": "pause",
+        "x": 33,
+        "y": 398.53125,
+        "width": 324,
+        "height": 44,
+        "text": "Requests"
+      },
+      {
+        "id": "pause-rank",
+        "screen": "pause",
+        "x": 33,
+        "y": 450.53125,
+        "width": 324,
+        "height": 44,
+        "text": "Hero Association"
+      },
+      {
+        "id": "pause-settings",
+        "screen": "pause",
+        "x": 33,
+        "y": 502.53125,
+        "width": 324,
+        "height": 44,
+        "text": "Settings"
+      }
+    ],
+    "settings@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "screen": "settings",
+        "x": 8,
+        "y": 59,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "settings",
+        "x": 8,
+        "y": 119,
+        "width": 195,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "settings",
+        "x": 8,
+        "y": 468.109375,
+        "width": 260,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "settings",
+        "x": 342,
+        "y": 59,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "settings",
+        "x": 103,
+        "y": 696,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "settings",
+        "x": 18,
+        "y": 69,
+        "width": 354,
+        "height": 731,
+        "text": "SettingsApplied immediatelyRenderQualityShadows and bloom. T"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 199.578125,
+        "y": 165.296875,
+        "width": 44,
+        "height": 38,
+        "text": "low"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 246.578125,
+        "y": 165.296875,
+        "width": 60.25,
+        "height": 38,
+        "text": "medium"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 309.828125,
+        "y": 165.296875,
+        "width": 44.171875,
+        "height": 38,
+        "text": "high"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 116.828125,
+        "y": 270.125,
+        "width": 44,
+        "height": 38,
+        "text": "50%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 163.828125,
+        "y": 270.125,
+        "width": 44,
+        "height": 38,
+        "text": "60%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 210.828125,
+        "y": 270.125,
+        "width": 44,
+        "height": 38,
+        "text": "75%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 257.828125,
+        "y": 270.125,
+        "width": 44,
+        "height": 38,
+        "text": "85%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 304.828125,
+        "y": 270.125,
+        "width": 49.171875,
+        "height": 38,
+        "text": "100%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 235.46875,
+        "y": 413.96875,
+        "width": 66.328125,
+        "height": 38,
+        "text": "Floating"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 304.796875,
+        "y": 413.96875,
+        "width": 49.203125,
+        "height": 38,
+        "text": "Fixed"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 256.625,
+        "y": 473.265625,
+        "width": 44.171875,
+        "height": 38,
+        "text": "Left"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 303.796875,
+        "y": 473.265625,
+        "width": 50.203125,
+        "height": 38,
+        "text": "Right"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 263,
+        "y": 531.265625,
+        "width": 44,
+        "height": 38,
+        "text": "Off"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 310,
+        "y": 531.265625,
+        "width": 44,
+        "height": 38,
+        "text": "On"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 46,
+        "y": 620.5,
+        "width": 44,
+        "height": 38,
+        "text": "0.4×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 93,
+        "y": 620.5,
+        "width": 44,
+        "height": 38,
+        "text": "0.6×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 140,
+        "y": 620.5,
+        "width": 44,
+        "height": 38,
+        "text": "0.8×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 187,
+        "y": 620.5,
+        "width": 44,
+        "height": 38,
+        "text": "1×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 234,
+        "y": 620.5,
+        "width": 44,
+        "height": 38,
+        "text": "1.3×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 281,
+        "y": 620.5,
+        "width": 44,
+        "height": 38,
+        "text": "1.6×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 328,
+        "y": 620.5,
+        "width": 44,
+        "height": 38,
+        "text": "2×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 263,
+        "y": 709.75,
+        "width": 44,
+        "height": 38,
+        "text": "Off"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 310,
+        "y": 709.75,
+        "width": 44,
+        "height": 38,
+        "text": "On"
+      },
+      {
+        "id": "settings-close",
+        "screen": "settings",
+        "x": 286,
+        "y": 745,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "loading@tablet": [
+      {
+        "id": "loading-track",
+        "screen": "boot",
+        "x": 352,
+        "y": 398.09375,
+        "width": 320,
+        "height": 3,
+        "text": ""
+      }
+    ],
+    "combat@tablet": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 8,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 8,
+        "y": 68,
+        "width": 214,
+        "height": 43,
+        "text": "GOING THROUGH THE MOTIONSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 443,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 827.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 838,
+        "y": 66,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 396,
+        "y": 136,
+        "width": 232,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 976,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 420,
+        "y": 646,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      }
+    ],
+    "combat-boss@tablet": [
+      {
+        "id": "rank-chip",
+        "screen": "hud",
+        "x": 8,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "hud",
+        "x": 8,
+        "y": 68,
+        "width": 214,
+        "height": 43,
+        "text": "GOING THROUGH THE MOTIONSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "hud",
+        "x": 442.046875,
+        "y": 8,
+        "width": 139.890625,
+        "height": 54,
+        "text": "THREAT DRAGONDeep Sea King:"
+      },
+      {
+        "id": "boss",
+        "screen": "hud",
+        "x": 342,
+        "y": 68,
+        "width": 340,
+        "height": 40,
+        "text": "PHASE 2"
+      },
+      {
+        "id": "ledger",
+        "screen": "hud",
+        "x": 827.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "hud",
+        "x": 838,
+        "y": 66,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "hud",
+        "x": 396,
+        "y": 136,
+        "width": 232,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "hud",
+        "x": 976,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "hud",
+        "x": 420,
+        "y": 646,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      }
+    ],
+    "quests@tablet": [
+      {
+        "id": "rank-chip",
+        "screen": "quests",
+        "x": 8,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "quests",
+        "x": 8,
+        "y": 68,
+        "width": 214,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "quests",
+        "x": 396,
+        "y": 119,
+        "width": 232,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "quests",
+        "x": 976,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "quests",
+        "x": 420,
+        "y": 646,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "quests",
+        "x": 102,
+        "y": 44.34375,
+        "width": 820,
+        "height": 679.3125,
+        "text": "Requests3 active requests · 1 resolvedWOLFRoute 7 Tunnel Col"
+      },
+      {
+        "id": "quests-close",
+        "screen": "quests",
+        "x": 836,
+        "y": 668.65625,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "rank@tablet": [
+      {
+        "id": "rank-chip",
+        "screen": "rank",
+        "x": 8,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "rank",
+        "x": 8,
+        "y": 68,
+        "width": 214,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "rank",
+        "x": 396,
+        "y": 119,
+        "width": 232,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "rank",
+        "x": 976,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "rank",
+        "x": 420,
+        "y": 646,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "rank",
+        "x": 102,
+        "y": 50.15625,
+        "width": 820,
+        "height": 667.6875,
+        "text": "Hero AssociationRegister of active heroesC-388Caped Baldy12."
+      },
+      {
+        "id": "standing",
+        "screen": "rank",
+        "x": 117,
+        "y": 110.15625,
+        "width": 790,
+        "height": 43.09375,
+        "text": "C-388Caped Baldy12.4 hero points · 33.6 to the next seat · r"
+      },
+      {
+        "id": "rank-close",
+        "screen": "rank",
+        "x": 836,
+        "y": 662.84375,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ],
+    "results@tablet": [
+      {
+        "id": "rank-chip",
+        "screen": "results",
+        "x": 8,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "results",
+        "x": 8,
+        "y": 68,
+        "width": 214,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "results",
+        "x": 396,
+        "y": 119,
+        "width": 232,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "results",
+        "x": 976,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "results",
+        "x": 420,
+        "y": 646,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "results",
+        "x": 192,
+        "y": 45.109375,
+        "width": 640,
+        "height": 677.78125,
+        "text": "Incident resolvedMosquito Girl · threat DEMONResolved in1.4s"
+      },
+      {
+        "id": "invoice-total",
+        "screen": "results",
+        "x": 207,
+        "y": 520.109375,
+        "width": 610,
+        "height": 60,
+        "text": "Hero points awarded+0.0held on the ladder"
+      },
+      {
+        "id": "results-dismiss",
+        "screen": "results",
+        "x": 742.390625,
+        "y": 667.890625,
+        "width": 74.609375,
+        "height": 44,
+        "text": "File it"
+      }
+    ],
+    "pause@tablet": [
+      {
+        "id": "rank-chip",
+        "screen": "pause",
+        "x": 8,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "pause",
+        "x": 8,
+        "y": 68,
+        "width": 214,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "encounter",
+        "screen": "pause",
+        "x": 443,
+        "y": 8,
+        "width": 138,
+        "height": 54,
+        "text": "THREAT DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "screen": "pause",
+        "x": 827.1875,
+        "y": 8,
+        "width": 142.8125,
+        "height": 50,
+        "text": "SAVEDLOSTWATCHING"
+      },
+      {
+        "id": "collateral",
+        "screen": "pause",
+        "x": 838,
+        "y": 66,
+        "width": 132,
+        "height": 62,
+        "text": "COLLATERAL"
+      },
+      {
+        "id": "tracker",
+        "screen": "pause",
+        "x": 396,
+        "y": 136,
+        "width": 232,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "pause",
+        "x": 976,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "pause",
+        "x": 420,
+        "y": 646,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "pause",
+        "x": 302,
+        "y": 236.03125,
+        "width": 420,
+        "height": 295.9375,
+        "text": "PausedCaped Baldy · C-388ResumeRequestsHero AssociationSetti"
+      },
+      {
+        "id": "pause-resume",
+        "screen": "pause",
+        "x": 317,
+        "y": 296.03125,
+        "width": 390,
+        "height": 44,
+        "text": "Resume"
+      },
+      {
+        "id": "pause-quests",
+        "screen": "pause",
+        "x": 317,
+        "y": 348.03125,
+        "width": 390,
+        "height": 44,
+        "text": "Requests"
+      },
+      {
+        "id": "pause-rank",
+        "screen": "pause",
+        "x": 317,
+        "y": 400.03125,
+        "width": 390,
+        "height": 44,
+        "text": "Hero Association"
+      },
+      {
+        "id": "pause-settings",
+        "screen": "pause",
+        "x": 317,
+        "y": 452.03125,
+        "width": 390,
+        "height": 44,
+        "text": "Settings"
+      }
+    ],
+    "settings@tablet": [
+      {
+        "id": "rank-chip",
+        "screen": "settings",
+        "x": 8,
+        "y": 8,
+        "width": 116,
+        "height": 52,
+        "text": "CRANK Caped Baldy"
+      },
+      {
+        "id": "boredom",
+        "screen": "settings",
+        "x": 8,
+        "y": 68,
+        "width": 214,
+        "height": 43,
+        "text": "RESTLESSRANK"
+      },
+      {
+        "id": "tracker",
+        "screen": "settings",
+        "x": 396,
+        "y": 119,
+        "width": 232,
+        "height": 101.890625,
+        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+      },
+      {
+        "id": "pause-button",
+        "screen": "settings",
+        "x": 976,
+        "y": 8,
+        "width": 40,
+        "height": 40,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "screen": "settings",
+        "x": 420,
+        "y": 646,
+        "width": 184,
+        "height": 104,
+        "text": ""
+      },
+      {
+        "id": "hud-sheet",
+        "screen": "settings",
+        "x": 102,
+        "y": 18,
+        "width": 820,
+        "height": 732,
+        "text": "SettingsApplied immediatelyRenderQualityShadows and bloom. T"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 749.578125,
+        "y": 113,
+        "width": 44,
+        "height": 38,
+        "text": "low"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 796.578125,
+        "y": 113,
+        "width": 60.25,
+        "height": 38,
+        "text": "medium"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 859.828125,
+        "y": 113,
+        "width": 44.171875,
+        "height": 38,
+        "text": "high"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 666.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "50%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 713.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "60%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 760.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "75%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 807.828125,
+        "y": 171,
+        "width": 44,
+        "height": 38,
+        "text": "85%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 854.828125,
+        "y": 171,
+        "width": 49.171875,
+        "height": 38,
+        "text": "100%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 785.46875,
+        "y": 268,
+        "width": 66.328125,
+        "height": 38,
+        "text": "Floating"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 854.796875,
+        "y": 268,
+        "width": 49.203125,
+        "height": 38,
+        "text": "Fixed"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 806.625,
+        "y": 326,
+        "width": 44.171875,
+        "height": 38,
+        "text": "Left"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 853.796875,
+        "y": 326,
+        "width": 50.203125,
+        "height": 38,
+        "text": "Right"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 813,
+        "y": 384,
+        "width": 44,
+        "height": 38,
+        "text": "Off"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 860,
+        "y": 384,
+        "width": 44,
+        "height": 38,
+        "text": "On"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 578,
+        "y": 442,
+        "width": 44,
+        "height": 38,
+        "text": "0.4×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 625,
+        "y": 442,
+        "width": 44,
+        "height": 38,
+        "text": "0.6×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 672,
+        "y": 442,
+        "width": 44,
+        "height": 38,
+        "text": "0.8×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 719,
+        "y": 442,
+        "width": 44,
+        "height": 38,
+        "text": "1×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 766,
+        "y": 442,
+        "width": 44,
+        "height": 38,
+        "text": "1.3×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 813,
+        "y": 442,
+        "width": 44,
+        "height": 38,
+        "text": "1.6×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 860,
+        "y": 442,
+        "width": 44,
+        "height": 38,
+        "text": "2×"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 813,
+        "y": 500,
+        "width": 44,
+        "height": 38,
+        "text": "Off"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 860,
+        "y": 500,
+        "width": 44,
+        "height": 38,
+        "text": "On"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 469.171875,
+        "y": 597,
+        "width": 74,
+        "height": 42,
+        "text": "Standard"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 546.171875,
+        "y": 597,
+        "width": 93.484375,
+        "height": 42,
+        "text": "Deuteranopia"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 642.65625,
+        "y": 597,
+        "width": 80.40625,
+        "height": 42,
+        "text": "Protanopia"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 726.0625,
+        "y": 597,
+        "width": 78.40625,
+        "height": 42,
+        "text": "Tritanopia"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 807.46875,
+        "y": 597,
+        "width": 96.53125,
+        "height": 42,
+        "text": "High contrast"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 703.484375,
+        "y": 659,
+        "width": 44,
+        "height": 38,
+        "text": "85%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 750.484375,
+        "y": 659,
+        "width": 49.171875,
+        "height": 38,
+        "text": "100%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 802.65625,
+        "y": 659,
+        "width": 49.171875,
+        "height": 38,
+        "text": "115%"
+      },
+      {
+        "id": "hud-seg__opt",
+        "screen": "settings",
+        "x": 854.828125,
+        "y": 659,
+        "width": 49.171875,
+        "height": 38,
+        "text": "130%"
+      },
+      {
+        "id": "settings-close",
+        "screen": "settings",
+        "x": 836,
+        "y": 695,
+        "width": 71,
+        "height": 44,
+        "text": "Close"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "name": "thumb reserve exceeds the input layer’s own arc reach",
+      "pass": true,
+      "detail": "reserve 240px vs furthest painted button pixel 221.6px"
+    },
+    {
+      "name": "loading @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 19.8, colours 673"
+    },
+    {
+      "name": "loading @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "1 panels inside the safe box"
+    },
+    {
+      "name": "combat @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 29.5, colours 1138"
+    },
+    {
+      "name": "combat @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "combat @ phone-landscape keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-boss @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 29.2, colours 1184"
+    },
+    {
+      "name": "combat-boss @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "9 panels inside the safe box"
+    },
+    {
+      "name": "combat-boss @ phone-landscape keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "quests @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 23.6, colours 869"
+    },
+    {
+      "name": "quests @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "rank @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 28.6, colours 585"
+    },
+    {
+      "name": "rank @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "results @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 18.6, colours 750"
+    },
+    {
+      "name": "results @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "pause @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 23.3, colours 331"
+    },
+    {
+      "name": "pause @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "13 panels inside the safe box"
+    },
+    {
+      "name": "settings @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 21.3, colours 971"
+    },
+    {
+      "name": "settings @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "17 panels inside the safe box"
+    },
+    {
+      "name": "idle @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 25.4, colours 857"
+    },
+    {
+      "name": "idle @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "5 panels inside the safe box"
+    },
+    {
+      "name": "idle @ phone-landscape keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-alert @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 27.2, colours 979"
+    },
+    {
+      "name": "combat-alert @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "10 panels inside the safe box"
+    },
+    {
+      "name": "combat-alert @ phone-landscape keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-charging @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 29.7, colours 1167"
+    },
+    {
+      "name": "combat-charging @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "combat-charging @ phone-landscape keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-bored @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 27.7, colours 894"
+    },
+    {
+      "name": "combat-bored @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "combat-bored @ phone-landscape keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "markers @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 29.7, colours 1268"
+    },
+    {
+      "name": "markers @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "13 panels inside the safe box"
+    },
+    {
+      "name": "markers @ phone-landscape keeps the thumb corners clear",
+      "pass": false,
+      "detail": "hud-marker"
+    },
+    {
+      "name": "the region crop actually crops",
+      "pass": true,
+      "detail": "band 2532x360 mean 42.4 vs frame 2532x1170 mean 37.3"
+    },
+    {
+      "name": "the HUD band carries far more detail than the empty corridor",
+      "pass": true,
+      "detail": "band stdDev 32.7 vs corridor 27.6"
+    },
+    {
+      "name": "the 60 Hz path writes ONLY custom properties",
+      "pass": true,
+      "detail": "7 distinct properties, all --custom: --boredom --n-i --n-f --collateral --charge --hud-intent --hud-intent-label"
+    },
+    {
+      "name": "no direct assignment to a layout-affecting property",
+      "pass": true,
+      "detail": "none"
+    },
+    {
+      "name": "ZERO forced reflows — no layout property is read during the window",
+      "pass": true,
+      "detail": "120 frames, 511 CSSOM writes, 0 layout reads"
+    },
+    {
+      "name": "zero cumulative layout shift while the meters animate",
+      "pass": true,
+      "detail": "CLS delta 0"
+    },
+    {
+      "name": "the writer skips unchanged values rather than rewriting them",
+      "pass": true,
+      "detail": "511 writes, 1893 skipped over 120 frames (4.3 CSSOM writes/frame)"
+    },
+    {
+      "name": "deuteranopia palette renders",
+      "pass": true,
+      "detail": "stdDev 30.8, colours 1171"
+    },
+    {
+      "name": "protanopia palette renders",
+      "pass": true,
+      "detail": "stdDev 31.0, colours 1173"
+    },
+    {
+      "name": "tritanopia palette renders",
+      "pass": true,
+      "detail": "stdDev 30.2, colours 1349"
+    },
+    {
+      "name": "highContrast palette renders",
+      "pass": true,
+      "detail": "stdDev 33.8, colours 1197"
+    },
+    {
+      "name": "the layout survives HUD scale at 130%",
+      "pass": true,
+      "detail": "nothing overflows the safe box"
+    },
+    {
+      "name": "loading @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 21.9, colours 674"
+    },
+    {
+      "name": "loading @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "1 panels inside the safe box"
+    },
+    {
+      "name": "combat @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 38.4, colours 1071"
+    },
+    {
+      "name": "combat @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "combat @ phone-portrait keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-boss @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 38.1, colours 1116"
+    },
+    {
+      "name": "combat-boss @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "9 panels inside the safe box"
+    },
+    {
+      "name": "combat-boss @ phone-portrait keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "quests @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 28.2, colours 1067"
+    },
+    {
+      "name": "quests @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "rank @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 27.7, colours 1267"
+    },
+    {
+      "name": "rank @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "results @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 24.8, colours 982"
+    },
+    {
+      "name": "results @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "pause @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 29.4, colours 876"
+    },
+    {
+      "name": "pause @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "13 panels inside the safe box"
+    },
+    {
+      "name": "settings @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 30.4, colours 491"
+    },
+    {
+      "name": "settings @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "30 panels inside the safe box"
+    },
+    {
+      "name": "pause is reachable from the combat HUD",
+      "pass": true,
+      "detail": "active screen: pause"
+    },
+    {
+      "name": "pause is dismissible by its own control",
+      "pass": true,
+      "detail": "active screen: hud"
+    },
+    {
+      "name": "quests is reachable from the combat HUD",
+      "pass": true,
+      "detail": "active screen: quests"
+    },
+    {
+      "name": "quests is dismissible by its own control",
+      "pass": true,
+      "detail": "active screen: hud"
+    },
+    {
+      "name": "settings is reachable through pause",
+      "pass": true,
+      "detail": "active: settings"
+    },
+    {
+      "name": "the back button pops the stack and then declines",
+      "pass": true,
+      "detail": "pause -> hud -> hud(unconsumed) -> hud(unconsumed)"
+    },
+    {
+      "name": "quests opens and returns to the HUD",
+      "pass": true,
+      "detail": "quests -> hud"
+    },
+    {
+      "name": "rank opens and returns to the HUD",
+      "pass": true,
+      "detail": "rank -> hud"
+    },
+    {
+      "name": "results opens and returns to the HUD",
+      "pass": true,
+      "detail": "results -> hud"
+    },
+    {
+      "name": "settings opens and returns to the HUD",
+      "pass": true,
+      "detail": "settings -> hud"
+    },
+    {
+      "name": "pause opens and returns to the HUD",
+      "pass": true,
+      "detail": "pause -> hud"
+    },
+    {
+      "name": "loading @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 19.6, colours 649"
+    },
+    {
+      "name": "loading @ tablet respects the safe area",
+      "pass": true,
+      "detail": "1 panels inside the safe box"
+    },
+    {
+      "name": "combat @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 29.6, colours 1058"
+    },
+    {
+      "name": "combat @ tablet respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "combat @ tablet keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-boss @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 29.6, colours 1100"
+    },
+    {
+      "name": "combat-boss @ tablet respects the safe area",
+      "pass": true,
+      "detail": "9 panels inside the safe box"
+    },
+    {
+      "name": "combat-boss @ tablet keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "quests @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 21.0, colours 960"
+    },
+    {
+      "name": "quests @ tablet respects the safe area",
+      "pass": true,
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "rank @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 22.2, colours 764"
+    },
+    {
+      "name": "rank @ tablet respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "results @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 20.5, colours 488"
+    },
+    {
+      "name": "results @ tablet respects the safe area",
+      "pass": true,
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "pause @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 17.2, colours 646"
+    },
+    {
+      "name": "pause @ tablet respects the safe area",
+      "pass": true,
+      "detail": "13 panels inside the safe box"
+    },
+    {
+      "name": "settings @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 22.0, colours 724"
+    },
+    {
+      "name": "settings @ tablet respects the safe area",
+      "pass": true,
+      "detail": "39 panels inside the safe box"
+    },
+    {
+      "name": "no console errors from any profile",
+      "pass": true,
+      "detail": "clean"
+    }
+  ],
+  "generatedAt": "2026-08-17T08:18:50.976Z"
+}

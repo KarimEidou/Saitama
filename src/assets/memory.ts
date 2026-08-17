@@ -152,13 +152,31 @@ export interface IEvictionReport {
 export class TextureMemory {
   private readonly items = new Map<string, IEvictable>();
   private readonly touched = new Map<string, number>();
+  private readonly inserted = new Map<string, number>();
   private clock = 0;
+  private insertCount = 0;
   private residentBytes = 0;
   private budget: number;
   private eager = false;
   private overBudgetWarned = false;
 
-  constructor(budgetBytes: number) {
+  constructor(
+    budgetBytes: number,
+    /**
+     * How many of the most recently INSERTED textures are exempt from
+     * eviction.
+     *
+     * Closes a real race: a material awaits three maps in parallel, and
+     * between the moment the albedo is inserted and the moment the material
+     * retains it there is a microtask in which the albedo has refCount 0 and
+     * is a perfectly good eviction candidate. Evicting it there means the
+     * material permanently binds a stand-in for a texture that loaded
+     * successfully. Eight is the default fetch concurrency plus headroom;
+     * exemption is by INSERT order, so it self-clears and does not distort
+     * the LRU for anything already resident.
+     */
+    private readonly protectRecentInserts = 8
+  ) {
     this.budget = Math.max(0, budgetBytes);
   }
 
@@ -220,8 +238,16 @@ export class TextureMemory {
     if (existing) this.residentBytes -= existing.gpuBytes;
     this.items.set(item.key, item);
     this.touched.set(item.key, ++this.clock);
+    this.inserted.set(item.key, ++this.insertCount);
     this.residentBytes += item.gpuBytes;
     return this.trim();
+  }
+
+  /** True while an item is inside the just-inserted exemption window. */
+  private isProtected(key: string): boolean {
+    const order = this.inserted.get(key);
+    if (order === undefined) return false;
+    return order > this.insertCount - this.protectRecentInserts;
   }
 
   /**
@@ -240,6 +266,7 @@ export class TextureMemory {
     }
     this.items.delete(key);
     this.touched.delete(key);
+    this.inserted.delete(key);
     this.residentBytes -= item.gpuBytes;
     item.dispose();
     return true;
@@ -283,9 +310,16 @@ export class TextureMemory {
         pinned.push(key);
         continue;
       }
+      // Just-arrived textures are exempt: their owner has not had a chance to
+      // retain them yet. See `protectRecentInserts`.
+      if (this.isProtected(key)) {
+        pinned.push(key);
+        continue;
+      }
       const bytes = item.gpuBytes;
       this.items.delete(key);
       this.touched.delete(key);
+      this.inserted.delete(key);
       this.residentBytes -= bytes;
       item.dispose();
       evicted.push(key);
@@ -324,6 +358,7 @@ export class TextureMemory {
     for (const item of this.items.values()) item.dispose();
     this.items.clear();
     this.touched.clear();
+    this.inserted.clear();
     this.residentBytes = 0;
   }
 }

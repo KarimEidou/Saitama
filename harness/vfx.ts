@@ -539,8 +539,8 @@ function main(): void {
       // Looking back UP the street: the wave and its dust wall come at the
       // camera. The most confrontational framing available.
       oncoming: {
-        eye: new THREE.Vector3(-9, 12, -168),
-        target: new THREE.Vector3(2, 14, 20),
+        eye: new THREE.Vector3(-9, 11, -166),
+        target: new THREE.Vector3(2, 21, 20),
         fov: 58,
       },
       // High and back, so a 180-metre cone fits the frame with the city.
@@ -656,12 +656,12 @@ function main(): void {
           bus.emit('ChunkDetached', {
             structureId: 'facade',
             chunkIndex: i,
-            position: { x: Math.cos(angle) * 7, y: 12 + (i % 5) * 5, z: -8 + Math.sin(angle) * 7 },
-            mass: 500 + i * 90,
+            position: { x: Math.cos(angle) * 8, y: 10 + (i % 5) * 6, z: -18 + Math.sin(angle) * 8 },
+            mass: 700 + i * 80,
             impulse: {
-              x: Math.cos(angle) * 24000,
-              y: 14000 + i * 400,
-              z: Math.sin(angle) * 24000 + 9000,
+              x: Math.cos(angle) * 15000,
+              y: 13000 + i * 260,
+              z: Math.sin(angle) * 15000 + 2500,
             },
             material: 'concrete',
             collateralCost: 12,

@@ -28,6 +28,17 @@ function item(key: string, bytes: number, refCount = 0): IEvictable & { refs: nu
 
 const MB = 1024 * 1024;
 
+/**
+ * A budget with the just-inserted exemption window switched off.
+ *
+ * The window exists for the real load path (see `protectRecentInserts`); these
+ * tests are about the LRU itself, and a three-item fixture would sit entirely
+ * inside a window of eight. The window has its own tests below.
+ */
+function newMemory(budgetBytes: number): TextureMemory {
+  return new TextureMemory(budgetBytes, 0);
+}
+
 describe('estimateGpuBytes', () => {
   it('sums the real mip chain when the loader kept one', () => {
     const texture = new THREE.Texture();
@@ -76,7 +87,7 @@ describe('estimateGpuBytes', () => {
 
 describe('TextureMemory', () => {
   it('evicts least-recently-used first', () => {
-    const memory = new TextureMemory(100 * MB);
+    const memory = newMemory(100 * MB);
     const a = item('a', 40 * MB);
     const b = item('b', 40 * MB);
     memory.insert(a);
@@ -92,7 +103,7 @@ describe('TextureMemory', () => {
   });
 
   it('NEVER evicts a referenced texture, even under pressure', () => {
-    const memory = new TextureMemory(100 * MB);
+    const memory = newMemory(100 * MB);
     const pinned = item('pinned', 80 * MB, 3);
     const loose = item('loose', 15 * MB);
     memory.insert(pinned);
@@ -106,7 +117,7 @@ describe('TextureMemory', () => {
   });
 
   it('reports going over budget rather than dropping a live texture', () => {
-    const memory = new TextureMemory(50 * MB);
+    const memory = newMemory(50 * MB);
     memory.insert(item('a', 40 * MB, 1));
     const report = memory.insert(item('b', 40 * MB, 1));
     expect(report.overBudget).toBe(true);
@@ -115,14 +126,14 @@ describe('TextureMemory', () => {
   });
 
   it('trims to 90% of budget, not to exactly 100%', () => {
-    const memory = new TextureMemory(100 * MB);
+    const memory = newMemory(100 * MB);
     for (let i = 0; i < 10; i++) memory.insert(item(`t${i}`, 10 * MB));
     memory.insert(item('extra', 10 * MB));
     expect(memory.bytes).toBeLessThanOrEqual(90 * MB);
   });
 
   it('refuses to remove a referenced texture unless forced', () => {
-    const memory = new TextureMemory(100 * MB);
+    const memory = newMemory(100 * MB);
     const held = item('held', 10 * MB, 1);
     memory.insert(held);
     expect(memory.remove('held')).toBe(false);
@@ -132,20 +143,46 @@ describe('TextureMemory', () => {
   });
 
   it('frees at refCount 0 in eager mode and caches otherwise', () => {
-    const lazy = new TextureMemory(1000 * MB);
+    const lazy = newMemory(1000 * MB);
     lazy.insert(item('x', MB));
     lazy.notifyUnreferenced('x');
     expect(lazy.has('x')).toBe(true);
 
-    const eager = new TextureMemory(1000 * MB);
+    const eager = newMemory(1000 * MB);
     eager.setEagerRelease(true);
     eager.insert(item('x', MB));
     eager.notifyUnreferenced('x');
     expect(eager.has('x')).toBe(false);
   });
 
+  it('spares a just-inserted texture its owner has not retained yet', () => {
+    // The race: a material awaits three maps in parallel; between the albedo
+    // landing and the material retaining it, the albedo has refCount 0.
+    const memory = new TextureMemory(10 * MB, 1);
+    const albedo = item('albedo', 8 * MB);
+    memory.insert(item('old', 8 * MB));
+    const report = memory.insert(albedo);
+    expect(report.evicted).toEqual(['old']);
+    expect(memory.has('albedo')).toBe(true);
+    expect(albedo.dispose).not.toHaveBeenCalled();
+  });
+
+  it('lets the exemption lapse as later inserts arrive', () => {
+    const memory = new TextureMemory(100 * MB, 2);
+    memory.insert(item('a', 10 * MB));
+    memory.insert(item('b', 10 * MB));
+    memory.insert(item('c', 10 * MB));
+    memory.insert(item('d', 10 * MB));
+    // 'a' and 'b' are now outside the two-insert window and evictable again.
+    memory.setBudget(15 * MB);
+    const report = memory.trim();
+    expect(report.evicted).toEqual(['a', 'b']);
+    expect(memory.has('c')).toBe(true);
+    expect(memory.has('d')).toBe(true);
+  });
+
   it('orders deterministically when touches happen in the same millisecond', () => {
-    const memory = new TextureMemory(30 * MB);
+    const memory = newMemory(30 * MB);
     memory.insert(item('a', 10 * MB));
     memory.insert(item('b', 10 * MB));
     memory.insert(item('c', 10 * MB));

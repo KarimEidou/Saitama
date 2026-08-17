@@ -86,17 +86,19 @@ export function button(
   });
   if (spec.text === undefined) node.textContent = label;
   node.setAttribute('aria-label', label);
-  let firedAt = -1;
-  const fire = (): void => {
-    // A real tap produces BOTH `pointerup` and a following `click`. The
-    // recency guard, not the event type, is what keeps one tap from counting
-    // twice — `PointerEvent.pointerType` is unreliable across the synthetic
-    // click, keyboard activation and `element.click()` from a test.
-    const now = Date.now();
-    if (now - firedAt < 350) return;
-    firedAt = now;
-    onPress();
-  };
+  /**
+   * A real tap produces BOTH `pointerup` and a following synthetic `click`, and
+   * the handler must run exactly once.
+   *
+   * The guard is a FLAG CONSUMED BY THE NEXT CLICK, not a time window. A time
+   * window looks equivalent and is not: it also swallows the second of two
+   * genuinely separate presses made a few milliseconds apart, which is exactly
+   * what a scripted test does and is a real thing an impatient thumb does too.
+   * The flag has a lazy timeout only so a `pointerup` with no following click —
+   * the pointer left the element mid-gesture — cannot leave it armed forever.
+   */
+  let swallowNextClick = false;
+  let disarm: ReturnType<typeof setTimeout> | undefined;
   node.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     node.dataset.pressed = 'true';
@@ -107,13 +109,25 @@ export function button(
   node.addEventListener('pointerup', (event) => {
     event.preventDefault();
     release();
-    fire();
+    swallowNextClick = true;
+    clearTimeout(disarm);
+    disarm = setTimeout(() => {
+      swallowNextClick = false;
+    }, 400);
+    onPress();
   });
   node.addEventListener('pointercancel', release);
   node.addEventListener('pointerleave', release);
   // Keyboard activation (Enter/Space) and `element.click()` from a test arrive
-  // here and nowhere else.
-  node.addEventListener('click', fire);
+  // here; a real tap's synthetic click arrives here too and is swallowed.
+  node.addEventListener('click', () => {
+    if (swallowNextClick) {
+      swallowNextClick = false;
+      clearTimeout(disarm);
+      return;
+    }
+    onPress();
+  });
   return node;
 }
 

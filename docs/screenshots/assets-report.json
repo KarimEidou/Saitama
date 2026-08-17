@@ -1,0 +1,3979 @@
+{
+  "grid": {
+    "mode": "grid",
+    "root": "/assets",
+    "tier": "high",
+    "tierReason": "desktop-class defaults",
+    "transcodeTarget": "RGBA_BPTC_Format",
+    "transcodeAvailable": [
+      "bptc",
+      "s3tc"
+    ],
+    "emulatedFormatsSuppressed": true,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTextureSize": 8192,
+    "anisotropy": 16,
+    "textures": [
+      {
+        "key": "mat.road.asphalt.worn.albedo",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.normal",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.orm",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.albedo",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.normal",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.orm",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.albedo",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.normal",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.orm",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      }
+    ],
+    "materials": [
+      {
+        "id": "mat.road.asphalt.worn",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "high"
+        ]
+      },
+      {
+        "id": "mat.wall.brick.red",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "high"
+        ]
+      },
+      {
+        "id": "mat.metal.rust.coarse",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "high"
+        ]
+      },
+      {
+        "id": "mat.ground.sidewalk.slabs",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.concrete.dirty",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.plaster.beige",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.corrugated",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.roof.tiles.ceramic",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wood.planks.weathered",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.cobblestone.alley",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.grass.leafy",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.plate.industrial",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      }
+    ],
+    "models": [
+      {
+        "id": "model.prop.barrel_stove",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          9216,
+          3225,
+          1809
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.fire_hydrant",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          22888,
+          8010,
+          2746
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 30,
+        "embeddedTexturesCompressed": 90,
+        "embeddedTexturesTotal": 90
+      },
+      {
+        "id": "model.prop.metal_trash_can",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          416,
+          144,
+          48
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 24,
+        "embeddedTexturesCompressed": 72,
+        "embeddedTexturesTotal": 72
+      },
+      {
+        "id": "model.prop.street_lamp_02",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          20338,
+          7115,
+          2439
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.old_tyre",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          2880,
+          1008,
+          344
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.utility_box_01",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4404,
+          1541,
+          527
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.building.rollershutter_door",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          552,
+          193,
+          193
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.security_light",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4540,
+          1589,
+          540
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      }
+    ],
+    "environments": [
+      {
+        "key": "hdri.sky.day",
+        "mode": "pmrem",
+        "meanLuminance": 0.73268945997054,
+        "maxLuminance": 136998.2976,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 47535448,
+        "fallback": false
+      },
+      {
+        "key": "hdri.sky.dusk",
+        "mode": "pmrem",
+        "meanLuminance": 0.9044060619958861,
+        "maxLuminance": 4.035887499999999,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 47535448,
+        "fallback": false
+      }
+    ],
+    "requestedTiers": [
+      "high",
+      "mobile"
+    ],
+    "tierMisses": [],
+    "unavailableTiers": [],
+    "missing": [],
+    "failures": [],
+    "textureBytes": 75498432,
+    "textureBudgetBytes": 576716800,
+    "gpuBytes": 180954178,
+    "progressSamples": [
+      {
+        "fraction": 0,
+        "loaded": 0,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.045454545454545456,
+        "loaded": 1,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.09090909090909091,
+        "loaded": 2,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.13636363636363635,
+        "loaded": 3,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.18181818181818182,
+        "loaded": 4,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.22727272727272727,
+        "loaded": 5,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.2727272727272727,
+        "loaded": 6,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.3181818181818182,
+        "loaded": 7,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.36363636363636365,
+        "loaded": 8,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.4090909090909091,
+        "loaded": 9,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.45454545454545453,
+        "loaded": 10,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5,
+        "loaded": 11,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5454545454545454,
+        "loaded": 12,
+        "total": 22,
+        "bytesLoaded": 254064
+      },
+      {
+        "fraction": 0.5909090909090909,
+        "loaded": 13,
+        "total": 22,
+        "bytesLoaded": 1090816
+      },
+      {
+        "fraction": 0.6363636363636364,
+        "loaded": 14,
+        "total": 22,
+        "bytesLoaded": 1090816
+      },
+      {
+        "fraction": 0.6818181818181818,
+        "loaded": 15,
+        "total": 22,
+        "bytesLoaded": 1427848
+      },
+      {
+        "fraction": 0.7272727272727273,
+        "loaded": 16,
+        "total": 22,
+        "bytesLoaded": 1603964
+      },
+      {
+        "fraction": 0.7727272727272727,
+        "loaded": 17,
+        "total": 22,
+        "bytesLoaded": 1798596
+      },
+      {
+        "fraction": 0.8181818181818182,
+        "loaded": 18,
+        "total": 22,
+        "bytesLoaded": 2056068
+      },
+      {
+        "fraction": 0.8636363636363636,
+        "loaded": 19,
+        "total": 22,
+        "bytesLoaded": 2234504
+      },
+      {
+        "fraction": 0.9090909090909091,
+        "loaded": 20,
+        "total": 22,
+        "bytesLoaded": 2791044
+      },
+      {
+        "fraction": 0.9545454545454546,
+        "loaded": 21,
+        "total": 22,
+        "bytesLoaded": 9464617
+      },
+      {
+        "fraction": 1,
+        "loaded": 22,
+        "total": 22,
+        "bytesLoaded": 16948350
+      }
+    ],
+    "progressMonotonic": true,
+    "drawCalls": 79,
+    "sceneTriangles": 215729,
+    "characterCount": 14,
+    "loadMs": 2582
+  },
+  "apk": {
+    "mode": "grid",
+    "root": "/apk-assets",
+    "tier": "mobile",
+    "tierReason": "native shell: only the mobile tier is packaged in the app bundle",
+    "transcodeTarget": "RGBA_BPTC_Format",
+    "transcodeAvailable": [
+      "bptc",
+      "s3tc"
+    ],
+    "emulatedFormatsSuppressed": true,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTextureSize": 8192,
+    "anisotropy": 16,
+    "textures": [
+      {
+        "key": "mat.road.asphalt.worn.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      }
+    ],
+    "materials": [
+      {
+        "id": "mat.road.asphalt.worn",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.brick.red",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.rust.coarse",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.sidewalk.slabs",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.concrete.dirty",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.plaster.beige",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.corrugated",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.roof.tiles.ceramic",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wood.planks.weathered",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.cobblestone.alley",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.grass.leafy",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.plate.industrial",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      }
+    ],
+    "models": [
+      {
+        "id": "model.prop.barrel_stove",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          9216,
+          3225,
+          1809
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.fire_hydrant",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          22888,
+          8010,
+          2746
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 30,
+        "embeddedTexturesCompressed": 90,
+        "embeddedTexturesTotal": 90
+      },
+      {
+        "id": "model.prop.metal_trash_can",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          416,
+          144,
+          48
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 24,
+        "embeddedTexturesCompressed": 72,
+        "embeddedTexturesTotal": 72
+      },
+      {
+        "id": "model.prop.street_lamp_02",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          20338,
+          7115,
+          2439
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.old_tyre",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          2880,
+          1008,
+          344
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.utility_box_01",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4404,
+          1541,
+          527
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.building.rollershutter_door",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          552,
+          193,
+          193
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.security_light",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4540,
+          1589,
+          540
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      }
+    ],
+    "environments": [
+      {
+        "key": "hdri.sky.day",
+        "mode": "sh",
+        "meanLuminance": 0.73268945997054,
+        "maxLuminance": 136998.2976,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 5592408,
+        "fallback": false
+      },
+      {
+        "key": "hdri.sky.dusk",
+        "mode": "sh",
+        "meanLuminance": 0.9044060619958861,
+        "maxLuminance": 4.035887499999999,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 5592408,
+        "fallback": false
+      }
+    ],
+    "requestedTiers": [
+      "mobile"
+    ],
+    "tierMisses": [],
+    "unavailableTiers": [],
+    "missing": [],
+    "failures": [],
+    "textureBytes": 50332608,
+    "textureBudgetBytes": 314572800,
+    "gpuBytes": 72097980,
+    "progressSamples": [
+      {
+        "fraction": 0,
+        "loaded": 0,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.045454545454545456,
+        "loaded": 1,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.09090909090909091,
+        "loaded": 2,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.13636363636363635,
+        "loaded": 3,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.18181818181818182,
+        "loaded": 4,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.22727272727272727,
+        "loaded": 5,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.2727272727272727,
+        "loaded": 6,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.3181818181818182,
+        "loaded": 7,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.36363636363636365,
+        "loaded": 8,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.4090909090909091,
+        "loaded": 9,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.45454545454545453,
+        "loaded": 10,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5,
+        "loaded": 11,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5454545454545454,
+        "loaded": 12,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5909090909090909,
+        "loaded": 13,
+        "total": 22,
+        "bytesLoaded": 254064
+      },
+      {
+        "fraction": 0.6363636363636364,
+        "loaded": 14,
+        "total": 22,
+        "bytesLoaded": 1090816
+      },
+      {
+        "fraction": 0.6818181818181818,
+        "loaded": 15,
+        "total": 22,
+        "bytesLoaded": 1647356
+      },
+      {
+        "fraction": 0.7272727272727273,
+        "loaded": 16,
+        "total": 22,
+        "bytesLoaded": 1984388
+      },
+      {
+        "fraction": 0.7727272727272727,
+        "loaded": 17,
+        "total": 22,
+        "bytesLoaded": 2160504
+      },
+      {
+        "fraction": 0.8181818181818182,
+        "loaded": 18,
+        "total": 22,
+        "bytesLoaded": 2355136
+      },
+      {
+        "fraction": 0.8636363636363636,
+        "loaded": 19,
+        "total": 22,
+        "bytesLoaded": 2533572
+      },
+      {
+        "fraction": 0.9090909090909091,
+        "loaded": 20,
+        "total": 22,
+        "bytesLoaded": 2791044
+      },
+      {
+        "fraction": 0.9545454545454546,
+        "loaded": 21,
+        "total": 22,
+        "bytesLoaded": 5121702
+      },
+      {
+        "fraction": 1,
+        "loaded": 22,
+        "total": 22,
+        "bytesLoaded": 7744281
+      }
+    ],
+    "progressMonotonic": true,
+    "drawCalls": 80,
+    "sceneTriangles": 215741,
+    "characterCount": 14,
+    "loadMs": 1351
+  },
+  "forcedUltra": {
+    "mode": "grid",
+    "root": "/apk-assets",
+    "tier": "ultra",
+    "tierReason": "forced to 'ultra'",
+    "transcodeTarget": "RGBA_BPTC_Format",
+    "transcodeAvailable": [
+      "bptc",
+      "s3tc"
+    ],
+    "emulatedFormatsSuppressed": true,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTextureSize": 8192,
+    "anisotropy": 16,
+    "textures": [
+      {
+        "key": "mat.road.asphalt.worn.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.brick.red.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.plaster.beige.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.roof.tiles.ceramic.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      }
+    ],
+    "materials": [
+      {
+        "id": "mat.road.asphalt.worn",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.brick.red",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.rust.coarse",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.sidewalk.slabs",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.concrete.dirty",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.plaster.beige",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.corrugated",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.roof.tiles.ceramic",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wood.planks.weathered",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.cobblestone.alley",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.grass.leafy",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.plate.industrial",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      }
+    ],
+    "models": [
+      {
+        "id": "model.prop.barrel_stove",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          9216,
+          3225,
+          1809
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.fire_hydrant",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          22888,
+          8010,
+          2746
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 30,
+        "embeddedTexturesCompressed": 90,
+        "embeddedTexturesTotal": 90
+      },
+      {
+        "id": "model.prop.metal_trash_can",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          416,
+          144,
+          48
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 24,
+        "embeddedTexturesCompressed": 72,
+        "embeddedTexturesTotal": 72
+      },
+      {
+        "id": "model.prop.street_lamp_02",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          20338,
+          7115,
+          2439
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.old_tyre",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          2880,
+          1008,
+          344
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.utility_box_01",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4404,
+          1541,
+          527
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.building.rollershutter_door",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          552,
+          193,
+          193
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.security_light",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4540,
+          1589,
+          540
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      }
+    ],
+    "environments": [
+      {
+        "key": "hdri.sky.day",
+        "mode": "pmrem",
+        "meanLuminance": 0.73268945997054,
+        "maxLuminance": 136998.2976,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 11883864,
+        "fallback": false
+      },
+      {
+        "key": "hdri.sky.dusk",
+        "mode": "pmrem",
+        "meanLuminance": 0.9044060619958861,
+        "maxLuminance": 4.035887499999999,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 11883864,
+        "fallback": false
+      }
+    ],
+    "requestedTiers": [
+      "mobile"
+    ],
+    "tierMisses": [
+      {
+        "key": "mat.road.asphalt.worn.albedo",
+        "tier": "ultra",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/albedo.ultra.ktx2"
+      },
+      {
+        "key": "mat.road.asphalt.worn.normal",
+        "tier": "ultra",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/normal.ultra.ktx2"
+      },
+      {
+        "key": "mat.road.asphalt.worn.orm",
+        "tier": "ultra",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/orm.ultra.ktx2"
+      },
+      {
+        "key": "mat.wall.brick.red.albedo",
+        "tier": "ultra",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.wall.brick.red/albedo.ultra.ktx2"
+      },
+      {
+        "key": "mat.road.asphalt.worn.albedo",
+        "tier": "high",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/albedo.high.ktx2"
+      },
+      {
+        "key": "mat.road.asphalt.worn.normal",
+        "tier": "high",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/normal.high.ktx2"
+      },
+      {
+        "key": "mat.road.asphalt.worn.orm",
+        "tier": "high",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/orm.high.ktx2"
+      },
+      {
+        "key": "mat.wall.brick.red.albedo",
+        "tier": "high",
+        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.wall.brick.red/albedo.high.ktx2"
+      }
+    ],
+    "unavailableTiers": [
+      "ultra",
+      "high"
+    ],
+    "missing": [],
+    "failures": [],
+    "textureBytes": 50332608,
+    "textureBudgetBytes": 1258291200,
+    "gpuBytes": 86140998,
+    "progressSamples": [
+      {
+        "fraction": 0,
+        "loaded": 0,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.045454545454545456,
+        "loaded": 1,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.09090909090909091,
+        "loaded": 2,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.13636363636363635,
+        "loaded": 3,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.18181818181818182,
+        "loaded": 4,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.22727272727272727,
+        "loaded": 5,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.2727272727272727,
+        "loaded": 6,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.3181818181818182,
+        "loaded": 7,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.36363636363636365,
+        "loaded": 8,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.4090909090909091,
+        "loaded": 9,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.45454545454545453,
+        "loaded": 10,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5,
+        "loaded": 11,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5454545454545454,
+        "loaded": 12,
+        "total": 22,
+        "bytesLoaded": 254064
+      },
+      {
+        "fraction": 0.5909090909090909,
+        "loaded": 13,
+        "total": 22,
+        "bytesLoaded": 254064
+      },
+      {
+        "fraction": 0.6363636363636364,
+        "loaded": 14,
+        "total": 22,
+        "bytesLoaded": 591096
+      },
+      {
+        "fraction": 0.6818181818181818,
+        "loaded": 15,
+        "total": 22,
+        "bytesLoaded": 1427848
+      },
+      {
+        "fraction": 0.7272727272727273,
+        "loaded": 16,
+        "total": 22,
+        "bytesLoaded": 1603964
+      },
+      {
+        "fraction": 0.7727272727272727,
+        "loaded": 17,
+        "total": 22,
+        "bytesLoaded": 2160504
+      },
+      {
+        "fraction": 0.8181818181818182,
+        "loaded": 18,
+        "total": 22,
+        "bytesLoaded": 2355136
+      },
+      {
+        "fraction": 0.8636363636363636,
+        "loaded": 19,
+        "total": 22,
+        "bytesLoaded": 2533572
+      },
+      {
+        "fraction": 0.9090909090909091,
+        "loaded": 20,
+        "total": 22,
+        "bytesLoaded": 2791044
+      },
+      {
+        "fraction": 0.9545454545454546,
+        "loaded": 21,
+        "total": 22,
+        "bytesLoaded": 5121702
+      },
+      {
+        "fraction": 1,
+        "loaded": 22,
+        "total": 22,
+        "bytesLoaded": 7744281
+      }
+    ],
+    "progressMonotonic": true,
+    "drawCalls": 79,
+    "sceneTriangles": 215729,
+    "characterCount": 14,
+    "loadMs": 1476
+  },
+  "budget": {
+    "mode": "budget",
+    "root": "/assets",
+    "tier": "high",
+    "tierReason": "desktop-class defaults",
+    "transcodeTarget": "RGBA_BPTC_Format",
+    "transcodeAvailable": [
+      "bptc",
+      "s3tc"
+    ],
+    "emulatedFormatsSuppressed": true,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTextureSize": 8192,
+    "anisotropy": 16,
+    "textures": [
+      {
+        "key": "mat.road.asphalt.worn.albedo",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.normal",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.road.asphalt.worn.orm",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.albedo",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.normal",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 2048,
+        "height": 2048,
+        "gpuBytes": 5592432,
+        "mipLevels": 12,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.rust.coarse.orm",
+        "tier": "high",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wall.concrete.dirty.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.corrugated.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.wood.planks.weathered.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.cobblestone.alley.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.grass.leafy.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.metal.plate.industrial.orm",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      }
+    ],
+    "materials": [
+      {
+        "id": "mat.road.asphalt.worn",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "high"
+        ]
+      },
+      {
+        "id": "mat.wall.brick.red",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "high"
+        ]
+      },
+      {
+        "id": "mat.metal.rust.coarse",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "high"
+        ]
+      },
+      {
+        "id": "mat.ground.sidewalk.slabs",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.concrete.dirty",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wall.plaster.beige",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.corrugated",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.roof.tiles.ceramic",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.wood.planks.weathered",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.cobblestone.alley",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.ground.grass.leafy",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      },
+      {
+        "id": "mat.metal.plate.industrial",
+        "ormBound": true,
+        "aoChannel": 0,
+        "aoIsRoughness": true,
+        "aoIsMetalness": true,
+        "albedoColorSpace": "srgb",
+        "normalColorSpace": "",
+        "albedoCompressed": true,
+        "missing": [],
+        "usesFallbackTexture": false,
+        "tiers": [
+          "mobile"
+        ]
+      }
+    ],
+    "models": [
+      {
+        "id": "model.prop.barrel_stove",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          9216,
+          3225,
+          1809
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.fire_hydrant",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          22888,
+          8010,
+          2746
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 30,
+        "embeddedTexturesCompressed": 90,
+        "embeddedTexturesTotal": 90
+      },
+      {
+        "id": "model.prop.metal_trash_can",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          416,
+          144,
+          48
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 24,
+        "embeddedTexturesCompressed": 72,
+        "embeddedTexturesTotal": 72
+      },
+      {
+        "id": "model.prop.street_lamp_02",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          20338,
+          7115,
+          2439
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.old_tyre",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          2880,
+          1008,
+          344
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.prop.utility_box_01",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4404,
+          1541,
+          527
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 3,
+        "embeddedTexturesCompressed": 9,
+        "embeddedTexturesTotal": 9
+      },
+      {
+        "id": "model.building.rollershutter_door",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          552,
+          193,
+          193
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      },
+      {
+        "id": "model.prop.security_light",
+        "lodGroups": 1,
+        "lodCount": 3,
+        "triangles": [
+          4540,
+          1589,
+          540
+        ],
+        "activeLevel": 0,
+        "visiblePerGroup": [
+          1
+        ],
+        "meshes": 6,
+        "embeddedTexturesCompressed": 18,
+        "embeddedTexturesTotal": 18
+      }
+    ],
+    "environments": [
+      {
+        "key": "hdri.sky.day",
+        "mode": "pmrem",
+        "meanLuminance": 0.73268945997054,
+        "maxLuminance": 136998.2976,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 47535448,
+        "fallback": false
+      },
+      {
+        "key": "hdri.sky.dusk",
+        "mode": "pmrem",
+        "meanLuminance": 0.9044060619958861,
+        "maxLuminance": 4.035887499999999,
+        "shCoefficients": 27,
+        "minFilterIsLinear": true,
+        "magFilterIsLinear": true,
+        "equirectMapping": true,
+        "flipY": false,
+        "gpuBytes": 47535448,
+        "fallback": false
+      }
+    ],
+    "budget": {
+      "budgetBytes": 21391214,
+      "residentBefore": 47536032,
+      "residentAfter": 47536032,
+      "evicted": [],
+      "pinned": [],
+      "retainedKeys": [
+        "mat.road.asphalt.worn.albedo",
+        "mat.road.asphalt.worn.normal",
+        "mat.road.asphalt.worn.orm",
+        "mat.metal.rust.coarse.albedo",
+        "mat.metal.rust.coarse.normal",
+        "mat.metal.rust.coarse.orm",
+        "mat.wall.concrete.dirty.albedo",
+        "mat.wall.concrete.dirty.normal",
+        "mat.wall.concrete.dirty.orm",
+        "mat.metal.corrugated.albedo",
+        "mat.metal.corrugated.normal",
+        "mat.metal.corrugated.orm",
+        "mat.wood.planks.weathered.albedo",
+        "mat.wood.planks.weathered.normal",
+        "mat.wood.planks.weathered.orm",
+        "mat.ground.grass.leafy.albedo",
+        "mat.ground.grass.leafy.normal",
+        "mat.ground.grass.leafy.orm"
+      ],
+      "retainedStillResident": true,
+      "evictedWereUnreferenced": true,
+      "evictedInLruOrder": true,
+      "overBudget": false
+    },
+    "requestedTiers": [
+      "high",
+      "mobile"
+    ],
+    "tierMisses": [],
+    "unavailableTiers": [],
+    "missing": [],
+    "failures": [],
+    "textureBytes": 47536032,
+    "textureBudgetBytes": 21391214,
+    "gpuBytes": 154652402,
+    "progressSamples": [
+      {
+        "fraction": 0,
+        "loaded": 0,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.045454545454545456,
+        "loaded": 1,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.09090909090909091,
+        "loaded": 2,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.13636363636363635,
+        "loaded": 3,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.18181818181818182,
+        "loaded": 4,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.22727272727272727,
+        "loaded": 5,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.2727272727272727,
+        "loaded": 6,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.3181818181818182,
+        "loaded": 7,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.36363636363636365,
+        "loaded": 8,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.4090909090909091,
+        "loaded": 9,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.45454545454545453,
+        "loaded": 10,
+        "total": 22,
+        "bytesLoaded": 0
+      },
+      {
+        "fraction": 0.5,
+        "loaded": 11,
+        "total": 22,
+        "bytesLoaded": 254064
+      },
+      {
+        "fraction": 0.5454545454545454,
+        "loaded": 12,
+        "total": 22,
+        "bytesLoaded": 1090816
+      },
+      {
+        "fraction": 0.5909090909090909,
+        "loaded": 13,
+        "total": 22,
+        "bytesLoaded": 1090816
+      },
+      {
+        "fraction": 0.6363636363636364,
+        "loaded": 14,
+        "total": 22,
+        "bytesLoaded": 1647356
+      },
+      {
+        "fraction": 0.6818181818181818,
+        "loaded": 15,
+        "total": 22,
+        "bytesLoaded": 1647356
+      },
+      {
+        "fraction": 0.7272727272727273,
+        "loaded": 16,
+        "total": 22,
+        "bytesLoaded": 1823472
+      },
+      {
+        "fraction": 0.7727272727272727,
+        "loaded": 17,
+        "total": 22,
+        "bytesLoaded": 2080944
+      },
+      {
+        "fraction": 0.8181818181818182,
+        "loaded": 18,
+        "total": 22,
+        "bytesLoaded": 2259380
+      },
+      {
+        "fraction": 0.8636363636363636,
+        "loaded": 19,
+        "total": 22,
+        "bytesLoaded": 2454012
+      },
+      {
+        "fraction": 0.9090909090909091,
+        "loaded": 20,
+        "total": 22,
+        "bytesLoaded": 2791044
+      },
+      {
+        "fraction": 0.9545454545454546,
+        "loaded": 21,
+        "total": 22,
+        "bytesLoaded": 10274777
+      },
+      {
+        "fraction": 1,
+        "loaded": 22,
+        "total": 22,
+        "bytesLoaded": 16948350
+      }
+    ],
+    "progressMonotonic": true,
+    "drawCalls": 79,
+    "sceneTriangles": 215729,
+    "characterCount": 14,
+    "loadMs": 3397
+  }
+}

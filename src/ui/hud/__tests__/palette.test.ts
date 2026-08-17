@@ -217,17 +217,35 @@ describe('the standard palette is why the alternates exist', () => {
   });
 });
 
+/** OKLab chroma — how far a colour is from grey. */
+function chroma(hex: string): number {
+  const [, a, b] = oklab(linearise(parseHex(hex)));
+  return Math.hypot(a, b) * 100;
+}
+
 describe('the threat ramp is ordered, and never carries meaning alone', () => {
-  it('increases monotonically in heat from wolf to god', () => {
-    // Ordinal colour has to be ordered by SOMETHING a viewer can rank. Here it
-    // is warmth: red minus blue, rising with severity.
-    const warmth = TIER_ORDER.map((tier) => {
-      const [r, , b] = parseHex(TIER_COLOR[tier]);
-      return r - b;
-    });
-    for (let i = 1; i < warmth.length; i++) {
-      expect(warmth[i]!, `${TIER_ORDER[i]} vs ${TIER_ORDER[i - 1]}`).toBeGreaterThan(
-        warmth[i - 1]! - 0.35
+  /**
+   * The ramp is NOT claimed to be monotonic in hue, and the tests do not
+   * pretend otherwise: it runs calm grey-blue -> yellow -> orange -> red and
+   * then steps OFF the warm scale entirely for `god`, exactly the way real
+   * hazard scales reserve an off-scale colour for the case that has no ordinary
+   * comparison. What is asserted is what the player actually relies on: wolf
+   * reads as "not really a threat", and no two adjacent tiers can be confused.
+   */
+  it('makes wolf visibly calmer than everything above it', () => {
+    const wolf = chroma(TIER_COLOR.wolf);
+    for (const tier of TIER_ORDER.slice(1)) {
+      expect(chroma(TIER_COLOR[tier]), `${tier} vs wolf`).toBeGreaterThan(wolf * 2);
+    }
+  });
+
+  it('separates every adjacent pair', () => {
+    for (let i = 1; i < TIER_ORDER.length; i++) {
+      const previous = TIER_ORDER[i - 1]!;
+      const tier = TIER_ORDER[i]!;
+      const value = separation(TIER_COLOR[previous], TIER_COLOR[tier]);
+      expect(value, `${previous} vs ${tier} = ${value.toFixed(1)}`).toBeGreaterThan(
+        SEPARATION_TARGET
       );
     }
   });

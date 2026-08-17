@@ -367,6 +367,24 @@ export class EffectEmitters {
     this.tint(p, this.shockColor, 0.55 + power * 0.7);
     this.sprites.emit(p);
 
+    // BACKLIGHT. A big, faint, slow additive glow sitting at the contact point.
+    // It is not meant to be seen as a shape: the dust that piles up in FRONT of
+    // it composites over it at partial alpha, so what the player actually sees
+    // is a cloud lit from inside. Without it the dust wall in a wide shot is a
+    // flat grey mass with no idea where the punch was.
+    p.size0 = scale * 2.4;
+    p.size1 = scale * 6.5;
+    p.life = 0.5 + power * 0.45;
+    p.tile = SpriteTile.Glow;
+    p.rot = 0;
+    p.rotVel = 0;
+    p.alpha = 0.3 + power * 0.16;
+    p.erode = 0.25;
+    p.fadeIn = 0.03;
+    p.seed = rng.next();
+    this.tint(p, this.shockColor, 0.45 + power * 0.45);
+    this.sprites.emit(p);
+
     // Expanding ring pop — the small, fast read that says "contact".
     // The ring is the fastest read in the whole suite and must be GONE before
     // the eye can resolve it as a shape; left to linger it becomes a floating
@@ -542,8 +560,8 @@ export class EffectEmitters {
     p.vx = vx * 0.25;
     p.vy = vy * 0.25;
     p.vz = vz * 0.25;
-    p.size0 = size;
-    p.size1 = size * 2.4;
+    p.size0 = size * 1.5;
+    p.size1 = size * 3.0;
     p.life = rng.range(0.45, 0.95);
     p.tile = SpriteTile.DustWisp;
     p.mode = SpriteMode.Streak;
@@ -554,8 +572,8 @@ export class EffectEmitters {
     p.turbulence = 0.6;
     p.additive = 0;
     p.lit = 1;
-    p.alpha = rng.range(0.18, 0.38) * (0.5 + power * 0.6);
-    p.stretch = 0.026;
+    p.alpha = rng.range(0.3, 0.6) * (0.5 + power * 0.6);
+    p.stretch = 0.04;
     p.fadeIn = 0.06;
     p.erode = 1.05;
     p.style = 0;

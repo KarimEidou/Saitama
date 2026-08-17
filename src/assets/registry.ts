@@ -446,13 +446,25 @@ export class AssetRegistry implements IAssetRegistry {
   private async loadMaterial(entry: IMaterialAsset): Promise<void> {
     if (this.builtMaterials.has(entry.id)) return;
     const textureKeys = requiredTextures(entry);
-    // Textures are loaded at the SAME priority as the material asking for
-    // them: a material whose maps queue behind unrelated work renders as the
+    // Textures load at the SAME priority as the material asking for them: a
+    // material whose maps queue behind unrelated work renders as the
     // missing-texture checker until they arrive.
+    //
+    // Each one is retained THE MOMENT it lands, before its siblings finish.
+    // Without that pin there is a window in which an unreferenced, just-loaded
+    // albedo is the LRU's best eviction candidate while its own normal map is
+    // still downloading — the material then binds a stand-in for a texture
+    // that loaded successfully seconds earlier.
+    const pins: TextureHandle[] = [];
     await Promise.all(
-      textureKeys.map((textureKey) => this.load(textureKey, PRIORITY.high))
+      textureKeys.map(async (textureKey) => {
+        await this.load(textureKey, PRIORITY.high);
+        const handle = this.getTexture(textureKey);
+        if (handle !== undefined) pins.push(handle.retain());
+      })
     );
     const built = buildMaterial(entry, (key) => this.getTexture(key), this.anisotropy);
+    for (const pin of pins) pin.release();
     if (built.missingTextures.length > 0) {
       this.missingKeys.add(entry.id);
       log.warn(

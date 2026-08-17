@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Destruction Harness — Serious Punch Through City Z</title>
+    <!--
+      DESTRUCTION VERIFICATION HARNESS
+
+      The one question a unit test cannot answer: when a full-charge serious
+      punch goes through a city block, does it READ as buildings collapsing, or
+      as geometry being switched off?
+
+      Everything here is the real thing. The city comes out of
+      `src/world/city/**` pre-fractured. The debris bodies are the real Rapier
+      pool from `src/physics/**`, 300 hard cap, LRU and all. The persistent
+      damage is the real 8 KB `ChunkDamageState` from
+      `src/world/streaming/**`. The punch is a real `ShockwaveFired` on a real
+      event bus. The destruction system subscribes to it and knows about none
+      of them — every collaborator arrives through the structural ports in
+      `src/gameplay/destruction/ports.ts`, assigned with no cast, which is what
+      this file also proves.
+
+      Three shots go to `docs/screenshots/`:
+        before          the block intact
+        mid-collapse    the frame that has to sell it
+        after           what the player is left standing in
+
+      Plus the checks a picture cannot make: that the normalised `aDestroyed`
+      attribute really does remove triangles on a real GPU pipeline (and that
+      writing 1 instead of 255 really does not), that the 300-debris and
+      8-ragdoll caps hold, that damage survives a stream-out/stream-in round
+      trip, and that the same seed reproduces the same rubble.
+
+      NO FRAME TIMES ARE REPORTED. This runs on SwiftShader, a CPU software
+      rasteriser; a millisecond here says nothing about a phone.
+
+      Playwright drives `window.__DESTRUCTION_HARNESS__`.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #05070c;
+        color: #e6edf7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        width: 100vw;
+        height: 100vh;
+      }
+      #stage {
+        position: relative;
+        background: #05070c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        border-left: 1px solid #1d2740;
+        padding: 14px 16px;
+        overflow-y: auto;
+        font-size: 12px;
+        line-height: 1.55;
+        background: #080b12;
+      }
+      h1 {
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #ff4f4f;
+        margin: 0 0 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        padding: 1px 0;
+        vertical-align: top;
+      }
+      td.k {
+        color: #8b9ab5;
+        white-space: nowrap;
+        padding-right: 10px;
+      }
+      td.v {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .note {
+        color: #6f7d95;
+        margin-top: 14px;
+        font-size: 11px;
+      }
+      #overlay {
+        position: absolute;
+        left: 12px;
+        bottom: 10px;
+        font-size: 11px;
+        color: #cbd6e8;
+        text-shadow: 0 1px 3px #000;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="layout">
+      <div id="stage">
+        <canvas id="view"></canvas>
+        <div id="overlay"></div>
+      </div>
+      <div id="panel">
+        <h1>Destruction</h1>
+        <div id="stats">building city…</div>
+        <div class="note" id="note"></div>
+      </div>
+    </div>
+    <script type="module" src="./destruction.ts"></script>
+  </body>
+</html>

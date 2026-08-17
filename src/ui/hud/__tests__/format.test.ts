@@ -45,7 +45,8 @@ describe('yen', () => {
 
   it('renders the Japanese unit an invoice of this size would use', () => {
     expect(formatYenOku(1.5e10)).toBe('150.0億円');
-    expect(formatYenOku(1.0e9)).toBe('10.00億円');
+    expect(formatYenOku(1.0e9)).toBe('10.0億円');
+    expect(formatYenOku(4.3e8)).toBe('4.30億円');
     expect(formatYenOku(2.4e12)).toBe('2.40兆円');
   });
 

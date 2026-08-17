@@ -380,8 +380,8 @@ const SHOTS: readonly ShotSpec[] = [
   {
     file: 'vfx-debris-trails.png',
     scenario: 'debrisTrails',
-    frames: 26,
-    camera: 'close',
+    frames: 16,
+    camera: 'hero',
     label: 'debris trails from ChunkDetached',
     minDelta: 1.5,
   },

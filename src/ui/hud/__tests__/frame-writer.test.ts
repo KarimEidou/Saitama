@@ -102,7 +102,7 @@ describe('FrameWriter', () => {
     const { element } = fakeElement();
     writer.set(element, '--a', '1');
     writer.setPx(element, '--b', 4);
-    expect(writer.stats.names.sort()).toEqual(['--a', '--b']);
+    expect([...writer.stats.names].sort()).toEqual(['--a', '--b']);
     expect(writer.stats.names.every((n) => n.startsWith('--'))).toBe(true);
   });
 });
@@ -131,11 +131,6 @@ describe('CssNumber', () => {
       },
     } as unknown as Document;
   }
-
-  function writesOf(spec: Parameters<typeof CssNumber.prototype.write>[0] extends never ? never : void) {
-    void spec;
-  }
-  void writesOf;
 
   it('rounds the scaled value once so 9.97 becomes 10.0 and never 9.10', () => {
     const doc = fakeDocument();

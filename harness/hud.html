@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="dark" />
+    <title>HUD Harness — Combat HUD, Rank, Quests, Invoice, Settings</title>
+    <!--
+      HUD VERIFICATION HARNESS
+
+      Mounts the real `src/ui/hud/**` into a real device-sized viewport,
+      alongside the real `src/ui/input` overlay, and drives it from a scripted
+      state machine.
+
+      WHY THE INPUT OVERLAY IS HERE
+        The most likely way this HUD fails is not a wrong colour, it is a panel
+        under a thumb. `src/ui/input` floats the stick anywhere in the left half
+        and strikes its button arc from a pivot inside the bottom-right safe
+        corner. Screenshotting the HUD alone would look fine and prove nothing,
+        so this page mounts the actual overlay, reads its actual exported arc
+        geometry, and the verifier asserts the HUD clears it. If the arc is ever
+        retuned the assertion fails instead of the layout quietly overlapping.
+
+      WHY THERE IS A BACKDROP
+        A HUD screenshotted on flat black always looks readable. The backdrop is
+        a synthetic street at dusk with a monster silhouette and a crowd, so the
+        shots answer the question that matters — can you see the fight through
+        it — rather than the one that flatters.
+
+      WHY THE UNSAFE AREAS ARE PAINTED
+        Playwright cannot make `env(safe-area-inset-*)` non-zero. The harness
+        drives the HUD's programmatic override instead and paints the resulting
+        cutout rectangles in magenta, so a human looking at a screenshot can see
+        the notch the assertions are measuring against.
+
+      Playwright drives `window.__HUD_HARNESS__`.
+    -->
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #05070c;
+        color: #e6edf7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      #stage {
+        position: fixed;
+        inset: 0;
+      }
+
+      /* The synthetic game frame. */
+      #backdrop {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      /* Mirrors index.html EXACTLY. The HUD must behave the same here as it
+         does in the shipping page, so the mount point is not simplified. */
+      #ui-root {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10;
+        padding: var(--safe-top, 0px) var(--safe-right, 0px) var(--safe-bottom, 0px)
+          var(--safe-left, 0px);
+      }
+
+      /* Diagnostic overlays. Toggled off for the clean screenshots. */
+      #overlays {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        pointer-events: none;
+        display: none;
+      }
+      #overlays[data-on='true'] {
+        display: block;
+      }
+      .unsafe {
+        position: absolute;
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(255, 0, 190, 0.28) 0 6px,
+          rgba(255, 0, 190, 0.08) 6px 12px
+        );
+        border: 1px solid rgba(255, 0, 190, 0.75);
+      }
+      #unsafe-top {
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--sa-t, 0px);
+      }
+      #unsafe-bottom {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: var(--sa-b, 0px);
+      }
+      #unsafe-left {
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: var(--sa-l, 0px);
+      }
+      #unsafe-right {
+        top: 0;
+        bottom: 0;
+        right: 0;
+        width: var(--sa-r, 0px);
+      }
+      /* The hand, approximately: a quarter-disc struck from each bottom corner
+         at the reserve radius the HUD claims to respect. */
+      .thumb {
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(0, 230, 255, 0.22) 0%,
+          rgba(0, 230, 255, 0.1) 62%,
+          transparent 72%
+        );
+        border: 1px dashed rgba(0, 230, 255, 0.6);
+      }
+      #thumb-right {
+        right: calc(var(--sa-r, 0px) - var(--thumb-r, 240px));
+        bottom: calc(var(--sa-b, 0px) - var(--thumb-r, 240px));
+        width: calc(var(--thumb-r, 240px) * 2);
+        height: calc(var(--thumb-r, 240px) * 2);
+      }
+      #thumb-left {
+        left: calc(var(--sa-l, 0px) - var(--stick-r, 200px));
+        bottom: calc(var(--sa-b, 0px) - var(--stick-r, 200px));
+        width: calc(var(--stick-r, 200px) * 2);
+        height: calc(var(--stick-r, 200px) * 2);
+      }
+
+      #banner {
+        position: fixed;
+        left: 50%;
+        bottom: 2px;
+        transform: translateX(-50%);
+        z-index: 80;
+        padding: 2px 8px;
+        border-radius: 3px;
+        background: rgba(5, 7, 12, 0.8);
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        color: #7f8ea8;
+        pointer-events: none;
+        white-space: nowrap;
+        display: none;
+      }
+      #banner[data-on='true'] {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="backdrop"></canvas>
+      <div id="ui-root"></div>
+      <div id="overlays">
+        <div id="unsafe-top" class="unsafe"></div>
+        <div id="unsafe-right" class="unsafe"></div>
+        <div id="unsafe-bottom" class="unsafe"></div>
+        <div id="unsafe-left" class="unsafe"></div>
+        <div id="thumb-right" class="thumb"></div>
+        <div id="thumb-left" class="thumb"></div>
+      </div>
+      <div id="banner">booting…</div>
+    </div>
+    <script type="module" src="./hud.ts"></script>
+  </body>
+</html>
