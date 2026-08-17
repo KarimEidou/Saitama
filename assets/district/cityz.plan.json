@@ -1,5 +1,5 @@
 {
-  "planVersion": 1,
+  "planVersion": 3,
   "name": "City Z — Central District",
   "description": "Hand-authored road graph, zoning and landmarks for City Z. Everything inside a block is generated from hash(blockId, planVersion); this file is the only authored input.",
   "worldSize": 1536,
@@ -649,7 +649,7 @@
         "groundFloorScale": 1.25,
         "density": 0.74,
         "lotWidth": [9, 16],
-        "lotDepth": [10, 15],
+        "lotDepth": [12, 18],
         "setback": 0.4,
         "styleWeights": {
           "residential": 6,
@@ -678,7 +678,10 @@
           13090734,
           13619917,
           14735046,
-          12170150
+          12170150,
+          11055268,
+          14204832,
+          12560530
         ],
         "panelWeights": {
           "window": 10,
@@ -695,7 +698,7 @@
         "balconyChance": 0.3,
         "fireEscapeChance": 0.15,
         "acUnitChance": 0.3,
-        "signageChance": 0.35,
+        "signageChance": 0.18,
         "rooftopClutter": 0.45,
         "propDensity": 3.5,
         "populationDensity": 0.7,
@@ -722,7 +725,7 @@
         "groundFloorScale": 1.25,
         "density": 0.88,
         "lotWidth": [12, 22],
-        "lotDepth": [13, 19],
+        "lotDepth": [15, 24],
         "setback": 0.4,
         "styleWeights": {
           "apartment": 6,
@@ -750,7 +753,10 @@
           12896457,
           14605008,
           12107195,
-          13617080
+          13617080,
+          10858162,
+          13351324,
+          10397599
         ],
         "panelWeights": {
           "window": 8,
@@ -768,7 +774,7 @@
         "balconyChance": 0.3,
         "fireEscapeChance": 0.15,
         "acUnitChance": 0.3,
-        "signageChance": 0.35,
+        "signageChance": 0.12,
         "rooftopClutter": 0.8,
         "propDensity": 5,
         "populationDensity": 1,
@@ -799,7 +805,7 @@
         "groundFloorScale": 1.45,
         "density": 0.95,
         "lotWidth": [16, 30],
-        "lotDepth": [17, 26],
+        "lotDepth": [20, 30],
         "setback": 0.2,
         "styleWeights": {
           "commercial": 5,
@@ -826,8 +832,13 @@
           14474456,
           13028302,
           15000284,
-          11844802,
-          13684422
+          11056058,
+          13684422,
+          10463396,
+          13090216,
+          11577500,
+          9411234,
+          14735560
         ],
         "panelWeights": {
           "window": 14,
@@ -842,7 +853,7 @@
         "balconyChance": 0.3,
         "fireEscapeChance": 0.15,
         "acUnitChance": 0.3,
-        "signageChance": 0.35,
+        "signageChance": 0.08,
         "rooftopClutter": 1,
         "propDensity": 8,
         "populationDensity": 2.2,
@@ -856,10 +867,10 @@
       "kind": "shopping",
       "district": "downtown",
       "polygon": [
-        [-108, -540],
-        [108, -540],
-        [108, -252],
-        [-108, -252]
+        [4, -552],
+        [190, -552],
+        [190, -228],
+        [4, -228]
       ],
       "priority": 5,
       "params": {
@@ -869,7 +880,7 @@
         "groundFloorScale": 1.5,
         "density": 0.97,
         "lotWidth": [6.5, 12],
-        "lotDepth": [11, 16],
+        "lotDepth": [13, 19],
         "setback": 0,
         "styleWeights": {
           "shophouse": 7,
@@ -898,7 +909,11 @@
           13606790,
           14473682,
           13154722,
-          14931904
+          14931904,
+          12088156,
+          9413293,
+          14073982,
+          11121820
         ],
         "panelWeights": {
           "window": 9,
@@ -913,7 +928,7 @@
         "balconyChance": 0.3,
         "fireEscapeChance": 0.15,
         "acUnitChance": 0.3,
-        "signageChance": 0.9,
+        "signageChance": 0.6,
         "rooftopClutter": 0.85,
         "propDensity": 11,
         "populationDensity": 2.6,
@@ -940,7 +955,7 @@
         "groundFloorScale": 1.5,
         "density": 0.8,
         "lotWidth": [16, 26],
-        "lotDepth": [16, 24],
+        "lotDepth": [18, 26],
         "setback": 1.2,
         "styleWeights": {
           "civic": 6,
@@ -973,7 +988,7 @@
         "balconyChance": 0.3,
         "fireEscapeChance": 0.15,
         "acUnitChance": 0.3,
-        "signageChance": 0.35,
+        "signageChance": 0.05,
         "rooftopClutter": 0.9,
         "propDensity": 7,
         "populationDensity": 1.6,
@@ -1042,7 +1057,7 @@
         "balconyChance": 0.3,
         "fireEscapeChance": 0.15,
         "acUnitChance": 0.3,
-        "signageChance": 0.35,
+        "signageChance": 0.06,
         "rooftopClutter": 1,
         "propDensity": 6,
         "populationDensity": 0.4,
@@ -1079,7 +1094,7 @@
         "groundFloorScale": 1.25,
         "density": 0,
         "lotWidth": [11, 19],
-        "lotDepth": [12, 18],
+        "lotDepth": [14, 22],
         "setback": 0.4,
         "styleWeights": {
           "residential": 4,
@@ -1141,7 +1156,7 @@
         "groundFloorScale": 1.25,
         "density": 0.5,
         "lotWidth": [9, 17],
-        "lotDepth": [11, 16],
+        "lotDepth": [13, 19],
         "setback": 0.4,
         "styleWeights": {
           "residential": 5,
@@ -1186,7 +1201,7 @@
         "balconyChance": 0.3,
         "fireEscapeChance": 0.15,
         "acUnitChance": 0.3,
-        "signageChance": 0.35,
+        "signageChance": 0.1,
         "rooftopClutter": 0.4,
         "propDensity": 4,
         "populationDensity": 0.15,
@@ -1225,7 +1240,7 @@
         "groundFloorScale": 1.25,
         "density": 0,
         "lotWidth": [11, 19],
-        "lotDepth": [12, 18],
+        "lotDepth": [14, 22],
         "setback": 0.4,
         "styleWeights": {
           "residential": 4,
@@ -1295,13 +1310,13 @@
       "id": "shotengai-arcade",
       "name": "Z-City Shotengai Arcade",
       "kind": "arcade",
-      "position": [0, -396],
+      "position": [96, -396],
       "rotationY": 0,
       "footprint": [
-        [-13, -84],
-        [13, -84],
-        [13, 84],
-        [-13, 84]
+        [-9, -84],
+        [9, -84],
+        [9, 84],
+        [-9, 84]
       ],
       "floors": 1,
       "floorHeight": 4,
@@ -1309,7 +1324,7 @@
       "facadeMaterial": "mat.wall.concrete.painted",
       "roofMaterial": "mat.metal.corrugated",
       "tint": 14210251,
-      "exclusionRadius": 16,
+      "exclusionRadius": 10,
       "description": "The covered shopping street. Vegetables, a butcher, a bargain sale that matters more than most fights."
     },
     {
@@ -2184,7 +2199,7 @@
         [-18, -489],
         [-87, -489]
       ],
-      "zone": "shotengai",
+      "zone": "apartment-ring",
       "salt": 0,
       "density": 1,
       "heightBias": 0,
@@ -2226,7 +2241,7 @@
         [183, -489],
         [105, -489]
       ],
-      "zone": "apartment-ring",
+      "zone": "shotengai",
       "salt": 0,
       "density": 1,
       "heightBias": 0,
@@ -2520,7 +2535,7 @@
         [-18, -397],
         [-87, -397]
       ],
-      "zone": "shotengai",
+      "zone": "apartment-ring",
       "salt": 0,
       "density": 1,
       "heightBias": 0,
@@ -2562,7 +2577,7 @@
         [183, -397],
         [105, -397]
       ],
-      "zone": "apartment-ring",
+      "zone": "shotengai",
       "salt": 0,
       "density": 1,
       "heightBias": 0,
@@ -2856,7 +2871,7 @@
         [-18, -297],
         [-87, -297]
       ],
-      "zone": "shotengai",
+      "zone": "apartment-ring",
       "salt": 0,
       "density": 1,
       "heightBias": 1,
@@ -2898,7 +2913,7 @@
         [183, -297],
         [105, -297]
       ],
-      "zone": "apartment-ring",
+      "zone": "shotengai",
       "salt": 0,
       "density": 1,
       "heightBias": 1,
@@ -3213,7 +3228,7 @@
         [87, -201],
         [18, -201]
       ],
-      "zone": "downtown",
+      "zone": "shotengai",
       "salt": 0,
       "density": 1,
       "heightBias": 1,
@@ -3234,7 +3249,7 @@
         [183, -201],
         [105, -201]
       ],
-      "zone": "downtown",
+      "zone": "shotengai",
       "salt": 0,
       "density": 1,
       "heightBias": 1,

@@ -341,7 +341,11 @@ function addStreetLamps(
             x,
             y: 0,
             z,
-            rotationY: Math.atan2(-nx * side, -nz * side),
+            // The lamp model's arm reaches along its local -Z, and it has to
+            // reach OVER the carriageway. Yaw theta sends local -Z to
+            // (-sin, -cos), so pointing it back at the road is
+            // atan2(n * side), not atan2(-n * side).
+            rotationY: Math.atan2(nx * side, nz * side),
             scale: 1,
             destructible: true,
           });

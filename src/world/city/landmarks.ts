@@ -254,7 +254,7 @@ function buildArcade(
         [0, ridge, side > 0 ? z0 : z1],
         [0, ridge, side > 0 ? z1 : z0],
         [0, z0 * glassUv, halfSpan * glassUv, z1 * glassUv],
-        [0.86 * shade, 0.87 * shade, 0.82 * shade]
+        [0.62 * shade, 0.66 * shade, 0.68 * shade]
       );
       // Rafter under the panel.
       builder.box(

@@ -233,6 +233,7 @@ export function generateBlock(
 
   if (options.includeProps) {
     scatterProps(block, zone, params, rng.derive('props'), props);
+    parkAtKerb(block, zone, rng.derive('parking'), props);
   }
 
   const geometry = mergeGeometries(
@@ -277,6 +278,95 @@ export function generateBlock(
     triangles: geometry.buffers.indexCount / 3,
     drawCalls: geometry.buffers.groups.length,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cross-block batching                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** Several blocks merged into one geometry because they share materials. */
+export interface IBlockBatch {
+  readonly materials: IBlockMaterialSet;
+  readonly geometry: IMergedGeometry;
+  /** Fracture layouts keyed by building id, rebased into the merged buffer. */
+  readonly fractures: Readonly<Record<string, IFractureLayout>>;
+  readonly blockIds: readonly string[];
+  readonly triangles: number;
+  readonly drawCalls: number;
+}
+
+/**
+ * Merge blocks that share a material set into single geometries.
+ *
+ * A block is already three draw calls, which is the per-block floor. The next
+ * saving is across blocks: a resident set of 25 blocks is 75 calls, but those
+ * 25 blocks between them use only a handful of distinct facade/glass/roof
+ * triples, so merging by material set collapses them to three calls PER SET —
+ * typically fifteen to twenty-four for the whole region.
+ *
+ * Block geometry is already in world space, so no transform is needed, and
+ * `rebaseLayout` moves every fracture range into the merged buffer, so
+ * destruction keeps working on a batched mesh exactly as it does on a single
+ * block. What batching costs is streaming granularity: a batch has to be
+ * rebuilt when its membership changes, which is why it suits a stable
+ * resident set or a far ring rather than the chunk immediately under the
+ * player.
+ */
+export function mergeBlocks(blocks: readonly IBlockBuild[]): IBlockBatch[] {
+  const byKey = new Map<string, IBlockBuild[]>();
+  for (const block of blocks) {
+    if (block.geometry.buffers.vertexCount === 0) continue;
+    const key = `${block.materials.facade}|${block.materials.glass}|${block.materials.roof}`;
+    const list = byKey.get(key);
+    if (list) list.push(block);
+    else byKey.set(key, [block]);
+  }
+
+  const out: IBlockBatch[] = [];
+  for (const key of [...byKey.keys()].sort()) {
+    const group = byKey.get(key)!;
+    const merged = mergeGeometries(
+      group.map((b) => b.geometry.buffers),
+      MAT_SLOT_COUNT
+    );
+    const fractures: Record<string, IFractureLayout> = {};
+    for (let i = 0; i < group.length; i++) {
+      const offset = merged.offsets[i];
+      for (const [id, layout] of Object.entries(group[i].fractures)) {
+        fractures[id] = rebaseLayout(layout, offset.vertexOffset, offset.slotIndexOffset);
+      }
+    }
+    out.push({
+      materials: group[0].materials,
+      geometry: merged,
+      fractures,
+      blockIds: group.map((b) => b.id),
+      triangles: merged.buffers.indexCount / 3,
+      drawCalls: merged.buffers.groups.length,
+    });
+  }
+  return out;
+}
+
+/**
+ * Draw calls a set of blocks would cost after `mergeBlocks`, without actually
+ * building the merged buffers. Used by budget reporting and tests.
+ */
+export function countMergedBlockCalls(blocks: readonly IBlockBuild[]): number {
+  const slotsByKey = new Map<string, Set<number>>();
+  for (const block of blocks) {
+    if (block.geometry.buffers.vertexCount === 0) continue;
+    const key = `${block.materials.facade}|${block.materials.glass}|${block.materials.roof}`;
+    let slots = slotsByKey.get(key);
+    if (!slots) {
+      slots = new Set<number>();
+      slotsByKey.set(key, slots);
+    }
+    for (const g of block.geometry.buffers.groups) slots.add(g.slot);
+  }
+  let total = 0;
+  for (const slots of slotsByKey.values()) total += slots.size;
+  return total;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -496,7 +586,13 @@ function makeRecipe(
   floors += block.heightBias;
   if (lot.isCorner) floors += rng.int(0, 2);
   if (lot.isPrimary) floors += rng.int(0, 2);
-  floors = Math.max(1, Math.min(maxFloors + 4, floors));
+  // Landmark height. Without this the shaped roll still produces a plateau,
+  // because a distribution with a hard ceiling has no tail — and a skyline
+  // with no tail is the clearest sign a city was generated.
+  if (maxFloors >= 6 && rng.bool(0.07)) {
+    floors = Math.round(floors * rng.range(1.5, 2.4));
+  }
+  floors = Math.max(1, Math.min(maxFloors * 2 + 6, floors));
 
   const style = pickStyle(params, rng);
   const tint = params.tints[rng.int(0, params.tints.length - 1)];
@@ -519,6 +615,7 @@ function makeRecipe(
     rooftopClutter: params.rooftopClutter,
     parapetHeight: style === 'industrial' ? 0.45 : rng.range(0.7, 1.15),
     litWindowChance: 0.16,
+    signage: params.signageChance,
     structureMaterial: structureFor(style, materials.facade),
     heroOverlays: lot.isPrimary,
   };
@@ -584,12 +681,12 @@ function fillCourtyard(
   spawns: IBlockSpawn[]
 ): void {
   const b = polygonBounds(block.outline);
-  const inset = 20;
+  const inset = 15;
   const w = b.maxX - b.minX - inset * 2;
   const d = b.maxZ - b.minZ - inset * 2;
   if (w < 8 || d < 8) return;
 
-  const sheds = rng.int(0, zone.kind === 'industrial' ? 3 : 2);
+  const sheds = rng.int(1, zone.kind === 'industrial' ? 4 : 3);
   for (let i = 0; i < sheds; i++) {
     const sw = rng.range(4, Math.min(11, w * 0.6));
     const sd = rng.range(4, Math.min(9, d * 0.6));
@@ -775,6 +872,55 @@ function scatterProps(
     };
     placed.push(placement);
     out.push(placement);
+  }
+}
+
+/**
+ * Park cars along the kerb.
+ *
+ * An empty carriageway reads as a film set no matter how good the buildings
+ * are. Cars are also the cheapest possible fix — one instanced draw call for
+ * the whole resident set — and they give the street a sense of scale that a
+ * lamp post cannot.
+ */
+function parkAtKerb(
+  block: IPlanBlock,
+  zone: IPlanZone,
+  rng: IRandom,
+  out: IRawPlacement[]
+): void {
+  if (zone.kind === 'park' || zone.kind === 'crater') return;
+  const chance = zone.kind === 'downtown' || zone.kind === 'shopping' ? 0.45 : 0.32;
+  const outline = block.outline;
+  for (let i = 0; i < outline.length; i++) {
+    const a = outline[i];
+    const b = outline[(i + 1) % outline.length];
+    const dx = b[0] - a[0];
+    const dz = b[1] - a[1];
+    const len = Math.hypot(dx, dz);
+    if (len < 12) continue;
+    const ux = dx / len;
+    const uz = dz / len;
+    // CCW ring: outward is (dz, -dx).
+    const nx = uz;
+    const nz = -ux;
+    const offset = block.sidewalk + 1.9;
+    const spacing = 6.4;
+    for (let t = 5; t < len - 5; t += spacing) {
+      if (!rng.bool(chance)) continue;
+      out.push({
+        assetKey: 'model.prop.covered_car',
+        x: a[0] + ux * t + nx * offset,
+        y: 0,
+        z: a[1] + uz * t + nz * offset,
+        // A yaw of theta maps a model's local +X to (cos, -sin) in (x, z), so
+        // aligning the car's long axis with the kerb needs atan2(-uz, ux).
+        // atan2(ux, uz) parks it broadside across the carriageway.
+        rotationY: Math.atan2(-uz, ux),
+        scale: 1,
+        destructible: true,
+      });
+    }
   }
 }
 

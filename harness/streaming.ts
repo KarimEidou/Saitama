@@ -201,6 +201,8 @@ interface ISnapshot {
   readonly visibleChunks: number;
   readonly sceneDrawCalls: number;
   readonly sceneTriangles: number;
+  /** Times a settle gave up. Non-zero means something never went quiet. */
+  readonly settleTimeouts: number;
 }
 
 interface IStreamingHarness {
@@ -379,9 +381,24 @@ let streamedOut = 0;
 /** Dense chunk indices in the order they first appeared, for the priority test. */
 const arrivalOrder: number[] = [];
 const arrivalSeen = new Set<number>();
+/**
+ * Arrivals are recorded only during the cold start.
+ *
+ * The cold start is the ONLY clean priority experiment available: nothing is
+ * resident, so every chunk in range has to be built and the order they arrive
+ * in is the scheduler's own answer. Once the flight begins, chunks arrive
+ * because the camera moved into range, and arrival order says as much about the
+ * flight path as about the priority function.
+ */
+let recordingArrivals = true;
+
+/** Where the camera stood during the cold start, for the priority analysis. */
+const coldStartOrigin = new THREE.Vector3();
+const coldStartForward = new THREE.Vector3();
 
 bus.on('ChunkStreamedIn', (event) => {
   streamedIn++;
+  if (!recordingArrivals) return;
   const index = chunkIndex(event.coord.x, event.coord.z);
   if (!arrivalSeen.has(index)) {
     arrivalSeen.add(index);
@@ -403,6 +420,16 @@ bus.on('ChunkStreamedOut', () => {
 function forceGpuUpload(object: THREE.Object3D): void {
   const parent = object.parent;
   const previousAutoClear = renderer.autoClear;
+
+  // Frustum culling has to come OFF for the prewarm, or the measurement quietly
+  // becomes "upload cost of chunks that happen to be on screen". A chunk that
+  // arrives behind the camera would be skipped by the draw, its `bufferData`
+  // deferred to whichever later frame first sees it, and that frame's spike
+  // would never appear in these numbers.
+  object.traverse((child) => {
+    child.frustumCulled = false;
+  });
+
   uploadScene.add(object);
   renderer.autoClear = false;
   renderer.setScissorTest(true);
@@ -411,6 +438,10 @@ function forceGpuUpload(object: THREE.Object3D): void {
   renderer.setScissorTest(false);
   renderer.autoClear = previousAutoClear;
   uploadScene.remove(object);
+
+  object.traverse((child) => {
+    child.frustumCulled = true;
+  });
   parent?.add(object);
 }
 
@@ -456,7 +487,23 @@ placeCamera(0, 1);
 
 let frameIndex = 0;
 let phase = 'booting';
-const renderEnabled = true;
+
+/**
+ * Frames between full-scene renders while a scripted run is driving.
+ *
+ * The prewarm draw in `forceGpuUpload` is what forces a chunk's buffers onto
+ * the GPU, so the upload measurement does not depend on the scene render at
+ * all. The full render still happens regularly — it is what exercises culling
+ * and the real draw path — but doing it on every one of ~4000 lap frames would
+ * spend the entire run inside a CPU rasteriser measuring nothing.
+ */
+const SCRIPTED_RENDER_INTERVAL = 4;
+let renderInterval = 1;
+
+/** True while a scripted run owns the frame clock; the idle driver stands down. */
+let driverPaused = false;
+/** Set once the run is over, to leave the page still for the screenshot. */
+let driverStopped = false;
 
 interface IFrameSample {
   uploads: number;
@@ -490,18 +537,26 @@ function stepFrame(): void {
     });
   }
 
-  if (renderEnabled) renderer.render(scene, camera);
+  if (renderInterval === 1 || frameIndex % renderInterval === 0) renderer.render(scene, camera);
 }
 
 let lastPanelUpdate = 0;
 
+/**
+ * The idle driver. It stands down while a scripted run is stepping frames,
+ * because two steppers would double the simulation rate and pollute the
+ * per-frame budget samples with frames the script never asked for.
+ */
 function loop(): void {
-  stepFrame();
-  const now = performance.now();
-  if (now - lastPanelUpdate > 120) {
-    lastPanelUpdate = now;
-    drawMap();
-    drawPanels();
+  if (driverStopped) return;
+  if (!driverPaused) {
+    stepFrame();
+    const now = performance.now();
+    if (now - lastPanelUpdate > 150) {
+      lastPanelUpdate = now;
+      drawMap();
+      drawPanels();
+    }
   }
   requestAnimationFrame(loop);
 }
@@ -510,30 +565,63 @@ function loop(): void {
 /* Harness control                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Run `count` frames, yielding to the browser between them. */
+/**
+ * Simulated frames per animation-frame callback.
+ *
+ * TWO, and the number is load-bearing. Worker results arrive as tasks, so they
+ * are only delivered when the event loop turns — which means the number of
+ * simulated frames per real tick is a hard ceiling on how many chunks can come
+ * back. At the pool's four-jobs-in-flight and the budget's two uploads a frame,
+ * two frames per tick is exactly break-even: the streamer can always be fed as
+ * fast as its own budget allows.
+ *
+ * Running more frames per tick is not "faster", it is a different experiment:
+ * it starves the pipeline and measures the harness rather than the system.
+ * (An earlier revision ran 24 frames per tick and drove every load through a
+ * four-results-per-tick funnel, which looked exactly like a slow streamer.)
+ */
+const FRAMES_PER_TICK = 2;
+
+/** Run `count` frames, always turning the event loop between slices. */
 function runFrames(count: number, onFrame?: (i: number) => void): Promise<void> {
   return new Promise<void>((resolve) => {
+    driverPaused = true;
     let done = 0;
     const tick = (): void => {
-      const budget = 24; // frames per rAF slice: keeps the page responsive
-      for (let i = 0; i < budget && done < count; i++, done++) {
+      for (let i = 0; i < FRAMES_PER_TICK && done < count; i++, done++) {
         onFrame?.(done);
         stepFrame();
       }
       if (done >= count) {
+        driverPaused = false;
         resolve();
         return;
       }
       requestAnimationFrame(tick);
     };
-    tick();
+    // Scheduled, never called inline: a synchronous first slice would let a
+    // caller drain its whole loop without the event loop ever turning, and
+    // nothing from a worker would arrive for the entire run.
+    requestAnimationFrame(tick);
   });
 }
 
-/** Drive frames until nothing is queued, building, waiting or unloading. */
-async function settle(maxFrames = 6000): Promise<number> {
-  for (let i = 0; i < maxFrames; i += 8) {
-    await runFrames(8);
+/** Frames a single `settle` may burn before it gives up. */
+const SETTLE_CAP = 3000;
+
+/** Set when a settle hit the cap — surfaced so a stall cannot pass silently. */
+let settleTimeouts = 0;
+
+/**
+ * Drive frames until nothing is queued, building, waiting or unloading.
+ *
+ * Waiting on the build side alone is not enough: eviction is budgeted at four
+ * chunks a frame, so after a long jump the loads finish well before the unloads
+ * and a build-only wait returns to a half-torn-down world.
+ */
+async function settle(maxFrames = SETTLE_CAP): Promise<number> {
+  for (let i = 0; i < maxFrames; i += FRAMES_PER_TICK) {
+    await runFrames(FRAMES_PER_TICK);
     const stats = streaming.getDetailedStats();
     if (
       stats.queued === 0 &&
@@ -541,9 +629,10 @@ async function settle(maxFrames = 6000): Promise<number> {
       stats.readyToUpload === 0 &&
       stats.unloadsLastFrame === 0
     ) {
-      return i + 8;
+      return i + FRAMES_PER_TICK;
     }
   }
+  settleTimeouts++;
   return maxFrames;
 }
 
@@ -582,6 +671,7 @@ async function runLaps(count: number): Promise<ILapReport[]> {
   renderer.setSize(LAP_RESOLUTION.width, LAP_RESOLUTION.height, false);
   camera.aspect = LAP_RESOLUTION.width / LAP_RESOLUTION.height;
   camera.updateProjectionMatrix();
+  renderInterval = SCRIPTED_RENDER_INTERVAL;
 
   for (let lap = 1; lap <= count; lap++) {
     phase = `lap ${lap}/${count} — outbound`;
@@ -626,6 +716,7 @@ async function runLaps(count: number): Promise<ILapReport[]> {
   }
 
   phase = 'laps complete';
+  renderInterval = 1;
   return reports;
 }
 
@@ -640,8 +731,8 @@ async function runLaps(count: number): Promise<ILapReport[]> {
  * form is what "what you are looking at loads first" actually promises.
  */
 function priorityReport(): IPriorityReport {
-  const start = PATH_START;
-  const direction = new THREE.Vector3().subVectors(PATH_END, PATH_START).normalize();
+  const start = coldStartOrigin;
+  const direction = coldStartForward;
 
   const rank = new Map<number, number>();
   arrivalOrder.forEach((index, at) => rank.set(index, at));
@@ -855,16 +946,23 @@ function snapshot(): ISnapshot {
     visibleChunks: spatialStats.visibleChunks,
     sceneDrawCalls: renderer.info.render.calls,
     sceneTriangles: renderer.info.render.triangles,
+    settleTimeouts,
   };
 }
 
-/** Park the camera where the ring structure photographs well, and settle. */
+/**
+ * Park the camera where the ring structure photographs well and leave the page
+ * completely still.
+ *
+ * Order matters: settle at the small lap buffer, THEN resize and render exactly
+ * one full-size frame, THEN stop the frame driver. Settling at full size would
+ * spend minutes in the software rasteriser, and leaving the driver running
+ * would have Playwright's screenshot competing with a render that takes longer
+ * than its timeout.
+ */
 async function setCameraForShot(): Promise<void> {
   phase = 'framing';
-  const stage = document.getElementById('stage') as HTMLDivElement;
-  renderer.setSize(stage.clientWidth, stage.clientHeight, false);
-  camera.aspect = stage.clientWidth / Math.max(1, stage.clientHeight);
-  camera.updateProjectionMatrix();
+  renderInterval = SCRIPTED_RENDER_INTERVAL;
 
   // Over the downtown core looking across the whole district, so R0 detail,
   // the R1/R2 merged blocks and the impostor horizon are all in one frame.
@@ -872,6 +970,20 @@ async function setCameraForShot(): Promise<void> {
   camera.lookAt(240, -30, -420);
   camera.updateMatrixWorld();
   await settle();
+
+  driverPaused = true;
+  driverStopped = true;
+  renderInterval = 1;
+
+  const stage = document.getElementById('stage') as HTMLDivElement;
+  renderer.setSize(stage.clientWidth, stage.clientHeight, false);
+  camera.aspect = stage.clientWidth / Math.max(1, stage.clientHeight);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+
+  spatial.cull(camera);
+  renderer.render(scene, camera);
+
   phase = 'ready for capture';
   drawMap();
   drawPanels();
@@ -1065,9 +1177,27 @@ async function boot(): Promise<void> {
   camera.aspect = LAP_RESOLUTION.width / LAP_RESOLUTION.height;
   camera.updateProjectionMatrix();
 
-  phase = 'cold start';
   // The cold start IS the priority test: nothing is resident, every chunk in
-  // range has to be built, and the order they arrive in is the evidence.
+  // range has to be built, and the order they arrive in is the evidence. It has
+  // to run from the MIDDLE of the world, not from the start of the flight path:
+  // the path begins hard against the western edge, where there is no city
+  // behind the camera to be outranked and the comparison would be vacuous.
+  phase = 'cold start';
+  camera.position.set(CHUNK_SIZE * 0.5, EYE_HEIGHT, CHUNK_SIZE * 0.5);
+  camera.lookAt(CHUNK_SIZE * 0.5, EYE_HEIGHT - 40, -600);
+  camera.updateMatrixWorld();
+  coldStartOrigin.copy(camera.position);
+  camera.getWorldDirection(coldStartForward);
+  coldStartForward.y = 0;
+  coldStartForward.normalize();
+
+  await settle();
+  recordingArrivals = false;
+
+  // Now move to the start of the traverse and let the world catch up, so the
+  // laps begin from a settled state rather than mid-burst.
+  phase = 'moving to the flight start';
+  placeCamera(0, 1);
   await settle();
   phase = 'idle';
 

@@ -97,6 +97,13 @@ export interface IPanelContext {
   isGround: boolean;
   /** True on the topmost storey — suppresses balconies under the parapet. */
   isTop: boolean;
+  /**
+   * 0..1 chance a bay carries a projecting sign. High in a shotengai, near
+   * zero in a housing block. Projecting signage is the single strongest
+   * "this is a Japanese shopping street" cue there is, so it is a dial rather
+   * than a constant.
+   */
+  signage: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -249,7 +256,7 @@ export function emitBlank(c: IPanelContext): void {
     const u = c.rng.range(0.25, c.width - 0.25);
     const p = pt(c, u, c.height * 0.5, 0.07);
     c.builder.box(
-      MatSlot.Roof,
+      MatSlot.Facade,
       p[0],
       p[1],
       p[2],
@@ -321,6 +328,9 @@ export function emitWindow(c: IPanelContext): void {
       shadeTint(c.tint, c.shade * 0.6)
     );
   }
+  if (c.detail === 'full' && !c.isTop && c.rng.bool(c.signage * 0.2)) {
+    emitProjectingSign(c, c.height - 0.35);
+  }
   c.builder.addVolume(c.width * c.height * 0.2);
 }
 
@@ -364,7 +374,9 @@ export function emitShopfront(c: IPanelContext): void {
     );
   }
 
-  // Glazing.
+  // Glazing. Much darker than a residential window: a shopfront is a hole you
+  // look INTO, and at the sky-reflection brightness of an upper-storey window
+  // it reads as a blank panel instead.
   wallQuad(
     c,
     MatSlot.Glass,
@@ -375,7 +387,7 @@ export function emitShopfront(c: IPanelContext): void {
     -inset,
     1,
     c.glassUv,
-    c.glassTint
+    shadeTint(c.glassTint, 0.38)
   );
 
   // Signboard: lives in the emissive slot so shop signs glow at dusk.
@@ -397,7 +409,31 @@ export function emitShopfront(c: IPanelContext): void {
   if (c.detail === 'full' && c.rng.bool(0.55)) {
     emitAwning(c, riser, signBottom);
   }
+  if (c.detail === 'full' && c.rng.bool(c.signage)) {
+    emitProjectingSign(c, c.height - 0.5);
+  }
   c.builder.addVolume(c.width * c.height * 0.25);
+}
+
+/**
+ * A sign board cantilevered out perpendicular to the wall.
+ *
+ * Flat signage parallel to the facade disappears the moment you look down a
+ * street, because you see it edge-on. Projecting signs are what actually fill
+ * the view along a shopping street, which is why they get their own emitter
+ * rather than being another wall quad.
+ */
+function emitProjectingSign(c: IPanelContext, v: number): void {
+  const tint = SIGN_TINTS[c.rng.int(0, SIGN_TINTS.length - 1)];
+  const reach = c.rng.range(0.6, 0.95);
+  const height = c.rng.range(0.5, 1.15);
+  const u = c.rng.range(0.35, Math.max(0.4, c.width - 0.35));
+  const centre = v - height * 0.5;
+  if (centre - height * 0.5 < 0.4) return;
+  // Bracket back to the wall.
+  boxAlongWall(c, MatSlot.Facade, u, v - 0.06, reach * 0.5, 0.04, 0.04, reach * 0.5, [0.32, 0.31, 0.3]);
+  // The board itself, in the emissive slot so it lights up at dusk.
+  boxAlongWall(c, MatSlot.Glass, u, centre, reach, 0.035, height * 0.5, reach * 0.42, tint);
 }
 
 /** Fabric awning over a shopfront, sloping down and out. */
@@ -509,10 +545,12 @@ export function emitBalcony(c: IPanelContext): void {
   const slabThickness = 0.14;
   const tint = shadeTint(c.tint, c.shade * 0.9);
 
-  // Slab.
+  // Slab. Facade slot, not roof: a balcony is cast concrete continuous with
+  // the wall, and putting it in the roof slot paints it with flat black
+  // bitumen — which is exactly what it looked like before this was fixed.
   boxAlongWall(
     c,
-    MatSlot.Roof,
+    MatSlot.Facade,
     c.width * 0.5,
     slabThickness * 0.5,
     depth * 0.5,
@@ -524,7 +562,7 @@ export function emitBalcony(c: IPanelContext): void {
   // Front parapet.
   boxAlongWall(
     c,
-    MatSlot.Roof,
+    MatSlot.Facade,
     c.width * 0.5,
     slabThickness + railHeight * 0.5,
     depth - 0.05,
@@ -537,7 +575,7 @@ export function emitBalcony(c: IPanelContext): void {
   for (const u of [0.05, c.width - 0.05]) {
     boxAlongWall(
       c,
-      MatSlot.Roof,
+      MatSlot.Facade,
       u,
       slabThickness + railHeight * 0.5,
       depth * 0.5,
@@ -551,7 +589,7 @@ export function emitBalcony(c: IPanelContext): void {
   if (c.rng.bool(0.5)) {
     boxAlongWall(
       c,
-      MatSlot.Roof,
+      MatSlot.Facade,
       c.width * 0.5,
       slabThickness + railHeight + 0.28,
       depth * 0.55,
@@ -571,31 +609,31 @@ export function emitAcUnit(c: IPanelContext): void {
 
   const v = c.rng.range(0.9, Math.max(1.1, c.height - 1.5));
   const u = c.rng.range(0.5, Math.max(0.6, c.width - 0.5));
-  const shell: [number, number, number] = [0.78, 0.77, 0.73];
-  boxAlongWall(c, MatSlot.Roof, u, v + 0.28, 0.36, 0.42, 0.28, 0.2, shadeTint(shell, c.shade));
+  const shell: [number, number, number] = [0.92, 0.91, 0.87];
+  boxAlongWall(c, MatSlot.Facade, u, v + 0.22, 0.28, 0.34, 0.22, 0.16, shadeTint(shell, c.shade));
   // Bracket.
   boxAlongWall(
     c,
-    MatSlot.Roof,
+    MatSlot.Facade,
     u,
-    v - 0.02,
-    0.2,
-    0.4,
-    0.03,
-    0.18,
-    shadeTint([0.35, 0.33, 0.31], c.shade)
+    v - 0.03,
+    0.16,
+    0.32,
+    0.025,
+    0.14,
+    shadeTint([0.5, 0.49, 0.47], c.shade)
   );
-  // Grille face, darker, so the unit is not a featureless white brick.
+  // Grille face, a shade darker so the unit is not a featureless white brick.
   boxAlongWall(
     c,
-    MatSlot.Roof,
+    MatSlot.Facade,
     u,
-    v + 0.28,
-    0.56,
-    0.3,
-    0.19,
+    v + 0.22,
+    0.45,
+    0.24,
+    0.15,
     0.01,
-    shadeTint([0.3, 0.3, 0.29], c.shade)
+    shadeTint([0.6, 0.6, 0.58], c.shade)
   );
   c.builder.addVolume(0.1);
 }

@@ -98,6 +98,8 @@ export interface IBuildingRecipe {
   readonly parapetHeight: number;
   /** 0..1 chance a given window reads as lit. */
   readonly litWindowChance: number;
+  /** 0..1 chance a bay carries a projecting sign. */
+  readonly signage?: number;
   readonly structureMaterial: StructureMaterial;
   /** Model ids overlaid on hero buildings; empty for ordinary fill. */
   readonly heroOverlays?: boolean;
@@ -499,6 +501,7 @@ function emitOnePanel(
     attachments,
     isGround: panel.floor === 0,
     isTop,
+    signage: recipe.signage ?? 0,
   };
 
   if (recipe.detail === 'box') {

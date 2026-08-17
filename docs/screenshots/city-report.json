@@ -1,0 +1,199 @@
+{
+  "plan": {
+    "planVersion": 3,
+    "roads": 30,
+    "zones": 9,
+    "blocks": 256,
+    "landmarks": 4,
+    "craters": 1,
+    "intersections": 9
+  },
+  "street": {
+    "stats": {
+      "view": "street",
+      "chunks": 156,
+      "blocks": 159,
+      "buildings": 2351,
+      "triangles": 3513600,
+      "drawCallsRendered": 184,
+      "drawCallsPerBlockWorst": 3,
+      "residentReport": {
+        "chunks": 25,
+        "blocks": 26,
+        "blockCalls": 77,
+        "mergedBlockCalls": 39,
+        "groundCalls": 12,
+        "propCalls": 18,
+        "perBlockTotal": 107,
+        "total": 69,
+        "triangles": 3686502,
+        "worstBlockCalls": 3
+      },
+      "regionReport": {
+        "chunks": 156,
+        "blocks": 159,
+        "blockCalls": 387,
+        "mergedBlockCalls": 78,
+        "groundCalls": 24,
+        "propCalls": 19,
+        "perBlockTotal": 430,
+        "total": 121,
+        "triangles": 5701734,
+        "worstBlockCalls": 3
+      },
+      "generationMs": 4888.4000000003725,
+      "buildMs": 1157.800000000745,
+      "materialsSynthesised": 32,
+      "propsResolved": 19,
+      "propsMissing": [],
+      "usingRealTextures": false
+    },
+    "pixels": {
+      "stdDev": 51.95443401961439,
+      "colours": 4501,
+      "edgeDensity": 0.28084918177797435,
+      "meanLuma": 101.14352318460192
+    }
+  },
+  "map": {
+    "stats": {
+      "view": "map",
+      "chunks": 256,
+      "blocks": 260,
+      "buildings": 3729,
+      "triangles": 3372718,
+      "drawCallsRendered": 916,
+      "drawCallsPerBlockWorst": 3,
+      "residentReport": {
+        "chunks": 25,
+        "blocks": 25,
+        "blockCalls": 51,
+        "mergedBlockCalls": 17,
+        "groundCalls": 8,
+        "propCalls": 1,
+        "perBlockTotal": 60,
+        "total": 26,
+        "triangles": 457994,
+        "worstBlockCalls": 3
+      },
+      "regionReport": {
+        "chunks": 256,
+        "blocks": 260,
+        "blockCalls": 513,
+        "mergedBlockCalls": 78,
+        "groundCalls": 24,
+        "propCalls": 1,
+        "perBlockTotal": 538,
+        "total": 103,
+        "triangles": 1809474,
+        "worstBlockCalls": 3
+      },
+      "generationMs": 1397.3999999985099,
+      "buildMs": 202,
+      "materialsSynthesised": 35,
+      "propsResolved": 19,
+      "propsMissing": [],
+      "usingRealTextures": false
+    },
+    "pixels": {
+      "stdDev": 54.11740154050924,
+      "colours": 4947,
+      "edgeDensity": 0.541827257218677,
+      "meanLuma": 85.92821434820648
+    }
+  },
+  "skyline": {
+    "stats": {
+      "view": "skyline",
+      "chunks": 210,
+      "blocks": 213,
+      "buildings": 2963,
+      "triangles": 6595622,
+      "drawCallsRendered": 481,
+      "drawCallsPerBlockWorst": 3,
+      "residentReport": {
+        "chunks": 25,
+        "blocks": 25,
+        "blockCalls": 75,
+        "mergedBlockCalls": 36,
+        "groundCalls": 8,
+        "propCalls": 17,
+        "perBlockTotal": 100,
+        "total": 61,
+        "triangles": 2237154,
+        "worstBlockCalls": 3
+      },
+      "regionReport": {
+        "chunks": 210,
+        "blocks": 213,
+        "blockCalls": 465,
+        "mergedBlockCalls": 85,
+        "groundCalls": 24,
+        "propCalls": 21,
+        "perBlockTotal": 510,
+        "total": 130,
+        "triangles": 3975858,
+        "worstBlockCalls": 3
+      },
+      "generationMs": 3632.0999999996275,
+      "buildMs": 303.5,
+      "materialsSynthesised": 35,
+      "propsResolved": 22,
+      "propsMissing": [],
+      "usingRealTextures": false
+    },
+    "pixels": {
+      "stdDev": 48.885936085868416,
+      "colours": 3990,
+      "edgeDensity": 0.32397169394073416,
+      "meanLuma": 144.42306765820942
+    }
+  },
+  "fracture": {
+    "stats": {
+      "view": "fracture",
+      "chunks": 49,
+      "blocks": 51,
+      "buildings": 747,
+      "triangles": 2123282,
+      "drawCallsRendered": 162,
+      "drawCallsPerBlockWorst": 3,
+      "residentReport": {
+        "chunks": 25,
+        "blocks": 27,
+        "blockCalls": 80,
+        "mergedBlockCalls": 36,
+        "groundCalls": 12,
+        "propCalls": 18,
+        "perBlockTotal": 110,
+        "total": 66,
+        "triangles": 1469564,
+        "worstBlockCalls": 3
+      },
+      "regionReport": {
+        "chunks": 49,
+        "blocks": 51,
+        "blockCalls": 128,
+        "mergedBlockCalls": 50,
+        "groundCalls": 12,
+        "propCalls": 18,
+        "perBlockTotal": 158,
+        "total": 80,
+        "triangles": 1702782,
+        "worstBlockCalls": 3
+      },
+      "generationMs": 2387.5,
+      "buildMs": 213.60000000149012,
+      "materialsSynthesised": 35,
+      "propsResolved": 22,
+      "propsMissing": [],
+      "usingRealTextures": false
+    },
+    "pixels": {
+      "stdDev": 58.12316405893895,
+      "colours": 6146,
+      "edgeDensity": 0.3711063372717508,
+      "meanLuma": 123.98780869058034
+    }
+  }
+}

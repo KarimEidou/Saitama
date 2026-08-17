@@ -103,6 +103,10 @@ export function generateGround(ctx: IGroundContext): IGroundBuild {
 
   emitCarriageway(builder, ctx, x0, z0, roadUv, rng);
   for (let i = 0; i < ctx.blocks.length; i++) {
+    // A crater parcel has no kerb, no pavement and no surface: the bowl IS the
+    // ground there. Emitting the flat parcel anyway buries the crater under a
+    // disc of dirt 15 cm above it, which is exactly what it looked like before.
+    if (ctx.zones[i]?.kind === 'crater') continue;
     emitParcel(builder, ctx.blocks[i], ctx.zones[i], ctx.sidewalkWidth, pavingUv, lotUv);
   }
   emitMarkings(builder, ctx, x0, z0);
@@ -133,7 +137,9 @@ function emitCarriageway(
   const cell = CHUNK_SIZE / ROAD_CELLS;
   // Parcels are pushed out by the sidewalk band; a cell entirely inside that
   // union is never visible and is dropped.
-  const covers = ctx.blocks.map((b) => offsetPolygon(b.outline, -ctx.sidewalkWidth));
+  const covers = ctx.blocks
+    .filter((_, i) => ctx.zones[i]?.kind !== 'crater')
+    .map((b) => offsetPolygon(b.outline, -ctx.sidewalkWidth));
 
   for (let cz = 0; cz < ROAD_CELLS; cz++) {
     for (let cx = 0; cx < ROAD_CELLS; cx++) {
@@ -142,6 +148,13 @@ function emitCarriageway(
       const bx = ax + cell;
       const bz = az + cell;
       if (covers.some((poly) => rectInsidePolygon(poly, ax, az, bx, bz))) continue;
+      // Any cell the crater reaches is dropped, not just fully-enclosed ones:
+      // a half-covered cell leaves a shelf of asphalt hanging over the bowl.
+      const mx = (ax + bx) * 0.5;
+      const mz = (az + bz) * 0.5;
+      if (ctx.craters.some((c) => Math.hypot(mx - c.centre[0], mz - c.centre[1]) < c.radius)) {
+        continue;
+      }
       if (ctx.craters.some((c) => rectInsideCircle(c, ax, az, bx, bz))) continue;
 
       // Slight per-cell tint variation: asphalt is patched, not uniform.
@@ -396,7 +409,9 @@ function emitCrater(
       const jitter = () => rng.range(-0.35, 0.35) * crater.rubble;
       const h0 = height(t0, jitter());
       const h1 = height(t1, jitter());
-      const shade = 0.66 + t1 * 0.34;
+      // Dark at the floor, bright at the blast rim: from directly above that
+      // gradient is the only thing that says "hole" rather than "dirt patch".
+      const shade = 0.42 + t1 * 0.72;
       // Wound tangential-then-radial so the face points up; the reverse
       // order gives a bowl you can only see from underneath.
       builder.quad(

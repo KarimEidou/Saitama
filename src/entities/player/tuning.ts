@@ -120,8 +120,21 @@ export interface IPlayerLocomotionTuning {
    */
   readonly hopSpeed: number;
   /**
-   * How long holding the jump action keeps feeding the ascent. Release inside
-   * this window and the apex scales smoothly between the hop and the leap.
+   * How long the ceiling takes to ramp from `hopSpeed` to `jumpSpeed`. THIS is
+   * the modulation window: release inside it and the apex scales smoothly
+   * between a ~12 m hop and a ~27 m leap. 0.12 s is a little over seven
+   * frames, which is the same order as a Mario variable jump and about as
+   * short as a thumb can reliably aim.
+   *
+   * Every millisecond spent below full speed costs apex height, so a longer
+   * ramp is a lower ceiling: 0.12 s lands the full-hold apex at ~27.3 m
+   * against the 28 m a single-shot launch would reach.
+   */
+  readonly jumpRampSeconds: number;
+  /**
+   * How long the boost may keep being re-issued. Anything past
+   * `jumpRampSeconds` is a no-op (the ceiling has converged onto the
+   * free-flight curve by then), so this is purely slack against frame jitter.
    *
    * Implemented by re-issuing `ICharacterController.jump()` with a rising
    * ceiling — the contract's `jump()` only ever RAISES vertical speed, so this
@@ -194,7 +207,16 @@ export interface IPlayerCameraTuning {
    * 28 m altitude, that is a world bug this camera is meant to expose.
    */
   readonly armLengthApexM: number;
-  /** Hard floor when geometry forces the arm in. */
+  /**
+   * Hard floor on the arm when geometry forces it in.
+   *
+   * 0.4 m is just outside the player capsule (radius 0.3 m). It is NOT a
+   * comfortable distance — the character fills the frame and the near plane
+   * cuts into it — but the alternative is worse: a floor generous enough to
+   * look good is a floor that puts the camera inside a wall in a 2.4 m alley,
+   * and one frame inside a wall is a bug report. Fading the character out at
+   * short arm lengths is the fix, and belongs to whoever owns the material.
+   */
   readonly armLengthMinM: number;
   /** Smoothing on arm EXTENSION (fraction remaining after one second). */
   readonly armExtendSmoothing: number;
@@ -303,6 +325,7 @@ export const DEFAULT_LOCOMOTION_TUNING: IPlayerLocomotionTuning = Object.freeze(
 
   jumpSpeed: Math.sqrt(2 * 22 * 28),
   hopSpeed: 22.9,
+  jumpRampSeconds: 0.12,
   jumpHoldSeconds: 0.26,
   coyoteSeconds: 0.12,
   jumpBufferSeconds: 0.15,
@@ -327,7 +350,7 @@ export const DEFAULT_CAMERA_TUNING: IPlayerCameraTuning = Object.freeze({
   armLengthM: 4.5,
   armLengthChargingM: 9,
   armLengthApexM: 14,
-  armLengthMinM: 1.1,
+  armLengthMinM: 0.4,
   // 1e-3 ≈ a 145 ms time constant: the pull-back at apex is a move you notice.
   armExtendSmoothing: 1e-3,
   armRecoverSpeedMps: 7,
@@ -348,8 +371,8 @@ export const DEFAULT_CAMERA_TUNING: IPlayerCameraTuning = Object.freeze({
   autoPitchSmoothing: 5e-2,
   lookFullRateDegPerSec: 220,
 
-  apexArmStartHeightM: 10,
-  apexArmFullHeightM: 26,
+  apexArmStartHeightM: 9,
+  apexArmFullHeightM: 21,
 
   fovBaseDeg: 55,
   fovMaxDeg: 72,
@@ -408,19 +431,38 @@ export function apexForLaunchSpeed(launchSpeed: number, riseGravity = 22): numbe
  * take-off.
  *
  * The ceiling interpolates from `hopSpeed` to `jumpSpeed` across
- * `jumpHoldSeconds` and then decays under gravity, so re-issuing `jump()` with
- * this value each held frame produces a CONTINUOUS trajectory: there is no
- * step in vertical velocity at the moment the player lets go, whatever moment
- * that is.
+ * `jumpRampSeconds` and then decays at exactly the rise gravity, so
+ * re-issuing `jump()` with this value each held frame produces a CONTINUOUS
+ * trajectory: there is no step in vertical velocity at the moment the player
+ * lets go, whatever moment that is, and once the ramp completes the ceiling
+ * has converged onto the free-flight curve and stops doing anything at all.
  */
 export function heldJumpSpeedCeiling(
   tuning: IPlayerLocomotionTuning,
   elapsed: number,
   riseGravity = 22
 ): number {
-  const t = clamp01(elapsed / Math.max(1e-4, tuning.jumpHoldSeconds));
+  const t = clamp01(elapsed / Math.max(1e-4, tuning.jumpRampSeconds));
   const ceiling = tuning.hopSpeed + (tuning.jumpSpeed - tuning.hopSpeed) * t;
   return ceiling - Math.abs(riseGravity) * elapsed;
+}
+
+/**
+ * Apex a fully-held jump reaches, integrated rather than assumed.
+ *
+ * Closed form for the two-phase trajectory the held jump actually flies: a
+ * linear velocity ramp during `jumpRampSeconds`, then ballistic. Exported so
+ * tests and the harness can compare a MEASURED apex against the number the
+ * tuning implies, instead of against a hand-written constant that drifts.
+ */
+export function heldJumpApex(tuning: IPlayerLocomotionTuning, riseGravity = 22): number {
+  const g = Math.abs(riseGravity);
+  const T = Math.max(1e-4, tuning.jumpRampSeconds);
+  // v(t) = hop + ((jump - hop)/T - g) * t   for t in [0, T]
+  const slope = (tuning.jumpSpeed - tuning.hopSpeed) / T - g;
+  const vAtRampEnd = tuning.hopSpeed + slope * T;
+  const heightAtRampEnd = tuning.hopSpeed * T + 0.5 * slope * T * T;
+  return heightAtRampEnd + (vAtRampEnd * vAtRampEnd) / (2 * g);
 }
 
 /** Recovery duration for a landing that fell `fallHeight` metres. */

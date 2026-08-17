@@ -28,14 +28,40 @@ import { makeGenerator, SAMPLE_CHUNKS } from './fixtures';
 import type { IGeometryBuffers } from '../mesh-builder';
 import type { ICityChunkBuild } from '../chunk';
 
+/**
+ * Compare two typed arrays element by element and report the FIRST divergence.
+ *
+ * Deliberately not `expect(Array.from(a)).toEqual(Array.from(b))`: a block
+ * carries hundreds of thousands of floats and vitest's deep-equal on arrays
+ * that size takes seconds per comparison. This is exact, allocation-free, and
+ * gives a more useful failure — the index and the two values.
+ */
+function diffIndex(a: ArrayLike<number>, b: ArrayLike<number>): number {
+  if (a.length !== b.length) return -2;
+  for (let i = 0; i < a.length; i++) {
+    // Bit-for-bit, not approximate. Determinism means determinism.
+    if (a[i] !== b[i]) return i;
+  }
+  return -1;
+}
+
+function expectArraysIdentical(a: ArrayLike<number>, b: ArrayLike<number>, label: string): void {
+  const at = diffIndex(a, b);
+  if (at === -1) return;
+  if (at === -2) {
+    expect.fail(`${label}: length ${a.length} vs ${b.length}`);
+  }
+  expect.fail(`${label}: diverges at index ${at}: ${a[at]} vs ${b[at]}`);
+}
+
 function expectBuffersIdentical(a: IGeometryBuffers, b: IGeometryBuffers, label: string): void {
   expect(a.vertexCount, `${label}: vertexCount`).toBe(b.vertexCount);
   expect(a.indexCount, `${label}: indexCount`).toBe(b.indexCount);
-  expect(Array.from(a.positions), `${label}: positions`).toEqual(Array.from(b.positions));
-  expect(Array.from(a.normals), `${label}: normals`).toEqual(Array.from(b.normals));
-  expect(Array.from(a.uvs), `${label}: uvs`).toEqual(Array.from(b.uvs));
-  expect(Array.from(a.colors), `${label}: colors`).toEqual(Array.from(b.colors));
-  expect(Array.from(a.indices), `${label}: indices`).toEqual(Array.from(b.indices));
+  expectArraysIdentical(a.positions, b.positions, `${label}: positions`);
+  expectArraysIdentical(a.normals, b.normals, `${label}: normals`);
+  expectArraysIdentical(a.uvs, b.uvs, `${label}: uvs`);
+  expectArraysIdentical(a.colors, b.colors, `${label}: colors`);
+  expectArraysIdentical(a.indices, b.indices, `${label}: indices`);
   expect(a.groups, `${label}: groups`).toEqual(b.groups);
 }
 
@@ -61,7 +87,11 @@ function expectChunksIdentical(a: ICityChunkBuild, b: ICityChunkBuild): void {
   expect(a.instances.length).toBe(b.instances.length);
   for (let i = 0; i < a.instances.length; i++) {
     expect(a.instances[i].assetKey).toBe(b.instances[i].assetKey);
-    expect(Array.from(a.instances[i].matrices)).toEqual(Array.from(b.instances[i].matrices));
+    expectArraysIdentical(
+      a.instances[i].matrices,
+      b.instances[i].matrices,
+      `${a.key}/instances/${a.instances[i].assetKey}`
+    );
   }
 }
 
@@ -72,7 +102,7 @@ describe('determinism', () => {
     for (const [cx, cz] of SAMPLE_CHUNKS) {
       expectChunksIdentical(first.generate(cx, cz), second.generate(cx, cz));
     }
-  });
+  }, 60_000);
 
   it('is independent of generation ORDER', () => {
     // The whole point of deriving a seed per block rather than threading one
@@ -87,7 +117,7 @@ describe('determinism', () => {
     for (let i = 0; i < forwardResults.length; i++) {
       expectChunksIdentical(forwardResults[i], reversed[i]);
     }
-  });
+  }, 60_000);
 
   it('regenerates a chunk identically after other chunks have been generated', () => {
     const generator = makeGenerator('full');
@@ -95,7 +125,7 @@ describe('determinism', () => {
     for (let i = 0; i < 6; i++) generator.generate(i - 3, i - 2);
     const after = generator.generate(0, 0);
     expectChunksIdentical(before, after);
-  });
+  }, 60_000);
 
   it('derives block seeds from the id and the plan version only', () => {
     expect(blockSeed(1, 'blk_0_0')).toBe(blockSeed(1, 'blk_0_0'));

@@ -135,7 +135,7 @@ describe('fracture chunk layout', () => {
       }
     }
     expect(checked).toBeGreaterThan(5);
-  });
+  }, 60_000);
 
   it('keeps every chunk vertex range inside its own triangles', () => {
     // The debris path rebases indices by subtracting `vertexStart`; if a

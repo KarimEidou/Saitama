@@ -1,0 +1,136 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>City Z Harness — Layout &amp; Pre-fractured Buildings</title>
+    <!--
+      CITY GENERATION VERIFICATION HARNESS
+
+      Renders City Z from the committed plan (`assets/district/cityz.plan.json`)
+      plus the procedural fill in `src/world/city/**`, and nothing else. No
+      streaming, no gameplay, no physics.
+
+      Three views, each answering a different question:
+
+        street    Does it read as a real Japanese city street at eye height?
+                  This is the one that matters and the one that cannot be
+                  answered by a number.
+        map       Is the DISTRICT layout legible from above — arterials,
+                  zoning, the park, the crater, the skyline gradient?
+        fracture  Are the buildings genuinely pre-fractured? Destroys a band of
+                  chunks so the baked seams are visible rather than asserted.
+
+      Materials: the city binds Poly Haven CC0 ids through IAssetRegistry. Until
+      the KTX2 set is transcoded into `public/assets/`, the harness synthesises
+      a stand-in per id (see `city.materials.ts`) and says so in the readout.
+
+      Playwright drives `window.__CITY_HARNESS__`.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #05070c;
+        color: #e6edf7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #layout {
+        display: grid;
+        grid-template-columns: 1fr 330px;
+        width: 100vw;
+        height: 100vh;
+      }
+      #stage {
+        position: relative;
+        background: #05070c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        border-left: 1px solid #1d2740;
+        padding: 14px 16px;
+        overflow-y: auto;
+        font-size: 12px;
+        line-height: 1.55;
+        background: #080b12;
+      }
+      h1 {
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #ffd230;
+        margin: 0 0 10px;
+      }
+      h2 {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #7f8ea8;
+        margin: 16px 0 6px;
+        border-bottom: 1px solid #172034;
+        padding-bottom: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        padding: 1px 0;
+        vertical-align: top;
+      }
+      td.k {
+        color: #8b9ab5;
+        white-space: nowrap;
+        padding-right: 10px;
+      }
+      td.v {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .note {
+        color: #6f7d95;
+        margin-top: 14px;
+        font-size: 11px;
+      }
+      .warn {
+        color: #ffb454;
+      }
+      #overlay {
+        position: absolute;
+        left: 12px;
+        bottom: 10px;
+        font-size: 11px;
+        color: #cbd6e8;
+        text-shadow: 0 1px 3px #000;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="layout">
+      <div id="stage">
+        <canvas id="view"></canvas>
+        <div id="overlay"></div>
+      </div>
+      <div id="panel">
+        <h1>City Z</h1>
+        <div id="stats">generating…</div>
+        <div class="note" id="materials-note"></div>
+      </div>
+    </div>
+    <script type="module" src="./city.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Player Harness — Saitama</title>
+    <!--
+      PLAYER CONTROLLER + CAMERA RIG VERIFICATION HARNESS
+
+      Drives `src/entities/player/**` through the SYNTHETIC INPUT DRIVER against
+      the real Rapier character controller, in a real browser, on a test level
+      with a tight alley and a ledge.
+
+      Everything on screen is a REPLAY of a pose captured during a scripted run:
+      the scenarios themselves execute with rendering off, because measuring a
+      locomotion curve does not need a rasteriser and SwiftShader is slow.
+      Playwright reads `window.__PLAYER_HARNESS__` and calls
+      `window.__PLAYER_SHOT__(pose)` to frame each screenshot.
+
+      No frame rate is reported anywhere. Chromium rasterises through
+      SwiftShader on the CPU here, so any fps number would measure a software
+      renderer. The controller, camera and solver run on a real CPU and ARE
+      measured, in milliseconds, from batched `performance.now()` blocks.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #e8e6e1;
+        --dim: #98a0ab;
+        --accent: #ffd23f;
+        --ok: #6ee7a8;
+        --bad: #ff6b6b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #070910;
+        color: var(--ink);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        overflow: hidden;
+      }
+      #gl {
+        position: fixed;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        max-width: 430px;
+        max-height: calc(100% - 24px);
+        overflow: auto;
+        padding: 12px 14px;
+        background: rgba(6, 8, 14, 0.84);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        font-size: 11.5px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        backdrop-filter: blur(3px);
+      }
+      #panel h1 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      #caption {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 10px 16px 14px;
+        background: linear-gradient(to top, rgba(4, 6, 11, 0.92), rgba(4, 6, 11, 0));
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        display: none;
+      }
+      #caption b {
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-right: 12px;
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .bad {
+        color: var(--bad);
+      }
+      .dim {
+        color: var(--dim);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <div id="panel"><h1>Player harness</h1><span class="dim">booting…</span></div>
+    <div id="caption"></div>
+    <script type="module" src="./player.ts"></script>
+  </body>
+</html>

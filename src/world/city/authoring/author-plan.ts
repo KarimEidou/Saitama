@@ -46,7 +46,7 @@ import type {
 } from '../plan-types';
 
 const HALF = WORLD_SIZE / 2;
-const PLAN_VERSION = 1;
+const PLAN_VERSION = 3;
 const WORLD_SEED = 0x5a17a3a;
 
 /* ========================================================================== */
@@ -209,7 +209,7 @@ function baseParams(): IPlanZoneParams {
     groundFloorScale: 1.25,
     density: 0.86,
     lotWidth: [11, 19],
-    lotDepth: [12, 18],
+    lotDepth: [14, 22],
     setback: 0.4,
     styleWeights: { residential: 4, shophouse: 3, apartment: 3 },
     facadeMaterials: [
@@ -267,7 +267,7 @@ function authorZones(): IPlanZone[] {
         heightExponent: 1.8,
         density: 0.74,
         lotWidth: [9, 16],
-        lotDepth: [10, 15],
+        lotDepth: [12, 18],
         styleWeights: { residential: 6, shophouse: 2, apartment: 2 },
         facadeMaterials: [
           CITY_MATERIALS.wall.plasterBeige,
@@ -277,9 +277,13 @@ function authorZones(): IPlanZone[] {
         ],
         facadeWeights: [3, 3, 2, 2],
         roofMaterials: [CITY_MATERIALS.roof.tilesGrey, CITY_MATERIALS.roof.corrugatedWorn],
-        tints: [0xdad3c4, 0xe6e0d3, 0xc7bfae, 0xcfd2cd, 0xe0d6c6, 0xb9b3a6],
+        tints: [
+          0xdad3c4, 0xe6e0d3, 0xc7bfae, 0xcfd2cd, 0xe0d6c6, 0xb9b3a6, 0xa8b0a4, 0xd8bfa0,
+          0xbfa892,
+        ],
         panelWeights: { window: 10, blank: 5, ac_unit: 4, balcony: 4 },
         rooftopClutter: 0.45,
+        signageChance: 0.18,
         propDensity: 3.5,
         populationDensity: 0.7,
       }
@@ -303,7 +307,7 @@ function authorZones(): IPlanZone[] {
         heightExponent: 1.5,
         density: 0.88,
         lotWidth: [12, 22],
-        lotDepth: [13, 19],
+        lotDepth: [15, 24],
         styleWeights: { apartment: 6, residential: 3, commercial: 2 },
         facadeMaterials: [
           CITY_MATERIALS.wall.concretePlain,
@@ -312,9 +316,10 @@ function authorZones(): IPlanZone[] {
           CITY_MATERIALS.wall.concretePainted,
         ],
         facadeWeights: [3, 3, 2, 2],
-        tints: [0xd6d1c6, 0xc4c8c9, 0xdedad0, 0xb8bdbb, 0xcfc7b8],
+        tints: [0xd6d1c6, 0xc4c8c9, 0xdedad0, 0xb8bdbb, 0xcfc7b8, 0xa5aeb2, 0xcbb99c, 0x9ea79f],
         panelWeights: { window: 8, balcony: 7, blank: 3, ac_unit: 4, fire_escape_anchor: 2 },
         rooftopClutter: 0.8,
+        signageChance: 0.12,
         propDensity: 5,
       }
     ),
@@ -342,7 +347,7 @@ function authorZones(): IPlanZone[] {
         groundFloorScale: 1.45,
         density: 0.95,
         lotWidth: [16, 30],
-        lotDepth: [17, 26],
+        lotDepth: [20, 30],
         setback: 0.2,
         styleWeights: { commercial: 5, skyscraper: 4, civic: 2 },
         facadeMaterials: [
@@ -353,10 +358,14 @@ function authorZones(): IPlanZone[] {
         ],
         facadeWeights: [4, 3, 2, 2],
         roofMaterials: [CITY_MATERIALS.roof.bitumen, CITY_MATERIALS.roof.metalPlate],
-        tints: [0xdcdcd8, 0xc6cbce, 0xe4e2dc, 0xb4bcc2, 0xd0cec6],
+        tints: [
+          0xdcdcd8, 0xc6cbce, 0xe4e2dc, 0xa8b3ba, 0xd0cec6, 0x9fa8a4, 0xc7bda8, 0xb0a89c,
+          0x8f9aa2, 0xe0d8c8,
+        ],
         panelWeights: { window: 14, blank: 2, ac_unit: 1 },
         groundWeights: { shopfront: 6, door: 2, window: 3 },
         rooftopClutter: 1,
+        signageChance: 0.08,
         propDensity: 8,
         populationDensity: 2.2,
         threatDensity: 1.4,
@@ -371,10 +380,10 @@ function authorZones(): IPlanZone[] {
       'shopping',
       'downtown',
       [
-        [-108, -540],
-        [108, -540],
-        [108, -252],
-        [-108, -252],
+        [4, -552],
+        [190, -552],
+        [190, -228],
+        [4, -228],
       ],
       5,
       {
@@ -384,7 +393,7 @@ function authorZones(): IPlanZone[] {
         groundFloorScale: 1.5,
         density: 0.97,
         lotWidth: [6.5, 12],
-        lotDepth: [11, 16],
+        lotDepth: [13, 19],
         setback: 0,
         styleWeights: { shophouse: 7, commercial: 3, residential: 2 },
         facadeMaterials: [
@@ -395,10 +404,13 @@ function authorZones(): IPlanZone[] {
         ],
         facadeWeights: [3, 3, 2, 2],
         roofMaterials: [CITY_MATERIALS.roof.corrugated, CITY_MATERIALS.roof.tilesGrey],
-        tints: [0xe8e2d4, 0xd9cdb8, 0xcf9f86, 0xdcd9d2, 0xc8b9a2, 0xe3d7c0],
+        tints: [
+          0xe8e2d4, 0xd9cdb8, 0xcf9f86, 0xdcd9d2, 0xc8b9a2, 0xe3d7c0, 0xb8735c, 0x8fa2ad,
+          0xd6c07e, 0xa9b49c,
+        ],
         panelWeights: { window: 9, blank: 3, ac_unit: 5, balcony: 3 },
         groundWeights: { shopfront: 12, door: 2 },
-        signageChance: 0.9,
+        signageChance: 0.6,
         rooftopClutter: 0.85,
         propDensity: 11,
         populationDensity: 2.6,
@@ -426,7 +438,7 @@ function authorZones(): IPlanZone[] {
         groundFloorScale: 1.5,
         density: 0.8,
         lotWidth: [16, 26],
-        lotDepth: [16, 24],
+        lotDepth: [18, 26],
         setback: 1.2,
         styleWeights: { civic: 6, commercial: 3 },
         facadeMaterials: [CITY_MATERIALS.wall.plasterWhite, CITY_MATERIALS.wall.concretePlain],
@@ -435,6 +447,7 @@ function authorZones(): IPlanZone[] {
         tints: [0xeceae4, 0xdfe2e4, 0xd6dade],
         panelWeights: { window: 14, blank: 3 },
         rooftopClutter: 0.9,
+        signageChance: 0.05,
         propDensity: 7,
         populationDensity: 1.6,
         lotSurface: 'concrete',
@@ -476,6 +489,7 @@ function authorZones(): IPlanZone[] {
         panelWeights: { blank: 10, window: 4, ac_unit: 2 },
         groundWeights: { blank: 6, door: 3, shopfront: 1 },
         rooftopClutter: 1,
+        signageChance: 0.06,
         propDensity: 6,
         populationDensity: 0.4,
         threatDensity: 1.5,
@@ -524,7 +538,7 @@ function authorZones(): IPlanZone[] {
         heightExponent: 1.9,
         density: 0.5,
         lotWidth: [9, 17],
-        lotDepth: [11, 16],
+        lotDepth: [13, 19],
         styleWeights: { residential: 5, ruins: 3, apartment: 2 },
         facadeMaterials: [
           CITY_MATERIALS.wall.concreteCracked,
@@ -538,6 +552,7 @@ function authorZones(): IPlanZone[] {
         panelWeights: { window: 7, blank: 8, ac_unit: 2, balcony: 2, fire_escape_anchor: 2 },
         groundWeights: { blank: 5, door: 3, window: 3, shopfront: 1 },
         rooftopClutter: 0.4,
+        signageChance: 0.1,
         propDensity: 4,
         populationDensity: 0.15,
         threatDensity: 2.2,
@@ -606,17 +621,18 @@ function authorLandmarks(): IPlanLandmark[] {
       id: 'shotengai-arcade',
       name: 'Z-City Shotengai Arcade',
       kind: 'arcade',
-      // Sits over Route Z, north of downtown; the canopy spans the carriageway.
-      position: [0, -396],
+      // Spans North 4 Street, one block east of Route Z: 18 m between building
+      // lines, which is a shotengai rather than a boulevard.
+      position: [96, -396],
       rotationY: 0,
-      footprint: rect(26, 168),
+      footprint: rect(18, 168),
       floors: 1,
       floorHeight: 4,
       style: 'shophouse',
       facadeMaterial: CITY_MATERIALS.wall.concretePainted,
       roofMaterial: CITY_MATERIALS.roof.corrugated,
       tint: 0xd8d4cb,
-      exclusionRadius: 16,
+      exclusionRadius: 10,
       description:
         'The covered shopping street. Vegetables, a butcher, a bargain sale that matters more than most fights.',
     },

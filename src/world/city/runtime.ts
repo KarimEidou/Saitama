@@ -45,6 +45,16 @@ import { CHUNK_SIZE } from '@/spatial/constants';
 export type MaterialResolver = (key: string) => THREE.Material;
 
 /**
+ * Byte written into the `aDestroyed` attribute to remove a vertex.
+ *
+ * MUST be 255, not 1. The attribute is uploaded NORMALISED, so the shader sees
+ * `byte / 255`; writing 1 gives 0.0039, the `> 0.5` test fails, and nothing
+ * disappears — a bug that looks exactly like "destruction is not wired up" and
+ * costs an afternoon to find.
+ */
+export const DESTROYED_FLAG = 255;
+
+/**
  * Resolve through an `IAssetRegistry`, falling back when the asset is not yet
  * resident.
  *
@@ -241,7 +251,7 @@ export function destroyFractureChunk(
   const chunk = layout.chunks[chunkIndex];
   if (!chunk) return undefined;
   const array = blockMesh.destroyed.array as Uint8Array;
-  array.fill(1, chunk.vertexStart, chunk.vertexStart + chunk.vertexCount);
+  array.fill(DESTROYED_FLAG, chunk.vertexStart, chunk.vertexStart + chunk.vertexCount);
   blockMesh.destroyed.addUpdateRange(chunk.vertexStart, chunk.vertexCount);
   blockMesh.destroyed.needsUpdate = true;
   return chunk;

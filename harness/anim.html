@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Procedural animation — harness</title>
+    <style>
+      :root {
+        --ink: #e9edf3;
+        --dim: #96a1b0;
+        --rule: #2a3140;
+        --ok: #56d68a;
+        --bad: #ff6b6b;
+        --warn: #f0c05a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #070910;
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #stage {
+        position: relative;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .cell-label {
+        position: absolute;
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        letter-spacing: 0.01em;
+        color: var(--ink);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+        white-space: pre;
+      }
+      .cell-label b {
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 11px;
+        color: #cfe0f5;
+      }
+      .cell-label .dim {
+        color: var(--dim);
+      }
+      .cell-label .ok {
+        color: var(--ok);
+      }
+      .cell-label .warn {
+        color: var(--warn);
+      }
+      .divider {
+        position: absolute;
+        background: var(--rule);
+      }
+      #title {
+        position: absolute;
+        top: 14px;
+        left: 20px;
+        font-size: 12px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--dim);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+      }
+      #title b {
+        display: block;
+        font-size: 17px;
+        letter-spacing: 0.07em;
+        color: var(--ink);
+      }
+      #readout {
+        position: absolute;
+        top: 14px;
+        right: 20px;
+        text-align: right;
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--dim);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+      }
+      #readout b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      #readout .ok {
+        color: var(--ok);
+      }
+      #readout .bad {
+        color: var(--bad);
+      }
+      #error {
+        position: absolute;
+        inset: 40px;
+        display: none;
+        white-space: pre-wrap;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 13px;
+        color: #ff8b8b;
+        background: rgba(10, 6, 8, 0.94);
+        border: 1px solid #542;
+        padding: 20px;
+        overflow: auto;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <div class="overlay" id="overlay"></div>
+      <div id="title"><b>Procedural animation</b>locomotion · clips · VAT</div>
+      <div id="readout">booting…</div>
+      <pre id="error"></pre>
+    </div>
+    <script type="module" src="./anim.ts"></script>
+  </body>
+</html>

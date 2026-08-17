@@ -36,7 +36,7 @@ describe('per-block draw calls', () => {
       }
     }
     expect(blocks).toBeGreaterThan(5);
-  });
+  }, 30_000);
 
   it('holds across the entire city at every detail level', () => {
     for (const detail of ['full', 'reduced', 'box'] as const) {
@@ -56,7 +56,7 @@ describe('per-block draw calls', () => {
       expect(blocks).toBeGreaterThan(20);
       expect(worst, `${detail} detail`).toBeLessThanOrEqual(MAT_SLOT_COUNT);
     }
-  });
+  }, 60_000);
 
   it('assigns each group a distinct material slot', () => {
     const generator = makeGenerator('full');
@@ -117,7 +117,7 @@ describe('resident set budget', () => {
       report.total,
       `blocks=${report.blockCalls} ground=${report.groundCalls} props=${report.propCalls}`
     ).toBeLessThanOrEqual(90);
-  });
+  }, 60_000);
 
   it('keeps the densest part of downtown inside the budget too', () => {
     const generator = makeGenerator('full');

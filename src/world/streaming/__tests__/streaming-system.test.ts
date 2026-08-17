@@ -17,7 +17,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { EventBus } from '@/util';
 import { CHUNK_SIZE, chunkIndex } from '@/spatial/constants';
-import { StreamingSystem, type IColliderSink, type ICrowdSink } from '../streaming-system';
+import {
+  StreamingSystem,
+  type IColliderSink,
+  type ICrowdSink,
+  type IStreamingSystemOptions,
+} from '../streaming-system';
 import { ChunkDamageState } from '../damage-state';
 import {
   MAX_UPLOADS_PER_FRAME,
@@ -105,9 +110,14 @@ class RecordingCrowdSink implements ICrowdSink {
 
 let active: StreamingSystem | undefined;
 
-function makeSystem(
-  options: Partial<Parameters<typeof StreamingSystem.prototype.constructor>[0]> = {}
-): { system: StreamingSystem; scene: THREE.Scene; bus: EventBus } {
+/** Everything a test may override. The scene and bus are supplied here. */
+type TestOptions = Partial<Omit<IStreamingSystemOptions, 'scene' | 'bus'>>;
+
+function makeSystem(options: TestOptions = {}): {
+  system: StreamingSystem;
+  scene: THREE.Scene;
+  bus: EventBus;
+} {
   const scene = new THREE.Scene();
   const bus = new EventBus();
   const system = new StreamingSystem({

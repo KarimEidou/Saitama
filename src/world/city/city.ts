@@ -17,6 +17,7 @@ import type { ILODLevel, IWorldConfig } from '@/types';
 import { loadPlan, type ICityPlanIndex } from './plan';
 import type { ICityPlan } from './plan-types';
 import { generateChunk, type ICityChunkBuild, type IChunkGenOptions } from './chunk';
+import { countMergedBlockCalls, type IBlockBuild } from './block';
 import type { BuildingDetail } from './building';
 import { allCityMaterialKeys } from './materials';
 import { allPropAssetKeys } from './props';
@@ -131,12 +132,17 @@ export class CityGenerator {
 export interface IDrawCallReport {
   readonly chunks: number;
   readonly blocks: number;
-  /** Draw calls from merged block geometry (3 per block at most). */
+  /** Draw calls from per-block geometry, one mesh per block (3 each at most). */
   readonly blockCalls: number;
+  /** Draw calls from block geometry after blocks sharing materials are merged. */
+  readonly mergedBlockCalls: number;
   /** Draw calls from ground, after merging the region. */
   readonly groundCalls: number;
   /** Draw calls from instanced props, after merging batches across chunks. */
   readonly propCalls: number;
+  /** Total with per-block meshes: the streaming-friendly, finest granularity. */
+  readonly perBlockTotal: number;
+  /** Total with cross-block material batching applied. This is the budget. */
   readonly total: number;
   readonly triangles: number;
   /** Highest per-block draw-call count seen; must never exceed 3. */
@@ -158,12 +164,14 @@ export function reportDrawCalls(builds: readonly ICityChunkBuild[]): IDrawCallRe
   let worstBlockCalls = 0;
   const groundSets = new Set<string>();
   const propKeys = new Set<string>();
+  const allBlocks: IBlockBuild[] = [];
 
   for (const build of builds) {
     triangles += build.triangles;
     for (const block of build.blocks) {
       blocks++;
       blockCalls += block.drawCalls;
+      allBlocks.push(block);
       if (block.drawCalls > worstBlockCalls) worstBlockCalls = block.drawCalls;
     }
     if (build.ground) {
@@ -175,13 +183,16 @@ export function reportDrawCalls(builds: readonly ICityChunkBuild[]): IDrawCallRe
 
   const groundCalls = groundSets.size * 4;
   const propCalls = propKeys.size;
+  const mergedBlockCalls = countMergedBlockCalls(allBlocks);
   return {
     chunks: builds.length,
     blocks,
     blockCalls,
+    mergedBlockCalls,
     groundCalls,
     propCalls,
-    total: blockCalls + groundCalls + propCalls,
+    perBlockTotal: blockCalls + groundCalls + propCalls,
+    total: mergedBlockCalls + groundCalls + propCalls,
     triangles,
     worstBlockCalls,
   };
