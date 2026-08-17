@@ -136,7 +136,7 @@ export class EffectEmitters {
         p.mode = SpriteMode.Upright;
         p.alpha = rng.range(0.42, 0.68);
         // The heavy fraction is the DARK mass the bright edge reads against.
-        this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0.1, 0.6));
+        this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0.2, 0.9));
       } else {
         p.size0 = radius * rng.range(0.14, 0.3) + 0.8 + power * 1.2;
         p.size1 = p.size0 * rng.range(2.6, 4.4);
@@ -228,7 +228,7 @@ export class EffectEmitters {
       p.style = 0;
       p.aspect = 1;
       p.seed = rng.next();
-      this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0.05, 0.75));
+      this.tintBetween(p, this.dustDark, this.dustColor, rng.range(0.15, 1.0));
       if (this.sprites.emit(p)) emitted++;
       else break;
     }

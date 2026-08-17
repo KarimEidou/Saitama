@@ -235,25 +235,45 @@ export class CombatSystem {
       this.holdSeconds = Math.max(punch.holdTime, this.holdSeconds + Math.max(0, dt));
     }
 
-    /* ---- TAP ------------------------------------------------------------ */
+    /* ── TAP OR HOLD — DISCRIMINATED ON RELEASE ──────────────────────────
+       Both verbs come out of the same button, so something has to tell them
+       apart, and the press edge cannot: at the moment the thumb goes down
+       there is no information about which one this is. Firing the jab there
+       anyway means every charge begins by throwing a free kill the player did
+       not choose to make — which is the central decision of the game, made
+       wrongly, by a button they were still pressing.
+
+       So: released at or before `tapMaxHoldSeconds` is a tap and the punch
+       lands immediately; held past it is a charge, committed, and the jab is
+       never thrown. ~140 ms of latency on the light attack, and the decision
+       stays the player's. */
     if (this.tuning.normalPunchOnPress) {
+      // Retained only so the rejected model can be re-measured against the
+      // shipped one in a playtest. See `normalPunchOnPress` in tuning.ts.
       if (punch.pressed) this.normalPunch();
-    } else if (punch.released && this.holdSeconds < this.tuning.seriousMinChargeSeconds) {
-      this.normalPunch();
+      if (heavy.pressed || punch.released) {
+        if (heavy.pressed) this.seriousPunch(this.chargeFromHold(this.holdSeconds, heavy.value));
+        this.clearHold();
+      }
+      this.boredomMeter.update(dt, this.encounters.active);
+      this.settleEncounter(time);
+      return;
     }
 
-    /* ---- HOLD ----------------------------------------------------------- */
-    // `heavyPunch.pressed` is what touch and keyboard produce on release. The
-    // synthetic driver has no charge tracker of its own, so a raw
-    // press/release of `punch` is honoured as the same gesture — otherwise
-    // every scripted test would be unable to throw a serious punch at all.
-    if (heavy.pressed) {
-      this.seriousPunch(this.chargeFromHold(this.holdSeconds, heavy.value));
-      this.clearHold();
-    } else if (punch.released) {
-      if (this.punchHeld && this.holdSeconds >= this.tuning.seriousMinChargeSeconds) {
-        this.seriousPunch(this.chargeFromHold(this.holdSeconds));
+    // `heavyPunch.pressed` is what touch and keyboard produce on release, via
+    // their own `ChargeTracker`. The synthetic driver has no charge tracker,
+    // so a raw press/release of `punch` is honoured as the same gesture —
+    // otherwise no scripted test could throw a serious punch at all. Both
+    // doors land here, and `holdSeconds` is the shared source of truth.
+    const releasing = heavy.pressed || punch.released;
+    if (releasing && this.punchHeld) {
+      if (this.holdSeconds <= this.tuning.tapMaxHoldSeconds && !heavy.pressed) {
+        this.normalPunch();
+      } else {
+        this.seriousPunch(this.chargeFromHold(this.holdSeconds, heavy.value));
       }
+      this.clearHold();
+    } else if (releasing) {
       this.clearHold();
     }
 

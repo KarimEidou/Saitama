@@ -197,11 +197,11 @@ function main(): void {
   /* ------------------------------ lighting ------------------------------ */
 
   const lighting = new MutableLightingState();
-  // Low afternoon sun raking across the street from camera-left and slightly
-  // BEHIND the action. Back-lighting is the whole reason the dust reads as
-  // volume: a front-lit plume is a flat grey wall no matter how good the
-  // shader is.
-  lighting.sunDirection.set(0.48, -0.34, 0.81).normalize();
+  // Low afternoon sun raking across the street from behind the camera's right
+  // shoulder. SIDE lighting, not front or back: a front-lit plume is a flat
+  // grey wall, and a purely back-lit street is a row of black slabs with the
+  // sun disc parked in shot.
+  lighting.sunDirection.set(-0.74, -0.44, -0.51).normalize();
   lighting.sunColor.setHex(0xffe6c2);
   lighting.sunIntensity = 3.2;
   lighting.ambientColor.setHex(0x7d9bc8);
@@ -444,7 +444,10 @@ function main(): void {
     seed: 'saitama.vfx.harness',
     cloudAltitude: 210,
   });
-  vfx.setSun(lighting.sunDirection, lighting.sunColor.getHex(), 0x33425c);
+  // The multipliers put the dust in the same exposure bracket as the concrete
+  // it is blowing off. Dust is translucent, so it takes a little under half the
+  // scene's direct sun and a little over half its ambient.
+  vfx.setSun(lighting.sunDirection, lighting.sunColor.getHex(), 0x8ba7cc, 1.55, 0.6);
   vfx.setFog(lighting.fogColor.getHex(), lighting.fogDensity);
   vfx.setViewport(window.innerWidth, window.innerHeight);
   scene.add(vfx.root);
@@ -561,7 +564,7 @@ function main(): void {
         // Three staggered plumes, as a collapsing facade would produce.
         for (let i = 0; i < 3; i++) {
           vfx.spawn('dustCloud', {
-            position: new THREE.Vector3(-8 + i * 9, 1.4, -14 - i * 16),
+            position: new THREE.Vector3(-9 + i * 10, 1.4, 6 - i * 20),
             intensity: 0.9,
             scale: 7 + i * 2,
             priority: 0.9,

@@ -389,10 +389,15 @@ function panelTitle(x: number, y: number, text: string): void {
   overlay.appendChild(node);
 }
 
-function project(position: THREE.Vector3, camera: THREE.Camera): { x: number; y: number } {
+/** Project a world point into overlay pixels, honouring a scissor panel. */
+function project(
+  position: THREE.Vector3,
+  camera: THREE.Camera,
+  panel: { x: number; width: number } = { x: 0, width: WIDTH }
+): { x: number; y: number } {
   const projected = position.clone().project(camera);
   return {
-    x: (projected.x * 0.5 + 0.5) * WIDTH,
+    x: panel.x + (projected.x * 0.5 + 0.5) * panel.width,
     y: (-projected.y * 0.5 + 0.5) * HEIGHT,
   };
 }
@@ -552,48 +557,59 @@ async function runFace(): Promise<Record<string, unknown>> {
   addLights(3);
   const camera = new THREE.PerspectiveCamera(24, WIDTH / HEIGHT, 0.05, 40);
 
-  // Big head, then the four expressions in a row underneath.
+  // Two panels: the portrait on the left, the four expression tiles on the
+  // right. Splitting by scissor rather than by distance means the expressions
+  // are rendered at the same texel density as the portrait — the whole point
+  // is to judge whether they are legible, and a wide shot would not show that.
+  const portraitWidth = Math.round(WIDTH * 0.52);
   const hero = await buildCharacter(saitama, 0, 'high', 'neutral');
-  hero.root.position.set(-0.34, 0, 0);
-  hero.root.rotation.y = Math.PI + 0.24;
+  hero.root.rotation.y = Math.PI + 0.2;
   scene.add(hero.root);
 
   const expressions: Expression[] = ['neutral', 'bored', 'serious', 'surprised'];
   const strip: BuiltCharacter[] = [];
   for (let i = 0; i < expressions.length; i++) {
     const character = await buildCharacter(saitama, 0, 'high', expressions[i]!);
-    character.root.position.set(0.52 + i * 0.36, -0.12, -0.55);
+    const column = i % 2;
+    const row = Math.floor(i / 2);
+    character.root.position.set(6 + column * 0.44, -row * 0.42, 0);
     character.root.rotation.y = Math.PI;
-    character.root.scale.setScalar(0.82);
     scene.add(character.root);
     strip.push(character);
   }
 
-  // Frame the head: the camera sits at eye height and 0.9 m away.
-  const eyeY = hero.height * 0.935;
-  camera.position.set(-0.1, eyeY + 0.02, 1.15);
-  camera.lookAt(-0.3, eyeY - 0.01, 0);
-  scene.add(camera);
+  const eyeY = hero.height * 0.93;
+  camera.position.set(0.02, eyeY + 0.01, 1.0);
+  camera.lookAt(0, eyeY - 0.015, 0);
+
+  const grid = new THREE.PerspectiveCamera(26, (WIDTH - portraitWidth) / HEIGHT, 0.05, 40);
+  grid.position.set(6.22, eyeY - 0.21, 1.5);
+  grid.lookAt(6.22, eyeY - 0.21, 0);
 
   redraw = (): void => {
-    renderer.setViewport(0, 0, WIDTH, HEIGHT);
-    renderer.setScissorTest(false);
+    renderer.setScissorTest(true);
+    renderer.setViewport(0, 0, portraitWidth, HEIGHT);
+    renderer.setScissor(0, 0, portraitWidth, HEIGHT);
     renderer.render(scene, camera);
+    renderer.setViewport(portraitWidth, 0, WIDTH - portraitWidth, HEIGHT);
+    renderer.setScissor(portraitWidth, 0, WIDTH - portraitWidth, HEIGHT);
+    renderer.render(scene, grid);
+    renderer.setScissorTest(false);
   };
-  renderer.setViewport(0, 0, WIDTH, HEIGHT);
-  renderer.setScissorTest(false);
   renderer.info.reset();
-  renderer.render(scene, camera);
+  redraw();
 
   for (let i = 0; i < strip.length; i++) {
     const character = strip[i]!;
     const point = project(
-      new THREE.Vector3(0, character.height * 0.82 * 0.82 + 0.02, 0).add(character.root.position),
-      camera
+      new THREE.Vector3(0, character.height * 0.855, 0).add(character.root.position),
+      grid,
+      { x: portraitWidth, width: WIDTH - portraitWidth }
     );
-    label(point.x, point.y + 96, expressions[i]!);
+    label(point.x, point.y - 26, expressions[i]!);
   }
-  panelTitle(40, HEIGHT - 46, 'Saitama · neutral, and the four expression tiles');
+  panelTitle(40, HEIGHT - 46, 'Saitama · the deadpan, at 1 m');
+  panelTitle(portraitWidth + 40, HEIGHT - 46, 'the four expression tiles · one uniform apart');
 
   return {
     mode: 'face',

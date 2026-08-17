@@ -103,6 +103,26 @@ export const ZONING_YEN_PER_KG: Readonly<Record<DistrictType, number>> = Object.
 /** Fallback when no district lookup is wired in. Mid-range residential. */
 export const DEFAULT_ZONING_YEN_PER_KG = ZONING_YEN_PER_KG.residential;
 
+/**
+ * Yen that maps to a `propertyDamageScore` of 0.5.
+ *
+ * ── WHY A COMPANION SCORE EXISTS AT ALL ────────────────────────────────────
+ * `propertyDamageYen` is an INVOICE and it is enormous: one fully charged
+ * serious punch through downtown bills about 1.5e10. That number is right,
+ * and it is the joke — but any consumer that multiplies it by a per-unit rate
+ * and adds it to a score will saturate on the first fight of the game.
+ *
+ * So the yen figure stays honest for the HUD and the end-of-mission card, and
+ * `propertyDamageScore` is the number a linear consumer should read. The curve
+ * is `saturate()` from `@/util`, the same compressor physics and audio use for
+ * unbounded punch power, for the same reason: the magnitude has no ceiling, so
+ * dividing by an assumed maximum is not available.
+ *
+ * At 2.5e9 the scale reads: a shopfront 0.29, a city block 0.63, three blocks
+ * 0.86, an entire district 0.98.
+ */
+export const PROPERTY_DAMAGE_HALF_YEN = 2.5e9;
+
 /* -------------------------------------------------------------------------- */
 /* Tuning                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -202,10 +222,15 @@ export interface ICombatTuning {
   readonly chainShakePerLink: number;
 
   /* ---- serious punch (hold) ---- */
-  /** Seconds of hold to reach charge 1.0. */
+  /**
+   * Seconds of hold to reach charge 1.0, measured from the press.
+   *
+   * Note there is no minimum: any hold past `tapMaxHoldSeconds` is a serious
+   * punch, and the weakest one still opens a 40 m cone. That is deliberate —
+   * the two verbs must not blur into each other at the boundary, so the
+   * cheapest serious punch is still enormous.
+   */
   readonly seriousChargeSeconds: number;
-  /** Hold below this is a tap, not a charge. */
-  readonly seriousMinChargeSeconds: number;
   /** Cone half-angle of the released shockwave. ~22°. */
   readonly seriousHalfAngleRad: number;
   /** Cone length at charge 0, metres. */
@@ -338,7 +363,8 @@ export const DEFAULT_COMBAT_TUNING: ICombatTuning = Object.freeze({
   normalPower: 120,
   normalPunchIntent: 'normal',
   normalKnockbackMps: 34,
-  normalPunchOnPress: true,
+  normalPunchOnPress: false,
+  tapMaxHoldSeconds: 0.14,
 
   /* chain */
   chainWindowSeconds: 0.42,
@@ -349,7 +375,6 @@ export const DEFAULT_COMBAT_TUNING: ICombatTuning = Object.freeze({
 
   /* serious */
   seriousChargeSeconds: 1.2,
-  seriousMinChargeSeconds: 0.22,
   seriousHalfAngleRad: 22 * DEG2RAD,
   seriousRangeMinMetres: 40,
   seriousRangeMaxMetres: 180,

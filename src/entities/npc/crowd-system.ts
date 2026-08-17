@@ -113,6 +113,22 @@ const DEFAULT_CROWD_SEED = 0xc17ce7;
 /** People per open 12 m cell, for the far-tier population estimate. */
 const FAR_PEOPLE_PER_CELL = 0.55;
 
+/**
+ * How lethal each intent is to a bystander.
+ *
+ * `restrained` is nearly harmless by design: it is the setting where the
+ * player is deliberately holding back around people, and if it still killed
+ * them the restraint mechanic would be a lie. `full` is worse than serious by
+ * more than the power number alone, because at full intent the player is not
+ * aiming at anything.
+ */
+const INTENT_LETHALITY: Readonly<Record<string, number>> = {
+  restrained: 0.04,
+  normal: 0.4,
+  serious: 1,
+  full: 1.7,
+};
+
 /** Metres the player may move before the band-local spawn list is rebuilt. */
 const SPAWN_ANCHOR_DRIFT = 28;
 
@@ -318,7 +334,16 @@ export class CrowdSystem implements ICrowdSink {
           Math.max(0.35, power),
           Math.max(30, event.range * 1.6)
         );
-        this.applyShockwave(event.origin, event.direction, event.range, event.angle, power, byPlayer, event.sourceId);
+        this.applyShockwave(
+          event.origin,
+          event.direction,
+          event.range,
+          event.angle,
+          power,
+          INTENT_LETHALITY[event.intent] ?? 1,
+          byPlayer,
+          event.sourceId
+        );
       }),
 
       // A piece of a building came off. It is falling on somebody.
@@ -384,6 +409,7 @@ export class CrowdSystem implements ICrowdSink {
     range: number,
     angle: number,
     power01: number,
+    lethality: number,
     byPlayer: boolean,
     sourceId: EntityId | undefined
   ): void {
@@ -398,10 +424,13 @@ export class CrowdSystem implements ICrowdSink {
         const dot = (dx * direction.x + dz * direction.z) / distance;
         if (dot < cos) continue;
       }
-      // Inverse-square-ish falloff with a floor, so the edge of a cone bruises
-      // rather than kills and the centre of one is not survivable.
+      // The edge of a cone bruises and the middle of one is not survivable.
+      // A civilian has twelve hit points, so at `full` intent this reaches
+      // lethal well past forty metres — which is the entire point. Restraint
+      // is the resource this game is actually about, and it only reads as one
+      // if the alternative is a street full of bodies.
       const falloff = 1 - distance / range;
-      const damage = power01 * 60 * falloff * falloff;
+      const damage = power01 * 120 * lethality * Math.pow(falloff, 1.6);
       if (damage < 0.5) continue;
       this.damageAgent(i, damage, byPlayer, sourceId);
     }

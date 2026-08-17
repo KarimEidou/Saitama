@@ -180,7 +180,7 @@ void main() {
     /* Wrapped diffuse: dust forward-scatters, so the terminator is soft and
        the shadowed side still carries bounce. */
     vec3 shade = uAmbientColor + uSunColor * (ndl * 0.72 + 0.28);
-    shade *= mix(1.0, tex.g, 0.60);
+    shade *= mix(1.0, tex.g, 0.45);
     float rim = tex.b * pow(1.0 - nz, 1.6) * clamp(0.7 - dot(n, -uSunView) * 0.5, 0.0, 1.2);
     rgb = mix(rgb, rgb * shade + uSunColor * rim * 0.45, vExtra.z);
   }

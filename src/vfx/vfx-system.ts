@@ -313,11 +313,28 @@ export class VFXSystem implements IVFXSystem {
     this.camera = camera;
   }
 
-  /** Match the scene's key light so dust is shaded consistently with it. */
-  setSun(direction: THREE.Vector3, color?: THREE.ColorRepresentation, ambient?: THREE.ColorRepresentation): void {
+  /**
+   * Match the scene's key light.
+   *
+   * The INTENSITIES matter as much as the colours. `ILightingState` carries a
+   * sun intensity of around 3 and a separate ambient intensity, and a lit
+   * surface in the scene is multiplied by both. Dust shaded with the raw
+   * unit-scale colours lands two stops under everything around it and reads as
+   * soot — which is exactly what it looked like before this took the
+   * multipliers.
+   */
+  setSun(
+    direction: THREE.Vector3,
+    color?: THREE.ColorRepresentation,
+    ambient?: THREE.ColorRepresentation,
+    sunIntensity = 1,
+    ambientIntensity = 1
+  ): void {
     this.sunDirection.copy(direction).normalize();
-    if (color !== undefined) this.shared.uSunColor.value.set(color);
-    if (ambient !== undefined) this.shared.uAmbientColor.value.set(ambient);
+    if (color !== undefined) this.shared.uSunColor.value.set(color).multiplyScalar(sunIntensity);
+    if (ambient !== undefined) {
+      this.shared.uAmbientColor.value.set(ambient).multiplyScalar(ambientIntensity);
+    }
   }
 
   /** Match the scene's exponential-squared fog. */
