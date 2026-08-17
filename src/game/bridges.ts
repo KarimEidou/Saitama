@@ -254,6 +254,14 @@ const CIVILIAN_TARGET_RADIUS = 90;
  */
 const CIVILIAN_PRIORITY = 1;
 
+/**
+ * Priority of a named ally — Genos, Mumen Rider, Tatsumaki.
+ *
+ * They are the half of the stake the player is meant to feel personally, and
+ * they are the half a crowd can drown: see the comment at the call site.
+ */
+const ALLY_PRIORITY = 6;
+
 /** A pooled entry, so a 60 Hz republish of twenty targets allocates nothing. */
 type MutableTarget = {
   -readonly [K in keyof IMonsterTarget]: IMonsterTarget[K];
@@ -320,10 +328,17 @@ export function perceivableTargets(
       'hero',
       ally.transform.position,
       !ally.isDead,
-      // Above a civilian on purpose. A monster that always picks the nearest
-      // target never threatens anybody the player is trying to protect, and
-      // "the world's weakness is the game" needs the world to be reachable.
-      1.6,
+      // ── WHY SIX AND NOT 1.6 ─────────────────────────────────────────────
+      // Priority is a ratio against distance, so the number is really "how
+      // much further away may this one be and still be chosen". At 1.6 an ally
+      // loses to any civilian 1.6x closer — and in a street holding two
+      // hundred and fifty people there is ALWAYS one closer, so Genos stood
+      // there shooting a monster that had decided he did not exist. Six is the
+      // same weight `brain.test.ts` uses for "an ally worth converging on",
+      // and it is what puts Mumen Rider in front of the Deep Sea King without
+      // a line of script: a hero who is in the fight outranks a bystander at a
+      // fifth of the distance, which is what being in the fight means.
+      ALLY_PRIORITY,
       true
     );
   }
