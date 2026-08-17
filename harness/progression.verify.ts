@@ -328,8 +328,10 @@ async function main(): Promise<void> {
     page.on('pageerror', (error) => consoleErrors.push(`pageerror: ${error.message}`));
 
     await page.goto(url, { waitUntil: 'load' });
+    // Generous: this is SwiftShader decoding four HDRIs, convolving a PMREM
+    // and compiling the cascade shaders on a CPU rasteriser.
     await page.waitForFunction(() => window.__PROGRESSION_HARNESS__?.ready === true, undefined, {
-      timeout: 180_000,
+      timeout: 300_000,
     });
 
     /* ---------------------------------------------------------------- setup */

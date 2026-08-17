@@ -67,6 +67,36 @@ const CAMERA_TARGET = new THREE.Vector3(2, 9, -40);
 
 const WORLD_SEED = 0x5a17a4a;
 
+/**
+ * Cascade profile used by the harness.
+ *
+ * MEDIUM (2 x 1024 / 90 m), not HIGH (3 x 2048 / 200 m), and only because this
+ * runs under SwiftShader. Three 2048-square depth passes is 12 million pixels
+ * of software rasterisation PER FRAME on top of the main view, which turns a
+ * six-shot run into a twenty-minute one and measures the CI machine rather
+ * than the cycle. The cascades still move with the sun, still tighten at
+ * night, and still receive the lighting state — which is the part under test.
+ */
+const HARNESS_SHADOW_TIER = 'medium' as const;
+
+/**
+ * Equirect width of the sky blend target here.
+ *
+ * The shipping default is 1024 (PMREM cube 256). 512 halves the convolution
+ * cost, and at a 600 px stage the difference is not visible — the thing being
+ * measured is mean luminance and colour balance, not reflection sharpness.
+ */
+const HARNESS_BLEND_WIDTH = 512;
+
+/**
+ * Asset tier the harness pulls the skies at.
+ *
+ * `mobile` is the 1024x512 build: 2.5 MB per sky rather than 7.4 MB, four
+ * times less zstd to decode, and identical once normalised — the mean
+ * luminance of a box-filtered image is the mean luminance of the original.
+ */
+const HARNESS_ASSET_TIER = 'mobile' as const;
+
 /* -------------------------------------------------------------------------- */
 /* Snapshot shape (mirrored in progression.verify.ts)                         */
 /* -------------------------------------------------------------------------- */
@@ -776,7 +806,7 @@ class ProgressionHarness {
     this.renderer.setLightingState(this.dayNight.lighting);
 
     this.shadows = new ShadowSystem(this.scene, this.camera, {
-      profile: renderProfileFor('high').shadows,
+      profile: renderProfileFor(HARNESS_SHADOW_TIER).shadows,
       lighting: this.dayNight.lighting,
     });
 
@@ -806,7 +836,7 @@ class ProgressionHarness {
   async loadAssets(baseUrl = '/assets', mode: SkyIBLMode = 'pmrem'): Promise<boolean> {
     this.iblMode = mode;
     try {
-      const provider = new HttpAssetProvider({ baseUrl, tier: 'high' });
+      const provider = new HttpAssetProvider({ baseUrl, tier: HARNESS_ASSET_TIER });
       await provider.loadManifest();
 
       // The measured mean luminances live in the manifest's `environments`
@@ -817,7 +847,7 @@ class ProgressionHarness {
       this.registry = await SkyEnvironmentRegistry.open({
         provider,
         renderer: this.renderer.raw,
-        tier: 'high',
+        tier: HARNESS_ASSET_TIER,
         transcoderPath: '/basis/',
       });
 
@@ -827,6 +857,7 @@ class ProgressionHarness {
         registry: this.registry,
         measurements: this.measurements,
         mode,
+        blendWidth: HARNESS_BLEND_WIDTH,
         specularCubeSize: 32,
         showBackground: true,
       });

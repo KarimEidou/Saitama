@@ -274,10 +274,10 @@
     "totalTextureBytes": 333401931,
     "environment": "hdri.sky.day (Poly Haven, CC0)",
     "frame": {
-      "distinctColors": 3312,
-      "stdDev": 61.05615331194932,
+      "distinctColors": 3645,
+      "stdDev": 61.494155464309685,
       "magentaPixels": 0,
-      "meanLuma": 74.54772286457857
+      "meanLuma": 70.70001135416312
     },
     "proximityFadeCurve": [
       0,
