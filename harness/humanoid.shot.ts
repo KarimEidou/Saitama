@@ -141,7 +141,10 @@ async function main(): Promise<void> {
       const mean = sum / n;
       return { distinct: colors.size, stdDev: Math.sqrt(sumSq / n - mean * mean) };
     });
-    check(variance.distinct > 300, `frame has real content (${variance.distinct} distinct colours)`);
+    check(
+      variance.distinct > 300,
+      `frame has real content (${variance.distinct} distinct colours)`
+    );
     check(variance.stdDev > 8, `frame is not a flat fill (stdDev ${variance.stdDev.toFixed(1)})`);
 
     console.log(`\nper-character:`);

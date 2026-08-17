@@ -140,7 +140,10 @@ function buildLobe(
   // The curl term is mostly OUTWARD. Letting it lift as hard as it splays
   // turns a bob into an umbrella, which is the exact failure this style has to
   // avoid.
-  const bend = radial.clone().multiplyScalar(plan.curl).add(new THREE.Vector3(0, plan.curl * 0.3, 0));
+  const bend = radial
+    .clone()
+    .multiplyScalar(plan.curl)
+    .add(new THREE.Vector3(0, plan.curl * 0.3, 0));
 
   const steps = ctx.lod.level === 0 ? 5 : 4;
   const span = plan.length * d.unit * d.headScale;

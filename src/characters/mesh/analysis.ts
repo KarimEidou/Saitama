@@ -312,7 +312,10 @@ export function measureSilhouette(geometry: THREE.BufferGeometry, bands = 12): S
 
   for (let i = 0; i < position.count; i++) {
     const y = position.getY(i);
-    const band = Math.min(bands - 1, Math.max(0, Math.floor(((y - box.min.y) / Math.max(height, 1e-6)) * bands)));
+    const band = Math.min(
+      bands - 1,
+      Math.max(0, Math.floor(((y - box.min.y) / Math.max(height, 1e-6)) * bands))
+    );
     widths[band] = Math.max(widths[band]!, Math.abs(position.getX(i)) * 2);
   }
 

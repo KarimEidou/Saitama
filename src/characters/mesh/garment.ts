@@ -185,9 +185,7 @@ export function buildDress(ctx: BodyContext, spec: DressSpec): Strand {
   const hip = ringAtV(spec.torso, Math.min(spec.v0 + 0.12, 0.9));
   const rows = spec.rows ?? (ctx.lod.level === 0 ? 4 : 3);
   const chain = {
-    spans: [
-      { bone: 'Hips' as const, start: -1e9, end: 1e9 },
-    ],
+    spans: [{ bone: 'Hips' as const, start: -1e9, end: 1e9 }],
   };
 
   const topY = waist.center.y;
@@ -206,7 +204,10 @@ export function buildDress(ctx: BodyContext, spec: DressSpec): Strand {
         exponent: lerp(waist.shape.exponent ?? 2, 2.4, t),
         offsetB: lerp(waist.shape.offsetB ?? 0, 0, t),
       },
-      skin: i === 0 ? waist.skin : blendSkin(waist.skin, evaluateChain(chain, 0, ctx.rig.index), t * 0.85),
+      skin:
+        i === 0
+          ? waist.skin
+          : blendSkin(waist.skin, evaluateChain(chain, 0, ctx.rig.index), t * 0.85),
       v: t * 0.82,
       color: spec.color,
     });
@@ -372,7 +373,12 @@ export function buildCape(
   }
   for (let j = 0; j < rows; j++) {
     builder.addQuad(outer[0]![j]!, inner[0]![j]!, inner[0]![j + 1]!, outer[0]![j + 1]!);
-    builder.addQuad(outer[columns]![j]!, outer[columns]![j + 1]!, inner[columns]![j + 1]!, inner[columns]![j]!);
+    builder.addQuad(
+      outer[columns]![j]!,
+      outer[columns]![j + 1]!,
+      inner[columns]![j + 1]!,
+      inner[columns]![j]!
+    );
   }
 
   builder.endRegion();

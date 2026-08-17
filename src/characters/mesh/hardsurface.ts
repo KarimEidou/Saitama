@@ -66,10 +66,7 @@ export function surfaceFrameAt(strand: Strand, v: number, t: number): SurfaceFra
   evalRingPoint(ring.shape, t, _a);
   evalRingPoint(ring.shape, (t + 0.01) % 1, _b);
 
-  const point = ring.center
-    .clone()
-    .addScaledVector(axisA, _a.x)
-    .addScaledVector(axisB, _a.y);
+  const point = ring.center.clone().addScaledVector(axisA, _a.x).addScaledVector(axisB, _a.y);
   const around = axisA
     .clone()
     .multiplyScalar(_b.x - _a.x)
@@ -169,7 +166,9 @@ export function buildPanelBand(ctx: BodyContext, spec: PanelBandSpec): Strand[] 
   const out: Strand[] = [];
   for (let i = 0; i < spec.count; i++) {
     const t =
-      (spec.offsetT ?? 0) + (coverage * (i + 0.5)) / spec.count + (coverage < 1 ? (1 - coverage) / 2 : 0);
+      (spec.offsetT ?? 0) +
+      (coverage * (i + 0.5)) / spec.count +
+      (coverage < 1 ? (1 - coverage) / 2 : 0);
     out.push(
       buildPanel(ctx, {
         name: `${spec.name}${i}`,

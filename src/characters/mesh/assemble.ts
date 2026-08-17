@@ -436,7 +436,9 @@ export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {
       flare: 1.68,
       thickness: 0.0045 * d.unit,
       color:
-        garments.capeColor !== undefined ? new THREE.Color(garments.capeColor) : new THREE.Color(0xf2f0e8),
+        garments.capeColor !== undefined
+          ? new THREE.Color(garments.capeColor)
+          : new THREE.Color(0xf2f0e8),
     });
   }
 

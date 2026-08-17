@@ -83,7 +83,9 @@ export function resolveShape(profile: BodyProfile, overrides?: ShapeOverrides): 
   const split = leanBias / Math.max(leanBias + fatBias, 1e-3);
 
   let muscle = clamp01(leanBias + Math.max(0, excess) * split * 0.9 + Math.min(0, excess) * 0.5);
-  let belly = clamp01(fatBias + Math.max(0, excess) * (1 - split) * 1.15 + Math.min(0, excess) * 0.6);
+  let belly = clamp01(
+    fatBias + Math.max(0, excess) * (1 - split) * 1.15 + Math.min(0, excess) * 0.6
+  );
 
   // Per-character jitter so a crowd built from one archetype is not a chorus
   // line. Deterministic: same seed, same body, every run and every device.

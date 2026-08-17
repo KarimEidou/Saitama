@@ -85,13 +85,7 @@ function makeFaceAtlas(headHalfWidth: number): THREE.CanvasTexture {
     return [au * size, (1 - av) * size];
   };
 
-  const ellipse = (
-    u: number,
-    v: number,
-    halfMetres: number,
-    halfV: number,
-    fill: string
-  ): void => {
+  const ellipse = (u: number, v: number, halfMetres: number, halfV: number, fill: string): void => {
     const [cx, cy] = toPixels(u, v);
     const [ex] = toPixels(u + faceOffsetU(halfMetres, headHalfWidth), v);
     const [, ey] = toPixels(u, v + halfV);

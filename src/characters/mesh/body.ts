@@ -104,6 +104,7 @@ export interface Section {
  * them correctly. Keeping the head continuous with the torso costs nothing and
  * removes the neck seam entirely.
  */
+// prettier-ignore
 const TORSO_SECTIONS: readonly Section[] = [
   { key: 'crotch', at: 0.0, v: 0.0, a: 0.044, b: 0.046, e: 2.4, offB: -0.004, mus: 0.02, fat: 0.1, tier: 0 },
   { key: 'pelvisLow', at: 0.045, v: 0.035, a: 0.086, b: 0.06, e: 2.7, offB: -0.005, mus: 0.03, fat: 0.14, tier: 1 },
@@ -140,6 +141,7 @@ const TORSO_SECTIONS: readonly Section[] = [
  * multiple of the upper arm; past 1.0 it continues into the forearm.
  * A = front-to-back, B = vertical (see the frame note in types.ts).
  */
+// prettier-ignore
 const ARM_SECTIONS: readonly Section[] = [
   // Deltoid radii are measured, not guessed: bideltoid breadth minus the
   // shoulder joint's own offset leaves ~6 cm of muscle on an adult male. An
@@ -168,6 +170,7 @@ const ARM_SECTIONS: readonly Section[] = [
  * of the thigh; past 1.0 it continues down the shank.
  * A = lateral, B = front-to-back.
  */
+// prettier-ignore
 const LEG_SECTIONS: readonly Section[] = [
   { key: 'hipIn', at: -0.2, v: 0.0, a: 0.047, b: 0.05, mus: 0.14, fat: 0.24, tier: 0 },
   { key: 'hipBall', at: -0.06, v: 0.04, a: 0.053, b: 0.056, mus: 0.18, fat: 0.3, tier: 2 },
@@ -187,6 +190,7 @@ const LEG_SECTIONS: readonly Section[] = [
 ];
 
 /** Hand: a mitten paddle. A = across the palm, B = palm thickness. */
+// prettier-ignore
 const HAND_SECTIONS: readonly Section[] = [
   { key: 'wrist', at: 0.0, v: 0.0, a: 0.019, b: 0.012, e: 2.3, tier: 0 },
   { key: 'palm', at: 0.22, v: 0.2, a: 0.028, b: 0.0145, e: 2.5, mus: 0.1, tier: 1 },
@@ -196,6 +200,7 @@ const HAND_SECTIONS: readonly Section[] = [
 ];
 
 /** Thumb stub. */
+// prettier-ignore
 const THUMB_SECTIONS: readonly Section[] = [
   { key: 'base', at: 0.0, v: 0.0, a: 0.011, b: 0.011, tier: 0 },
   { key: 'mid', at: 0.45, v: 0.45, a: 0.0105, b: 0.0105, tier: 1 },
@@ -206,6 +211,7 @@ const THUMB_SECTIONS: readonly Section[] = [
  * Foot, heel to toe tip. `at` is forward distance from the ankle in units of
  * `footForward`, negative behind it. A = half width, B = half height.
  */
+// prettier-ignore
 const FOOT_SECTIONS: readonly Section[] = [
   { key: 'heel', at: -0.22, v: 0.0, a: 0.022, b: 0.03, e: 2.7, frontScale: 1.35, tier: 0 },
   { key: 'heelFront', at: -0.05, v: 0.12, a: 0.025, b: 0.03, e: 2.8, frontScale: 1.5, tier: 1 },
@@ -247,7 +253,8 @@ function resolveShapeAt(
   const mus = shape.muscle;
   const fat = shape.belly;
   const gainA = 1 + mus * (section.mus ?? 0) + fat * (section.fat ?? 0);
-  const gainB = 1 + mus * (section.musB ?? section.mus ?? 0) + fat * (section.fatB ?? section.fat ?? 0);
+  const gainB =
+    1 + mus * (section.musB ?? section.mus ?? 0) + fat * (section.fatB ?? section.fat ?? 0);
   const inflate = coat.inflate ?? 1;
   const u = options.unit;
 
@@ -493,7 +500,12 @@ function legChain(ctx: BodyContext, side: 'Left' | 'Right'): SkinChain {
   return {
     spans: [
       { bone: `${side}UpLeg` as BoneName, start: -1e9, end: d.thigh, blend: 0.17 * d.thigh },
-      { bone: `${side}Leg` as BoneName, start: d.thigh, end: d.thigh + d.shank, blend: 0.14 * d.shank },
+      {
+        bone: `${side}Leg` as BoneName,
+        start: d.thigh,
+        end: d.thigh + d.shank,
+        blend: 0.14 * d.shank,
+      },
       { bone: `${side}Foot` as BoneName, start: d.thigh + d.shank, end: 1e9 },
     ],
     bias: [{ bone: 'Hips', at: -0.22 * d.thigh, range: 0.36 * d.thigh, amount: 0.6 }],
@@ -649,7 +661,12 @@ export function buildFootStrand(ctx: BodyContext, side: 'Left' | 'Right'): Stran
 
   const chain: SkinChain = {
     spans: [
-      { bone: `${side}Foot` as BoneName, start: -1e9, end: d.footForward, blend: 0.4 * d.footForward },
+      {
+        bone: `${side}Foot` as BoneName,
+        start: -1e9,
+        end: d.footForward,
+        blend: 0.4 * d.footForward,
+      },
       { bone: `${side}ToeBase` as BoneName, start: d.footForward, end: 1e9 },
     ],
   };

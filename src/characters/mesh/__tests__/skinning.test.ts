@@ -62,7 +62,8 @@ describe('skin weights', () => {
     // two influences. Elbows, knees, waist and neck must produce plenty.
     const build = buildCharacter('saitama', 0);
     const report = analyseSkinning(build.geometry, build.rig.bones.length);
-    const blended = report.influenceHistogram[1] + report.influenceHistogram[2] + report.influenceHistogram[3];
+    const blended =
+      report.influenceHistogram[1] + report.influenceHistogram[2] + report.influenceHistogram[3];
     expect(blended).toBeGreaterThan(report.vertices * 0.25);
   });
 

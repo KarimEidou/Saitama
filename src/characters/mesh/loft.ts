@@ -107,7 +107,10 @@ export function packSkin(
     if (weight > 1e-5) entries.push([bone, weight]);
   }
   if (entries.length === 0) {
-    return { index: [fallbackBone, fallbackBone, fallbackBone, fallbackBone], weight: [1, 0, 0, 0] };
+    return {
+      index: [fallbackBone, fallbackBone, fallbackBone, fallbackBone],
+      weight: [1, 0, 0, 0],
+    };
   }
 
   entries.sort((x, y) => (y[1] === x[1] ? x[0] - y[0] : y[1] - x[1]));
@@ -198,7 +201,10 @@ export function blendSkin(a: SkinWeight4, b: SkinWeight4, t: number): SkinWeight
 }
 
 /** A single bone at full weight. */
-export function rigidSkin(bone: BoneName, boneIndex: Readonly<Record<BoneName, number>>): SkinWeight4 {
+export function rigidSkin(
+  bone: BoneName,
+  boneIndex: Readonly<Record<BoneName, number>>
+): SkinWeight4 {
   const i = boneIndex[bone];
   return { index: [i, i, i, i], weight: [1, 0, 0, 0] };
 }
@@ -535,7 +541,12 @@ function capStrand(
     // rather than a cone.
     const explicit = atStart ? strand.poleStart : strand.poleEnd;
     _p.copy(ring.center).addScaledVector(axis, outward * (explicit ?? poleHeight(ring.shape)));
-    packUV(strand.uvRect, 0.5, atStart ? Math.max(0, ring.v - 0.03) : Math.min(1, ring.v + 0.03), _uv);
+    packUV(
+      strand.uvRect,
+      0.5,
+      atStart ? Math.max(0, ring.v - 0.03) : Math.min(1, ring.v + 0.03),
+      _uv
+    );
     const pole = builder.addVertex(
       _p,
       _uv[0],
@@ -561,20 +572,11 @@ function capStrand(
     evalRingPoint(ring.shape, t === 1 ? 0 : t, _local);
     _p.copy(ring.center).addScaledVector(frame.a, _local.x).addScaledVector(frame.b, _local.y);
     packUV(strand.uvRect, t, ring.v, _uv);
-    rim.push(
-      builder.addVertex(_p, _uv[0], _uv[1], ring.color ?? strand.color, ring.skin, group)
-    );
+    rim.push(builder.addVertex(_p, _uv[0], _uv[1], ring.color ?? strand.color, ring.skin, group));
   }
   _p.copy(ring.center);
   packUV(strand.uvRect, 0.5, ring.v, _uv);
-  const hub = builder.addVertex(
-    _p,
-    _uv[0],
-    _uv[1],
-    ring.color ?? strand.color,
-    ring.skin,
-    group
-  );
+  const hub = builder.addVertex(_p, _uv[0], _uv[1], ring.color ?? strand.color, ring.skin, group);
   for (let k = 0; k < segments; k++) {
     if (atStart) builder.addTriangle(rim[k + 1]!, rim[k]!, hub);
     else builder.addTriangle(rim[k]!, rim[k + 1]!, hub);
