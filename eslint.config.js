@@ -13,6 +13,12 @@ export default tseslint.config(
       'assets/source/**',
       'assets/generated/**',
       'verification/*.png',
+      // Scratch/probe files written while investigating. Flat config does NOT
+      // read .gitignore, so these need listing here or they fail the lint gate
+      // for every workstream.
+      '.probe*.mjs',
+      '.probe*.ts',
+      '.*-scratch/**',
     ],
   },
 
