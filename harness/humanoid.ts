@@ -35,9 +35,11 @@ import {
   measureSilhouette,
   showcaseBodies,
   silhouetteDistance,
+  FACE_CENTER_U,
+  faceOffsetU,
+  faceUV,
   type HumanoidBuild,
 } from '@/characters/mesh';
-import { FACE_CENTER_U, faceOffsetU, faceUV } from '@/characters/mesh/uv';
 
 declare global {
   interface Window {

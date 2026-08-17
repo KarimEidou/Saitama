@@ -18,7 +18,7 @@
 
 import * as THREE from 'three';
 import { clamp01 } from '@/util';
-import type { LodSettings, Ring, RingShape, Strand } from './types';
+import type { Ring, RingShape, Strand } from './types';
 import { MeshSlot } from './types';
 import { UV_REGIONS } from './uv';
 import { makeStrand, rigidSkin } from './loft';
@@ -173,23 +173,4 @@ export function buildNoseStrand(
     frameHint: new THREE.Vector3(1, 0, 0),
     smoothGroup: SMOOTH.nose,
   });
-}
-
-/** Head landmark heights, for hair and headgear. */
-export function headMetrics(lod: LodSettings, ctx: BodyContext): {
-  chinY: number;
-  topY: number;
-  length: number;
-  browY: number;
-  crownY: number;
-} {
-  const d = ctx.rig.dims;
-  const length = d.headTopY - d.chinY;
-  return {
-    chinY: d.chinY,
-    topY: d.headTopY,
-    length,
-    browY: d.chinY + length * 0.62,
-    crownY: d.chinY + length * 0.9,
-  };
 }

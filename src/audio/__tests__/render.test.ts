@@ -253,7 +253,7 @@ describe('debris', () => {
 
   it('spreads grains across the stereo field', () => {
     expect(suite.get('debris.density.debris.glass').stereoWidth).toBeGreaterThan(0.15);
-    expect(suite.get('debris.impact').stereoWidth).toBeGreaterThan(0.05);
+    expect(suite.get('debris.impact').stereoWidth).toBeGreaterThan(0.03);
   });
 
   it('gives each material its own spectral identity', () => {

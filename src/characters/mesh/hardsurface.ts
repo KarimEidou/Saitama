@@ -327,9 +327,3 @@ export function buildHardSurface(
 
   return out;
 }
-
-/** Ring-parameter helper: degrees around the body, 0 at the back. */
-export function angleToT(degrees: number): number {
-  const t = (degrees / 360) % 1;
-  return t < 0 ? t + 1 : t;
-}

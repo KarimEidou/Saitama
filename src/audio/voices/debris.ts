@@ -264,7 +264,11 @@ export class DebrisVoice extends SynthVoice {
 
       resetParam(unit.bp.frequency, t, Math.min(centre, this.nyquist * 0.45));
       resetParam(unit.bp.Q, t, q);
-      resetParam(unit.pan.pan, t, (rng.next() * 2 - 1) * lerp(0.35, 0.95, power));
+      // Wide even when sparse: a handful of isolated chunks should scatter
+      // around the listener, not cluster in the centre. Spread narrows
+      // slightly rather than widening with density, because a dense shower
+      // reads as one mass in one place.
+      resetParam(unit.pan.pan, t, (rng.next() * 2 - 1) * lerp(0.6, 0.95, power));
       const grainEnd = percussive(unit.gain.gain, t, gain, 0.0008, decay);
 
       let thumpEnd = grainEnd;

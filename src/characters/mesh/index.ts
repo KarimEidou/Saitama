@@ -85,7 +85,14 @@ export {
   type TopologyReport,
 } from './analysis';
 
-export { UV_REGIONS, type UVRegionName } from './uv';
+export {
+  FACE_CENTER_U,
+  faceOffsetU,
+  faceUV,
+  HEAD_LANDMARK_V,
+  UV_REGIONS,
+  type UVRegionName,
+} from './uv';
 
 export {
   MeshSlot,
