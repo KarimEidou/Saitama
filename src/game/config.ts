@@ -67,30 +67,45 @@ export const START_TIME_OF_DAY = 0.34;
  * 96 m ring reaches the far side of the next block, and the block itself
  * occludes everything behind it.
  *
- * ── WHY THE IMPOSTOR RING DID NOT CHANGE IT ────────────────────────────────
+ * ── WHAT THE IMPOSTOR RING CHANGED, AND WHAT IT DID NOT ────────────────────
  * This used to read "the number to raise when the city gains an impostor
- * ring". The impostor landed (`CityStreamer.impostor`) and the number stayed
- * at 1, deliberately, in BOTH directions:
+ * ring". The ring landed (`CityStreamer.impostor`), and the note was half
+ * right. Measured, on the real plan, with the detail bands below applied:
  *
- *   • It cannot go UP. Raising it was only ever a way to push the empty
- *     horizon further away, and the horizon is no longer empty. Radius 2 buys
- *     16 more chunks of parallax at 600 000 extra vertices and 6.4 s of
- *     streaming (`STREAM_INTERVAL_SECONDS` x 16) for detail that the impostor
- *     already stands in for, at one draw call, from the first frame.
- *   • It cannot go DOWN. Radius 1 is the floor set by PHYSICS, not by looks:
- *     `COLLIDER_RADIUS` is 1, so radius 0 would leave the player able to walk
- *     off the collidable world about 50 m from spawn, and the impostor is a
- *     silhouette with no colliders and no destructible layout to replace it
- *     with. Buildings inside the resident ring are the ones a punch can take
- *     apart; that ring has to reach past arm's length.
+ *   radius 1   9 chunks   1.27 M verts   629 k tris   48 draws   1553 ms
+ *   radius 2  25 chunks   1.83 M verts   897 k tris   84 draws   1610 ms
+ *   radius 3  49 chunks   2.42 M verts  1182 k tris  144 draws   1956 ms
  *
- * So the impostor did not buy a smaller ring. It bought a CITY behind the one
- * that is already there, which is a strictly better use of the same budget.
+ * Radius 2 is nearly free in the currency that matters. The sixteen chunks it
+ * adds are all past `REDUCED_DETAIL_RADIUS`, so they are generated at `box`
+ * detail — footprint extrusions with a roof, no façade relief — and cost 57 ms
+ * of generation between them. What they buy is 480 m of REAL, textured,
+ * destructible city instead of 288 m.
+ *
+ * Radius 3 is where it stops being free: +60 draw calls over radius 2 and
+ * 2.4 M vertices, to reach a band the impostor already covers convincingly.
+ *
+ * So the tiers split on the two budgets that actually bind:
+ *
+ *   low     1 — a low-tier phone is bound by draw calls and by the ~45 bytes
+ *               per vertex this geometry costs on the GPU. 1.27 M vertices is
+ *               already ~57 MB of buffers; 1.83 M is ~82 MB. The impostor
+ *               covers its horizon at ONE draw call, which is the whole point
+ *               of having it — the low tier is exactly who it was built for.
+ *   medium  2 — +36 draw calls and +0.56 M vertices against a frame that
+ *   high    2   measured 187 draw calls at radius 1.
+ *
+ * What the impostor did NOT buy is a SMALLER ring. Radius 1 is a hard floor
+ * set by physics, not by looks: `COLLIDER_RADIUS` is 1, so radius 0 would let
+ * the player walk off the collidable world about 50 m from spawn, and a
+ * silhouette has no colliders and no destructible layout to stand in with.
+ * The buildings a punch can take apart are the resident ones; that ring has to
+ * reach past arm's length.
  */
 export const RESIDENT_RADIUS_BY_TIER: Readonly<Record<IQualityTier, number>> = {
   low: 1,
-  medium: 1,
-  high: 1,
+  medium: 2,
+  high: 2,
 };
 
 /** Chunks generated at `full` detail: Chebyshev distance <= this. */
@@ -155,22 +170,26 @@ export const IMPOSTOR_HEIGHT_SCALE = 0.97;
 export const IMPOSTOR_ALBEDO = 0.55;
 
 /**
- * ── WHY A DISTANT FAÇADE IS DARKER THAN THE PAINT ON IT ────────────────────
+ * ── WHY A DISTANT FAÇADE IS NOT THE COLOUR OF THE PAINT ON IT ──────────────
  *
- * A silhouette box is a lie of omission: it shows the wall and nothing else,
- * while the building it stands for is mostly wall but also windows, reveals and
- * a baked sky-occlusion gradient. Integrated over one pixel at 250 m, the real
- * building is measurably darker than its own tint — and the first build of this
- * ring proved it, with distant façades reading luminance 169 against a near
- * city whose walls sit in the 60-120 band. That is not atmospheric perspective,
- * it is a missing average.
+ * A silhouette box is a lie of omission: it shows bare wall, while the building
+ * it stands for is wall plus windows plus reveals, under a baked sky-occlusion
+ * gradient. The first build of this ring proved what that costs — distant
+ * façades read luminance 169 against a near city whose walls sit in the 60-120
+ * band, and a flat, uniform, too-bright grey mass at 250 m does not read as a
+ * skyline. It reads as fog. Which is exactly the complaint this whole task
+ * started from.
  *
- * Both corrections below are means taken from what `building.ts` and
- * `facade.ts` actually bake, not numbers dialled until the frame looked right:
+ * Both corrections are taken from what `building.ts` and `facade.ts` actually
+ * bake, not dialled until the frame looked right:
  *
- *   shade  `emitOnePanel` writes `0.7 + 0.3 * height fraction` into every
- *          panel's vertex tint — pavement-dark rising to parapet-bright. Its
- *          mean over a façade is 0.85.
+ *   shade  `emitOnePanel` writes `0.7 + 0.3 * min(1, y / max(6, height))` into
+ *          every panel's vertex tint — pavement-dark rising to parapet-bright.
+ *          The ring applies the RAMP, not its average: a silhouette box already
+ *          has four vertices at the ground and four at the parapet, so the
+ *          gradient is free, and it is what stops a distant block being one
+ *          flat rectangle of grey. This is the single biggest thing separating
+ *          "a city receding" from "a wall of haze".
  *   glass  a quarter of a façade is glazed, and `GLASS_DARK` in `building.ts`
  *          is what an unlit pane gets. Blending toward it also cools the
  *          distant city slightly, which is what glass at a distance does.
@@ -178,7 +197,13 @@ export const IMPOSTOR_ALBEDO = 0.55;
  * Roofs get neither: they are neither glazed nor occluded by the street, and
  * `shadeTint(tint, 0.62)` — the city's own roof factor — is already applied.
  */
-export const IMPOSTOR_FACADE_SHADE = 0.85;
+export const IMPOSTOR_SHADE_BASE = 0.7;
+
+/** Extra brightness a façade gains between the pavement and the parapet. */
+export const IMPOSTOR_SHADE_RISE = 0.3;
+
+/** Metres over which the ramp reaches full brightness. `building.ts`'s `max(6, …)`. */
+export const IMPOSTOR_SHADE_HEIGHT = 6;
 
 /** Fraction of a façade the city glazes. See `IMPOSTOR_FACADE_SHADE`. */
 export const IMPOSTOR_GLAZED_FRACTION = 0.25;
