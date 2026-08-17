@@ -336,7 +336,11 @@ async function main(): Promise<void> {
     say('\n[3] encounter and normal punch');
     const spawned = await page.evaluate(() => {
       const game = (window as unknown as { __GAME__?: { spawnEncounter(id: string, d?: number): string | undefined } }).__GAME__;
-      return game?.spawnEncounter('mook.mosquito.swarmling', 3.0) ?? undefined;
+      // A real id from `MONSTER_ARCHETYPES`. `mob.tiger.brute` is 2.35 m tall
+      // with a 0.85 m footprint, so the aim-point assertion below has a lift
+      // (1.175 m) and a radius (0.987 m) that are visibly different from the
+      // monster's own position and footprint — which is the whole point.
+      return game?.spawnEncounter('mob.tiger.brute', 3.0) ?? undefined;
     });
     say(`  spawned ${String(spawned)}`);
     if (spawned === undefined) failures.push('could not spawn a monster');

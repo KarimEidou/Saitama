@@ -1367,6 +1367,10 @@ export class Game {
     downedEvents: number;
     waves: number;
     elapsedSeconds: number;
+    lastTargetId: string;
+    waveOrigins: { x: number; z: number; range: number; power: number; intent: string }[];
+    geneosDistance: number;
+    mumenDistance: number;
   } {
     const genos = this.crowd.allies.find((a) => a.heroId === 'genos');
     const mumen = this.crowd.allies.find((a) => a.heroId === 'mumenRider');
@@ -1377,8 +1381,19 @@ export class Game {
     const offDowned = this.bus.on('AllyDowned', () => {
       downedEvents++;
     });
+    const sampledOrigins: { x: number; z: number; range: number; power: number; intent: string }[] = [];
     const offWave = this.bus.on('ShockwaveFired', (event) => {
-      if (event.sourceId !== undefined && this.monsters.get(event.sourceId) !== undefined) waves++;
+      if (event.sourceId === undefined || this.monsters.get(event.sourceId) === undefined) return;
+      waves++;
+      if (sampledOrigins.length < 8) {
+        sampledOrigins.push({
+          x: Math.round(event.origin.x * 10) / 10,
+          z: Math.round(event.origin.z * 10) / 10,
+          range: event.range,
+          power: event.power,
+          intent: event.intent,
+        });
+      }
     });
 
     // A Harbinger: `crush` carries 120 000 units of pressure, which is `full`
@@ -1392,6 +1407,13 @@ export class Game {
       Math.PI,
       { scripted: true }
     );
+
+    const distanceOf = (hero: { transform: { position: { x: number; z: number } } } | undefined): number => {
+      if (hero === undefined) return -1;
+      const dx = hero.transform.position.x - monster.brain.position.x;
+      const dz = hero.transform.position.z - monster.brain.position.z;
+      return Math.round(Math.hypot(dx, dz) * 10) / 10;
+    };
 
     const step = 1 / 30;
     let elapsed = 0;
@@ -1424,6 +1446,17 @@ export class Game {
       downedEvents,
       waves,
       elapsedSeconds: elapsed,
+      // WHO the monster spent the fight looking at, and how far each ally was
+      // from the shockwave origins. The failure mode this distinguishes: a
+      // monster that fixates on the unkillable protagonist never threatens the
+      // world, so the allies survive by being irrelevant rather than by being
+      // tough — and the damage falloff (`(1 - d/range)^1.4`) is brutal enough
+      // that "in the fight but ten metres off-axis" and "not in the fight"
+      // produce the same number.
+      lastTargetId: String(monster.brain.currentTargetId ?? 'none'),
+      waveOrigins: sampledOrigins,
+      geneosDistance: distanceOf(genos),
+      mumenDistance: distanceOf(mumen),
     };
   }
 
