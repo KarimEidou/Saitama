@@ -674,13 +674,13 @@ export async function writeRuntimeIndex(options: {
   const byAsset = new Map<string, Map<string, IProducedOutput>>();
   for (const [assetId, outputs] of previousOutputs) {
     const map = new Map<string, IProducedOutput>();
-    for (const output of outputs) map.set(`${output.tier} ${output.file}`, output);
+    for (const output of outputs) map.set(`${output.tier} ${output.file}`, output);
     byAsset.set(assetId, map);
   }
   for (const output of options.produced) {
     let map = byAsset.get(output.assetId);
     if (!map) byAsset.set(output.assetId, (map = new Map()));
-    map.set(`${output.tier} ${output.file}`, output);
+    map.set(`${output.tier} ${output.file}`, output);
   }
 
   const synthetic = new Map(options.syntheticEntries.map((e) => [e.id, e]));
