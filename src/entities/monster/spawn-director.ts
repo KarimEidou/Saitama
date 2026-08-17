@@ -341,7 +341,14 @@ export class SpawnDirector {
       const distance = Math.hypot(dx, dz);
       if (distance > this.policy.recycleDistanceMetres || monster.age > this.policy.staleSeconds) {
         this.retire.push(monster.id);
+        continue;
       }
+      // The ring rule, applied symmetrically. A monster that drifted a full
+      // ring past where it was allowed to be placed is now in territory with
+      // no NPCs and no colliders — the same reason it could not spawn there is
+      // the reason it should not stay there.
+      const ring = this.ringAt?.(monster.position) ?? ringBetween(monster.position, context.focus);
+      if (ring > this.policy.maxSpawnRing + 1) this.retire.push(monster.id);
     }
   }
 

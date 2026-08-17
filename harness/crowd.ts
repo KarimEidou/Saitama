@@ -930,6 +930,7 @@ function main(): void {
     distinctOffsets: snapshot.render?.distinctOffsets ?? 0,
     paletteBytes: snapshot.render?.paletteBytes ?? 0,
     simMsMean: mean(simSamples),
+    simMsMedian: percentile(simSamples, 0.5),
     simMsP95: percentile(simSamples, 0.95),
     simMsMax: simSamples.length === 0 ? 0 : Math.max(...simSamples),
     alarmMs: stats.alarmMs,

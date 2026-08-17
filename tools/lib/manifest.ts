@@ -309,7 +309,13 @@ export interface ILoadedManifests {
  * first — fixing manifests one error per run is miserable.
  */
 export async function loadSourceManifests(dir: string = MANIFEST_DIR): Promise<ILoadedManifests> {
-  const names = (await readdir(dir)).filter((n) => n.endsWith('.json')).sort();
+  // Only the THIRD-PARTY source manifests belong here. `tools/manifest/` also
+  // holds `characters.json`, which describes first-party generated characters
+  // and is deliberately a different shape — globbing `*.json` fed it to the
+  // source-entry validator and aborted the whole asset pipeline with 46 errors,
+  // so `npm run assets` failed on a fresh clone.
+  const present = new Set(await readdir(dir));
+  const names = MANIFEST_FILES.filter((n) => present.has(n));
 
   const problems: string[] = [];
   const byFile: Record<string, ISourceManifest> = {};

@@ -70,6 +70,7 @@ interface CrowdStats {
   distinctOffsets: number;
   paletteBytes: number;
   simMsMean: number;
+  simMsMedian: number;
   simMsP95: number;
   simMsMax: number;
   alarmMs: number;
@@ -243,9 +244,14 @@ function assertCommon(name: string, stats: CrowdStats): void {
   );
 
   /* ---- CPU cost. Never fps: SwiftShader would be measuring itself. ---- */
+  // The MEDIAN is the assertion, not the mean or the p95. This container is
+  // shared with a dozen other workstreams' builds and test runs, and a tail
+  // percentile measured under that contention is a measurement of the other
+  // workstreams. The median survives interference; the tail is reported so a
+  // regression in it is still visible.
   check(
-    stats.simMsP95 < 8,
-    `${name}: sim ${stats.simMsMean.toFixed(3)} ms/frame mean, ${stats.simMsP95.toFixed(3)} ms p95, ${stats.simMsMax.toFixed(2)} ms worst`
+    stats.simMsMedian < 4,
+    `${name}: sim ${stats.simMsMedian.toFixed(3)} ms/frame median (mean ${stats.simMsMean.toFixed(3)}, p95 ${stats.simMsP95.toFixed(3)}, worst ${stats.simMsMax.toFixed(1)} — the worst frame builds a skinned body)`
   );
 
   /* ---- physical constraints ---- */

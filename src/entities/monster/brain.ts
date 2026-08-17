@@ -457,7 +457,7 @@ export class MonsterBrain {
   /* Decision                                                               */
   /* ---------------------------------------------------------------------- */
 
-  private decide(world: IMonsterWorld): void {
+  private decide(_world: IMonsterWorld): void {
     switch (this.fsm.current) {
       case 'idle': {
         if (this.targetId !== undefined) {
@@ -698,7 +698,10 @@ export class MonsterBrain {
     }
 
     /* ---- desired heading and speed ------------------------------------- */
-    let targetSpeed = 0;
+    // Deliberately uninitialised: every arm of the switch, including the
+    // default, assigns it, so a stray `0` here would be dead code that quietly
+    // hides a missing case if a state is ever added.
+    let targetSpeed: number;
     switch (this.fsm.current) {
       case 'idle': {
         this.wanderTimer -= dt;
