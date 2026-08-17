@@ -1606,7 +1606,7 @@ export class Game {
     const step = 1 / 30;
     let elapsed = 0;
     const targetTimeline: { at: number; id: string; harmable: boolean }[] = [];
-    let lastSeenTarget = ' ';
+    let lastSeenTarget: string | undefined;
     try {
       while (elapsed < maxSeconds) {
         elapsed += step;
