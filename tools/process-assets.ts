@@ -695,9 +695,35 @@ export async function writeRuntimeIndex(options: {
     return { ...entry, outputs } as AnyAssetEntry;
   };
 
+  const previousById = new Map((previous?.entries ?? []).map((e) => [e.id, e]));
+
+  /**
+   * Which version of an entry to publish, most-authoritative first.
+   *
+   *   1. one this run synthesised — freshest, and the only one that can
+   *      reflect encoder settings that just changed;
+   *   2. the previous index's, IF it describes the same source bytes —
+   *      a stage that did not run this time still enriched it last time
+   *      (procedural materials gain `textureKeys`, HDRIs gain
+   *      `targetFormat: 'ktx2'`), and dropping back to the raw manifest row
+   *      would quietly un-enrich it;
+   *   3. the source manifest's, which is correct but bare.
+   *
+   * The sha256 guard on (2) is what keeps this from going stale: once
+   * `assets:fetch` pulls different bytes for an id, the carried-forward
+   * enrichment no longer describes them and the manifest row wins.
+   */
+  const publishable = (entry: AnyAssetEntry): AnyAssetEntry => {
+    const fresh = synthetic.get(entry.id);
+    if (fresh) return fresh;
+    const carried = previousById.get(entry.id);
+    if (carried && carried.sha256 === entry.sha256) return carried;
+    return entry;
+  };
+
   for (const entry of options.sourceManifest.entries) {
     seen.add(entry.id);
-    entries.push(attach(synthetic.get(entry.id) ?? entry));
+    entries.push(attach(publishable(entry)));
   }
   for (const entry of options.syntheticEntries) {
     if (!seen.has(entry.id)) {
