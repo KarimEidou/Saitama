@@ -125,13 +125,13 @@ async function buildHarness(): Promise<void> {
 /**
  * Extra mounts served alongside the bundle.
  *
- * `/assets` is the processed asset set, served from `public/` rather than
- * copied. `/basis` and `/draco` are the KTX2 transcoder and Draco decoder the
+ * `/game-assets` is the processed asset set, served from `public/` rather than
+ * copied — NOT `/assets`, which is where Vite writes its own JS chunks. `/basis` and `/draco` are the KTX2 transcoder and Draco decoder the
  * loaders fetch at runtime; they ship inside three's examples and simply need
  * to be reachable over HTTP.
  */
 const MOUNTS: readonly (readonly [string, string])[] = [
-  ['/assets', path.join(ROOT, 'public', 'assets')],
+  ['/game-assets', path.join(ROOT, 'public', 'assets')],
   ['/basis', path.join(ROOT, 'node_modules', 'three', 'examples', 'jsm', 'libs', 'basis')],
   ['/draco', path.join(ROOT, 'node_modules', 'three', 'examples', 'jsm', 'libs', 'draco', 'gltf')],
 ];

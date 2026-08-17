@@ -107,12 +107,16 @@ export class RealAssetLibrary {
     } catch {
       return undefined;
     }
-    if (!index.entries || index.entries.length === 0) return undefined;
+    if (!Array.isArray(index.entries) || index.entries.length === 0) return undefined;
 
     const ktx2 = new KTX2Loader().setTranscoderPath('/basis/').detectSupport(renderer);
     const draco = new DRACOLoader().setDecoderPath('/draco/');
     const gltf = new GLTFLoader().setDRACOLoader(draco).setKTX2Loader(ktx2);
-    gltf.setMeshoptDecoder(MeshoptDecoder);
+    try {
+      gltf.setMeshoptDecoder(MeshoptDecoder);
+    } catch {
+      // meshopt is optional: the pipeline only uses it on some models.
+    }
     return new RealAssetLibrary(index, baseUrl, tier, ktx2, gltf, decorate, anisotropy);
   }
 

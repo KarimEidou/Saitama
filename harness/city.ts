@@ -530,13 +530,28 @@ window.__CITY_HARNESS__ = {
 };
 
 async function boot(): Promise<void> {
-  // Best effort: a fresh clone has no `public/assets/`, and the harness has to
-  // still produce a picture.
-  real = await RealAssetLibrary.open('/assets', renderer, 'mobile', installDestructionHook, 4);
-  if (real) {
-    const required = generator.requiredAssets();
-    await real.loadMaterials(required.materials);
-    await real.loadModels(required.models);
+  // Best effort, and strictly bounded. A fresh clone has no `public/assets/`,
+  // and the harness still has to produce a picture; so must a run where one
+  // texture refuses to transcode.
+  try {
+    real = await RealAssetLibrary.open('/game-assets', renderer, 'mobile', installDestructionHook, 4);
+    if (real) {
+      const required = generator.requiredAssets();
+      await real.loadMaterials(required.materials);
+      await real.loadModels(required.models);
+      console.log(
+        `[city-harness] real assets: ${real.materialCount()} materials, ` +
+          `${real.modelCount()} models, ${real.problems().length} problems`
+      );
+      for (const problem of real.problems().slice(0, 8)) {
+        console.log(`[city-harness] fallback: ${problem}`);
+      }
+    } else {
+      console.log('[city-harness] no processed asset set; using stand-ins');
+    }
+  } catch (error) {
+    console.log(`[city-harness] asset load failed, using stand-ins: ${String(error)}`);
+    real = undefined;
   }
   window.addEventListener('resize', () => render());
   render();
