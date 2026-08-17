@@ -71,6 +71,7 @@ interface ModeStats {
   drawCalls?: number;
   distinctPalettes?: number;
   proximityFadeCurve?: number[];
+  proximityFade?: { armCollapseRatio: number; coverage: number; features: string };
   triangles?: number;
 }
 
@@ -180,6 +181,7 @@ async function main(): Promise<void> {
 
       assertCommon(mode.name, stats);
       if (mode.name === 'sheet') assertSheet(stats);
+      if (mode.name === 'face') assertFace(stats);
       if (mode.name === 'metal') assertMetal(stats);
       if (mode.name === 'crowd') assertCrowd(stats);
 
@@ -255,6 +257,25 @@ function assertSheet(stats: ModeStats): void {
   check(budget, 'every character fits the 4000-triangle LOD0 budget');
   const mb = (stats.totalTextureBytes ?? 0) / 1048576;
   check(mb > 0, `${mb.toFixed(1)} MB of character textures resident (high tier, uncompressed)`);
+}
+
+function assertFace(stats: ModeStats): void {
+  const fade = stats.proximityFade;
+  if (fade === undefined) {
+    failures.push('face: no proximity-fade readout');
+    return;
+  }
+  check(
+    fade.features.includes('D'),
+    'the player material carries the dither injection (and only the player)'
+  );
+  check(
+    fade.coverage > 0.5 && fade.coverage < 1,
+    `armCollapseRatio ${fade.armCollapseRatio} dithers ${(fade.coverage * 100).toFixed(0)}% of ` +
+      'the player away, leaving a readable ghost'
+  );
+  const curve = stats.proximityFadeCurve ?? [];
+  check(curve[0] === 0 && curve[1] === 0, 'a fully extended arm fades nothing');
 }
 
 function assertMetal(stats: ModeStats): void {

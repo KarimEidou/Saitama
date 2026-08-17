@@ -43,6 +43,7 @@ import {
   distinctCrowdPalettes,
   entryGlows,
   faceRegion,
+  getProximityFade,
   listRoster,
   measureHead,
   prepareRosterGeometry,
@@ -561,13 +562,23 @@ async function runSheet(): Promise<Record<string, unknown>> {
 async function runFace(): Promise<Record<string, unknown>> {
   const saitama = rosterEntry('chr.saitama');
   addLights(3);
-  const camera = new THREE.PerspectiveCamera(24, WIDTH / HEIGHT, 0.05, 40);
 
-  // Two panels: the portrait on the left, the four expression tiles on the
-  // right. Splitting by scissor rather than by distance means the expressions
-  // are rendered at the same texel density as the portrait — the whole point
-  // is to judge whether they are legible, and a wide shot would not show that.
-  const portraitWidth = Math.round(WIDTH * 0.42);
+  // Three panels: the portrait, the four expression tiles, and the player's
+  // camera-proximity dither. Splitting by scissor rather than by distance
+  // means the expressions are rendered at the same texel density as the
+  // portrait — the whole point is to judge whether they are legible.
+  //
+  // EVERY camera below sets its aspect from its own PANEL. Using the canvas
+  // aspect while rendering into a narrow viewport is what turned Saitama's
+  // skull into a bullet in the first version of this shot: the projection
+  // assumed a 1.78 frame, the viewport was 0.75, and the head arrived stretched
+  // 2.4x vertically. The mesh was never at fault (its cranium measures 6.7 cm
+  // of radius 1.5 cm below the crown — a shallow dome, at all three LODs).
+  const portraitWidth = Math.round(WIDTH * 0.38);
+  const gridWidth = Math.round(WIDTH * 0.4);
+  const fadeWidth = WIDTH - portraitWidth - gridWidth;
+
+  const camera = new THREE.PerspectiveCamera(26, portraitWidth / HEIGHT, 0.05, 40);
   const hero = await buildCharacter(saitama, 0, 'high', 'neutral');
   hero.root.rotation.y = Math.PI + 0.2;
   scene.add(hero.root);
@@ -585,22 +596,41 @@ async function runFace(): Promise<Record<string, unknown>> {
     strip.push(character);
   }
 
-  const eyeY = hero.height * 0.93;
-  camera.position.set(0.02, eyeY + 0.01, 1.0);
-  camera.lookAt(0, eyeY - 0.015, 0);
+  // The player's dither, driven exactly as the camera rig drives it. The rig
+  // reports `armCollapseRatio`; 0.85 is what a 2.4 m alley produces, where the
+  // spring arm folds to ~1.5 m and the player would otherwise fill the frame.
+  const COLLAPSE_RATIO = 0.85;
+  const faded = await buildCharacter(saitama, 0, 'high', 'bored');
+  faded.root.position.set(12, 0, 0);
+  faded.root.rotation.y = Math.PI + 0.35;
+  setProximityFade(faded.material, COLLAPSE_RATIO);
+  scene.add(faded.root);
 
-  const grid = new THREE.PerspectiveCamera(26, (WIDTH - portraitWidth) / HEIGHT, 0.05, 40);
-  grid.position.set(6.675, eyeY - 0.06, 3.4);
+  const eyeY = hero.height * 0.93;
+  // A portrait focal length, not a fisheye: 26 degrees vertical over a 0.42 m
+  // frame is about a 90 mm lens, which is what a real portrait is shot on.
+  camera.position.set(0.02, eyeY + 0.01, 1.05);
+  camera.lookAt(0, eyeY - 0.02, 0);
+
+  const grid = new THREE.PerspectiveCamera(26, gridWidth / HEIGHT, 0.05, 40);
+  grid.position.set(6.675, eyeY - 0.06, 3.55);
   grid.lookAt(6.675, eyeY - 0.06, 0);
+
+  const fadeCamera = new THREE.PerspectiveCamera(34, fadeWidth / HEIGHT, 0.05, 40);
+  fadeCamera.position.set(12.05, 1.15, 1.55);
+  fadeCamera.lookAt(12, 0.98, 0);
 
   redraw = (): void => {
     renderer.setScissorTest(true);
     renderer.setViewport(0, 0, portraitWidth, HEIGHT);
     renderer.setScissor(0, 0, portraitWidth, HEIGHT);
     renderer.render(scene, camera);
-    renderer.setViewport(portraitWidth, 0, WIDTH - portraitWidth, HEIGHT);
-    renderer.setScissor(portraitWidth, 0, WIDTH - portraitWidth, HEIGHT);
+    renderer.setViewport(portraitWidth, 0, gridWidth, HEIGHT);
+    renderer.setScissor(portraitWidth, 0, gridWidth, HEIGHT);
     renderer.render(scene, grid);
+    renderer.setViewport(portraitWidth + gridWidth, 0, fadeWidth, HEIGHT);
+    renderer.setScissor(portraitWidth + gridWidth, 0, fadeWidth, HEIGHT);
+    renderer.render(scene, fadeCamera);
     renderer.setScissorTest(false);
   };
   renderer.info.reset();
@@ -611,12 +641,17 @@ async function runFace(): Promise<Record<string, unknown>> {
     const point = project(
       new THREE.Vector3(0, character.height * 0.8, 0).add(character.root.position),
       grid,
-      { x: portraitWidth, width: WIDTH - portraitWidth }
+      { x: portraitWidth, width: gridWidth }
     );
     label(point.x, point.y + 18, expressions[i]!);
   }
-  panelTitle(40, HEIGHT - 46, 'Saitama · the deadpan, at 1 m');
+  panelTitle(40, HEIGHT - 46, 'Saitama · the deadpan, 90 mm portrait');
   panelTitle(portraitWidth + 40, HEIGHT - 46, 'the four expression tiles · one uniform apart');
+  panelTitle(
+    portraitWidth + gridWidth + 30,
+    HEIGHT - 46,
+    `camera dither · armCollapseRatio ${COLLAPSE_RATIO}`
+  );
 
   return {
     mode: 'face',
@@ -634,6 +669,11 @@ async function runFace(): Promise<Record<string, unknown>> {
       };
     })(),
     drawCalls: renderer.info.render.calls,
+    proximityFade: {
+      armCollapseRatio: COLLAPSE_RATIO,
+      coverage: getProximityFade(faded.material),
+      features: auditMaterial(faded.material).features,
+    },
   };
 }
 
