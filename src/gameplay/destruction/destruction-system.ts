@@ -392,6 +392,7 @@ export class DestructionSystem {
     // Collapse waves come due here, so a collapse queued by a punch on frame n
     // spreads over n, n+1, n+2 — never all inside the punch's own frame.
     this.scheduler.drain(this.frameIndex, this.drainCollapse);
+    this.flushUploads();
     this.stats.pendingCollapseChunks = this.scheduler.pending;
 
     if (this.debris !== undefined) {
@@ -404,6 +405,20 @@ export class DestructionSystem {
   private readonly drainCollapse = (structure: RegisteredStructure, chunkIndex: number): void => {
     this.detachChunk(structure, chunkIndex, 'collapse');
   };
+
+  /**
+   * Record one coalesced update range per structure touched by the batch that
+   * just finished. Synchronous, so a chunk blanked this frame is uploaded this
+   * frame regardless of where `update()` sits in the game loop.
+   */
+  private flushUploads(): void {
+    for (let i = 0; i < this.dirtyCount; i++) {
+      const structure = this.dirtyStructures[i];
+      this.dirtyStructures[i] = undefined;
+      if (structure !== undefined) structure.flushUpload();
+    }
+    this.dirtyCount = 0;
+  }
 
   /* ------------------------------------------------------------------ */
   /* Shockwaves                                                         */
@@ -493,6 +508,7 @@ export class DestructionSystem {
         this.evaluateCollapse(structure);
       }
     }
+    this.flushUploads();
     if (detached > 0) this.recountDamaged();
     return detached;
   }
@@ -541,6 +557,7 @@ export class DestructionSystem {
         this.evaluateCollapse(structure);
       }
     }
+    this.flushUploads();
     if (detached > 0) this.recountDamaged();
     return detached;
   }
@@ -569,6 +586,15 @@ export class DestructionSystem {
     const chunk = structure.layout.chunks[chunkIndex];
     if (chunk === undefined) return false;
     if (!structure.markDestroyed(chunkIndex)) return false;
+    if (!structure.uploadPending) {
+      structure.uploadPending = true;
+      if (this.dirtyCount < this.dirtyStructures.length) {
+        this.dirtyStructures[this.dirtyCount] = structure;
+      } else {
+        this.dirtyStructures.push(structure);
+      }
+      this.dirtyCount++;
+    }
 
     this.stats.chunksDestroyed++;
     this.stats.chunksDestroyedThisFrame++;
@@ -817,6 +843,7 @@ export class DestructionSystem {
     const structure = this.byId.get(event.structureId);
     if (structure === undefined) return;
     if (!this.detachChunk(structure, event.chunkIndex, 'external')) return;
+    this.flushUploads();
     this.evaluateCollapse(structure);
     this.recountDamaged();
   }

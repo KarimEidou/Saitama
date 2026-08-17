@@ -70,3 +70,5 @@ verification/*.webm
 .audio-scratch/
 .*-scratch/
 .probe*.ts
+
+.*scratch*
