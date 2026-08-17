@@ -108,15 +108,23 @@ export function ringBetween(position: Vec3, focus: Vec3): number {
  * Note `heroAssociation` skews high. Monsters go where the heroes are — that
  * is the setting's entire premise, and it also means the district with the
  * best rewards is the one that costs the most to fight in.
+ *
+ * ── EVERY NON-ZERO WEIGHT MUST BE REACHABLE ───────────────────────────────
+ * A tier weighted here with no archetype whitelisted for that district is not
+ * a rare spawn — it is a dead entry that silently costs a placement attempt
+ * and never produces anything. God-tier reads 0 everywhere but the wasteland
+ * for exactly that reason: the Harbinger is confined there, so weighting it
+ * downtown would have been a lie the table told itself.
+ * `__tests__/archetypes.test.ts` checks every cell.
  */
 export const DISTRICT_TIER_WEIGHTS: DistrictTierWeights = Object.freeze({
-  downtown: Object.freeze({ wolf: 0.34, tiger: 0.35, demon: 0.22, dragon: 0.08, god: 0.01 }),
+  downtown: Object.freeze({ wolf: 0.34, tiger: 0.35, demon: 0.22, dragon: 0.09, god: 0 }),
   residential: Object.freeze({ wolf: 0.55, tiger: 0.3, demon: 0.13, dragon: 0.02, god: 0 }),
   industrial: Object.freeze({ wolf: 0.3, tiger: 0.38, demon: 0.25, dragon: 0.07, god: 0 }),
   park: Object.freeze({ wolf: 0.6, tiger: 0.28, demon: 0.12, dragon: 0, god: 0 }),
   waterfront: Object.freeze({ wolf: 0.32, tiger: 0.34, demon: 0.25, dragon: 0.09, god: 0 }),
   wasteland: Object.freeze({ wolf: 0.18, tiger: 0.26, demon: 0.3, dragon: 0.2, god: 0.06 }),
-  heroAssociation: Object.freeze({ wolf: 0.2, tiger: 0.3, demon: 0.3, dragon: 0.18, god: 0.02 }),
+  heroAssociation: Object.freeze({ wolf: 0.2, tiger: 0.3, demon: 0.3, dragon: 0.2, god: 0 }),
 });
 
 /** Tier order, ascending. Iteration order is stable, which determinism needs. */

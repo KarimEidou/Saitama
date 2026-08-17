@@ -1,0 +1,333 @@
+{
+  "results": {
+    "checks": [
+      {
+        "group": "gate",
+        "name": "CLOSED — a lethal punch mid-script does not kill",
+        "pass": true,
+        "detail": "killed=false phaseGated=true instantKill=false"
+      },
+      {
+        "group": "gate",
+        "name": "CLOSED — health is untouched, so the gate is not an HP gate",
+        "pass": true,
+        "detail": "24000 / 24000 after 101 punches"
+      },
+      {
+        "group": "gate",
+        "name": "CLOSED — 101 punches, 101 absorbed",
+        "pass": true,
+        "detail": "101 / 101 gated"
+      },
+      {
+        "group": "gate",
+        "name": "OPEN — the identical punch kills",
+        "pass": true,
+        "detail": "killed=true instantKill=true phaseGated=false"
+      },
+      {
+        "group": "gate",
+        "name": "OPEN — no damage number was involved",
+        "pass": true,
+        "detail": "damage=0 (a lethal hit sets a flag, it does not compute a number)"
+      },
+      {
+        "group": "gate",
+        "name": "the gate crossed the bus as BossPhaseChanged",
+        "pass": true,
+        "detail": "4 phase events for a 4-phase script"
+      },
+      {
+        "group": "tier",
+        "name": "wolf — one punch, dead",
+        "pass": true,
+        "detail": "mob.wolf.pest, 40 HP ignored entirely"
+      },
+      {
+        "group": "tier",
+        "name": "tiger — one punch, dead",
+        "pass": true,
+        "detail": "mob.tiger.brute, 220 HP ignored entirely"
+      },
+      {
+        "group": "tier",
+        "name": "demon — one punch, dead",
+        "pass": true,
+        "detail": "mob.demon.carapace, 900 HP ignored entirely"
+      },
+      {
+        "group": "tier",
+        "name": "dragon — one punch, dead",
+        "pass": true,
+        "detail": "mob.dragon.leviathan, 6,400 HP ignored entirely"
+      },
+      {
+        "group": "tier",
+        "name": "god — one punch, dead",
+        "pass": true,
+        "detail": "mob.god.harbinger, 90,000 HP ignored entirely"
+      },
+      {
+        "group": "tier",
+        "name": "the health spread is irrelevant, which is the joke",
+        "pass": true,
+        "detail": "2250x between the weakest and the strongest, identical outcome"
+      },
+      {
+        "group": "ally",
+        "name": "PLAYER FAST — Mumen Rider survives",
+        "pass": true,
+        "detail": "arrived at 8 s, inside the 18 s window; AllyDowned fired 0 times"
+      },
+      {
+        "group": "ally",
+        "name": "PLAYER SLOW — AllyDowned fires, exactly once",
+        "pass": true,
+        "detail": "fired once at t=18.0 s against an 18 s window"
+      },
+      {
+        "group": "ally",
+        "name": "the fight is identical either way",
+        "pass": true,
+        "detail": "both runs reached the finisher — the branch costs him, not the boss"
+      },
+      {
+        "group": "spawn",
+        "name": "nothing spawns in R2 or beyond",
+        "pass": true,
+        "detail": "worst ring over 536 orders: R1 (limit R1)"
+      },
+      {
+        "group": "spawn",
+        "name": "the ring rule is doing real work",
+        "pass": true,
+        "detail": "647 candidates rejected — the annulus reaches 520 m, so R2 genuinely occurs"
+      },
+      {
+        "group": "spawn",
+        "name": "nothing spawns on top of the player",
+        "pass": true,
+        "detail": "closest spawn 48.5 m (floor 34 m)"
+      },
+      {
+        "group": "spawn",
+        "name": "the population stays inside budget",
+        "pass": true,
+        "detail": "peak 14 concurrent (cap 14)"
+      },
+      {
+        "group": "spawn",
+        "name": "zoning is geography, not a difficulty slider",
+        "pass": true,
+        "detail": "mean tier: park 0.61 → wasteland 1.07"
+      },
+      {
+        "group": "spawn",
+        "name": "the tier pyramid is a pyramid",
+        "pass": true,
+        "detail": "wolf 285  tiger 165  demon 77  dragon 9  god 0"
+      },
+      {
+        "group": "fsm",
+        "name": "the transition table is sound",
+        "pass": true,
+        "detail": "every state reachable, every non-dead state exitable, death always available"
+      },
+      {
+        "group": "fsm",
+        "name": "40 000 random transitions never leave the state set",
+        "pass": true,
+        "detail": "visited 6/6 states, 0 invalid, 0 table disagreements"
+      },
+      {
+        "group": "fsm",
+        "name": "no state can deadlock — the watchdog rescues a parked machine",
+        "pass": true,
+        "detail": "parked in 'alerted' for 40 s → 'idle' after 1 watchdog trips"
+      },
+      {
+        "group": "determinism",
+        "name": "same seed → byte-identical session",
+        "pass": true,
+        "detail": "3,135 chars of events and snapshots, matched exactly"
+      },
+      {
+        "group": "determinism",
+        "name": "different seed → different session",
+        "pass": true,
+        "detail": "the seed actually matters"
+      }
+    ],
+    "failures": [],
+    "gate": {
+      "closedHit": {
+        "targetId": "boss.boros#0",
+        "targetType": "monster",
+        "faction": "monster",
+        "attackerId": "player",
+        "point": {
+          "x": 0,
+          "y": 1.2,
+          "z": 0
+        },
+        "normal": {
+          "x": 0,
+          "y": 0.9999999999999999,
+          "z": 0
+        },
+        "damage": 0,
+        "damageType": "blunt",
+        "intent": "normal",
+        "impulse": {
+          "x": 0,
+          "y": -11228.663464796557,
+          "z": 13656.482592320139
+        },
+        "distance": 0,
+        "killed": false,
+        "blocked": true,
+        "critical": false,
+        "bone": "clavicle_l",
+        "instantKill": false,
+        "phaseGated": true
+      },
+      "openHit": {
+        "targetId": "boss.boros#0",
+        "targetType": "monster",
+        "faction": "monster",
+        "attackerId": "player",
+        "point": {
+          "x": -0.012813276012143632,
+          "y": 1.2,
+          "z": -0.6214141350974239
+        },
+        "normal": {
+          "x": 0.10185167359875223,
+          "y": 0.12131942996525327,
+          "z": -0.9873742109747649
+        },
+        "damage": 0,
+        "damageType": "blunt",
+        "intent": "normal",
+        "impulse": {
+          "x": -1802.5165034100942,
+          "y": 1997.977750391999,
+          "z": 17474.021264834057
+        },
+        "distance": 0,
+        "killed": true,
+        "blocked": false,
+        "critical": false,
+        "bone": "clavicle_l",
+        "instantKill": true,
+        "phaseGated": false
+      },
+      "healthWhileGated": 24000,
+      "phaseEvents": 4,
+      "punchesAbsorbed": 101
+    },
+    "tiers": [
+      {
+        "tier": "wolf",
+        "archetypeId": "mob.wolf.pest",
+        "maxHealth": 40,
+        "killed": true,
+        "instantKill": true,
+        "phaseGated": false,
+        "damage": 0
+      },
+      {
+        "tier": "tiger",
+        "archetypeId": "mob.tiger.brute",
+        "maxHealth": 220,
+        "killed": true,
+        "instantKill": true,
+        "phaseGated": false,
+        "damage": 0
+      },
+      {
+        "tier": "demon",
+        "archetypeId": "mob.demon.carapace",
+        "maxHealth": 900,
+        "killed": true,
+        "instantKill": true,
+        "phaseGated": false,
+        "damage": 0
+      },
+      {
+        "tier": "dragon",
+        "archetypeId": "mob.dragon.leviathan",
+        "maxHealth": 6400,
+        "killed": true,
+        "instantKill": true,
+        "phaseGated": false,
+        "damage": 0
+      },
+      {
+        "tier": "god",
+        "archetypeId": "mob.god.harbinger",
+        "maxHealth": 90000,
+        "killed": true,
+        "instantKill": true,
+        "phaseGated": false,
+        "damage": 0
+      }
+    ],
+    "ally": {
+      "fast": {
+        "allyDowned": 0,
+        "allySurvived": true,
+        "reachedFinisher": true
+      },
+      "slow": {
+        "allyDowned": 1,
+        "allySurvived": false,
+        "reachedFinisher": true,
+        "downedAt": 18.000000000000053
+      }
+    },
+    "spawn": {
+      "orders": 536,
+      "worstRing": 1,
+      "closest": 48.50814907360682,
+      "rejected": 647,
+      "tierHistogram": {
+        "wolf": 285,
+        "tiger": 165,
+        "demon": 77,
+        "dragon": 9,
+        "god": 0
+      },
+      "districtSkew": {
+        "park": 0.6082089552238806,
+        "wasteland": 1.0671641791044777
+      },
+      "peakConcurrent": 14
+    },
+    "phase": {
+      "encounterId": "boss.boros",
+      "bossId": "boss.boros#0",
+      "phaseIndex": 1,
+      "phaseId": "collapsing-star",
+      "kind": "survival",
+      "title": "Collapsing Star Roaring Cannon",
+      "elapsed": 7.066666666666651,
+      "remaining": 1.9333333333333487,
+      "hits": 0,
+      "hitsRequired": 0,
+      "summonsAlive": 0,
+      "isFinalPhase": false,
+      "phaseResolved": false,
+      "finished": false,
+      "allySurvived": true
+    }
+  },
+  "pixels": {
+    "stdDev": 34.88517897283839,
+    "colours": 4208
+  },
+  "viewport": {
+    "width": 1424,
+    "height": 1012
+  }
+}

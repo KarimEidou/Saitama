@@ -22,10 +22,20 @@ import {
   ringBetween,
   type ILiveMonsterRef,
 } from '../spawn-director';
-import { monsterArchetype } from '../archetypes';
+import { archetypesForDistrict, monsterArchetype } from '../archetypes';
 import type { ISpawnOrder, SpawnPacingState, ThreatTier } from '../types';
 
 const FOCUS: Vec3 = { x: 0, y: 0, z: 0 };
+
+const DISTRICTS: readonly DistrictType[] = [
+  'downtown',
+  'residential',
+  'industrial',
+  'park',
+  'waterfront',
+  'wasteland',
+  'heroAssociation',
+];
 
 /**
  * Drive a director for `seconds`, maintaining a live list from its own orders
@@ -326,6 +336,24 @@ describe('pacing', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('zoning', () => {
+  it('makes every non-zero weight reachable', () => {
+    // A tier weighted for a district with nothing whitelisted to spawn there
+    // is a dead cell: it silently burns a placement attempt every time it is
+    // drawn and never produces a monster. The harness caught exactly this —
+    // `residential` weighted `dragon` while every dragon archetype excluded
+    // residential — so it is asserted here rather than eyeballed.
+    for (const district of DISTRICTS) {
+      const row = DISTRICT_TIER_WEIGHTS[district];
+      for (const tier of ['wolf', 'tiger', 'demon', 'dragon', 'god'] as ThreatTier[]) {
+        if (row[tier] <= 0) continue;
+        expect(
+          archetypesForDistrict(district, tier).length,
+          `${district}/${tier} is weighted ${row[tier]} but has no archetype`
+        ).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it('weights every district and gives each one at least two tiers', () => {
     for (const [district, row] of Object.entries(DISTRICT_TIER_WEIGHTS)) {
       const nonZero = Object.values(row).filter((w) => w > 0);

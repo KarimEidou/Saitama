@@ -25,6 +25,7 @@
 
 import * as THREE from 'three';
 import type { IVFXTierProfile } from './constants';
+import { excludeFromOverridePasses } from './geometry';
 
 /** Parameters for one shell. Reused by callers; never retained. */
 export interface IShockwaveParams {
@@ -184,6 +185,7 @@ export class ShockwaveLayer {
     this.mesh.matrixAutoUpdate = false;
     // Behind the sprites: the dust front rides on top of the pressure edge.
     this.mesh.renderOrder = 2900;
+    excludeFromOverridePasses(this.mesh);
   }
 
   get activeCount(): number {

@@ -23,7 +23,7 @@
 
 import * as THREE from 'three';
 import type { IVFXTierProfile } from './constants';
-import { createFullScreenGeometry } from './geometry';
+import { createFullScreenGeometry, excludeFromOverridePasses } from './geometry';
 import { createSpeedlinesMaterial } from './materials';
 
 export interface ISpeedlinesOptions {
@@ -62,6 +62,7 @@ export class Speedlines {
     this.mesh.matrixAutoUpdate = false;
     // Above every other transparent object in the scene, including the VFX.
     this.mesh.renderOrder = 10_000;
+    excludeFromOverridePasses(this.mesh);
     this.mesh.visible = false;
   }
 

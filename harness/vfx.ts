@@ -49,6 +49,7 @@ import {
   renderProfileFor,
 } from '@/engine';
 import { VFXSystem, type IVFXDiagnostics } from '@/vfx';
+import type { IVFXSpawnOptions } from '@/types';
 
 /* -------------------------------------------------------------------------- */
 /* Control surface                                                            */
@@ -66,7 +67,17 @@ export type VFXScenario =
   | 'impactFlash'
   | 'seriousPunch';
 
-export type CameraPreset = 'street' | 'hero' | 'punch' | 'oncoming' | 'wide' | 'sky' | 'ground';
+export type CameraPreset =
+  | 'street'
+  | 'hero'
+  | 'punch'
+  | 'oncoming'
+  | 'aerial'
+  | 'crater'
+  | 'close'
+  | 'wide'
+  | 'sky'
+  | 'ground';
 
 interface IBudgetReport {
   /** Programs live with the VFX hidden. */
@@ -543,6 +554,26 @@ function main(): void {
         target: new THREE.Vector3(-1, 5, -70),
         fov: 62,
       },
+      // Above the skyline, three-quarter to the punch axis. The only framing
+      // in which the wave's DIRECTION is legible — from behind it, a cone and
+      // a sphere look identical.
+      aerial: {
+        eye: new THREE.Vector3(146, 92, 96),
+        target: new THREE.Vector3(-14, 16, -74),
+        fov: 46,
+      },
+      // Looking down at the impact point, for the ground damage.
+      crater: {
+        eye: new THREE.Vector3(24, 26, 16),
+        target: new THREE.Vector3(-2, 0, -22),
+        fov: 58,
+      },
+      // Right on top of the impact, for the flash and the sparks.
+      close: {
+        eye: new THREE.Vector3(15, 6, 6),
+        target: new THREE.Vector3(-2, 3.5, -16),
+        fov: 60,
+      },
     };
 
   let cameraPreset: CameraPreset = 'street';
@@ -593,12 +624,14 @@ function main(): void {
         break;
 
       case 'dustPlume':
-        // Three staggered plumes, as a collapsing facade would produce.
-        for (let i = 0; i < 3; i++) {
+        // Four staggered plumes across the plaza, as a collapsing facade would
+        // produce: the point of this capture is the DUST, so it is framed to
+        // fill most of it.
+        for (let i = 0; i < 4; i++) {
           vfx.spawn('dustCloud', {
-            position: new THREE.Vector3(-9 + i * 10, 1.4, 6 - i * 20),
-            intensity: 0.9,
-            scale: 7 + i * 2,
+            position: new THREE.Vector3(-16 + i * 11, 1.4, 12 - i * 13),
+            intensity: 1,
+            scale: 9 + i * 2.5,
             priority: 0.9,
           });
         }
@@ -611,17 +644,17 @@ function main(): void {
         break;
 
       case 'debrisTrails':
-        for (let i = 0; i < 26; i++) {
-          const angle = (i / 26) * Math.PI * 2;
+        for (let i = 0; i < 30; i++) {
+          const angle = (i / 30) * Math.PI * 2;
           bus.emit('ChunkDetached', {
             structureId: 'facade',
             chunkIndex: i,
-            position: { x: Math.cos(angle) * 6, y: 16 + (i % 5) * 4, z: -34 + Math.sin(angle) * 6 },
-            mass: 260 + i * 40,
+            position: { x: Math.cos(angle) * 7, y: 12 + (i % 5) * 5, z: -8 + Math.sin(angle) * 7 },
+            mass: 500 + i * 90,
             impulse: {
-              x: Math.cos(angle) * 9000,
-              y: 5200 + i * 130,
-              z: Math.sin(angle) * 9000 - 5000,
+              x: Math.cos(angle) * 24000,
+              y: 14000 + i * 400,
+              z: Math.sin(angle) * 24000 + 9000,
             },
             material: 'concrete',
             collateralCost: 12,
@@ -631,7 +664,7 @@ function main(): void {
 
       case 'groundCracks':
         bus.emit('PlayerLanded', {
-          position: { x: 0, y: 0, z: -22 },
+          position: { x: -2, y: 0, z: -22 },
           impactSpeed: 62,
           fallHeight: 190,
           createsCrater: true,
@@ -688,7 +721,7 @@ function main(): void {
           entityId: 2 as never,
           entityType: 'monster',
           faction: 'monster',
-          position: { x: 0, y: 3.4, z: -14 },
+          position: { x: -2, y: 3.6, z: -16 },
           threatTier: 'demon',
           intent: 'full',
           rewardPoints: 400,
@@ -806,16 +839,22 @@ function main(): void {
     const wasStepping = stepping;
     stepping = false;
 
+    // NOTE: the PROGRAM numbers are not re-measured here, and must not be.
+    // three never releases a program while a material still references it, so
+    // once the VFX have drawn even once the count can only go up. Hiding them
+    // again and subtracting would report zero forever — which is exactly what
+    // it did before this comment existed. The only honest baseline is the one
+    // taken during priming, before the VFX had ever been submitted, and that is
+    // what `budget.baselinePrograms` holds.
+    //
+    // DRAW CALLS have no such memory and are re-measured every time.
     vfx.root.visible = false;
     await waitFrames(2);
-    budget.baselinePrograms = renderer.programCount;
     budget.baselineDrawCalls = renderer.getStats().drawCalls;
 
     vfx.root.visible = true;
     await waitFrames(2);
-    budget.totalPrograms = renderer.programCount;
     budget.totalDrawCalls = renderer.getStats().drawCalls;
-    budget.vfxPrograms = budget.totalPrograms - budget.baselinePrograms;
     budget.vfxDrawCalls = budget.totalDrawCalls - budget.baselineDrawCalls;
     budget.programKeys = renderer.getProgramCacheKeys();
 
@@ -833,6 +872,15 @@ function main(): void {
 
   /* ------------------------ allocation measurement ---------------------- */
 
+  const REFILL: IVFXSpawnOptions = {
+    position: new THREE.Vector3(PUNCH_ORIGIN.x, PUNCH_ORIGIN.y, PUNCH_ORIGIN.z),
+    direction: new THREE.Vector3(PUNCH_DIRECTION.x, PUNCH_DIRECTION.y, PUNCH_DIRECTION.z),
+    intensity: 1,
+    intent: 'full',
+    scale: 12,
+    priority: 1,
+  };
+
   async function measureAllocation(frames: number): Promise<IAllocationReport> {
     const supported = heapBytes() > 0;
     const wasStepping = stepping;
@@ -846,10 +894,23 @@ function main(): void {
 
     const spritesDuringSample = vfx.diagnostics().sprites;
 
-    // 1. Simulation only. No rendering, no three.js in the way: this measures
-    //    THIS workstream's per-frame allocation and nothing else.
+    // 1. SIMULATION ONLY. No rendering, so nothing but this workstream's code
+    //    is on the stack.
+    //
+    //    The sample has to be LONG. Chrome quantises
+    //    `performance.memory.usedJSHeapSize` to 100 KB, so a 300-frame sample
+    //    can only prove "under 340 bytes per frame" — which a real per-frame
+    //    allocation could hide inside. Thousands of frames push the detection
+    //    floor down to a handful of bytes.
+    //
+    //    The effect is re-fired periodically because particles expire: measuring
+    //    an EMPTY particle system for most of the sample would prove nothing
+    //    about a busy one.
     const simBefore = heapBytes();
-    for (let i = 0; i < frames; i++) vfx.update(FIXED_DT);
+    for (let i = 0; i < frames; i++) {
+      if (i % 200 === 0) vfx.spawn('explosion', REFILL);
+      vfx.update(FIXED_DT);
+    }
     const simAfter = heapBytes();
 
     // 2. Full frames, reported for context. three's own renderer allocates a

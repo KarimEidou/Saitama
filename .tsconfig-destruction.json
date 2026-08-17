@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/gameplay/destruction/**/*.ts",
+    "src/types/**/*.ts",
+    "src/util/**/*.ts",
+    "harness/destruction.ts"
+  ]
+}

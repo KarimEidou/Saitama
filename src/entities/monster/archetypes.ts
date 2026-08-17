@@ -508,6 +508,54 @@ const MOOKS: readonly IMonsterArchetype[] = Object.freeze([
   }),
 
   archetype({
+    id: 'mob.dragon.colossus',
+    name: 'Colossus',
+    threatTier: 'dragon',
+    assetKey: 'chr.mook.dragon',
+    maxHealth: 5200,
+    attackDamage: 280,
+    aggroRadius: 64,
+    bodyHeightMetres: 3.2,
+    massKg: 2100,
+    rewardPoints: 580,
+    staggerFraction: 0.42,
+    staggerSeconds: 1.6,
+    memorySeconds: 12,
+    roarPeriodSeconds: 7,
+    // No whitelist: a dragon-level threat can turn up anywhere, which is what
+    // makes the tier frightening rather than merely large. It is also what
+    // keeps the zoning table honest — every district that weights `dragon`
+    // has something to spawn, asserted in `__tests__/archetypes.test.ts`.
+    movement: movement({ walkSpeed: 2.2, runSpeed: 6.6, acceleration: 6, turnRateRad: 1.6 }),
+    attacks: [
+      attack({
+        id: 'stomp',
+        kind: 'slam',
+        rangeMetres: 7,
+        windupSeconds: 1.15,
+        activeSeconds: 0.3,
+        cooldownSeconds: 7.5,
+        clip: 'special',
+        waveRangeMetres: 24,
+        waveHalfAngleRad: Math.PI,
+        wavePower: 36000,
+      }),
+      attack({
+        id: 'hammer',
+        kind: 'melee',
+        rangeMetres: 5.8,
+        windupSeconds: 0.8,
+        activeSeconds: 0.22,
+        cooldownSeconds: 2.8,
+        weight: 1.4,
+        clip: 'heavyAttack',
+        waveRangeMetres: 12,
+        wavePower: 8600,
+      }),
+    ],
+  }),
+
+  archetype({
     id: 'mob.god.harbinger',
     name: 'Harbinger',
     threatTier: 'god',

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/entities/monster/**/*.ts",
+    "src/gameplay/combat/**/*.ts",
+    "src/types/**/*.ts",
+    "src/util/**/*.ts",
+    "harness/monster.ts"
+  ]
+}

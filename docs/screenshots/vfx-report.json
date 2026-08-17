@@ -1,0 +1,195 @@
+{
+  "generatedAt": "2026-08-17T07:50:22.945Z",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "budgets": {
+    "drawCalls": 12,
+    "programs": 5
+  },
+  "tiers": {
+    "low": {
+      "vfxDrawCalls": 4,
+      "vfxPrograms": 0,
+      "vfxTriangles": 1685,
+      "scenePrograms": 12,
+      "totalPrograms": 12,
+      "sceneDrawCalls": 38,
+      "totalDrawCalls": 42,
+      "programsByShader": "physical x4, depth x3, 3 x1, 5 x1, 7 x1, 9 x1, 13 x1",
+      "capacities": {
+        "tier": "low",
+        "effects": 3,
+        "effectCapacity": 4,
+        "sprites": 199,
+        "spriteCapacity": 320,
+        "spritesDropped": 0,
+        "shockwaves": 3,
+        "shockwaveCapacity": 4,
+        "decals": 43,
+        "decalCapacity": 48,
+        "trails": 12,
+        "trailCapacity": 12,
+        "speedlineIntensity": 0.9915673592592593,
+        "trauma": 0.13863844161454028,
+        "drawCallsSubmitted": 4,
+        "programCount": 3
+      }
+    },
+    "medium": {
+      "vfxDrawCalls": 4,
+      "vfxPrograms": 0,
+      "vfxTriangles": 4411,
+      "scenePrograms": 17,
+      "totalPrograms": 17,
+      "sceneDrawCalls": 82,
+      "totalDrawCalls": 86,
+      "programsByShader": "13 x5, physical x4, depth x3, 3 x1, 5 x1, 7 x1, 9 x1, 11 x1",
+      "capacities": {
+        "tier": "medium",
+        "effects": 3,
+        "effectCapacity": 8,
+        "sprites": 482,
+        "spriteCapacity": 900,
+        "spritesDropped": 0,
+        "shockwaves": 3,
+        "shockwaveCapacity": 8,
+        "decals": 43,
+        "decalCapacity": 128,
+        "trails": 30,
+        "trailCapacity": 32,
+        "speedlineIntensity": 0.9915673592592593,
+        "trauma": 0.13863844161454028,
+        "drawCallsSubmitted": 4,
+        "programCount": 3
+      }
+    },
+    "high": {
+      "vfxDrawCalls": 8,
+      "vfxPrograms": 0,
+      "vfxTriangles": 17330,
+      "scenePrograms": 29,
+      "totalPrograms": 29,
+      "sceneDrawCalls": 279,
+      "totalDrawCalls": 287,
+      "programsByShader": "20 x6, physical x4, 15 x4, depth x3, 13 x3, 23 x3, 3 x1, 5 x1, 7 x1, 9 x1, 11 x1, 18 x1",
+      "capacities": {
+        "tier": "high",
+        "effects": 3,
+        "effectCapacity": 16,
+        "sprites": 833,
+        "spriteCapacity": 1800,
+        "spritesDropped": 0,
+        "shockwaves": 3,
+        "shockwaveCapacity": 14,
+        "decals": 43,
+        "decalCapacity": 256,
+        "trails": 30,
+        "trailCapacity": 64,
+        "speedlineIntensity": 0.9915673592592593,
+        "trauma": 0.13863844161454028,
+        "drawCallsSubmitted": 4,
+        "programCount": 3
+      }
+    }
+  },
+  "screenshots": {
+    "vfx-shockwave-cone.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 50.83562675773853,
+      "mean": 67.60775788483797,
+      "distinctColors": 6333
+    },
+    "vfx-shockwave-ring.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 50.069443573568016,
+      "mean": 79.71145760995371,
+      "distinctColors": 7521
+    },
+    "vfx-dust-plume.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 52.3665793922483,
+      "mean": 65.16239691840278,
+      "distinctColors": 5733
+    },
+    "vfx-speedlines.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 52.73717098353827,
+      "mean": 63.68164243344908,
+      "distinctColors": 4909
+    },
+    "vfx-debris-trails.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 51.3479360940914,
+      "mean": 63.52411747685185,
+      "distinctColors": 5875
+    },
+    "vfx-ground-cracks.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 52.18951520604068,
+      "mean": 61.82334309895833,
+      "distinctColors": 5177
+    },
+    "vfx-cloud-parting.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 61.03440535869396,
+      "mean": 127.98010018807871,
+      "distinctColors": 6115
+    },
+    "vfx-impact-flash.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 51.605533109366995,
+      "mean": 67.55216579861111,
+      "distinctColors": 5894
+    },
+    "vfx-serious-punch.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 50.33218046994465,
+      "mean": 68.45923719618055,
+      "distinctColors": 6543
+    },
+    "vfx-tier-high.png": {
+      "width": 1280,
+      "height": 720,
+      "stdDev": 48.79968834430628,
+      "mean": 62.18409505208333,
+      "distinctColors": 6000
+    }
+  },
+  "impactFreeze": {
+    "width": 1280,
+    "height": 720,
+    "stdDev": 54.17309916690538,
+    "mean": 71.13220883969909,
+    "distinctColors": 6506
+  },
+  "allocation": {
+    "supported": true,
+    "frames": 300,
+    "simBytes": 0,
+    "simBytesPerFrame": 0,
+    "frameBytes": 0,
+    "frameBytesPerFrame": 0,
+    "spritesDuringSample": 615,
+    "heapBefore": 11900000,
+    "heapAfter": 11900000
+  },
+  "determinism": {
+    "meanAbsolutePixelDifference": 0
+  },
+  "notes": [
+    "[low] VFX cost 4/12 draw calls and 0/5 programs (scene 12 -> 12 programs, 38 -> 42 draws), 1,685 triangles, 0.67 MB of generated atlases",
+    "[medium] VFX cost 4/12 draw calls and 0/5 programs (scene 17 -> 17 programs, 82 -> 86 draws), 4,411 triangles, 2.67 MB of generated atlases",
+    "[high] VFX cost 8/12 draw calls and 0/5 programs (scene 29 -> 29 programs, 279 -> 287 draws), 17,330 triangles, 2.67 MB of generated atlases"
+  ]
+}

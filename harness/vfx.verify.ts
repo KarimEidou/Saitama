@@ -364,8 +364,8 @@ const SHOTS: readonly ShotSpec[] = [
   {
     file: 'vfx-dust-plume.png',
     scenario: 'dustPlume',
-    frames: 46,
-    camera: 'hero',
+    frames: 30,
+    camera: 'close',
     label: 'dust plumes, lingering and drifting',
     minDelta: 2,
   },
@@ -380,16 +380,16 @@ const SHOTS: readonly ShotSpec[] = [
   {
     file: 'vfx-debris-trails.png',
     scenario: 'debrisTrails',
-    frames: 22,
-    camera: 'hero',
+    frames: 26,
+    camera: 'close',
     label: 'debris trails from ChunkDetached',
     minDelta: 1.5,
   },
   {
     file: 'vfx-ground-cracks.png',
     scenario: 'groundCracks',
-    frames: 70,
-    camera: 'ground',
+    frames: 90,
+    camera: 'crater',
     label: 'persistent ground cracks',
     minDelta: 1.5,
   },
@@ -405,7 +405,7 @@ const SHOTS: readonly ShotSpec[] = [
     file: 'vfx-impact-flash.png',
     scenario: 'impactFlash',
     frames: 4,
-    camera: 'hero',
+    camera: 'close',
     label: 'impact flash and hit sparks',
     minDelta: 2,
   },
@@ -416,6 +416,14 @@ const SHOTS: readonly ShotSpec[] = [
     camera: 'punch',
     label: 'SERIOUS PUNCH — every effect at once',
     minDelta: 6,
+  },
+  {
+    file: 'vfx-serious-punch-aerial.png',
+    scenario: 'seriousPunch',
+    frames: 30,
+    camera: 'aerial',
+    label: 'the same punch from above, where the cone has a direction',
+    minDelta: 3,
   },
 ];
 
@@ -608,7 +616,7 @@ async function measureBudget(page: Page, tier: string): Promise<BudgetReport> {
 async function measureAllocation(page: Page): Promise<AllocationReport> {
   await runScenario(page, 'seriousPunch', 16, 'punch');
   const report = (await page.evaluate(async () => {
-    return (await window.__VFX_HARNESS__?.measureAllocation(300)) ?? null;
+    return (await window.__VFX_HARNESS__?.measureAllocation(4000)) ?? null;
   })) as AllocationReport | null;
   if (!report) throw new Error('measureAllocation returned nothing');
 
@@ -626,14 +634,24 @@ async function measureAllocation(page: Page): Promise<AllocationReport> {
   // 300 frames of a full effect. Anything above a few bytes per frame means a
   // per-frame allocation crept in.
   check(
-    report.simBytesPerFrame < 64,
+    report.simBytesPerFrame < 32,
     `[alloc] the VFX simulation allocated ${report.simBytesPerFrame.toFixed(1)} bytes per ` +
       `frame across ${report.frames} frames (${report.simBytes} total) — something in ` +
       `update() is allocating`
   );
+  // Chrome quantises `usedJSHeapSize` to 100 KB, so the honest claim is a
+  // BOUND, not a zero. Over 4000 frames that bound is ~25 bytes per frame.
+  const quantum = 100 * 1024;
+  notes.push(
+    `[alloc] heap growth over ${report.frames} simulation frames was below Chrome's ` +
+      `${(quantum / 1024).toFixed(0)} KB reporting quantum, i.e. under ` +
+      `${(quantum / report.frames).toFixed(0)} bytes per frame`
+  );
   console.log(
     `allocation     ${report.frames} sustained frames with ${report.spritesDuringSample} live ` +
       `particles\n` +
+      `               heap quantum ${(quantum / 1024).toFixed(0)} KB -> detection floor ` +
+      `${(quantum / report.frames).toFixed(1)} B/frame\n` +
       `               simulation only  ${report.simBytes >= 0 ? '+' : ''}${report.simBytes} B ` +
       `total, ${report.simBytesPerFrame.toFixed(2)} B/frame\n` +
       `               with rendering   ${report.frameBytes >= 0 ? '+' : ''}${report.frameBytes} B ` +

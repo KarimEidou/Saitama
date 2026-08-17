@@ -98,9 +98,53 @@ export function createArcGridGeometry(
   return geometry;
 }
 
-/** A clip-space-filling quad for the speedline overlay. */
-export function createFullScreenGeometry(): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry();
+/**
+ * Keep a mesh out of any `scene.overrideMaterial` pass.
+ *
+ * ── WHY THIS IS NEEDED ─────────────────────────────────────────────────────
+ * The HIGH tier's SSAO runs a normal+depth prepass by assigning
+ * `scene.overrideMaterial` and re-rendering everything. three has no
+ * per-object opt-out for that, so a hundred transparent dust quads get drawn
+ * into the AO guide buffer as if they were solid geometry — which both costs
+ * a second set of draw calls and makes the renderer darken the ground around
+ * a dust cloud that is not there.
+ *
+ * three skips an instanced draw whose `instanceCount` is zero BEFORE it
+ * touches the GL or `renderer.info`, so zeroing the count for the duration of
+ * an override pass removes the object completely: no GL call, no draw counted,
+ * no pollution. `visible` cannot be used because it is tested when the render
+ * list is built, long before the pass knows which material it is using.
+ */
+export function excludeFromOverridePasses(mesh: THREE.Mesh): void {
+  let saved = 0;
+  mesh.onBeforeRender = (_renderer, scene): void => {
+    const geometry = mesh.geometry as THREE.InstancedBufferGeometry;
+    if ((scene as THREE.Scene).overrideMaterial) {
+      saved = geometry.instanceCount;
+      geometry.instanceCount = 0;
+    } else {
+      saved = -1;
+    }
+  };
+  mesh.onAfterRender = (): void => {
+    if (saved >= 0) {
+      (mesh.geometry as THREE.InstancedBufferGeometry).instanceCount = saved;
+      saved = -1;
+    }
+  };
+}
+
+/**
+ * A clip-space-filling triangle for the speedline overlay.
+ *
+ * INSTANCED with a single instance, purely so `excludeFromOverridePasses` can
+ * zero it out. The alternative — an ordinary geometry — cannot be skipped
+ * during an `overrideMaterial` pass, and full-screen speedlines rendered into
+ * an SSAO guide buffer would black the entire frame's ambient occlusion.
+ */
+export function createFullScreenGeometry(): THREE.InstancedBufferGeometry {
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.instanceCount = 1;
   geometry.name = 'vfx.fullscreen';
   // prettier-ignore
   const positions = new Float32Array([

@@ -1109,7 +1109,7 @@ export class VFXSystem implements IVFXSystem {
     params.intensity = (primary ? 0.9 : kind === 1 ? 0.34 : 0.45) + power * 0.4;
     params.kind = kind;
     params.sharpness = 1.05 + power * 0.45;
-    params.chroma = this.profile.shaderQuality > 0 ? 0.022 + power * 0.014 : 0;
+    params.chroma = this.profile.shaderQuality > 0 ? 0.013 + power * 0.009 : 0;
     params.loft = kind === 0 ? 0.30 + power * 0.20 : 0;
     params.start = kind === 0 ? 0.1 : 0.14;
     params.seed = this.rng.next();

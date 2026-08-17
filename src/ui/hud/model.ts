@@ -42,6 +42,15 @@ export interface IRankState {
    */
   rankGainMultiplier: number;
   reputation: number;
+  /**
+   * Progress towards the next seat, 0..1.
+   *
+   * Pushed rather than derived: turning `pointsToNextRank` into a fraction
+   * needs the class's step cost, which lives in progression's constants and
+   * which the HUD may not import. A guessed denominator would produce a bar
+   * that is confidently wrong, which is worse than one that is honestly empty.
+   */
+  rankProgress: number;
 }
 
 /** One line of the rank board's recent-movement feed. */
@@ -311,6 +320,7 @@ export function createHudModel(): IHudModel {
       pointsToNextRank: 0,
       rankGainMultiplier: 1,
       reputation: 50,
+      rankProgress: 0,
     },
     rankFeed: [],
     rivals: [],

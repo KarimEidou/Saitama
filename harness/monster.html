@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Monster Harness — Threat Tiers and the Phase Gate</title>
+    <!--
+      MONSTER VERIFICATION HARNESS
+
+      A top-down slice of the Boros arena during the Collapsing Star Roaring
+      Cannon — the one phase in the game the player cannot end early — plus the
+      assertions that no unit test inside `src/entities/monster` is able to run,
+      because that module is forbidden from importing the code it would have to
+      check itself against.
+
+      THE ONE THAT MATTERS, run here against the REAL `HitResolver`:
+
+        GATE CLOSED   a `LethalIntent` punch on a boss whose scripted phase has
+                      not resolved must NOT kill. `phaseGated` true, `killed`
+                      false, health untouched.
+        GATE OPEN     the identical punch, after `BossPhaseChanged` with
+                      `isFinalPhase: true` has crossed the bus, MUST kill.
+                      `instantKill` true, `phaseGated` false.
+
+      Get that wrong one way and every boss is unkillable; get it wrong the
+      other and every boss dies during its own establishing shot. Both
+      directions are asserted, because only checking one proves nothing.
+
+      Also checked here, and only here:
+
+        TIER PARITY   a wolf-tier pest and a god-tier Harbinger resolve through
+                      the identical branch. Five tiers, five instant kills.
+        THE BRANCH    the Deep Sea King's rescue window, driven both ways: the
+                      player who runs straight there, and the player who stops
+                      to clear the street.
+        RING RULE     thousands of spawn orders, none in R2, none on the player.
+        FSM           the transition table proved sound, then fuzzed.
+
+      Deliberately 2D canvas, not WebGL. Every claim here is CPU arithmetic and
+      event ordering; rendering it through a software GL stack would test
+      SwiftShader instead.
+
+      Playwright drives `window.__MONSTER_HARNESS__`.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #07070b;
+        color: #e9edf5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #layout {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        width: 100vw;
+        height: 100vh;
+      }
+      #stage {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 50% 42%, #14101a 0%, #05050a 76%);
+      }
+      #view {
+        display: block;
+      }
+      #panel {
+        border-left: 1px solid #221a2c;
+        padding: 14px 16px 20px;
+        overflow-y: auto;
+        font-size: 12px;
+        line-height: 1.5;
+        background: #0a0810;
+      }
+      h1 {
+        font-size: 13px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #ff8a2c;
+        margin: 0 0 3px;
+      }
+      .sub {
+        color: #6d7891;
+        font-size: 11px;
+        margin: 0 0 12px;
+      }
+      h2 {
+        font-size: 10px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: #8a7ba5;
+        margin: 15px 0 6px;
+        border-bottom: 1px solid #241b30;
+        padding-bottom: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        padding: 1px 0;
+        vertical-align: top;
+      }
+      td.k {
+        color: #8794ae;
+        white-space: nowrap;
+        padding-right: 10px;
+      }
+      td.v {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        padding: 1.5px 0;
+      }
+      .tag {
+        flex: none;
+        width: 13px;
+        font-weight: 700;
+      }
+      .ok {
+        color: #4ade80;
+      }
+      .bad {
+        color: #ff5f6d;
+      }
+      .warn {
+        color: #ffd230;
+      }
+      .dim {
+        color: #6b7690;
+      }
+      .gate {
+        border: 1px solid #3a2030;
+        border-radius: 4px;
+        padding: 8px 10px;
+        margin: 6px 0 2px;
+        background: linear-gradient(180deg, #1a0f18, #0d0810);
+      }
+      .gate b {
+        display: block;
+        font-size: 15px;
+        letter-spacing: 0.12em;
+      }
+      .legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 3px 0;
+        color: #b7c3d8;
+      }
+      .sw {
+        width: 20px;
+        height: 10px;
+        border-radius: 2px;
+        flex: none;
+      }
+      .note {
+        color: #5f6b83;
+        margin-top: 14px;
+        font-size: 10.5px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="layout">
+      <div id="stage"><canvas id="view" width="980" height="980"></canvas></div>
+      <div id="panel">
+        <h1>Monsters</h1>
+        <p class="sub" id="subtitle">City Z — boss arena</p>
+
+        <div class="gate" id="gate-card">
+          <span class="dim" style="font-size: 10px; letter-spacing: 0.14em">KILL GATE</span>
+          <b id="gate-state">—</b>
+          <span class="dim" id="gate-detail"></span>
+        </div>
+
+        <h2>Phase gate — both directions</h2>
+        <div id="checks-gate"></div>
+
+        <h2>Instant kill, every tier</h2>
+        <div id="checks-tier"></div>
+
+        <h2>Deep Sea King — the branch</h2>
+        <div id="checks-ally"></div>
+
+        <h2>Spawn director</h2>
+        <div id="checks-spawn"></div>
+
+        <h2>State machine</h2>
+        <div id="checks-fsm"></div>
+
+        <h2>Determinism</h2>
+        <div id="checks-determinism"></div>
+
+        <h2>Encounter</h2>
+        <div id="encounter"></div>
+
+        <h2>Legend</h2>
+        <div class="legend"><span class="sw" style="background: #ff8a2c"></span> boss</div>
+        <div class="legend"><span class="sw" style="background: #ff4fd8"></span> monster</div>
+        <div class="legend"><span class="sw" style="background: #ffe66d"></span> player</div>
+        <div class="legend"><span class="sw" style="background: #4ade80"></span> ally</div>
+        <div class="legend"><span class="sw" style="background: #56b8ff"></span> civilian</div>
+        <div class="legend">
+          <span
+            class="sw"
+            style="background: linear-gradient(90deg, #fff3c4, #ff8a2c, #ff2d1e)"
+          ></span>
+          meteoric burst
+        </div>
+        <div class="legend"><span class="sw" style="background: #2b3550"></span> building</div>
+        <div class="legend"><span class="sw" style="background: #6a2130"></span> levelled</div>
+
+        <div class="note">
+          The cones are the real `ShockwaveFired` events the encounter emitted
+          during the Collapsing Star phase, tested against buildings with
+          combat's own cone predicate — not an artist's impression. The boss
+          survives every punch in this picture because his phase has not
+          resolved, and he will die to the very next one after it does.
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./monster.ts"></script>
+  </body>
+</html>

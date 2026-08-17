@@ -113,7 +113,26 @@ export interface IMonsterCombatDescriptor {
   readonly id: EntityId;
   readonly type: 'monster';
   readonly faction: 'monster';
+  /**
+   * The AIM POINT — mid-body, not the feet.
+   *
+   * `Monster.transform.position` is at ground level, which is right for
+   * navigation and wrong for hit resolution: the resolver tests a SPHERE
+   * centred on this point, and a sphere centred on a 3 m monster's feet is a
+   * sphere the player has to punch the pavement to reach. A jab thrown at
+   * chest height at something visibly within arm's reach must connect, so the
+   * descriptor lifts the centre to half the body height.
+   */
   readonly position: Vec3;
+  /**
+   * Radius of that sphere — the TORSO, not the footprint.
+   *
+   * `archetype.radiusMetres` is the horizontal silhouette used by the spatial
+   * broad phase. Reused verbatim as a sphere radius it would make a tall
+   * monster a narrow ball floating at chest height, so this widens it to
+   * 0.42 × body height, which is the sphere that actually contains a
+   * humanoid's torso and head.
+   */
   readonly radius: number;
   readonly massKg: number;
   readonly maxHealth: number;
@@ -261,12 +280,19 @@ export class MonsterSystem {
     const out: IMonsterCombatDescriptor[] = [];
     for (const monster of this.monsters.values()) {
       const archetype = monster.archetype;
+      const position = monster.brain.position;
       out.push({
         id: monster.id,
         type: 'monster',
         faction: 'monster',
-        position: monster.brain.position,
-        radius: archetype.radiusMetres,
+        // A fresh object, not the live vector: this is the aim point, which is
+        // half a body above where the monster is standing.
+        position: {
+          x: position.x,
+          y: position.y + archetype.bodyHeightMetres * 0.5,
+          z: position.z,
+        },
+        radius: Math.max(archetype.radiusMetres, archetype.bodyHeightMetres * 0.42),
         massKg: archetype.massKg,
         maxHealth: archetype.maxHealth,
         health: monster.brain.health,

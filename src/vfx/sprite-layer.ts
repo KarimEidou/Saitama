@@ -25,6 +25,7 @@
 
 import * as THREE from 'three';
 import { SpriteMode, type IVFXTierProfile } from './constants';
+import { excludeFromOverridePasses } from './geometry';
 
 /** One particle's spawn parameters. Reused by callers; never retained here. */
 export interface ISpriteParams {
@@ -254,6 +255,7 @@ export class SpriteLayer {
     this.mesh.receiveShadow = false;
     this.mesh.matrixAutoUpdate = false;
     this.mesh.renderOrder = 3000;
+    excludeFromOverridePasses(this.mesh);
   }
 
   get activeCount(): number {

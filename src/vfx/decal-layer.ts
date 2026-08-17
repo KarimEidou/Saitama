@@ -24,6 +24,7 @@
 
 import * as THREE from 'three';
 import { SpriteMode, type IVFXTierProfile } from './constants';
+import { excludeFromOverridePasses } from './geometry';
 
 /** Parameters for one decal. Reused by callers; never retained. */
 export interface IDecalParams {
@@ -164,6 +165,7 @@ export class DecalLayer {
     // Under everything else: dust and shockwaves are drawn over the ground
     // damage, never behind it.
     this.mesh.renderOrder = 2800;
+    excludeFromOverridePasses(this.mesh);
   }
 
   get activeCount(): number {
