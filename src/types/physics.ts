@@ -34,14 +34,7 @@ export type RigidBodyType =
 
 /** Collision filtering groups. Combine as a bitmask. */
 export type PhysicsLayer =
-  | 'world'
-  | 'player'
-  | 'monster'
-  | 'npc'
-  | 'debris'
-  | 'projectile'
-  | 'trigger'
-  | 'ragdoll';
+  'world' | 'player' | 'monster' | 'npc' | 'debris' | 'projectile' | 'trigger' | 'ragdoll';
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                     */
@@ -244,7 +237,11 @@ export interface IPhysicsWorld extends IUpdatable, IDisposable {
   /** All hits along a ray, sorted by distance. */
   raycastAll(options: IRaycastOptions): IRaycastHit[];
   /** Bodies overlapping a sphere. */
-  overlapSphere(centre: THREE.Vector3, radius: number, layers?: readonly PhysicsLayer[]): IRigidBody[];
+  overlapSphere(
+    centre: THREE.Vector3,
+    radius: number,
+    layers?: readonly PhysicsLayer[]
+  ): IRigidBody[];
 
   /** Contacts generated during the last step. */
   getContacts(): readonly IContactEvent[];

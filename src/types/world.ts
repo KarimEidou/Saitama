@@ -14,6 +14,7 @@
 
 import type * as THREE from 'three';
 import type { IDisposable, IUpdatable, IQualityTier } from './engine';
+import type { FractureChunk } from './destruction';
 
 /* -------------------------------------------------------------------------- */
 /* Chunk addressing                                                           */
@@ -319,6 +320,123 @@ export interface IWorldConfig {
   readonly groundLevel: number;
   /** Gravity in m/s^2, negative is down. */
   readonly gravity: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/* District planning                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * High-level layout plan for a district, produced BEFORE any chunk geometry
+ * exists.
+ *
+ * Planning is deliberately separated from generation: the planner runs over
+ * the whole world from the master seed and decides where downtown, the
+ * waterfront and the wasteland go, so districts stay coherent across chunk
+ * boundaries. Chunk generation then only ever consults the plan — it never
+ * makes global decisions locally, which is what stops a skyscraper appearing
+ * one chunk away from farmland.
+ */
+export interface DistrictPlan {
+  readonly id: string;
+  readonly district: DistrictType;
+  /** District centre in world space. */
+  readonly centre: THREE.Vector2;
+  /** Approximate radius in metres. */
+  readonly radius: number;
+  /** Chunks this district covers. */
+  readonly chunks: readonly IChunkCoord[];
+  /** Building styles permitted here, with relative weights. */
+  readonly styleWeights: Readonly<Partial<Record<BuildingStyle, number>>>;
+  /** Storey-count range for buildings, as [min, max]. */
+  readonly floorRange: readonly [number, number];
+  /** 0..1 fraction of block area covered by buildings. */
+  readonly density: number;
+  /** Road classes generated within this district. */
+  readonly roadClasses: readonly RoadClass[];
+  /** Ambient NPC population multiplier; 1.0 is baseline. */
+  readonly populationDensity: number;
+  /** Monster spawn-rate multiplier. */
+  readonly threatDensity: number;
+  /** Deterministic seed derived from the master seed and district id. */
+  readonly seed: number;
+  /** Named landmarks anchored in this district. */
+  readonly landmarks?: readonly ILandmark[];
+}
+
+/** A hand-authored or specially generated point of interest. */
+export interface ILandmark {
+  readonly id: string;
+  readonly name: string;
+  readonly position: THREE.Vector3;
+  /** Asset key of a bespoke model, when the landmark is not procedural. */
+  readonly assetKey?: string;
+  /** Radius in metres within which procedural generation is suppressed. */
+  readonly exclusionRadius: number;
+  readonly kind: 'heroAssociationHQ' | 'monument' | 'stadium' | 'crater' | 'shelter' | 'custom';
+}
+
+/* -------------------------------------------------------------------------- */
+/* Chunk payload                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The serialisable result of generating one chunk.
+ *
+ * Kept free of live `THREE.Object3D`s on purpose so generation can run inside
+ * a Web Worker and the payload can be structured-cloned (or transferred) back
+ * to the main thread, which then builds the scene nodes. Typed arrays here are
+ * transferable — list them in the worker's transfer array to avoid a copy.
+ */
+export interface ChunkPayload {
+  readonly coord: IChunkCoord;
+  readonly key: ChunkKey;
+  /** Seed used, so generation can be reproduced exactly. */
+  readonly seed: number;
+  /** Blocks laid out in this chunk. */
+  readonly blocks: readonly ICityBlock[];
+  /** Merged terrain/ground geometry as raw attribute buffers. */
+  readonly terrain?: {
+    readonly positions: Float32Array;
+    readonly normals: Float32Array;
+    readonly uvs: Float32Array;
+    readonly indices: Uint32Array;
+  };
+  /**
+   * Instanced prop batches: one entry per (assetKey, LOD) pair, with a packed
+   * 4x4 matrix buffer. Far cheaper than one Object3D per prop.
+   */
+  readonly instances: readonly IInstanceBatch[];
+  /** Navigation geometry for this chunk, when generated. */
+  readonly navGeometry?: {
+    readonly positions: Float32Array;
+    readonly indices: Uint32Array;
+  };
+  /**
+   * Pre-computed fracture data for destructible structures in this chunk,
+   * keyed by destructible id.
+   */
+  readonly fractures?: Readonly<Record<string, readonly FractureChunk[]>>;
+  /** Spawn points aggregated from all blocks. */
+  readonly spawnPoints: readonly ISpawnPoint[];
+  /** Milliseconds the generator spent producing this payload. */
+  readonly generationTimeMs: number;
+  /** Approximate bytes, for the streaming memory budget. */
+  readonly estimatedBytes: number;
+}
+
+/** A batch of GPU-instanced props sharing one asset and LOD. */
+export interface IInstanceBatch {
+  /** Must match an `IModelAsset.id`. */
+  readonly assetKey: string;
+  /** LOD index this batch renders at. */
+  readonly lod: number;
+  /** Packed column-major 4x4 matrices, 16 floats per instance. */
+  readonly matrices: Float32Array;
+  /** Instance count; `matrices.length === count * 16`. */
+  readonly count: number;
+  /** Optional per-instance tint, 3 floats per instance. */
+  readonly colors?: Float32Array;
 }
 
 /* -------------------------------------------------------------------------- */

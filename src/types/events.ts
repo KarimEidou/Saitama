@@ -369,10 +369,14 @@ export type GameEventType = GameEvent['type'];
 export type GameEventOf<T extends GameEventType> = Extract<GameEvent, { type: T }>;
 
 /**
- * Payload accepted by `emit()`: the event minus the fields the bus stamps
- * itself (`time`, `frame`).
+ * Payload accepted by `emit()`: the event minus the discriminator (passed as
+ * `emit`'s first argument) and minus the fields the bus stamps itself
+ * (`time`, `frame`).
  */
-export type GameEventPayload<T extends GameEventType> = Omit<GameEventOf<T>, 'time' | 'frame'>;
+export type GameEventPayload<T extends GameEventType> = Omit<
+  GameEventOf<T>,
+  'type' | 'time' | 'frame'
+>;
 
 /** Handler for a specific event type, receiving the narrowed member. */
 export type EventHandler<T extends GameEventType> = (event: GameEventOf<T>) => void;

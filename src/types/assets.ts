@@ -48,14 +48,7 @@ export type QualityTier = 'mobile' | 'high' | 'ultra';
 
 /** What sort of asset an entry describes. Discriminates the entry union. */
 export type AssetKind =
-  | 'model'
-  | 'character'
-  | 'texture'
-  | 'material'
-  | 'audio'
-  | 'hdri'
-  | 'animation'
-  | 'font';
+  'model' | 'character' | 'texture' | 'material' | 'audio' | 'hdri' | 'animation' | 'font';
 
 /** Container/encoding an asset is delivered in at runtime. */
 export type TargetFormat =
@@ -119,7 +112,6 @@ export type AssetLicense =
   | 'OFL-1.1'
   | 'Unlicense'
   | 'public-domain'
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   | (string & {});
 
 /** Provenance and licence block. Required on every entry. */

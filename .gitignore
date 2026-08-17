@@ -38,7 +38,13 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# Test / verification artifacts
+# Test / verification artifacts.
+# Screenshots produced by the verification harness live here but are NOT
+# committed — the binary guard permits committed images only under
+# docs/screenshots/, where a small curated evidence copy is kept instead.
 playwright-report/
 test-results/
 verification/*.tmp/
+verification/*.png
+verification/*.jpg
+verification/*.webm

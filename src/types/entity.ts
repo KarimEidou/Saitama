@@ -154,12 +154,10 @@ export interface IAnimationSet {
 }
 
 /** Compile-time guarantee that IAnimationSet covers every ClipName slot. */
-export type AnimationSetCoversAllClips = Record<ClipName, string | undefined> extends Record<
-  keyof IAnimationSet,
-  string | undefined
->
-  ? true
-  : never;
+export type AnimationSetCoversAllClips =
+  Record<ClipName, string | undefined> extends Record<keyof IAnimationSet, string | undefined>
+    ? true
+    : never;
 
 /* -------------------------------------------------------------------------- */
 /* Actors                                                                     */
@@ -199,12 +197,7 @@ export interface IActor extends IEntity {
 
 /** Behaviour archetypes for ambient city population. */
 export type NPCBehaviourKind =
-  | 'pedestrian'
-  | 'vendor'
-  | 'bystander'
-  | 'fleeing'
-  | 'heroPatrol'
-  | 'idleCrowd';
+  'pedestrian' | 'vendor' | 'bystander' | 'fleeing' | 'heroPatrol' | 'idleCrowd';
 
 /**
  * Pluggable NPC brain, one per NPC. Implementations must be cheap — hundreds

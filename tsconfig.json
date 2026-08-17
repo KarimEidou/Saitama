@@ -35,10 +35,11 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
 
-    /* Path aliases — must stay in sync with vite.config.ts `resolve.alias` */
-    "baseUrl": ".",
+    /* Path aliases — must stay in sync with vite.config.ts `resolve.alias`.
+       No `baseUrl`: it is deprecated in TS 6 and removed in TS 7. Without it,
+       `paths` resolves relative to this tsconfig.json, which is what we want. */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     /* Ambient types */
@@ -48,6 +49,7 @@
     "src/**/*.ts",
     "src/**/*.d.ts",
     "tools/**/*.ts",
+    "scripts/**/*.ts",
     "verification/**/*.ts",
     "vite.config.ts",
     "capacitor.config.ts"

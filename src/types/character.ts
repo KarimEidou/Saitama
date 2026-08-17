@@ -70,13 +70,7 @@ export type SocketBone = Extract<
 
 /** Broad silhouette archetype driving mesh generation and scale. */
 export type BodyArchetype =
-  | 'hero'
-  | 'civilian'
-  | 'child'
-  | 'heavy'
-  | 'lithe'
-  | 'monsterHumanoid'
-  | 'monsterBeast';
+  'hero' | 'civilian' | 'child' | 'heavy' | 'lithe' | 'monsterHumanoid' | 'monsterBeast';
 
 /**
  * Proportional description of a character body. Used both to scale a shared
