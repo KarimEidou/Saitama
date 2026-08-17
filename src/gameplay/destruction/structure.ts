@@ -70,6 +70,27 @@ export class RegisteredStructure {
   destroyedCount = 0;
   destroyedMassKg = 0;
 
+  /**
+   * Union of the vertex ranges blanked since the last upload flush.
+   *
+   * ── WHY COALESCE ───────────────────────────────────────────────────────
+   * `THREE.BufferAttribute.addUpdateRange` pushes a `{start, count}` object
+   * per call — three's own allocation, unavoidable from outside — and the
+   * renderer issues one `bufferSubData` per recorded range. Calling it per
+   * detached chunk therefore costs 48 objects and 48 GL calls to collapse one
+   * building, for ranges that are adjacent anyway.
+   *
+   * Accumulating the union and emitting ONE range per structure per batch
+   * costs one object and one contiguous upload. It is both less garbage and
+   * fewer driver round trips, and it cannot be stale: `needsUpdate` is set the
+   * instant a chunk is blanked, and the flush happens synchronously at the end
+   * of the batch, never deferred to the next frame.
+   */
+  private dirtyMin = 0;
+  private dirtyMax = -1;
+  /** True while this structure is sitting in the system's flush list. */
+  uploadPending = false;
+
   /** Stable predicate handed to `collapsingFloors`; allocated once, not per call. */
   readonly isChunkDestroyed: (chunkIndex: number) => boolean;
 
@@ -188,9 +209,36 @@ export class RegisteredStructure {
 
     const attribute = this.spec.target.destroyed;
     attribute.array.fill(DESTROYED_FLAG, chunk.vertexStart, chunk.vertexStart + chunk.vertexCount);
-    attribute.addUpdateRange(chunk.vertexStart, chunk.vertexCount);
+    // Upload is requested NOW; only the range bookkeeping is coalesced.
     attribute.needsUpdate = true;
+    const end = chunk.vertexStart + chunk.vertexCount;
+    if (this.dirtyMax < 0) {
+      this.dirtyMin = chunk.vertexStart;
+      this.dirtyMax = end;
+    } else {
+      if (chunk.vertexStart < this.dirtyMin) this.dirtyMin = chunk.vertexStart;
+      if (end > this.dirtyMax) this.dirtyMax = end;
+    }
     return true;
+  }
+
+  /** True when this structure has vertices blanked but no range recorded yet. */
+  get hasPendingUpload(): boolean {
+    return this.dirtyMax >= 0;
+  }
+
+  /**
+   * Record the coalesced range on the attribute. Called at the end of every
+   * detach batch, synchronously, so nothing is ever a frame late.
+   */
+  flushUpload(): void {
+    if (this.dirtyMax < 0) return;
+    const attribute = this.spec.target.destroyed;
+    attribute.addUpdateRange(this.dirtyMin, this.dirtyMax - this.dirtyMin);
+    attribute.needsUpdate = true;
+    this.dirtyMin = 0;
+    this.dirtyMax = -1;
+    this.uploadPending = false;
   }
 
   /** Replay a saved destroyed set onto a freshly built mesh. */

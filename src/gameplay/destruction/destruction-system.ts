@@ -269,6 +269,12 @@ export class DestructionSystem {
   };
   /** Reused impulse handed to the ragdoll sink. */
   private readonly ragdollImpulse = { x: 0, y: 0, z: 0 };
+  /**
+   * Structures with vertices blanked but no update range recorded yet.
+   * Overwritten in place; grows to the widest batch and never again.
+   */
+  private readonly dirtyStructures: (RegisteredStructure | undefined)[] = [];
+  private dirtyCount = 0;
   /** Blast parameters of the sweep in progress, so `detach` stays argument-light. */
   private blastOriginX = 0;
   private blastOriginY = 0;

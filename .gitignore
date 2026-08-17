@@ -69,3 +69,4 @@ verification/*.webm
 .probe*.mjs
 .audio-scratch/
 .*-scratch/
+.probe*.ts
