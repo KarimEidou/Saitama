@@ -150,14 +150,15 @@ export interface ICombatTuning {
    * Intent stamped on a tap. `'normal'`, and it stays `'normal'`.
    *
    * ── ON RECORD, BECAUSE IT WAS DECIDED RATHER THAN DEFAULTED ──────────────
-   * The renderer's `ImpactFreeze` qualifies on `['serious', 'full']`, so a tap
-   * kill does not currently hit-stop — and one jab deleting a demon-tier
-   * monster is the signature moment of the whole franchise, so it cannot be
-   * silent. The fix is NOT to stamp `'serious'` on a punch that was not
-   * serious: the freeze is a reaction to SOMETHING DYING TO A PUNCH, not to
-   * how long a button was held, so keying it on lethality is the semantically
-   * correct model and it belongs on the renderer's side. That change is with
-   * the renderer workstream; this field stays honest.
+   * The renderer's `ImpactFreeze` used to qualify on `['serious', 'full']`, so
+   * a tap kill produced no hit-stop — and one jab deleting a demon-tier
+   * monster is the signature moment of the whole premise, so it cannot pass
+   * silently. The fix was NOT to stamp `'serious'` on a punch that was not
+   * serious. The freeze is a reaction to SOMETHING DYING TO A PUNCH, not to
+   * how long a button was held, so it is keyed on lethality, and that belongs
+   * on the renderer's side. `ImpactFreeze` now qualifies on `['normal',
+   * 'serious', 'full']` and scales the result by intent instead of gating on
+   * it, so both verbs read correctly and this field stays honest.
    *
    * Do not "fix" a missing hit-stop by raising this.
    */
