@@ -400,10 +400,9 @@ A reciprocal (copyleft) licence attaches obligations to whoever distributes the 
 
 Things the generator flagged that do not invalidate any credit above, but that a reader is entitled to know. They are reproduced here rather than only printed to a terminal nobody will re-read.
 
-| Affects                                                              | Note                                                                                                                       |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `mat.glass.window`, `mat.road.markings`                              | first-party sourceUrl "https://github.com/one-punch/saitama#procedural-materials" is not this repository — placeholder URL |
-| 14 entries, including `chr.boros`, `chr.civilian`, `chr.deepSeaKing` | first-party sourceUrl "https://github.com/saitama-one-punch" is not this repository — placeholder URL                      |
+| Affects                                 | Note                                                                                                                       |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `mat.glass.window`, `mat.road.markings` | first-party sourceUrl "https://github.com/one-punch/saitama#procedural-materials" is not this repository — placeholder URL |
 
 ## 8. One Punch Man
 

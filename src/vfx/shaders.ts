@@ -169,10 +169,13 @@ void main() {
     float lip = clamp(tex.g * 1.25 - tex.r * 0.85, 0.0, 1.0);
     rgb = mix(vColor.rgb * (0.20 + 0.30 * (1.0 - tex.r)), uDecalRim, lip * 0.85);
   }
-#if VFX_QUALITY > 0
   else if (vExtra.z > 0.001) {
-    /* Fake volume. The quad is shaded as if it were a sphere: this is what
-       turns a hundred grey discs into a body of dust with a lit side. */
+    /* Fake volume, on EVERY tier including LOW.
+       The quad is shaded as if it were a sphere, and this is what turns a
+       hundred grey discs into a body of dust with a lit side. Cutting it on
+       LOW was tried and the result was flat white cotton wool — a dozen ALU
+       is the cheapest quality in the whole system, so only the rim term is
+       tier-gated. */
     float radiusSq = min(1.0, dot(vSphere, vSphere));
     float nz = sqrt(1.0 - radiusSq);
     vec3 n = vec3(vSphere, nz);
@@ -181,15 +184,18 @@ void main() {
        the shadowed side still carries bounce. */
     vec3 shade = uAmbientColor + uSunColor * (ndl * 0.72 + 0.28);
     shade *= mix(1.0, tex.g, 0.45);
+    vec3 shaded = rgb * shade;
+#if VFX_QUALITY > 0
     /* Rim light from the ATLAS silhouette band only.
        Weighting it by the quad's own circular falloff — the obvious
        pow(1 - nz, k) — draws a bright ring around every QUAD rather than
        around every PUFF, and a plume becomes a pile of visibly separate
        bubbles. The tile's B channel follows the shape actually being drawn. */
     float rim = tex.b * clamp(0.72 - dot(n, -uSunView) * 0.55, 0.0, 1.1);
-    rgb = mix(rgb, rgb * shade + uSunColor * rim * 0.16, vExtra.z);
-  }
+    shaded += uSunColor * rim * 0.16;
 #endif
+    rgb = mix(rgb, shaded, vExtra.z);
+  }
 
   /* Fog. An ADDITIVE fragment must fade toward black rather than toward the
      fog colour, or a distant spark gets brighter the further away it is. */

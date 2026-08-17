@@ -36,7 +36,6 @@
  * authoritative on any of those.
  */
 
-import * as THREE from 'three';
 import type {
   DistrictType,
   EntityId,
@@ -49,7 +48,7 @@ import { clamp01, createRng, type IRandom } from '@/util';
 import { monsterArchetype } from './archetypes';
 import { BossEncounter, type IEncounterAlly } from './boss-encounter';
 import { bossScript } from './boss-scripts';
-import { Monster } from './monster';
+import { Monster, type SceneNode } from './monster';
 import { SpawnDirector, type ILiveMonsterRef, type ISpawnDirectorOptions } from './spawn-director';
 import type {
   IBossPhaseState,
@@ -76,7 +75,7 @@ export interface IMonsterSystemOptions {
   readonly groundHeight?: (x: number, z: number) => number;
   readonly lineOfSight?: (from: Vec3, to: Vec3) => boolean;
   /** Scene parent for monster roots. Omitted, roots are unparented. */
-  readonly parent?: THREE.Object3D;
+  readonly parent?: SceneNode;
   /**
    * Called once for every monster placed, before its first tick.
    *
@@ -151,7 +150,7 @@ export class MonsterSystem {
   readonly director: SpawnDirector;
 
   private readonly rng: IRandom;
-  private readonly parent: THREE.Object3D | undefined;
+  private readonly parent: SceneNode | undefined;
   private readonly onSpawned: IMonsterSystemOptions['onSpawned'];
   private readonly onDespawned: IMonsterSystemOptions['onDespawned'];
   private readonly corpseSeconds: number;

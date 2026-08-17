@@ -110,7 +110,9 @@ const GLB_LODS: readonly LodLevel[] = [0, 1];
 const PROJECT_ATTRIBUTION = {
   license: 'MIT',
   author: 'Saitama project (procedural)',
-  sourceUrl: 'https://github.com/saitama-one-punch',
+  // The canonical in-repo provider URL. `tools/attribution.ts` treats anything
+  // else as a placeholder and says so in the generated credits.
+  sourceUrl: 'https://github.com/KarimEidou/Saitama',
   modifications:
     'Generated procedurally by tools/build-characters.ts; no third-party character art.',
 } as const;

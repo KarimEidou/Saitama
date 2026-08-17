@@ -87,6 +87,16 @@ class MonsterTransform implements ITransform {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
+/**
+ * A scene node, named so the rest of the module can talk about one without
+ * importing `three`.
+ *
+ * `__tests__/imports.test.ts` confines `three` to this file, and this alias is
+ * how that stays true while `MonsterSystem` still accepts a scene parent: the
+ * system takes a `SceneNode`, hands it to `Monster`, and never touches it.
+ */
+export type SceneNode = THREE.Object3D;
+
 /* -------------------------------------------------------------------------- */
 /* State projection                                                           */
 /* -------------------------------------------------------------------------- */
