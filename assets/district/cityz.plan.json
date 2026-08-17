@@ -1,0 +1,6803 @@
+{
+  "planVersion": 1,
+  "name": "City Z — Central District",
+  "description": "Hand-authored road graph, zoning and landmarks for City Z. Everything inside a block is generated from hash(blockId, planVersion); this file is the only authored input.",
+  "worldSize": 1536,
+  "chunkSize": 96,
+  "chunkGrid": 16,
+  "worldSeed": 94468666,
+  "groundLevel": 0,
+  "roads": [
+    {
+      "id": "route-z",
+      "name": "Route Z",
+      "roadClass": "avenue",
+      "lanes": 4,
+      "width": 26,
+      "sidewalk": 5,
+      "surface": "asphalt-clean",
+      "markings": "divided",
+      "points": [
+        [0, -768],
+        [0, 0],
+        [0, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 22
+    },
+    {
+      "id": "central-boulevard",
+      "name": "Central Boulevard",
+      "roadClass": "avenue",
+      "lanes": 4,
+      "width": 26,
+      "sidewalk": 5,
+      "surface": "asphalt-clean",
+      "markings": "divided",
+      "points": [
+        [-768, 0],
+        [0, 0],
+        [768, 0]
+      ],
+      "curved": false,
+      "lampSpacing": 22
+    },
+    {
+      "id": "west-avenue",
+      "name": "West Avenue",
+      "roadClass": "avenue",
+      "lanes": 3,
+      "width": 18,
+      "sidewalk": 4,
+      "surface": "asphalt-worn",
+      "markings": "centre-dashed",
+      "points": [
+        [-384, -768],
+        [-384, 0],
+        [-384, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 22
+    },
+    {
+      "id": "east-avenue",
+      "name": "East Avenue",
+      "roadClass": "avenue",
+      "lanes": 3,
+      "width": 18,
+      "sidewalk": 4,
+      "surface": "asphalt-worn",
+      "markings": "centre-dashed",
+      "points": [
+        [384, -768],
+        [384, 0],
+        [384, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 22
+    },
+    {
+      "id": "north-avenue",
+      "name": "North Avenue",
+      "roadClass": "avenue",
+      "lanes": 3,
+      "width": 18,
+      "sidewalk": 4,
+      "surface": "asphalt-worn",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, -384],
+        [0, -384],
+        [768, -384]
+      ],
+      "curved": false,
+      "lampSpacing": 22
+    },
+    {
+      "id": "south-avenue",
+      "name": "South Avenue",
+      "roadClass": "avenue",
+      "lanes": 3,
+      "width": 18,
+      "sidewalk": 4,
+      "surface": "asphalt-worn",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, 384],
+        [0, 384],
+        [768, 384]
+      ],
+      "curved": false,
+      "lampSpacing": 22
+    },
+    {
+      "id": "street-x-7",
+      "name": "West 7 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-672, -768],
+        [-672, 0],
+        [-672, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x-6",
+      "name": "West 6 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-576, -768],
+        [-576, 0],
+        [-576, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x-5",
+      "name": "West 5 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-480, -768],
+        [-480, 0],
+        [-480, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x-3",
+      "name": "West 3 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-288, -768],
+        [-288, 0],
+        [-288, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x-2",
+      "name": "West 2 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-192, -768],
+        [-192, 0],
+        [-192, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x-1",
+      "name": "West 1 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-96, -768],
+        [-96, 0],
+        [-96, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x1",
+      "name": "East 1 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [96, -768],
+        [96, 0],
+        [96, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x2",
+      "name": "East 2 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [192, -768],
+        [192, 0],
+        [192, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x3",
+      "name": "East 3 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [288, -768],
+        [288, 0],
+        [288, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x5",
+      "name": "East 5 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [480, -768],
+        [480, 0],
+        [480, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x6",
+      "name": "East 6 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [576, -768],
+        [576, 0],
+        [576, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-x7",
+      "name": "East 7 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [672, -768],
+        [672, 0],
+        [672, 768]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z-7",
+      "name": "North 7 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, -672],
+        [0, -672],
+        [768, -672]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z-6",
+      "name": "North 6 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, -576],
+        [0, -576],
+        [768, -576]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z-5",
+      "name": "North 5 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, -480],
+        [0, -480],
+        [768, -480]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z-3",
+      "name": "North 3 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, -288],
+        [0, -288],
+        [768, -288]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z-2",
+      "name": "North 2 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, -192],
+        [0, -192],
+        [768, -192]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z-1",
+      "name": "North 1 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, -96],
+        [0, -96],
+        [768, -96]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z1",
+      "name": "South 1 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, 96],
+        [0, 96],
+        [768, 96]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z2",
+      "name": "South 2 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, 192],
+        [0, 192],
+        [768, 192]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z3",
+      "name": "South 3 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, 288],
+        [0, 288],
+        [768, 288]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z5",
+      "name": "South 5 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, 480],
+        [0, 480],
+        [768, 480]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z6",
+      "name": "South 6 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, 576],
+        [0, 576],
+        [768, 576]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    },
+    {
+      "id": "street-z7",
+      "name": "South 7 Street",
+      "roadClass": "street",
+      "lanes": 2,
+      "width": 12,
+      "sidewalk": 3,
+      "surface": "asphalt-rough",
+      "markings": "centre-dashed",
+      "points": [
+        [-768, 672],
+        [0, 672],
+        [768, 672]
+      ],
+      "curved": false,
+      "lampSpacing": 26
+    }
+  ],
+  "intersections": [
+    {
+      "id": "central-crossing",
+      "position": [0, 0],
+      "kind": "cross",
+      "radius": 18,
+      "roads": [
+        "route-z",
+        "central-boulevard"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-route-z-north-avenue",
+      "position": [0, -384],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "route-z",
+        "north-avenue"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-route-z-south-avenue",
+      "position": [0, 384],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "route-z",
+        "south-avenue"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-west-avenue-central-boulevard",
+      "position": [-384, 0],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "west-avenue",
+        "central-boulevard"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-east-avenue-central-boulevard",
+      "position": [384, 0],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "east-avenue",
+        "central-boulevard"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-west-avenue-north-avenue",
+      "position": [-384, -384],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "west-avenue",
+        "north-avenue"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-east-avenue-north-avenue",
+      "position": [384, -384],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "east-avenue",
+        "north-avenue"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-west-avenue-south-avenue",
+      "position": [-384, 384],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "west-avenue",
+        "south-avenue"
+      ],
+      "crossings": true,
+      "signals": true
+    },
+    {
+      "id": "junction-east-avenue-south-avenue",
+      "position": [384, 384],
+      "kind": "cross",
+      "radius": 13,
+      "roads": [
+        "east-avenue",
+        "south-avenue"
+      ],
+      "crossings": true,
+      "signals": true
+    }
+  ],
+  "zones": [
+    {
+      "id": "outer-residential",
+      "name": "Z-City Outskirts",
+      "kind": "residential",
+      "district": "residential",
+      "polygon": [
+        [-768, -768],
+        [768, -768],
+        [768, 768],
+        [-768, 768]
+      ],
+      "priority": 0,
+      "params": {
+        "floorRange": [2, 4],
+        "heightExponent": 1.8,
+        "floorHeight": 3.3,
+        "groundFloorScale": 1.25,
+        "density": 0.74,
+        "lotWidth": [9, 16],
+        "lotDepth": [10, 15],
+        "setback": 0.4,
+        "styleWeights": {
+          "residential": 6,
+          "shophouse": 2,
+          "apartment": 2
+        },
+        "facadeMaterials": [
+          "mat.wall.plaster.beige",
+          "mat.wall.plaster.white",
+          "mat.wall.brick.weathered",
+          "mat.wall.concrete.plain"
+        ],
+        "facadeWeights": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "roofMaterials": [
+          "mat.roof.tiles.grey",
+          "mat.metal.corrugated.worn"
+        ],
+        "tints": [
+          14341060,
+          15130835,
+          13090734,
+          13619917,
+          14735046,
+          12170150
+        ],
+        "panelWeights": {
+          "window": 10,
+          "blank": 5,
+          "ac_unit": 4,
+          "balcony": 4
+        },
+        "groundWeights": {
+          "shopfront": 3,
+          "door": 3,
+          "window": 3,
+          "blank": 3
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 0.45,
+        "propDensity": 3.5,
+        "populationDensity": 0.7,
+        "threatDensity": 1,
+        "lotSurface": "concrete"
+      }
+    },
+    {
+      "id": "apartment-ring",
+      "name": "Z-City Housing Ring",
+      "kind": "apartment",
+      "district": "residential",
+      "polygon": [
+        [-540, -540],
+        [540, -540],
+        [540, 540],
+        [-540, 540]
+      ],
+      "priority": 1,
+      "params": {
+        "floorRange": [4, 9],
+        "heightExponent": 1.5,
+        "floorHeight": 3.3,
+        "groundFloorScale": 1.25,
+        "density": 0.88,
+        "lotWidth": [12, 22],
+        "lotDepth": [13, 19],
+        "setback": 0.4,
+        "styleWeights": {
+          "apartment": 6,
+          "residential": 3,
+          "commercial": 2
+        },
+        "facadeMaterials": [
+          "mat.wall.concrete.plain",
+          "mat.wall.concrete.dirty",
+          "mat.wall.plaster.beige",
+          "mat.wall.concrete.painted"
+        ],
+        "facadeWeights": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "roofMaterials": [
+          "mat.roof.bitumen.flat",
+          "mat.metal.corrugated"
+        ],
+        "tints": [
+          14078406,
+          12896457,
+          14605008,
+          12107195,
+          13617080
+        ],
+        "panelWeights": {
+          "window": 8,
+          "balcony": 7,
+          "blank": 3,
+          "ac_unit": 4,
+          "fire_escape_anchor": 2
+        },
+        "groundWeights": {
+          "shopfront": 3,
+          "door": 3,
+          "window": 3,
+          "blank": 3
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 0.8,
+        "propDensity": 5,
+        "populationDensity": 1,
+        "threatDensity": 1,
+        "lotSurface": "concrete"
+      }
+    },
+    {
+      "id": "downtown",
+      "name": "Z-City Central",
+      "kind": "downtown",
+      "district": "downtown",
+      "polygon": [
+        [-264, -208],
+        [-208, -264],
+        [208, -264],
+        [264, -208],
+        [264, 208],
+        [208, 264],
+        [-208, 264],
+        [-264, 208]
+      ],
+      "priority": 3,
+      "params": {
+        "floorRange": [7, 20],
+        "heightExponent": 1.35,
+        "floorHeight": 3.7,
+        "groundFloorScale": 1.45,
+        "density": 0.95,
+        "lotWidth": [16, 30],
+        "lotDepth": [17, 26],
+        "setback": 0.2,
+        "styleWeights": {
+          "commercial": 5,
+          "skyscraper": 4,
+          "civic": 2
+        },
+        "facadeMaterials": [
+          "mat.wall.concrete.plain",
+          "mat.wall.concrete.layers",
+          "mat.wall.concrete.painted",
+          "mat.wall.plaster.white"
+        ],
+        "facadeWeights": [
+          4,
+          3,
+          2,
+          2
+        ],
+        "roofMaterials": [
+          "mat.roof.bitumen.flat",
+          "mat.metal.plate.industrial"
+        ],
+        "tints": [
+          14474456,
+          13028302,
+          15000284,
+          11844802,
+          13684422
+        ],
+        "panelWeights": {
+          "window": 14,
+          "blank": 2,
+          "ac_unit": 1
+        },
+        "groundWeights": {
+          "shopfront": 6,
+          "door": 2,
+          "window": 3
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 1,
+        "propDensity": 8,
+        "populationDensity": 2.2,
+        "threatDensity": 1.4,
+        "lotSurface": "concrete"
+      }
+    },
+    {
+      "id": "shotengai",
+      "name": "Z-City Shotengai",
+      "kind": "shopping",
+      "district": "downtown",
+      "polygon": [
+        [-108, -540],
+        [108, -540],
+        [108, -252],
+        [-108, -252]
+      ],
+      "priority": 5,
+      "params": {
+        "floorRange": [2, 5],
+        "heightExponent": 1.9,
+        "floorHeight": 3.2,
+        "groundFloorScale": 1.5,
+        "density": 0.97,
+        "lotWidth": [6.5, 12],
+        "lotDepth": [11, 16],
+        "setback": 0,
+        "styleWeights": {
+          "shophouse": 7,
+          "commercial": 3,
+          "residential": 2
+        },
+        "facadeMaterials": [
+          "mat.wall.plaster.white",
+          "mat.wall.plaster.beige",
+          "mat.wall.brick.red",
+          "mat.wall.concrete.painted"
+        ],
+        "facadeWeights": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "roofMaterials": [
+          "mat.metal.corrugated",
+          "mat.roof.tiles.grey"
+        ],
+        "tints": [
+          15262420,
+          14273976,
+          13606790,
+          14473682,
+          13154722,
+          14931904
+        ],
+        "panelWeights": {
+          "window": 9,
+          "blank": 3,
+          "ac_unit": 5,
+          "balcony": 3
+        },
+        "groundWeights": {
+          "shopfront": 12,
+          "door": 2
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.9,
+        "rooftopClutter": 0.85,
+        "propDensity": 11,
+        "populationDensity": 2.6,
+        "threatDensity": 1,
+        "lotSurface": "cobble"
+      }
+    },
+    {
+      "id": "civic-quarter",
+      "name": "Hero Association Quarter",
+      "kind": "civic",
+      "district": "heroAssociation",
+      "polygon": [
+        [288, -480],
+        [480, -480],
+        [480, -288],
+        [288, -288]
+      ],
+      "priority": 6,
+      "params": {
+        "floorRange": [4, 10],
+        "heightExponent": 1.4,
+        "floorHeight": 3.8,
+        "groundFloorScale": 1.5,
+        "density": 0.8,
+        "lotWidth": [16, 26],
+        "lotDepth": [16, 24],
+        "setback": 1.2,
+        "styleWeights": {
+          "civic": 6,
+          "commercial": 3
+        },
+        "facadeMaterials": [
+          "mat.wall.plaster.white",
+          "mat.wall.concrete.plain"
+        ],
+        "facadeWeights": [3, 2],
+        "roofMaterials": [
+          "mat.roof.bitumen.flat",
+          "mat.metal.plate.industrial"
+        ],
+        "tints": [
+          15526628,
+          14672612,
+          14080734
+        ],
+        "panelWeights": {
+          "window": 14,
+          "blank": 3
+        },
+        "groundWeights": {
+          "shopfront": 3,
+          "door": 3,
+          "window": 3,
+          "blank": 3
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 0.9,
+        "propDensity": 7,
+        "populationDensity": 1.6,
+        "threatDensity": 1,
+        "lotSurface": "concrete"
+      }
+    },
+    {
+      "id": "industrial-south",
+      "name": "Z-City Works",
+      "kind": "industrial",
+      "district": "industrial",
+      "polygon": [
+        [216, 264],
+        [768, 264],
+        [768, 768],
+        [216, 768]
+      ],
+      "priority": 4,
+      "params": {
+        "floorRange": [1, 3],
+        "heightExponent": 1.5,
+        "floorHeight": 4.6,
+        "groundFloorScale": 1.1,
+        "density": 0.66,
+        "lotWidth": [18, 36],
+        "lotDepth": [18, 30],
+        "setback": 1.5,
+        "styleWeights": {
+          "industrial": 8,
+          "commercial": 2
+        },
+        "facadeMaterials": [
+          "mat.metal.panel.factory",
+          "mat.metal.corrugated.worn",
+          "mat.wall.concrete.dirty",
+          "mat.metal.container.side"
+        ],
+        "facadeWeights": [
+          3,
+          3,
+          2,
+          1
+        ],
+        "roofMaterials": [
+          "mat.metal.corrugated.worn",
+          "mat.metal.rust.coarse"
+        ],
+        "tints": [
+          12172472,
+          11052186,
+          13025972,
+          10134436,
+          11575436
+        ],
+        "panelWeights": {
+          "blank": 10,
+          "window": 4,
+          "ac_unit": 2
+        },
+        "groundWeights": {
+          "blank": 6,
+          "door": 3,
+          "shopfront": 1
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 1,
+        "propDensity": 6,
+        "populationDensity": 0.4,
+        "threatDensity": 1.5,
+        "lotSurface": "gravel"
+      }
+    },
+    {
+      "id": "z-park",
+      "name": "Z-City Park",
+      "kind": "park",
+      "district": "park",
+      "polygon": [
+        [-264, -432],
+        [-280.6372301923936, -359.1075318282502],
+        [-327.25371328773275, -300.652310945371],
+        [-394.61648309533916, -268.21211075345366],
+        [-469.38351690466084, -268.21211075345366],
+        [-536.7462867122672, -300.65231094537097],
+        [-583.3627698076064, -359.1075318282502],
+        [-600, -432],
+        [-583.3627698076064, -504.8924681717497],
+        [-536.7462867122673, -563.347689054629],
+        [-469.38351690466084, -595.7878892465463],
+        [-394.6164830953392, -595.7878892465463],
+        [-327.2537132877328, -563.347689054629],
+        [-280.6372301923936, -504.8924681717498]
+      ],
+      "priority": 7,
+      "params": {
+        "floorRange": [1, 1],
+        "heightExponent": 1.6,
+        "floorHeight": 3.3,
+        "groundFloorScale": 1.25,
+        "density": 0,
+        "lotWidth": [11, 19],
+        "lotDepth": [12, 18],
+        "setback": 0.4,
+        "styleWeights": {
+          "residential": 4,
+          "shophouse": 3,
+          "apartment": 3
+        },
+        "facadeMaterials": [
+          "mat.ground.grass.leafy"
+        ],
+        "facadeWeights": [
+          1
+        ],
+        "roofMaterials": [
+          "mat.wood.planks.weathered"
+        ],
+        "tints": [
+          4880952
+        ],
+        "panelWeights": {
+          "window": 10,
+          "blank": 4,
+          "ac_unit": 3,
+          "balcony": 3,
+          "fire_escape_anchor": 1
+        },
+        "groundWeights": {
+          "shopfront": 3,
+          "door": 3,
+          "window": 3,
+          "blank": 3
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 0,
+        "propDensity": 3,
+        "populationDensity": 1.4,
+        "threatDensity": 0.6,
+        "lotSurface": "grass"
+      }
+    },
+    {
+      "id": "ghost-town",
+      "name": "Z-City Ghost Town",
+      "kind": "ghost",
+      "district": "wasteland",
+      "polygon": [
+        [-768, 144],
+        [-456, 144],
+        [-456, 480],
+        [-768, 480]
+      ],
+      "priority": 5,
+      "params": {
+        "floorRange": [2, 4],
+        "heightExponent": 1.9,
+        "floorHeight": 3.3,
+        "groundFloorScale": 1.25,
+        "density": 0.5,
+        "lotWidth": [9, 17],
+        "lotDepth": [11, 16],
+        "setback": 0.4,
+        "styleWeights": {
+          "residential": 5,
+          "ruins": 3,
+          "apartment": 2
+        },
+        "facadeMaterials": [
+          "mat.wall.concrete.cracked",
+          "mat.wall.plaster.broken",
+          "mat.wall.brick.broken",
+          "mat.wall.concrete.dirty"
+        ],
+        "facadeWeights": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "roofMaterials": [
+          "mat.metal.corrugated.worn",
+          "mat.metal.rust.fine"
+        ],
+        "tints": [
+          12433062,
+          11117462,
+          13287342,
+          10327690
+        ],
+        "panelWeights": {
+          "window": 7,
+          "blank": 8,
+          "ac_unit": 2,
+          "balcony": 2,
+          "fire_escape_anchor": 2
+        },
+        "groundWeights": {
+          "blank": 5,
+          "door": 3,
+          "window": 3,
+          "shopfront": 1
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 0.4,
+        "propDensity": 4,
+        "populationDensity": 0.15,
+        "threatDensity": 2.2,
+        "lotSurface": "dirt"
+      }
+    },
+    {
+      "id": "old-crater",
+      "name": "The Crater",
+      "kind": "crater",
+      "district": "wasteland",
+      "polygon": [
+        [622, 120],
+        [613.0177848363319, 165.1566450190806],
+        [587.4386001800126, 203.4386001800126],
+        [549.1566450190805, 229.01778483633183],
+        [504, 238],
+        [458.8433549809194, 229.01778483633183],
+        [420.5613998199874, 203.4386001800126],
+        [394.9822151636682, 165.1566450190806],
+        [386, 120.00000000000001],
+        [394.9822151636682, 74.84335498091943],
+        [420.5613998199874, 36.5613998199874],
+        [458.84335498091934, 10.982215163668187],
+        [504, 2],
+        [549.1566450190807, 10.982215163668172],
+        [587.4386001800126, 36.56139981998737],
+        [613.0177848363318, 74.84335498091934]
+      ],
+      "priority": 9,
+      "params": {
+        "floorRange": [1, 2],
+        "heightExponent": 1.6,
+        "floorHeight": 3.3,
+        "groundFloorScale": 1.25,
+        "density": 0,
+        "lotWidth": [11, 19],
+        "lotDepth": [12, 18],
+        "setback": 0.4,
+        "styleWeights": {
+          "residential": 4,
+          "shophouse": 3,
+          "apartment": 3
+        },
+        "facadeMaterials": [
+          "mat.wall.concrete.cracked"
+        ],
+        "facadeWeights": [
+          1
+        ],
+        "roofMaterials": [
+          "mat.debris.rubble.wall"
+        ],
+        "tints": [
+          11050640
+        ],
+        "panelWeights": {
+          "window": 10,
+          "blank": 4,
+          "ac_unit": 3,
+          "balcony": 3,
+          "fire_escape_anchor": 1
+        },
+        "groundWeights": {
+          "shopfront": 3,
+          "door": 3,
+          "window": 3,
+          "blank": 3
+        },
+        "balconyChance": 0.3,
+        "fireEscapeChance": 0.15,
+        "acUnitChance": 0.3,
+        "signageChance": 0.35,
+        "rooftopClutter": 0,
+        "propDensity": 6,
+        "populationDensity": 0,
+        "threatDensity": 3,
+        "lotSurface": "dirt"
+      }
+    }
+  ],
+  "landmarks": [
+    {
+      "id": "hero-association-z",
+      "name": "Hero Association — City Z Branch",
+      "kind": "heroAssociation",
+      "position": [336, -336],
+      "rotationY": 0,
+      "footprint": [
+        [-22, -17],
+        [22, -17],
+        [22, 17],
+        [-22, 17]
+      ],
+      "floors": 15,
+      "floorHeight": 3.9,
+      "style": "civic",
+      "facadeMaterial": "mat.wall.plaster.white",
+      "roofMaterial": "mat.metal.plate.industrial",
+      "tint": 15789800,
+      "exclusionRadius": 34,
+      "description": "Glazed tower on a four-storey civic podium. Registration desk, ranking boards, and the only building in the district anyone gives directions from."
+    },
+    {
+      "id": "shotengai-arcade",
+      "name": "Z-City Shotengai Arcade",
+      "kind": "arcade",
+      "position": [0, -396],
+      "rotationY": 0,
+      "footprint": [
+        [-13, -84],
+        [13, -84],
+        [13, 84],
+        [-13, 84]
+      ],
+      "floors": 1,
+      "floorHeight": 4,
+      "style": "shophouse",
+      "facadeMaterial": "mat.wall.concrete.painted",
+      "roofMaterial": "mat.metal.corrugated",
+      "tint": 14210251,
+      "exclusionRadius": 16,
+      "description": "The covered shopping street. Vegetables, a butcher, a bargain sale that matters more than most fights."
+    },
+    {
+      "id": "saitama-apartment",
+      "name": "Saitama's Apartment Block",
+      "kind": "apartment",
+      "position": [-600, 300],
+      "rotationY": 0,
+      "footprint": [
+        [-9.5, -6.5],
+        [9.5, -6.5],
+        [9.5, 6.5],
+        [-9.5, 6.5]
+      ],
+      "floors": 3,
+      "floorHeight": 3.1,
+      "style": "apartment",
+      "facadeMaterial": "mat.wall.plaster.broken",
+      "roofMaterial": "mat.metal.corrugated.worn",
+      "tint": 13222320,
+      "exclusionRadius": 22,
+      "description": "Three storeys, external walkways, mostly empty since the neighbourhood emptied out. Room 202."
+    },
+    {
+      "id": "z-park-pavilion",
+      "name": "Z-City Park Pavilion",
+      "kind": "park",
+      "position": [-432, -432],
+      "rotationY": 0,
+      "footprint": [
+        [-7, -7],
+        [7, -7],
+        [7, 7],
+        [-7, 7]
+      ],
+      "floors": 1,
+      "floorHeight": 3.6,
+      "style": "civic",
+      "facadeMaterial": "mat.wood.planks.weathered",
+      "roofMaterial": "mat.roof.tiles.ceramic",
+      "tint": 12822659,
+      "exclusionRadius": 18,
+      "description": "Timber pavilion at the centre of the park."
+    }
+  ],
+  "blocks": [
+    {
+      "id": "blk_-8_-8",
+      "chunk": [-8, -8],
+      "outline": [
+        [-759, -759],
+        [-681, -759],
+        [-681, -681],
+        [-759, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_-8",
+      "chunk": [-7, -8],
+      "outline": [
+        [-663, -759],
+        [-585, -759],
+        [-585, -681],
+        [-663, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_-8",
+      "chunk": [-6, -8],
+      "outline": [
+        [-567, -759],
+        [-489, -759],
+        [-489, -681],
+        [-567, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_-8",
+      "chunk": [-5, -8],
+      "outline": [
+        [-471, -759],
+        [-397, -759],
+        [-397, -681],
+        [-471, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_-8",
+      "chunk": [-4, -8],
+      "outline": [
+        [-371, -759],
+        [-297, -759],
+        [-297, -681],
+        [-371, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_-8",
+      "chunk": [-3, -8],
+      "outline": [
+        [-279, -759],
+        [-201, -759],
+        [-201, -681],
+        [-279, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_-8",
+      "chunk": [-2, -8],
+      "outline": [
+        [-183, -759],
+        [-105, -759],
+        [-105, -681],
+        [-183, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_-8",
+      "chunk": [-1, -8],
+      "outline": [
+        [-87, -759],
+        [-18, -759],
+        [-18, -681],
+        [-87, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-8",
+      "chunk": [0, -8],
+      "outline": [
+        [18, -759],
+        [87, -759],
+        [87, -681],
+        [18, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-8",
+      "chunk": [1, -8],
+      "outline": [
+        [105, -759],
+        [183, -759],
+        [183, -681],
+        [105, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_-8",
+      "chunk": [2, -8],
+      "outline": [
+        [201, -759],
+        [279, -759],
+        [279, -681],
+        [201, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_-8",
+      "chunk": [3, -8],
+      "outline": [
+        [297, -759],
+        [371, -759],
+        [371, -681],
+        [297, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_-8",
+      "chunk": [4, -8],
+      "outline": [
+        [397, -759],
+        [471, -759],
+        [471, -681],
+        [397, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_-8",
+      "chunk": [5, -8],
+      "outline": [
+        [489, -759],
+        [567, -759],
+        [567, -681],
+        [489, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_-8",
+      "chunk": [6, -8],
+      "outline": [
+        [585, -759],
+        [663, -759],
+        [663, -681],
+        [585, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_-8",
+      "chunk": [7, -8],
+      "outline": [
+        [681, -759],
+        [759, -759],
+        [759, -681],
+        [681, -681]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_-7",
+      "chunk": [-8, -7],
+      "outline": [
+        [-759, -663],
+        [-681, -663],
+        [-681, -585],
+        [-759, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_-7",
+      "chunk": [-7, -7],
+      "outline": [
+        [-663, -663],
+        [-585, -663],
+        [-585, -585],
+        [-663, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_-7",
+      "chunk": [-6, -7],
+      "outline": [
+        [-567, -663],
+        [-489, -663],
+        [-489, -585],
+        [-567, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_-7",
+      "chunk": [-5, -7],
+      "outline": [
+        [-471, -663],
+        [-397, -663],
+        [-397, -585],
+        [-471, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_-7",
+      "chunk": [-4, -7],
+      "outline": [
+        [-371, -663],
+        [-297, -663],
+        [-297, -585],
+        [-371, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_-7",
+      "chunk": [-3, -7],
+      "outline": [
+        [-279, -663],
+        [-201, -663],
+        [-201, -585],
+        [-279, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_-7",
+      "chunk": [-2, -7],
+      "outline": [
+        [-183, -663],
+        [-105, -663],
+        [-105, -585],
+        [-183, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_-7",
+      "chunk": [-1, -7],
+      "outline": [
+        [-87, -663],
+        [-18, -663],
+        [-18, -585],
+        [-87, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-7",
+      "chunk": [0, -7],
+      "outline": [
+        [18, -663],
+        [87, -663],
+        [87, -585],
+        [18, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-7",
+      "chunk": [1, -7],
+      "outline": [
+        [105, -663],
+        [183, -663],
+        [183, -585],
+        [105, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_-7",
+      "chunk": [2, -7],
+      "outline": [
+        [201, -663],
+        [279, -663],
+        [279, -585],
+        [201, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_-7",
+      "chunk": [3, -7],
+      "outline": [
+        [297, -663],
+        [371, -663],
+        [371, -585],
+        [297, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_-7",
+      "chunk": [4, -7],
+      "outline": [
+        [397, -663],
+        [471, -663],
+        [471, -585],
+        [397, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_-7",
+      "chunk": [5, -7],
+      "outline": [
+        [489, -663],
+        [567, -663],
+        [567, -585],
+        [489, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_-7",
+      "chunk": [6, -7],
+      "outline": [
+        [585, -663],
+        [663, -663],
+        [663, -585],
+        [585, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_-7",
+      "chunk": [7, -7],
+      "outline": [
+        [681, -663],
+        [759, -663],
+        [759, -585],
+        [681, -585]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_-6",
+      "chunk": [-8, -6],
+      "outline": [
+        [-759, -567],
+        [-681, -567],
+        [-681, -489],
+        [-759, -489]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_-6",
+      "chunk": [-7, -6],
+      "outline": [
+        [-663, -567],
+        [-585, -567],
+        [-585, -489],
+        [-663, -489]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_-6",
+      "chunk": [-6, -6],
+      "outline": [
+        [-567, -567],
+        [-489, -567],
+        [-489, -489],
+        [-567, -489]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_-6",
+      "chunk": [-5, -6],
+      "outline": [
+        [-471, -567],
+        [-397, -567],
+        [-397, -489],
+        [-471, -489]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_-6",
+      "chunk": [-4, -6],
+      "outline": [
+        [-371, -567],
+        [-297, -567],
+        [-297, -489],
+        [-371, -489]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_-6",
+      "chunk": [-3, -6],
+      "outline": [
+        [-279, -567],
+        [-201, -567],
+        [-201, -489],
+        [-279, -489]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_-6",
+      "chunk": [-2, -6],
+      "outline": [
+        [-183, -567],
+        [-105, -567],
+        [-105, -489],
+        [-183, -489]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_-6",
+      "chunk": [-1, -6],
+      "outline": [
+        [-87, -567],
+        [-18, -567],
+        [-18, -489],
+        [-87, -489]
+      ],
+      "zone": "shotengai",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-6",
+      "chunk": [0, -6],
+      "outline": [
+        [18, -567],
+        [87, -567],
+        [87, -489],
+        [18, -489]
+      ],
+      "zone": "shotengai",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-6",
+      "chunk": [1, -6],
+      "outline": [
+        [105, -567],
+        [183, -567],
+        [183, -489],
+        [105, -489]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_-6",
+      "chunk": [2, -6],
+      "outline": [
+        [201, -567],
+        [279, -567],
+        [279, -489],
+        [201, -489]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_-6",
+      "chunk": [3, -6],
+      "outline": [
+        [297, -567],
+        [371, -567],
+        [371, -489],
+        [297, -489]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_-6",
+      "chunk": [4, -6],
+      "outline": [
+        [397, -567],
+        [471, -567],
+        [471, -489],
+        [397, -489]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_-6",
+      "chunk": [5, -6],
+      "outline": [
+        [489, -567],
+        [567, -567],
+        [567, -489],
+        [489, -489]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_-6",
+      "chunk": [6, -6],
+      "outline": [
+        [585, -567],
+        [663, -567],
+        [663, -489],
+        [585, -489]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_-6",
+      "chunk": [7, -6],
+      "outline": [
+        [681, -567],
+        [759, -567],
+        [759, -489],
+        [681, -489]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_-5",
+      "chunk": [-8, -5],
+      "outline": [
+        [-759, -471],
+        [-681, -471],
+        [-681, -397],
+        [-759, -397]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-7_-5",
+      "chunk": [-7, -5],
+      "outline": [
+        [-663, -471],
+        [-585, -471],
+        [-585, -397],
+        [-663, -397]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-6_-5",
+      "chunk": [-6, -5],
+      "outline": [
+        [-567, -471],
+        [-489, -471],
+        [-489, -397],
+        [-567, -397]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-5_-5",
+      "chunk": [-5, -5],
+      "outline": [
+        [-471, -471],
+        [-397, -471],
+        [-397, -397],
+        [-471, -397]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_-5",
+      "chunk": [-4, -5],
+      "outline": [
+        [-371, -471],
+        [-297, -471],
+        [-297, -397],
+        [-371, -397]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_-5",
+      "chunk": [-3, -5],
+      "outline": [
+        [-279, -471],
+        [-201, -471],
+        [-201, -397],
+        [-279, -397]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-2_-5",
+      "chunk": [-2, -5],
+      "outline": [
+        [-183, -471],
+        [-105, -471],
+        [-105, -397],
+        [-183, -397]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-1_-5",
+      "chunk": [-1, -5],
+      "outline": [
+        [-87, -471],
+        [-18, -471],
+        [-18, -397],
+        [-87, -397]
+      ],
+      "zone": "shotengai",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-5",
+      "chunk": [0, -5],
+      "outline": [
+        [18, -471],
+        [87, -471],
+        [87, -397],
+        [18, -397]
+      ],
+      "zone": "shotengai",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-5",
+      "chunk": [1, -5],
+      "outline": [
+        [105, -471],
+        [183, -471],
+        [183, -397],
+        [105, -397]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_2_-5",
+      "chunk": [2, -5],
+      "outline": [
+        [201, -471],
+        [279, -471],
+        [279, -397],
+        [201, -397]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_3_-5",
+      "chunk": [3, -5],
+      "outline": [
+        [297, -471],
+        [371, -471],
+        [371, -397],
+        [297, -397]
+      ],
+      "zone": "civic-quarter",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_-5",
+      "chunk": [4, -5],
+      "outline": [
+        [397, -471],
+        [471, -471],
+        [471, -397],
+        [397, -397]
+      ],
+      "zone": "civic-quarter",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_-5",
+      "chunk": [5, -5],
+      "outline": [
+        [489, -471],
+        [567, -471],
+        [567, -397],
+        [489, -397]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_6_-5",
+      "chunk": [6, -5],
+      "outline": [
+        [585, -471],
+        [663, -471],
+        [663, -397],
+        [585, -397]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_7_-5",
+      "chunk": [7, -5],
+      "outline": [
+        [681, -471],
+        [759, -471],
+        [759, -397],
+        [681, -397]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-8_-4",
+      "chunk": [-8, -4],
+      "outline": [
+        [-759, -371],
+        [-681, -371],
+        [-681, -297],
+        [-759, -297]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-7_-4",
+      "chunk": [-7, -4],
+      "outline": [
+        [-663, -371],
+        [-585, -371],
+        [-585, -297],
+        [-663, -297]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-6_-4",
+      "chunk": [-6, -4],
+      "outline": [
+        [-567, -371],
+        [-489, -371],
+        [-489, -297],
+        [-567, -297]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-5_-4",
+      "chunk": [-5, -4],
+      "outline": [
+        [-471, -371],
+        [-397, -371],
+        [-397, -297],
+        [-471, -297]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_-4",
+      "chunk": [-4, -4],
+      "outline": [
+        [-371, -371],
+        [-297, -371],
+        [-297, -297],
+        [-371, -297]
+      ],
+      "zone": "z-park",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_-4",
+      "chunk": [-3, -4],
+      "outline": [
+        [-279, -371],
+        [-201, -371],
+        [-201, -297],
+        [-279, -297]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-2_-4",
+      "chunk": [-2, -4],
+      "outline": [
+        [-183, -371],
+        [-105, -371],
+        [-105, -297],
+        [-183, -297]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-1_-4",
+      "chunk": [-1, -4],
+      "outline": [
+        [-87, -371],
+        [-18, -371],
+        [-18, -297],
+        [-87, -297]
+      ],
+      "zone": "shotengai",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-4",
+      "chunk": [0, -4],
+      "outline": [
+        [18, -371],
+        [87, -371],
+        [87, -297],
+        [18, -297]
+      ],
+      "zone": "shotengai",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-4",
+      "chunk": [1, -4],
+      "outline": [
+        [105, -371],
+        [183, -371],
+        [183, -297],
+        [105, -297]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_2_-4",
+      "chunk": [2, -4],
+      "outline": [
+        [201, -371],
+        [279, -371],
+        [279, -297],
+        [201, -297]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_3_-4",
+      "chunk": [3, -4],
+      "outline": [
+        [297, -371],
+        [371, -371],
+        [371, -297],
+        [297, -297]
+      ],
+      "zone": "civic-quarter",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_-4",
+      "chunk": [4, -4],
+      "outline": [
+        [397, -371],
+        [471, -371],
+        [471, -297],
+        [397, -297]
+      ],
+      "zone": "civic-quarter",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_-4",
+      "chunk": [5, -4],
+      "outline": [
+        [489, -371],
+        [567, -371],
+        [567, -297],
+        [489, -297]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_6_-4",
+      "chunk": [6, -4],
+      "outline": [
+        [585, -371],
+        [663, -371],
+        [663, -297],
+        [585, -297]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_7_-4",
+      "chunk": [7, -4],
+      "outline": [
+        [681, -371],
+        [759, -371],
+        [759, -297],
+        [681, -297]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-8_-3",
+      "chunk": [-8, -3],
+      "outline": [
+        [-759, -279],
+        [-681, -279],
+        [-681, -201],
+        [-759, -201]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_-3",
+      "chunk": [-7, -3],
+      "outline": [
+        [-663, -279],
+        [-585, -279],
+        [-585, -201],
+        [-663, -201]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_-3",
+      "chunk": [-6, -3],
+      "outline": [
+        [-567, -279],
+        [-489, -279],
+        [-489, -201],
+        [-567, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_-3",
+      "chunk": [-5, -3],
+      "outline": [
+        [-471, -279],
+        [-397, -279],
+        [-397, -201],
+        [-471, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_-3",
+      "chunk": [-4, -3],
+      "outline": [
+        [-371, -279],
+        [-297, -279],
+        [-297, -201],
+        [-371, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_-3",
+      "chunk": [-3, -3],
+      "outline": [
+        [-279, -279],
+        [-201, -279],
+        [-201, -201],
+        [-279, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_-3",
+      "chunk": [-2, -3],
+      "outline": [
+        [-183, -279],
+        [-105, -279],
+        [-105, -201],
+        [-183, -201]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_-3",
+      "chunk": [-1, -3],
+      "outline": [
+        [-87, -279],
+        [-18, -279],
+        [-18, -201],
+        [-87, -201]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-3",
+      "chunk": [0, -3],
+      "outline": [
+        [18, -279],
+        [87, -279],
+        [87, -201],
+        [18, -201]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-3",
+      "chunk": [1, -3],
+      "outline": [
+        [105, -279],
+        [183, -279],
+        [183, -201],
+        [105, -201]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_-3",
+      "chunk": [2, -3],
+      "outline": [
+        [201, -279],
+        [279, -279],
+        [279, -201],
+        [201, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_-3",
+      "chunk": [3, -3],
+      "outline": [
+        [297, -279],
+        [371, -279],
+        [371, -201],
+        [297, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_-3",
+      "chunk": [4, -3],
+      "outline": [
+        [397, -279],
+        [471, -279],
+        [471, -201],
+        [397, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_-3",
+      "chunk": [5, -3],
+      "outline": [
+        [489, -279],
+        [567, -279],
+        [567, -201],
+        [489, -201]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_-3",
+      "chunk": [6, -3],
+      "outline": [
+        [585, -279],
+        [663, -279],
+        [663, -201],
+        [585, -201]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_-3",
+      "chunk": [7, -3],
+      "outline": [
+        [681, -279],
+        [759, -279],
+        [759, -201],
+        [681, -201]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_-2",
+      "chunk": [-8, -2],
+      "outline": [
+        [-759, -183],
+        [-681, -183],
+        [-681, -105],
+        [-759, -105]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_-2",
+      "chunk": [-7, -2],
+      "outline": [
+        [-663, -183],
+        [-585, -183],
+        [-585, -105],
+        [-663, -105]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_-2",
+      "chunk": [-6, -2],
+      "outline": [
+        [-567, -183],
+        [-489, -183],
+        [-489, -105],
+        [-567, -105]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_-2",
+      "chunk": [-5, -2],
+      "outline": [
+        [-471, -183],
+        [-397, -183],
+        [-397, -105],
+        [-471, -105]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_-2",
+      "chunk": [-4, -2],
+      "outline": [
+        [-371, -183],
+        [-297, -183],
+        [-297, -105],
+        [-371, -105]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_-2",
+      "chunk": [-3, -2],
+      "outline": [
+        [-279, -183],
+        [-201, -183],
+        [-201, -105],
+        [-279, -105]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_-2",
+      "chunk": [-2, -2],
+      "outline": [
+        [-183, -183],
+        [-105, -183],
+        [-105, -105],
+        [-183, -105]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_-2",
+      "chunk": [-1, -2],
+      "outline": [
+        [-87, -183],
+        [-18, -183],
+        [-18, -105],
+        [-87, -105]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-2",
+      "chunk": [0, -2],
+      "outline": [
+        [18, -183],
+        [87, -183],
+        [87, -105],
+        [18, -105]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-2",
+      "chunk": [1, -2],
+      "outline": [
+        [105, -183],
+        [183, -183],
+        [183, -105],
+        [105, -105]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_-2",
+      "chunk": [2, -2],
+      "outline": [
+        [201, -183],
+        [279, -183],
+        [279, -105],
+        [201, -105]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_-2",
+      "chunk": [3, -2],
+      "outline": [
+        [297, -183],
+        [371, -183],
+        [371, -105],
+        [297, -105]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_-2",
+      "chunk": [4, -2],
+      "outline": [
+        [397, -183],
+        [471, -183],
+        [471, -105],
+        [397, -105]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_-2",
+      "chunk": [5, -2],
+      "outline": [
+        [489, -183],
+        [567, -183],
+        [567, -105],
+        [489, -105]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_-2",
+      "chunk": [6, -2],
+      "outline": [
+        [585, -183],
+        [663, -183],
+        [663, -105],
+        [585, -105]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_-2",
+      "chunk": [7, -2],
+      "outline": [
+        [681, -183],
+        [759, -183],
+        [759, -105],
+        [681, -105]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_-1",
+      "chunk": [-8, -1],
+      "outline": [
+        [-759, -87],
+        [-681, -87],
+        [-681, -18],
+        [-759, -18]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-7_-1",
+      "chunk": [-7, -1],
+      "outline": [
+        [-663, -87],
+        [-585, -87],
+        [-585, -18],
+        [-663, -18]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-6_-1",
+      "chunk": [-6, -1],
+      "outline": [
+        [-567, -87],
+        [-489, -87],
+        [-489, -18],
+        [-567, -18]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-5_-1",
+      "chunk": [-5, -1],
+      "outline": [
+        [-471, -87],
+        [-397, -87],
+        [-397, -18],
+        [-471, -18]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-4_-1",
+      "chunk": [-4, -1],
+      "outline": [
+        [-371, -87],
+        [-297, -87],
+        [-297, -18],
+        [-371, -18]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-3_-1",
+      "chunk": [-3, -1],
+      "outline": [
+        [-279, -87],
+        [-201, -87],
+        [-201, -18],
+        [-279, -18]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-2_-1",
+      "chunk": [-2, -1],
+      "outline": [
+        [-183, -87],
+        [-105, -87],
+        [-105, -18],
+        [-183, -18]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-1_-1",
+      "chunk": [-1, -1],
+      "outline": [
+        [-87, -87],
+        [-18, -87],
+        [-18, -18],
+        [-87, -18]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 3,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_-1",
+      "chunk": [0, -1],
+      "outline": [
+        [18, -87],
+        [87, -87],
+        [87, -18],
+        [18, -18]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 3,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_-1",
+      "chunk": [1, -1],
+      "outline": [
+        [105, -87],
+        [183, -87],
+        [183, -18],
+        [105, -18]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_2_-1",
+      "chunk": [2, -1],
+      "outline": [
+        [201, -87],
+        [279, -87],
+        [279, -18],
+        [201, -18]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_3_-1",
+      "chunk": [3, -1],
+      "outline": [
+        [297, -87],
+        [371, -87],
+        [371, -18],
+        [297, -18]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_4_-1",
+      "chunk": [4, -1],
+      "outline": [
+        [397, -87],
+        [471, -87],
+        [471, -18],
+        [397, -18]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_5_-1",
+      "chunk": [5, -1],
+      "outline": [
+        [489, -87],
+        [567, -87],
+        [567, -18],
+        [489, -18]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_6_-1",
+      "chunk": [6, -1],
+      "outline": [
+        [585, -87],
+        [663, -87],
+        [663, -18],
+        [585, -18]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_7_-1",
+      "chunk": [7, -1],
+      "outline": [
+        [681, -87],
+        [759, -87],
+        [759, -18],
+        [681, -18]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-8_0",
+      "chunk": [-8, 0],
+      "outline": [
+        [-759, 18],
+        [-681, 18],
+        [-681, 87],
+        [-759, 87]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-7_0",
+      "chunk": [-7, 0],
+      "outline": [
+        [-663, 18],
+        [-585, 18],
+        [-585, 87],
+        [-663, 87]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-6_0",
+      "chunk": [-6, 0],
+      "outline": [
+        [-567, 18],
+        [-489, 18],
+        [-489, 87],
+        [-567, 87]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-5_0",
+      "chunk": [-5, 0],
+      "outline": [
+        [-471, 18],
+        [-397, 18],
+        [-397, 87],
+        [-471, 87]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-4_0",
+      "chunk": [-4, 0],
+      "outline": [
+        [-371, 18],
+        [-297, 18],
+        [-297, 87],
+        [-371, 87]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-3_0",
+      "chunk": [-3, 0],
+      "outline": [
+        [-279, 18],
+        [-201, 18],
+        [-201, 87],
+        [-279, 87]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-2_0",
+      "chunk": [-2, 0],
+      "outline": [
+        [-183, 18],
+        [-105, 18],
+        [-105, 87],
+        [-183, 87]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-1_0",
+      "chunk": [-1, 0],
+      "outline": [
+        [-87, 18],
+        [-18, 18],
+        [-18, 87],
+        [-87, 87]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 3,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_0",
+      "chunk": [0, 0],
+      "outline": [
+        [18, 18],
+        [87, 18],
+        [87, 87],
+        [18, 87]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 3,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_0",
+      "chunk": [1, 0],
+      "outline": [
+        [105, 18],
+        [183, 18],
+        [183, 87],
+        [105, 87]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_2_0",
+      "chunk": [2, 0],
+      "outline": [
+        [201, 18],
+        [279, 18],
+        [279, 87],
+        [201, 87]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_3_0",
+      "chunk": [3, 0],
+      "outline": [
+        [297, 18],
+        [371, 18],
+        [371, 87],
+        [297, 87]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_4_0",
+      "chunk": [4, 0],
+      "outline": [
+        [397, 18],
+        [471, 18],
+        [471, 87],
+        [397, 87]
+      ],
+      "zone": "old-crater",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5,
+      "tags": [
+        "crater"
+      ]
+    },
+    {
+      "id": "blk_5_0",
+      "chunk": [5, 0],
+      "outline": [
+        [489, 18],
+        [567, 18],
+        [567, 87],
+        [489, 87]
+      ],
+      "zone": "old-crater",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5,
+      "tags": [
+        "crater"
+      ]
+    },
+    {
+      "id": "blk_6_0",
+      "chunk": [6, 0],
+      "outline": [
+        [585, 18],
+        [663, 18],
+        [663, 87],
+        [585, 87]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_7_0",
+      "chunk": [7, 0],
+      "outline": [
+        [681, 18],
+        [759, 18],
+        [759, 87],
+        [681, 87]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_-8_1",
+      "chunk": [-8, 1],
+      "outline": [
+        [-759, 105],
+        [-681, 105],
+        [-681, 183],
+        [-759, 183]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_1",
+      "chunk": [-7, 1],
+      "outline": [
+        [-663, 105],
+        [-585, 105],
+        [-585, 183],
+        [-663, 183]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_1",
+      "chunk": [-6, 1],
+      "outline": [
+        [-567, 105],
+        [-489, 105],
+        [-489, 183],
+        [-567, 183]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_1",
+      "chunk": [-5, 1],
+      "outline": [
+        [-471, 105],
+        [-397, 105],
+        [-397, 183],
+        [-471, 183]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_1",
+      "chunk": [-4, 1],
+      "outline": [
+        [-371, 105],
+        [-297, 105],
+        [-297, 183],
+        [-371, 183]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_1",
+      "chunk": [-3, 1],
+      "outline": [
+        [-279, 105],
+        [-201, 105],
+        [-201, 183],
+        [-279, 183]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_1",
+      "chunk": [-2, 1],
+      "outline": [
+        [-183, 105],
+        [-105, 105],
+        [-105, 183],
+        [-183, 183]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_1",
+      "chunk": [-1, 1],
+      "outline": [
+        [-87, 105],
+        [-18, 105],
+        [-18, 183],
+        [-87, 183]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_1",
+      "chunk": [0, 1],
+      "outline": [
+        [18, 105],
+        [87, 105],
+        [87, 183],
+        [18, 183]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_1",
+      "chunk": [1, 1],
+      "outline": [
+        [105, 105],
+        [183, 105],
+        [183, 183],
+        [105, 183]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 2,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_1",
+      "chunk": [2, 1],
+      "outline": [
+        [201, 105],
+        [279, 105],
+        [279, 183],
+        [201, 183]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_1",
+      "chunk": [3, 1],
+      "outline": [
+        [297, 105],
+        [371, 105],
+        [371, 183],
+        [297, 183]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_1",
+      "chunk": [4, 1],
+      "outline": [
+        [397, 105],
+        [471, 105],
+        [471, 183],
+        [397, 183]
+      ],
+      "zone": "old-crater",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4,
+      "tags": [
+        "crater"
+      ]
+    },
+    {
+      "id": "blk_5_1",
+      "chunk": [5, 1],
+      "outline": [
+        [489, 105],
+        [567, 105],
+        [567, 183],
+        [489, 183]
+      ],
+      "zone": "old-crater",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3,
+      "tags": [
+        "crater"
+      ]
+    },
+    {
+      "id": "blk_6_1",
+      "chunk": [6, 1],
+      "outline": [
+        [585, 105],
+        [663, 105],
+        [663, 183],
+        [585, 183]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_1",
+      "chunk": [7, 1],
+      "outline": [
+        [681, 105],
+        [759, 105],
+        [759, 183],
+        [681, 183]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_2",
+      "chunk": [-8, 2],
+      "outline": [
+        [-759, 201],
+        [-681, 201],
+        [-681, 279],
+        [-759, 279]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_2",
+      "chunk": [-7, 2],
+      "outline": [
+        [-663, 201],
+        [-585, 201],
+        [-585, 279],
+        [-663, 279]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_2",
+      "chunk": [-6, 2],
+      "outline": [
+        [-567, 201],
+        [-489, 201],
+        [-489, 279],
+        [-567, 279]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_2",
+      "chunk": [-5, 2],
+      "outline": [
+        [-471, 201],
+        [-397, 201],
+        [-397, 279],
+        [-471, 279]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_2",
+      "chunk": [-4, 2],
+      "outline": [
+        [-371, 201],
+        [-297, 201],
+        [-297, 279],
+        [-371, 279]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_2",
+      "chunk": [-3, 2],
+      "outline": [
+        [-279, 201],
+        [-201, 201],
+        [-201, 279],
+        [-279, 279]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_2",
+      "chunk": [-2, 2],
+      "outline": [
+        [-183, 201],
+        [-105, 201],
+        [-105, 279],
+        [-183, 279]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_2",
+      "chunk": [-1, 2],
+      "outline": [
+        [-87, 201],
+        [-18, 201],
+        [-18, 279],
+        [-87, 279]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_2",
+      "chunk": [0, 2],
+      "outline": [
+        [18, 201],
+        [87, 201],
+        [87, 279],
+        [18, 279]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_2",
+      "chunk": [1, 2],
+      "outline": [
+        [105, 201],
+        [183, 201],
+        [183, 279],
+        [105, 279]
+      ],
+      "zone": "downtown",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_2",
+      "chunk": [2, 2],
+      "outline": [
+        [201, 201],
+        [279, 201],
+        [279, 279],
+        [201, 279]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_2",
+      "chunk": [3, 2],
+      "outline": [
+        [297, 201],
+        [371, 201],
+        [371, 279],
+        [297, 279]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_2",
+      "chunk": [4, 2],
+      "outline": [
+        [397, 201],
+        [471, 201],
+        [471, 279],
+        [397, 279]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_2",
+      "chunk": [5, 2],
+      "outline": [
+        [489, 201],
+        [567, 201],
+        [567, 279],
+        [489, 279]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_2",
+      "chunk": [6, 2],
+      "outline": [
+        [585, 201],
+        [663, 201],
+        [663, 279],
+        [585, 279]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_2",
+      "chunk": [7, 2],
+      "outline": [
+        [681, 201],
+        [759, 201],
+        [759, 279],
+        [681, 279]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_3",
+      "chunk": [-8, 3],
+      "outline": [
+        [-759, 297],
+        [-681, 297],
+        [-681, 371],
+        [-759, 371]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-7_3",
+      "chunk": [-7, 3],
+      "outline": [
+        [-663, 297],
+        [-585, 297],
+        [-585, 371],
+        [-663, 371]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-6_3",
+      "chunk": [-6, 3],
+      "outline": [
+        [-567, 297],
+        [-489, 297],
+        [-489, 371],
+        [-567, 371]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-5_3",
+      "chunk": [-5, 3],
+      "outline": [
+        [-471, 297],
+        [-397, 297],
+        [-397, 371],
+        [-471, 371]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_3",
+      "chunk": [-4, 3],
+      "outline": [
+        [-371, 297],
+        [-297, 297],
+        [-297, 371],
+        [-371, 371]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_3",
+      "chunk": [-3, 3],
+      "outline": [
+        [-279, 297],
+        [-201, 297],
+        [-201, 371],
+        [-279, 371]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-2_3",
+      "chunk": [-2, 3],
+      "outline": [
+        [-183, 297],
+        [-105, 297],
+        [-105, 371],
+        [-183, 371]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-1_3",
+      "chunk": [-1, 3],
+      "outline": [
+        [-87, 297],
+        [-18, 297],
+        [-18, 371],
+        [-87, 371]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_3",
+      "chunk": [0, 3],
+      "outline": [
+        [18, 297],
+        [87, 297],
+        [87, 371],
+        [18, 371]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_3",
+      "chunk": [1, 3],
+      "outline": [
+        [105, 297],
+        [183, 297],
+        [183, 371],
+        [105, 371]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 1,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_2_3",
+      "chunk": [2, 3],
+      "outline": [
+        [201, 297],
+        [279, 297],
+        [279, 371],
+        [201, 371]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_3_3",
+      "chunk": [3, 3],
+      "outline": [
+        [297, 297],
+        [371, 297],
+        [371, 371],
+        [297, 371]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_3",
+      "chunk": [4, 3],
+      "outline": [
+        [397, 297],
+        [471, 297],
+        [471, 371],
+        [397, 371]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_3",
+      "chunk": [5, 3],
+      "outline": [
+        [489, 297],
+        [567, 297],
+        [567, 371],
+        [489, 371]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_6_3",
+      "chunk": [6, 3],
+      "outline": [
+        [585, 297],
+        [663, 297],
+        [663, 371],
+        [585, 371]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_7_3",
+      "chunk": [7, 3],
+      "outline": [
+        [681, 297],
+        [759, 297],
+        [759, 371],
+        [681, 371]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-8_4",
+      "chunk": [-8, 4],
+      "outline": [
+        [-759, 397],
+        [-681, 397],
+        [-681, 471],
+        [-759, 471]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-7_4",
+      "chunk": [-7, 4],
+      "outline": [
+        [-663, 397],
+        [-585, 397],
+        [-585, 471],
+        [-663, 471]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-6_4",
+      "chunk": [-6, 4],
+      "outline": [
+        [-567, 397],
+        [-489, 397],
+        [-489, 471],
+        [-567, 471]
+      ],
+      "zone": "ghost-town",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-5_4",
+      "chunk": [-5, 4],
+      "outline": [
+        [-471, 397],
+        [-397, 397],
+        [-397, 471],
+        [-471, 471]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_4",
+      "chunk": [-4, 4],
+      "outline": [
+        [-371, 397],
+        [-297, 397],
+        [-297, 471],
+        [-371, 471]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_4",
+      "chunk": [-3, 4],
+      "outline": [
+        [-279, 397],
+        [-201, 397],
+        [-201, 471],
+        [-279, 471]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-2_4",
+      "chunk": [-2, 4],
+      "outline": [
+        [-183, 397],
+        [-105, 397],
+        [-105, 471],
+        [-183, 471]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-1_4",
+      "chunk": [-1, 4],
+      "outline": [
+        [-87, 397],
+        [-18, 397],
+        [-18, 471],
+        [-87, 471]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_4",
+      "chunk": [0, 4],
+      "outline": [
+        [18, 397],
+        [87, 397],
+        [87, 471],
+        [18, 471]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_4",
+      "chunk": [1, 4],
+      "outline": [
+        [105, 397],
+        [183, 397],
+        [183, 471],
+        [105, 471]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_2_4",
+      "chunk": [2, 4],
+      "outline": [
+        [201, 397],
+        [279, 397],
+        [279, 471],
+        [201, 471]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_3_4",
+      "chunk": [3, 4],
+      "outline": [
+        [297, 397],
+        [371, 397],
+        [371, 471],
+        [297, 471]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_4",
+      "chunk": [4, 4],
+      "outline": [
+        [397, 397],
+        [471, 397],
+        [471, 471],
+        [397, 471]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_4",
+      "chunk": [5, 4],
+      "outline": [
+        [489, 397],
+        [567, 397],
+        [567, 471],
+        [489, 471]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_6_4",
+      "chunk": [6, 4],
+      "outline": [
+        [585, 397],
+        [663, 397],
+        [663, 471],
+        [585, 471]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_7_4",
+      "chunk": [7, 4],
+      "outline": [
+        [681, 397],
+        [759, 397],
+        [759, 471],
+        [681, 471]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-8_5",
+      "chunk": [-8, 5],
+      "outline": [
+        [-759, 489],
+        [-681, 489],
+        [-681, 567],
+        [-759, 567]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_5",
+      "chunk": [-7, 5],
+      "outline": [
+        [-663, 489],
+        [-585, 489],
+        [-585, 567],
+        [-663, 567]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_5",
+      "chunk": [-6, 5],
+      "outline": [
+        [-567, 489],
+        [-489, 489],
+        [-489, 567],
+        [-567, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_5",
+      "chunk": [-5, 5],
+      "outline": [
+        [-471, 489],
+        [-397, 489],
+        [-397, 567],
+        [-471, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_5",
+      "chunk": [-4, 5],
+      "outline": [
+        [-371, 489],
+        [-297, 489],
+        [-297, 567],
+        [-371, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_5",
+      "chunk": [-3, 5],
+      "outline": [
+        [-279, 489],
+        [-201, 489],
+        [-201, 567],
+        [-279, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_5",
+      "chunk": [-2, 5],
+      "outline": [
+        [-183, 489],
+        [-105, 489],
+        [-105, 567],
+        [-183, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_5",
+      "chunk": [-1, 5],
+      "outline": [
+        [-87, 489],
+        [-18, 489],
+        [-18, 567],
+        [-87, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_5",
+      "chunk": [0, 5],
+      "outline": [
+        [18, 489],
+        [87, 489],
+        [87, 567],
+        [18, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_5",
+      "chunk": [1, 5],
+      "outline": [
+        [105, 489],
+        [183, 489],
+        [183, 567],
+        [105, 567]
+      ],
+      "zone": "apartment-ring",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_5",
+      "chunk": [2, 5],
+      "outline": [
+        [201, 489],
+        [279, 489],
+        [279, 567],
+        [201, 567]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_5",
+      "chunk": [3, 5],
+      "outline": [
+        [297, 489],
+        [371, 489],
+        [371, 567],
+        [297, 567]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_5",
+      "chunk": [4, 5],
+      "outline": [
+        [397, 489],
+        [471, 489],
+        [471, 567],
+        [397, 567]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_5",
+      "chunk": [5, 5],
+      "outline": [
+        [489, 489],
+        [567, 489],
+        [567, 567],
+        [489, 567]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_5",
+      "chunk": [6, 5],
+      "outline": [
+        [585, 489],
+        [663, 489],
+        [663, 567],
+        [585, 567]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_5",
+      "chunk": [7, 5],
+      "outline": [
+        [681, 489],
+        [759, 489],
+        [759, 567],
+        [681, 567]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_6",
+      "chunk": [-8, 6],
+      "outline": [
+        [-759, 585],
+        [-681, 585],
+        [-681, 663],
+        [-759, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_6",
+      "chunk": [-7, 6],
+      "outline": [
+        [-663, 585],
+        [-585, 585],
+        [-585, 663],
+        [-663, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_6",
+      "chunk": [-6, 6],
+      "outline": [
+        [-567, 585],
+        [-489, 585],
+        [-489, 663],
+        [-567, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_6",
+      "chunk": [-5, 6],
+      "outline": [
+        [-471, 585],
+        [-397, 585],
+        [-397, 663],
+        [-471, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_6",
+      "chunk": [-4, 6],
+      "outline": [
+        [-371, 585],
+        [-297, 585],
+        [-297, 663],
+        [-371, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_6",
+      "chunk": [-3, 6],
+      "outline": [
+        [-279, 585],
+        [-201, 585],
+        [-201, 663],
+        [-279, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_6",
+      "chunk": [-2, 6],
+      "outline": [
+        [-183, 585],
+        [-105, 585],
+        [-105, 663],
+        [-183, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_6",
+      "chunk": [-1, 6],
+      "outline": [
+        [-87, 585],
+        [-18, 585],
+        [-18, 663],
+        [-87, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_6",
+      "chunk": [0, 6],
+      "outline": [
+        [18, 585],
+        [87, 585],
+        [87, 663],
+        [18, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_6",
+      "chunk": [1, 6],
+      "outline": [
+        [105, 585],
+        [183, 585],
+        [183, 663],
+        [105, 663]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_6",
+      "chunk": [2, 6],
+      "outline": [
+        [201, 585],
+        [279, 585],
+        [279, 663],
+        [201, 663]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_6",
+      "chunk": [3, 6],
+      "outline": [
+        [297, 585],
+        [371, 585],
+        [371, 663],
+        [297, 663]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_6",
+      "chunk": [4, 6],
+      "outline": [
+        [397, 585],
+        [471, 585],
+        [471, 663],
+        [397, 663]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_6",
+      "chunk": [5, 6],
+      "outline": [
+        [489, 585],
+        [567, 585],
+        [567, 663],
+        [489, 663]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_6",
+      "chunk": [6, 6],
+      "outline": [
+        [585, 585],
+        [663, 585],
+        [663, 663],
+        [585, 663]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_6",
+      "chunk": [7, 6],
+      "outline": [
+        [681, 585],
+        [759, 585],
+        [759, 663],
+        [681, 663]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-8_7",
+      "chunk": [-8, 7],
+      "outline": [
+        [-759, 681],
+        [-681, 681],
+        [-681, 759],
+        [-759, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-7_7",
+      "chunk": [-7, 7],
+      "outline": [
+        [-663, 681],
+        [-585, 681],
+        [-585, 759],
+        [-663, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-6_7",
+      "chunk": [-6, 7],
+      "outline": [
+        [-567, 681],
+        [-489, 681],
+        [-489, 759],
+        [-567, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-5_7",
+      "chunk": [-5, 7],
+      "outline": [
+        [-471, 681],
+        [-397, 681],
+        [-397, 759],
+        [-471, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-4_7",
+      "chunk": [-4, 7],
+      "outline": [
+        [-371, 681],
+        [-297, 681],
+        [-297, 759],
+        [-371, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_-3_7",
+      "chunk": [-3, 7],
+      "outline": [
+        [-279, 681],
+        [-201, 681],
+        [-201, 759],
+        [-279, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-2_7",
+      "chunk": [-2, 7],
+      "outline": [
+        [-183, 681],
+        [-105, 681],
+        [-105, 759],
+        [-183, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_-1_7",
+      "chunk": [-1, 7],
+      "outline": [
+        [-87, 681],
+        [-18, 681],
+        [-18, 759],
+        [-87, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_0_7",
+      "chunk": [0, 7],
+      "outline": [
+        [18, 681],
+        [87, 681],
+        [87, 759],
+        [18, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 5
+    },
+    {
+      "id": "blk_1_7",
+      "chunk": [1, 7],
+      "outline": [
+        [105, 681],
+        [183, 681],
+        [183, 759],
+        [105, 759]
+      ],
+      "zone": "outer-residential",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_2_7",
+      "chunk": [2, 7],
+      "outline": [
+        [201, 681],
+        [279, 681],
+        [279, 759],
+        [201, 759]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_3_7",
+      "chunk": [3, 7],
+      "outline": [
+        [297, 681],
+        [371, 681],
+        [371, 759],
+        [297, 759]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_4_7",
+      "chunk": [4, 7],
+      "outline": [
+        [397, 681],
+        [471, 681],
+        [471, 759],
+        [397, 759]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 4
+    },
+    {
+      "id": "blk_5_7",
+      "chunk": [5, 7],
+      "outline": [
+        [489, 681],
+        [567, 681],
+        [567, 759],
+        [489, 759]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_6_7",
+      "chunk": [6, 7],
+      "outline": [
+        [585, 681],
+        [663, 681],
+        [663, 759],
+        [585, 759]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    },
+    {
+      "id": "blk_7_7",
+      "chunk": [7, 7],
+      "outline": [
+        [681, 681],
+        [759, 681],
+        [759, 759],
+        [681, 759]
+      ],
+      "zone": "industrial-south",
+      "salt": 0,
+      "density": 1,
+      "heightBias": 0,
+      "frontage": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "sidewalk": 3
+    }
+  ],
+  "craters": [
+    {
+      "id": "old-crater",
+      "centre": [504, 120],
+      "radius": 112,
+      "depth": 15,
+      "rim": 3.2,
+      "rubble": 0.85,
+      "description": "Left by a fight nobody in City Z talks about. Two streets still dead-end into the rim."
+    }
+  ],
+  "props": [
+    {
+      "assetKey": "model.prop.utility_box_01",
+      "position": [-588, 292],
+      "rotationY": 0,
+      "scale": 1
+    },
+    {
+      "assetKey": "model.prop.metal_trash_can",
+      "position": [-586, 296],
+      "rotationY": 0.8,
+      "scale": 1
+    },
+    {
+      "assetKey": "model.prop.street_lamp_01",
+      "position": [-592, 288],
+      "rotationY": 0,
+      "scale": 1
+    },
+    {
+      "assetKey": "model.prop.concrete_road_barrier",
+      "position": [396, 120],
+      "rotationY": 0,
+      "scale": 1
+    },
+    {
+      "assetKey": "model.prop.concrete_road_barrier",
+      "position": [396, 126],
+      "rotationY": 0,
+      "scale": 1
+    },
+    {
+      "assetKey": "model.prop.concrete_road_barrier",
+      "position": [612, 120],
+      "rotationY": 0,
+      "scale": 1
+    },
+    {
+      "assetKey": "model.prop.concrete_road_barrier_02",
+      "position": [612, 126],
+      "rotationY": 0,
+      "scale": 1
+    }
+  ]
+}

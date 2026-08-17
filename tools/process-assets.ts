@@ -684,6 +684,16 @@ export async function writeRuntimeIndex(options: {
       entries.push(attach(entry));
     }
   }
+  // Entries an earlier run synthesised that this one did not regenerate — the
+  // procedural materials' texture rows, when only the HDRI stage ran, or a
+  // `--validate`-only invocation. Without this they would silently vanish from
+  // the index while their files sat perfectly good on disk.
+  for (const entry of previous?.entries ?? []) {
+    if (!seen.has(entry.id)) {
+      seen.add(entry.id);
+      entries.push(attach(entry));
+    }
+  }
 
   // Byte totals dedupe by file: a shared output referenced by several tiers
   // (an environment's SH, an identical high/ultra sky) is real bytes once.

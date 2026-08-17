@@ -17,7 +17,7 @@
  */
 
 import type { IRandom } from '@/util';
-import type { IInstanceBatch, IPropPlacement } from '@/types';
+import type { IInstanceBatch } from '@/types';
 import type { ZoneKind } from './plan-types';
 
 /** Model ids the city scatters, grouped by where they belong. */
@@ -105,8 +105,8 @@ export function pickProp(zone: ZoneKind, rng: IRandom): string {
  * insertion order would otherwise depend on the scatter sequence, and the
  * determinism test compares serialised output byte for byte.
  */
-export function batchProps(placements: readonly IPropPlacement[], lod = 0): IInstanceBatch[] {
-  const byKey = new Map<string, IPropPlacement[]>();
+export function batchProps(placements: readonly IRawPlacement[], lod = 0): IInstanceBatch[] {
+  const byKey = new Map<string, IRawPlacement[]>();
   for (const placement of placements) {
     const list = byKey.get(placement.assetKey);
     if (list) list.push(placement);
@@ -126,7 +126,7 @@ export function batchProps(placements: readonly IPropPlacement[], lod = 0): IIns
 }
 
 /** Column-major TRS matrix for a uniform-scaled, Y-rotated placement. */
-function writeMatrix(out: Float32Array, offset: number, p: IPropPlacement): void {
+function writeMatrix(out: Float32Array, offset: number, p: IRawPlacement): void {
   const c = Math.cos(p.rotationY) * p.scale;
   const s = Math.sin(p.rotationY) * p.scale;
   out[offset] = c;
@@ -141,9 +141,9 @@ function writeMatrix(out: Float32Array, offset: number, p: IPropPlacement): void
   out[offset + 9] = 0;
   out[offset + 10] = c;
   out[offset + 11] = 0;
-  out[offset + 12] = p.position.x;
-  out[offset + 13] = p.position.y;
-  out[offset + 14] = p.position.z;
+  out[offset + 12] = p.x;
+  out[offset + 13] = p.y;
+  out[offset + 14] = p.z;
   out[offset + 15] = 1;
 }
 

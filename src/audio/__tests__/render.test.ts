@@ -205,13 +205,15 @@ describe('consecutive punches', () => {
   });
 
   it('raises the pitch as the chain progresses', () => {
-    // Measured from the rendered audio: the chain's low-band centre of
-    // gravity migrates upward between its middle and its final third.
+    // Measured from the rendered audio: the chain's low-band centre of gravity
+    // migrates upward across the chain body, and does so monotonically.
     for (const name of ['chain.consecutive', 'chain.barrage']) {
       const chain = suite.get(name);
       expect(chain.extras.pitchEarly, `${name} early`).toBeGreaterThan(0);
       expect(chain.extras.pitchLate, `${name} late`).toBeGreaterThan(chain.extras.pitchEarly!);
-      expect(chain.extras.pitchRise, `${name} rise`).toBeGreaterThan(1.08);
+      expect(chain.extras.pitchRise, `${name} rise`).toBeGreaterThan(1.15);
+      expect(chain.extras.third2, `${name} third2`).toBeGreaterThan(chain.extras.third1!);
+      expect(chain.extras.third3, `${name} third3`).toBeGreaterThan(chain.extras.third2!);
     }
   });
 
@@ -281,8 +283,12 @@ describe('debris', () => {
 describe('building collapse', () => {
   it('is dominated by low rumble', () => {
     const m = suite.get('collapse.building');
-    expect(m.low).toBeGreaterThan(0.7); // 20-200 Hz
-    expect(m.centroid).toBeLessThan(250);
+    // Most of the ENERGY is in the rumble...
+    expect(m.low).toBeGreaterThan(0.65); // 20-200 Hz
+    // ...but the centroid bound is deliberately looser than a pure rumble
+    // would need. The crackle was raised on purpose so the event survives a
+    // phone speaker, and that legitimately pulls the spectral centre up.
+    expect(m.centroid).toBeLessThan(340);
   });
 
   it('still carries audible mid-frequency crackle', () => {

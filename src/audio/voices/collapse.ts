@@ -54,11 +54,11 @@ const SHAPES: Record<string, CollapseShape> = {
     rumbleAttack: 0.35,
     rumbleSustain: 0.9,
     rumbleDecay: 3.2,
-    rumbleGain: 0.62,
+    rumbleGain: 0.5,
     groanHz: 58,
     groanModHz: 6.5,
     groanGain: 0.2,
-    crackleCount: 70,
+    crackleCount: 105,
     crackleSpread: 3.2,
     settleHz: 70,
   },
@@ -68,11 +68,11 @@ const SHAPES: Record<string, CollapseShape> = {
     rumbleAttack: 0.6,
     rumbleSustain: 1.6,
     rumbleDecay: 5,
-    rumbleGain: 0.66,
+    rumbleGain: 0.55,
     groanHz: 42,
     groanModHz: 4.5,
     groanGain: 0.24,
-    crackleCount: 120,
+    crackleCount: 165,
     crackleSpread: 5,
     settleHz: 54,
   },
@@ -82,11 +82,11 @@ const SHAPES: Record<string, CollapseShape> = {
     rumbleAttack: 0.12,
     rumbleSustain: 0.25,
     rumbleDecay: 1.4,
-    rumbleGain: 0.42,
+    rumbleGain: 0.36,
     groanHz: 80,
     groanModHz: 11,
     groanGain: 0.12,
-    crackleCount: 45,
+    crackleCount: 70,
     crackleSpread: 1.5,
     settleHz: 90,
   },
@@ -125,6 +125,7 @@ export class CollapseVoice extends SynthVoice {
   private readonly trim: GainNode;
 
   private readonly rumbleNoise: AudioBufferSourceNode;
+  private readonly rumbleHp: BiquadFilterNode;
   private readonly rumbleLp: BiquadFilterNode;
   private readonly rumbleGain: GainNode;
   private readonly rumbleLfo: OscillatorNode;
@@ -155,13 +156,25 @@ export class CollapseVoice extends SynthVoice {
 
     // --- Rumble ---------------------------------------------------------
     this.rumbleNoise = createNoiseSource(ctx, 'brown', noiseOffset, 4);
+    // Brown noise keeps rising at -6 dB/octave below hearing. A tower collapse
+    // was putting a ninth of its total power under 10 Hz, where it is
+    // inaudible on every device but still consumes headroom and makes a phone
+    // speaker distort. Strip it at the source.
+    this.rumbleHp = ctx.createBiquadFilter();
+    this.rumbleHp.type = 'highpass';
+    this.rumbleHp.frequency.value = 26;
+    this.rumbleHp.Q.value = 0.7;
     this.rumbleLp = ctx.createBiquadFilter();
     this.rumbleLp.type = 'lowpass';
     this.rumbleLp.frequency.value = 130;
     this.rumbleLp.Q.value = 1.2;
     this.rumbleGain = ctx.createGain();
     this.rumbleGain.gain.value = 0;
-    this.rumbleNoise.connect(this.rumbleLp).connect(this.rumbleGain).connect(this.trim);
+    this.rumbleNoise
+      .connect(this.rumbleHp)
+      .connect(this.rumbleLp)
+      .connect(this.rumbleGain)
+      .connect(this.trim);
 
     // LFO on the cutoff so the rumble breathes. Audio-rate parameter
     // modulation, free-running like everything else.
@@ -279,9 +292,14 @@ export class CollapseVoice extends SynthVoice {
       const decay = lerp(0.01, 0.09, rng.next() * rng.next());
       // Thinning: later grains are quieter and rarer-sounding.
       const fade = Math.pow(1 - offset / Math.max(spread, 1e-3), 1.3);
-      const gain = 0.34 * lerp(0.4, 1, rng.next()) * lerp(0.35, 1, fade);
+      // The crackle is what carries a collapse on a phone speaker, which
+      // reproduces almost nothing below 150 Hz. It has to hold its own against
+      // the rumble rather than sit politely under it.
+      const gain = 1.15 * lerp(0.4, 1, rng.next()) * lerp(0.35, 1, fade);
       resetParam(unit.bp.frequency, gt, Math.min(centre, nq * 0.45));
-      resetParam(unit.bp.Q, gt, lerp(3, 12, rng.next()));
+      // Lower Q than the debris grains: a narrow band passes almost no energy,
+      // and the crackle has to be heard THROUGH the rumble, not under it.
+      resetParam(unit.bp.Q, gt, lerp(1.4, 5.5, rng.next()));
       resetParam(unit.pan.pan, gt, (rng.next() * 2 - 1) * 0.85);
       unit.freeAt = percussive(unit.gain.gain, gt, gain, 0.001, decay);
       crackleEnd = Math.max(crackleEnd, unit.freeAt);
@@ -305,6 +323,7 @@ export class CollapseVoice extends SynthVoice {
     for (const c of this.crackles) c.dispose();
     this.crackles.length = 0;
     this.trim.disconnect();
+    this.rumbleHp.disconnect();
     this.rumbleLp.disconnect();
     this.rumbleGain.disconnect();
     this.rumbleLfoGain.disconnect();

@@ -702,16 +702,14 @@ export async function renderChainProbe(
 
   // MEASURING THE RISE
   //
-  // Individual hit pitches cannot be read out of a dense chain: at 57 ms
-  // spacing three hits are sounding at once and the previous tails dominate
+  // Individual hit pitches still cannot be read cleanly out of a dense chain:
+  // at 57 ms spacing two or three hits overlap and the previous tails colour
   // any window short enough to isolate one attack. What IS measurable — and
   // what the ear actually hears — is the chain's low-band centre of gravity
   // migrating upward as the pitch climbs.
   //
-  // The first third is skipped: the opening hit has no preceding tail, so its
-  // window is unrepresentatively bright and would swamp the comparison. The
-  // measurement therefore runs over the SETTLED part of the chain, comparing
-  // its middle third against its final third.
+  // Measured over the chain BODY, excluding the finisher, which deliberately
+  // drops back against the rise and rings far longer than any other hit.
   const bodyHits = hits.length > 1 ? hits.slice(0, -1) : hits;
   const span = bodyHits[bodyHits.length - 1]!.offset;
   const centre = (from: number, to: number): number => {
@@ -722,11 +720,15 @@ export async function renderChainProbe(
   const third = span / 3;
   result.extras.hitCount = hits.length;
   result.extras.span = span;
-  result.extras.pitchOpening = centre(0, third);
-  result.extras.pitchEarly = centre(third, 2 * third);
-  result.extras.pitchLate = centre(2 * third, span);
+  result.extras.pitchEarly = centre(0, span / 2);
+  result.extras.pitchLate = centre(span / 2, span);
   result.extras.pitchRise =
     result.extras.pitchEarly > 0 ? result.extras.pitchLate / result.extras.pitchEarly : 0;
+  // Thirds, so the rise can be checked for monotonicity rather than just for
+  // endpoints that happen to differ.
+  result.extras.third1 = centre(0, third);
+  result.extras.third2 = centre(third, 2 * third);
+  result.extras.third3 = centre(2 * third, span);
   // The schedule's own numbers, for cross-reference with the pure unit test.
   result.extras.scheduledFirstPitch = bodyHits[0]!.pitch;
   result.extras.scheduledLastPitch = bodyHits[bodyHits.length - 1]!.pitch;

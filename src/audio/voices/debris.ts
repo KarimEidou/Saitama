@@ -46,6 +46,15 @@ interface DebrisMaterial {
   /** Grain length range in seconds. */
   readonly decayLo: number;
   readonly decayHi: number;
+  /**
+   * Grain-count multiplier.
+   *
+   * Materials do not fragment equally: a pane of glass becomes far more
+   * pieces than a slab of concrete does. This is physically motivated and it
+   * also fixes a level problem — high-Q grains pass very little energy each,
+   * so glass needs many of them to register at all rather than one loud one.
+   */
+  readonly densityScale: number;
   /** Probability that a grain also gets a low thump body. */
   readonly thumpChance: number;
   /** Thump pitch range in Hz. */
@@ -67,6 +76,7 @@ const MATERIALS: Record<string, DebrisMaterial> = {
     qHi: 4,
     decayLo: 0.012,
     decayHi: 0.07,
+    densityScale: 1.0,
     thumpChance: 0.7,
     thumpLo: 48,
     thumpHi: 115,
@@ -79,6 +89,7 @@ const MATERIALS: Record<string, DebrisMaterial> = {
     qHi: 4,
     decayLo: 0.008,
     decayHi: 0.05,
+    densityScale: 1.15,
     thumpChance: 0.35,
     thumpLo: 60,
     thumpHi: 160,
@@ -91,22 +102,24 @@ const MATERIALS: Record<string, DebrisMaterial> = {
     qHi: 26,
     decayLo: 0.03,
     decayHi: 0.16,
+    densityScale: 2.1,
     thumpChance: 0.04,
     thumpLo: 180,
     thumpHi: 400,
-    gain: 0.46,
+    gain: 1.05,
   },
   metal: {
     loHz: 700,
     hiHz: 5200,
-    qLo: 9,
-    qHi: 30,
+    qLo: 6,
+    qHi: 22,
     decayLo: 0.05,
     decayHi: 0.3,
+    densityScale: 1.7,
     thumpChance: 0.2,
     thumpLo: 90,
     thumpHi: 220,
-    gain: 0.46,
+    gain: 1,
   },
   wood: {
     loHz: 500,
@@ -115,10 +128,11 @@ const MATERIALS: Record<string, DebrisMaterial> = {
     qHi: 10,
     decayLo: 0.008,
     decayHi: 0.032,
+    densityScale: 1.35,
     thumpChance: 0.12,
     thumpLo: 130,
     thumpHi: 300,
-    gain: 0.44,
+    gain: 0.7,
   },
   glassAndSteel: {
     loHz: 900,
@@ -127,6 +141,7 @@ const MATERIALS: Record<string, DebrisMaterial> = {
     qHi: 22,
     decayLo: 0.02,
     decayHi: 0.18,
+    densityScale: 1.6,
     thumpChance: 0.25,
     thumpLo: 80,
     thumpHi: 240,
@@ -226,7 +241,7 @@ export class DebrisVoice extends SynthVoice {
     const material = MATERIALS[resolveMaterial(p.variant)]!;
     const power = clamp01(p.intensity);
     // Density: one chunk is a few grains, a collapse is a shower.
-    const requested = Math.round(lerp(3, 60, power * power));
+    const requested = Math.round(lerp(3, 60, power * power) * material.densityScale);
     // The burst gets longer as well as denser — a big collapse rains for
     // longer, it does not just get louder.
     const spread = lerp(0.22, 1.4, power);

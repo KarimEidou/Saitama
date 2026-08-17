@@ -126,8 +126,12 @@ const VOWELS: readonly (readonly [number, number])[] = [
 export class CrowdBedVoice extends SustainedVoice {
   private readonly trim: GainNode;
   private readonly murmurNoise: AudioBufferSourceNode;
+  private readonly murmurNoiseRight: AudioBufferSourceNode;
   private readonly murmurBp: BiquadFilterNode;
+  private readonly murmurBpRight: BiquadFilterNode;
   private readonly murmurGain: GainNode;
+  private readonly murmurPanLeft: StereoPannerNode;
+  private readonly murmurPanRight: StereoPannerNode;
   private readonly chatterBp: BiquadFilterNode;
   private readonly chatterGain: GainNode;
   private readonly trafficNoise: AudioBufferSourceNode;
@@ -155,14 +159,35 @@ export class CrowdBedVoice extends SustainedVoice {
     this.trim.gain.value = 0.85;
     this.trim.connect(this.output);
 
+    // TWO decorrelated murmur channels, hard-ish panned.
+    //
+    // One mono noise band read as a crowd inside the listener's head rather
+    // than a street around them. Two independent noise streams through
+    // slightly different bandpasses have no correlation, which is exactly what
+    // a real diffuse field is, and it costs three nodes.
     this.murmurNoise = createNoiseSource(ctx, 'pink', noiseOffset, 4);
-    this.murmurBp = ctx.createBiquadFilter();
-    this.murmurBp.type = 'bandpass';
-    this.murmurBp.frequency.value = 500;
-    this.murmurBp.Q.value = 0.8;
+    this.murmurNoiseRight = createNoiseSource(ctx, 'pink', (noiseOffset + 0.63) % 1, 4);
     this.murmurGain = ctx.createGain();
     this.murmurGain.gain.value = 0;
-    this.murmurNoise.connect(this.murmurBp).connect(this.murmurGain).connect(this.trim);
+    this.murmurGain.connect(this.trim);
+
+    this.murmurPanLeft = ctx.createStereoPanner();
+    this.murmurPanLeft.pan.value = -0.75;
+    this.murmurPanRight = ctx.createStereoPanner();
+    this.murmurPanRight.pan.value = 0.75;
+    this.murmurPanLeft.connect(this.murmurGain);
+    this.murmurPanRight.connect(this.murmurGain);
+
+    this.murmurBp = ctx.createBiquadFilter();
+    this.murmurBp.type = 'bandpass';
+    this.murmurBp.frequency.value = 480;
+    this.murmurBp.Q.value = 0.8;
+    this.murmurBpRight = ctx.createBiquadFilter();
+    this.murmurBpRight.type = 'bandpass';
+    this.murmurBpRight.frequency.value = 540;
+    this.murmurBpRight.Q.value = 0.8;
+    this.murmurNoise.connect(this.murmurBp).connect(this.murmurPanLeft);
+    this.murmurNoiseRight.connect(this.murmurBpRight).connect(this.murmurPanRight);
 
     this.chatterBp = ctx.createBiquadFilter();
     this.chatterBp.type = 'bandpass';
@@ -260,11 +285,15 @@ export class CrowdBedVoice extends SustainedVoice {
 
   protected override teardown(): void {
     SynthVoice.stopSource(this.murmurNoise);
+    SynthVoice.stopSource(this.murmurNoiseRight);
     SynthVoice.stopSource(this.trafficNoise);
     for (const b of this.blips) b.dispose();
     this.blips.length = 0;
     this.trim.disconnect();
     this.murmurBp.disconnect();
+    this.murmurBpRight.disconnect();
+    this.murmurPanLeft.disconnect();
+    this.murmurPanRight.disconnect();
     this.murmurGain.disconnect();
     this.chatterBp.disconnect();
     this.chatterGain.disconnect();

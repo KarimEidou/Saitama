@@ -198,6 +198,23 @@ export function generateBlock(
       rotationY: Math.atan2(-lot.facing[0], -lot.facing[1]),
       kind: 'npc',
     });
+
+    // Model overlays from the Poly Haven kit go on the buildings that hold the
+    // primary frontage only. Every facade requesting a real fire escape would
+    // multiply the instance count for detail nobody sees down a side street.
+    if (lot.isPrimary) {
+      for (const attachment of built.attachments) {
+        props.push({
+          assetKey: attachment.assetKey,
+          x: centre[0] + attachment.position[0],
+          y: attachment.position[1],
+          z: centre[1] + attachment.position[2],
+          rotationY: attachment.rotationY,
+          scale: attachment.scale,
+          destructible: true,
+        });
+      }
+    }
   }
 
   // Courtyard: sheds, parked cars and the small structures that fill the

@@ -203,10 +203,10 @@ export function blendPoseMasked(out: Pose, b: Pose, t: number, mask: BoneMask): 
       bz = -bz;
       bw = -bw;
     }
-    let x = ax + (bx - ax) * w;
-    let y = ay + (by - ay) * w;
-    let z = az + (bz - az) * w;
-    let s = aw + (bw - aw) * w;
+    const x = ax + (bx - ax) * w;
+    const y = ay + (by - ay) * w;
+    const z = az + (bz - az) * w;
+    const s = aw + (bw - aw) * w;
     const len = Math.sqrt(x * x + y * y + z * z + s * s);
     const inv = len > 1e-8 ? 1 / len : 0;
     or_[o] = len > 1e-8 ? x * inv : 0;
