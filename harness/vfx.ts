@@ -478,8 +478,15 @@ function main(): void {
   vfx.setSun(lighting.sunDirection, 0xfff2e2, 0x8ba3c4, 1.08, 0.44);
   vfx.setFog(lighting.fogColor.getHex(), lighting.fogDensity);
   vfx.setViewport(window.innerWidth, window.innerHeight);
-  scene.add(vfx.root);
-  vfx.root.visible = false;
+  // NOT added to the scene yet. `ShaderWarmup` calls `renderer.compile()`,
+  // and three's `compile()` walks the scene with `traverse`, not
+  // `traverseVisible` — so anything present in the graph gets its programs
+  // built whether it is visible or not. Leaving the VFX root out until the
+  // baseline has been read is the only way to measure what they cost.
+  //
+  // (In the GAME the opposite is wanted: add the root before warmup and the
+  // engine's existing shader warmup compiles the VFX programs for free,
+  // behind the loading screen, which is exactly where they belong.)
 
   /* ------------------------------ warmup -------------------------------- */
 
@@ -1038,6 +1045,9 @@ function main(): void {
       await waitFrames(2);
       budget.baselinePrograms = renderer.programCount;
 
+      // Now the VFX join the scene, and the next few frames compile their
+      // programs against the tier's real destination.
+      scene.add(vfx.root);
       vfx.root.visible = true;
       fire('seriousPunch');
       vfx.speedlines.setSustained(1);

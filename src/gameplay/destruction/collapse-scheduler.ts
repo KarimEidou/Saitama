@@ -92,7 +92,12 @@ export class CollapseScheduler {
       );
       const due = currentFrame + wave;
 
-      for (const chunkIndex of floor.chunks) {
+      // Indexed, not `for..of`: this runs inside a collapse, and an iterator
+      // object per storey is exactly the kind of small garbage the frame after
+      // a collapse cannot afford.
+      const members = floor.chunks;
+      for (let c = 0; c < members.length; c++) {
+        const chunkIndex = members[c]!;
         if (structure.destroyed[chunkIndex] === 1) continue;
         this.push(structure, chunkIndex, due);
         queued++;

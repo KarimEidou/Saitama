@@ -187,40 +187,50 @@ export function realLayouts(
 /* Fakes                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** A debris pool that counts and enforces a cap, and allocates nothing. */
+/**
+ * A debris pool that counts, enforces a cap and ALLOCATES NOTHING.
+ *
+ * The last part matters: `allocation.test.ts` measures the heap across tens of
+ * thousands of detaches, and a fixture returning `{ id }` per spawn would put
+ * 400 KB of the fixture's own garbage into a number the test attributes to the
+ * system under test. Ids are issued sequentially, so liveness is arithmetic —
+ * piece `i` is live while `retiredThrough < i <= issued` — and the spawn
+ * result is one reused object.
+ */
 export class FakeDebrisPool implements IDebrisSink {
   readonly capacity: number;
   spawnCalls = 0;
   peakCount = 0;
-  /** Ids of live pieces, in spawn order. */
-  private readonly live: number[] = [];
-  private nextId = 1;
+
+  private issued = 0;
+  private retiredThrough = 0;
+  private readonly result = { id: 0 };
 
   constructor(capacity: number) {
     this.capacity = capacity;
   }
 
   get count(): number {
-    return this.live.length;
+    return this.issued - this.retiredThrough;
   }
 
   spawn(chunk: FractureChunk, _worldMatrix: unknown, _impulse: unknown): { id: number } | undefined {
     void chunk;
     this.spawnCalls++;
-    if (this.live.length >= this.capacity) return undefined;
-    const id = this.nextId++;
-    this.live.push(id);
-    if (this.live.length > this.peakCount) this.peakCount = this.live.length;
-    return { id };
+    if (this.count >= this.capacity) return undefined;
+    this.issued++;
+    if (this.count > this.peakCount) this.peakCount = this.count;
+    this.result.id = this.issued;
+    return this.result;
   }
 
   get(id: number): unknown {
-    return this.live.includes(id) ? id : undefined;
+    return id > this.retiredThrough && id <= this.issued ? id : undefined;
   }
 
   /** Retire the oldest `n` pieces, standing in for the 12 s fade. */
   retire(n: number): void {
-    this.live.splice(0, n);
+    this.retiredThrough = Math.min(this.issued, this.retiredThrough + n);
   }
 }
 

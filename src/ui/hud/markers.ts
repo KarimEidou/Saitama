@@ -69,7 +69,15 @@ interface IMarkerNode {
 
 export class MarkerLayer {
   readonly element: HTMLElement;
-  readonly scene = new THREE.Group();
+  /**
+   * A standalone scene, not a child of the game's.
+   *
+   * Markers carry WORLD positions, so they need no parent transform, and
+   * keeping them out of the render scene means the WebGL renderer never walks
+   * them: `CSS2DObject` is invisible to it, but it is still an `Object3D` in
+   * the traversal, and there can be hundreds.
+   */
+  readonly scene = new THREE.Scene();
 
   private readonly doc: Document;
   private readonly renderer: CSS2DRenderer;

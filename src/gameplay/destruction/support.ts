@@ -35,7 +35,9 @@ export function remainingSupport(
   const info = layout.floors[floor];
   if (info === undefined) return 1;
   let remaining = 0;
-  for (const index of info.chunks) {
+  const members = info.chunks;
+  for (let i = 0; i < members.length; i++) {
+    const index = members[i]!;
     const chunk = layout.chunks[index];
     if (chunk !== undefined && !isDestroyed(index)) remaining += chunk.supportShare;
   }

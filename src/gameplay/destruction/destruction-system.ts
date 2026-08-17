@@ -449,7 +449,11 @@ export class DestructionSystem {
     this.blastScale = (INTENT_BLAST_SCALE[intent] ?? 1) * (0.55 + 0.45 * magnitude);
 
     let detached = 0;
-    for (const structure of this.ordered) {
+    // Indexed loops throughout the sweep: `for..of` over an array allocates an
+    // iterator, and this loop runs across every resident structure on the
+    // frame a punch lands.
+    for (let s = 0; s < this.ordered.length; s++) {
+      const structure = this.ordered[s]!;
       const b = structure.worldBounds;
       if (
         !aabbInCone(
@@ -502,7 +506,8 @@ export class DestructionSystem {
     this.blastScale = (INTENT_BLAST_SCALE[intent] ?? 1) * (0.55 + 0.45 * magnitude);
 
     let detached = 0;
-    for (const structure of this.ordered) {
+    for (let s = 0; s < this.ordered.length; s++) {
+      const structure = this.ordered[s]!;
       const b = structure.worldBounds;
       if (
         !aabbInSphere(b[0]!, b[1]!, b[2]!, b[3]!, b[4]!, b[5]!, origin.x, origin.y, origin.z, radius)
@@ -1002,7 +1007,9 @@ export class DestructionSystem {
 
   private recountDamaged(): void {
     let damaged = 0;
-    for (const structure of this.ordered) if (structure.destroyedCount > 0) damaged++;
+    for (let i = 0; i < this.ordered.length; i++) {
+      if (this.ordered[i]!.destroyedCount > 0) damaged++;
+    }
     this.stats.damagedStructures = damaged;
   }
 }

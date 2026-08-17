@@ -539,12 +539,18 @@ export class VFXSystem implements IVFXSystem {
   }
 
   /**
-   * Compile the VFX programs now.
+   * Compile the VFX programs now, during loading.
    *
-   * Must be handed the REAL scene and camera. Programs are keyed partly on
-   * light counts and on whether the draw goes to a render target, so compiling
-   * against a stand-in scene produces variants the game will never use — and
-   * then compiles the real ones mid-punch anyway.
+   * Must be handed the REAL scene and camera, AND called with the render
+   * target the game will actually draw into already bound. Programs are keyed
+   * on light counts, on tone mapping and on the destination colour space, so
+   * compiling against a stand-in scene — or against the default framebuffer
+   * when the game composites through an offscreen target — produces variants
+   * the game never uses and then compiles the real ones mid-punch anyway.
+   *
+   * The alternative, which the harness uses, is simply to render one frame
+   * with the effects visible before the loading screen clears. That is exactly
+   * equivalent and impossible to get wrong.
    */
   compile(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
     const restore: boolean[] = [];
@@ -568,6 +574,11 @@ export class VFXSystem implements IVFXSystem {
     this.flushCoalesced();
 
     if (this.camera) {
+      // The camera rig may have moved this frame and three does not refresh
+      // world matrices until `render()`. Depth sorting, billboarding and the
+      // speedline focus all read them, so they are brought up to date here
+      // rather than depending on the caller's update order.
+      this.camera.updateMatrixWorld();
       this.camera.getWorldPosition(this.cameraPosition);
       this.cameraForward.set(0, 0, -1).applyQuaternion(this.camera.getWorldQuaternion(_quaternion));
       this.shake.listenerPosition.copy(this.cameraPosition);
