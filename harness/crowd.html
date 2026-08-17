@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Crowd Harness — panic, flow, and the people in the way</title>
+    <!--
+      CROWD VERIFICATION HARNESS
+
+      Drives `src/entities/npc/**` in a real browser with a real WebGL context.
+      Three modes, selected with `?mode=`:
+
+        panic   the picture. A street in City Z with a monster at the end of
+                it, 250 VAT-instanced civilians, sixteen skinned ones, and
+                three allies. This is the frame that has to READ as a crowd
+                fleeing in terror rather than as characters milling about, and
+                the only way to know is to look at it.
+        fields  the diagram. Top-down 2D canvas: the alarm field as a heat map,
+                the flee flow as arrows, and every agent as a dot coloured by
+                mood. Deliberately NOT WebGL — everything shown here is CPU-side
+                and rendering it through a software GL stack would measure
+                SwiftShader instead of the simulation.
+        calm    the control. The same street with no threat at all. If the
+                panicking frame and this one look the same, the system does
+                nothing.
+
+      Playwright drives `window.__CROWD_HARNESS__` and asserts
+      `window.__HARNESS_STATS__`. Never reports frames per second: the CI
+      container renders through SwiftShader on the CPU, so a frame time there
+      measures the software rasteriser. What IS reported is CPU simulation
+      time, taken from `performance.now()` around the crowd update.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #05070c;
+        color: #e6edf7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      #stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+      canvas {
+        display: block;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #map {
+        background: #05070c;
+      }
+      .hidden {
+        display: none !important;
+      }
+      #overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .card {
+        position: absolute;
+        background: rgba(6, 9, 16, 0.82);
+        border: 1px solid #1d2740;
+        border-radius: 6px;
+        padding: 10px 13px;
+        font-size: 12px;
+        line-height: 1.55;
+        white-space: pre;
+        backdrop-filter: blur(2px);
+      }
+      #headline {
+        left: 22px;
+        top: 20px;
+      }
+      #legend {
+        right: 22px;
+        top: 20px;
+      }
+      #numbers {
+        left: 22px;
+        bottom: 20px;
+      }
+      b {
+        color: #ffd230;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+      }
+      .dim {
+        color: #7f8ea8;
+      }
+      .ok {
+        color: #4fe08a;
+      }
+      .warn {
+        color: #ff8a5a;
+      }
+      .flee {
+        color: #ff6b6b;
+      }
+      .gawk {
+        color: #ffd230;
+      }
+      .cower {
+        color: #b07cff;
+      }
+      .commute {
+        color: #5aa9ff;
+      }
+      .down {
+        color: #6f7d95;
+      }
+      .sw {
+        display: inline-block;
+        width: 20px;
+        height: 9px;
+        border-radius: 2px;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <canvas id="map" class="hidden"></canvas>
+      <div id="overlay">
+        <div class="card" id="headline"></div>
+        <div class="card" id="legend"></div>
+        <div class="card" id="numbers"></div>
+      </div>
+    </div>
+    <script type="module" src="./crowd.ts"></script>
+  </body>
+</html>

@@ -41,6 +41,76 @@ import { createLogger } from '@/util';
 
 const log = createLogger('world.sky.lights');
 
+/* -------------------------------------------------------------------------- */
+/* onBeforeCompile interop                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `THREE.Material.onBeforeCompile` is a SINGLE SLOT and at least three systems
+ * want it: the material library's injections, the shadow system's cascade
+ * uniforms (`CSM.setupMaterial()` assigns the slot outright), and this one.
+ * Whoever assigns last silently deletes the others.
+ *
+ * The renderer workstream solved that with a composed dispatcher parked on
+ * `material.userData.engineShaderHooks`. This module CANNOT import it — a
+ * system may only depend on `@/types` and `@/util` — so it participates in the
+ * same convention instead, reading and writing the same array in the same
+ * shape. That is an interop contract, not a hidden dependency, and it works in
+ * both orders: whichever system gets there first creates the array, the other
+ * appends to it.
+ *
+ * ── THE CACHE-KEY HALF IS NOT OPTIONAL ─────────────────────────────────────
+ * three builds its program cache key from `defines` plus
+ * `customProgramCacheKey()`, and never looks at what `onBeforeCompile` did. Two
+ * materials with different hooks and no distinguishing key get handed the same
+ * cached program — so the street lamp would render with the window shader.
+ * Every hook therefore carries a key that goes into the composed cache key.
+ */
+type ComposableHook = (
+  shader: THREE.WebGLProgramParametersWithUniforms,
+  renderer: THREE.WebGLRenderer
+) => void;
+
+interface IHookRecord {
+  readonly key: string;
+  readonly fn: ComposableHook;
+}
+
+interface IHookedMaterial {
+  engineShaderHooks?: IHookRecord[];
+}
+
+function addComposableHook(material: THREE.Material, key: string, fn: ComposableHook): void {
+  const data = material.userData as IHookedMaterial;
+  let hooks = data.engineShaderHooks;
+
+  if (!hooks) {
+    // Nothing has hooked this material through the shared convention yet. A
+    // plain function may still be sitting in the slot (an ad-hoc injection, or
+    // CSM's own assignment); adopt it as the first hook rather than dropping
+    // it, which is the exact bug this whole mechanism exists to prevent.
+    hooks = [];
+    data.engineShaderHooks = hooks;
+    const existing = Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')
+      ? material.onBeforeCompile
+      : undefined;
+    if (existing) hooks.push({ key: 'adopted', fn: (s, r) => existing.call(material, s, r) });
+
+    const list = hooks;
+    material.onBeforeCompile = function composedOnBeforeCompile(shader, renderer): void {
+      for (let i = 0; i < list.length; i++) list[i]!.fn(shader, renderer);
+    };
+    material.customProgramCacheKey = function composedCacheKey(): string {
+      let out = 'engine:';
+      for (let i = 0; i < list.length; i++) out += `${list[i]!.key}|`;
+      return out;
+    };
+  }
+
+  hooks.push({ key, fn });
+  material.needsUpdate = true;
+}
+
 /** How a material responds to nightfall. */
 export type NightEmissiveMode =
   /** Always on at night: street lamps, signage, vending machines. */
@@ -115,18 +185,16 @@ export class NightUniforms {
   /**
    * Wire one material into the block. Idempotent per material.
    *
-   * Chains onto any existing `onBeforeCompile` (the shadow system installs one
-   * of its own), rather than replacing it.
+   * Composes with every other system that wants `onBeforeCompile` — see the
+   * interop note at the top of this file. Safe to call before OR after the
+   * shadow system registers the same material.
    */
   attach(material: THREE.Material, mode: NightEmissiveMode): void {
     if (this.attached.has(material)) return;
     this.attached.add(material);
     this.attachedCount++;
 
-    const previous = material.onBeforeCompile?.bind(material);
-    material.onBeforeCompile = (shader, renderer) => {
-      previous?.(shader, renderer);
-
+    addComposableHook(material, `skyNight:${mode}`, (shader) => {
       shader.uniforms.uNightFactor = this.uNightFactor;
       shader.uniforms.uLampColor = this.uLampColor;
       shader.uniforms.uLampIntensity = this.uLampIntensity;
@@ -139,10 +207,11 @@ export class NightUniforms {
         shader.uniforms.uWindowCellSize = this.uWindowCellSize;
       }
 
-      // World position is needed for the window hash and the lamp flicker.
-      // `worldpos_vertex` is included by the shadow chunks, so the varying is
-      // declared separately and filled from `#include <worldpos_vertex>`'s
-      // output where available, or recomputed where it is not.
+      // World position drives the window hash and the lamp flicker. It is
+      // recomputed rather than read from `vWorldPosition`, because that
+      // varying only exists when something else (fog, shadows, envmap) has
+      // already asked for it, and a material that happens not to need it would
+      // otherwise fail to compile.
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>\nvarying vec3 vSkyWorldPos;`)
         .replace(
@@ -191,10 +260,7 @@ ${
   }`
 }`
         );
-    };
-
-    // Force a recompile if the material has already been used this session.
-    material.needsUpdate = true;
+    });
   }
 
   /** Attach every material found under a subtree whose name matches a mode. */

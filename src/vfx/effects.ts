@@ -292,21 +292,24 @@ export class EffectEmitters {
     // Soft bloom halo behind it.
     p.size0 = scale * 1.4;
     p.size1 = scale * 2.8;
-    p.life = 0.34 + power * 0.2;
+    p.life = 0.26 + power * 0.14;
     p.tile = SpriteTile.Glow;
     p.rotVel = 0;
-    p.alpha = 0.85;
+    p.alpha = 0.55;
     p.erode = 0.3;
     p.seed = rng.next();
     this.tint(p, this.shockColor, 0.55 + power * 0.7);
     this.sprites.emit(p);
 
     // Expanding ring pop — the small, fast read that says "contact".
+    // The ring is the fastest read in the whole suite and must be GONE before
+    // the eye can resolve it as a shape; left to linger it becomes a floating
+    // portal hanging in the street.
     p.size0 = scale * 0.55;
     p.size1 = scale * 5.5;
-    p.life = 0.32 + power * 0.22;
+    p.life = 0.17 + power * 0.09;
     p.tile = SpriteTile.Ring;
-    p.alpha = 0.95;
+    p.alpha = 0.6;
     p.erode = 0.7;
     p.rot = rng.range(0, Math.PI * 2);
     p.seed = rng.next();

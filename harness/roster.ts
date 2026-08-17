@@ -665,10 +665,16 @@ async function runMetal(): Promise<Record<string, unknown>> {
   else wrist.copy(target);
   target.lerp(wrist, 0.45);
 
-  const close = new THREE.PerspectiveCamera(30, WIDTH / 2 / HEIGHT, 0.02, 20);
-  // Far enough back that the whole forearm is in frame: at 25 cm this was an
-  // abstract texture swatch rather than a limb.
-  close.position.copy(target).add(new THREE.Vector3(-0.36, 0.2, 0.52));
+  // Stand OUTSIDE the arm, looking in. A fixed world-space offset puts the
+  // camera inside the limb as soon as the character is rotated, which is how
+  // the first attempt produced an abstract slab instead of a forearm.
+  const outward = new THREE.Vector3(target.x, 0, target.z).normalize();
+  if (outward.lengthSq() < 0.5) outward.set(1, 0, 0);
+  const close = new THREE.PerspectiveCamera(34, WIDTH / 2 / HEIGHT, 0.02, 20);
+  close.position
+    .copy(target)
+    .addScaledVector(outward, 0.34)
+    .add(new THREE.Vector3(0, 0.05, 0.34));
   close.lookAt(target);
 
   redraw = (): void => {

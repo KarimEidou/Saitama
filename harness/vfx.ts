@@ -66,7 +66,7 @@ export type VFXScenario =
   | 'impactFlash'
   | 'seriousPunch';
 
-export type CameraPreset = 'street' | 'hero' | 'punch' | 'wide' | 'sky' | 'ground';
+export type CameraPreset = 'street' | 'hero' | 'punch' | 'oncoming' | 'wide' | 'sky' | 'ground';
 
 interface IBudgetReport {
   /** Programs live with the VFX hidden. */
@@ -493,12 +493,20 @@ function main(): void {
         target: new THREE.Vector3(-8, 11, -78),
         fov: 56,
       },
-      // Elevated three-quarter, ~75 m out. Far enough that a 130-metre wave
-      // fits, close enough that the buildings still tower.
+      // Elevated, slightly off the centre line, looking down the street. The
+      // camera has to stay INSIDE the street: the flanking towers are 40 m
+      // deep, so anything beyond x = 17 is standing inside a building.
       punch: {
-        eye: new THREE.Vector3(62, 26, 72),
-        target: new THREE.Vector3(-8, 15, -86),
-        fov: 52,
+        eye: new THREE.Vector3(14, 20, 74),
+        target: new THREE.Vector3(-6, 13, -120),
+        fov: 55,
+      },
+      // Looking back UP the street: the wave and its dust wall come at the
+      // camera. The most confrontational framing available.
+      oncoming: {
+        eye: new THREE.Vector3(-9, 12, -168),
+        target: new THREE.Vector3(2, 14, 20),
+        fov: 58,
       },
       // High and back, so a 180-metre cone fits the frame with the city.
       wide: {
