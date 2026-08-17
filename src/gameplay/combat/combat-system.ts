@@ -278,8 +278,11 @@ export class CombatSystem {
     }
 
     this.boredomMeter.update(dt, this.encounters.active);
+    this.settleEncounter(time);
+  }
 
-    /* ---- close the books, once the dust has landed ---------------------- */
+  /** Close the books, once the dust has landed. */
+  private settleEncounter(time: number): void {
     if (this.encounters.active && this.encounters.cleared) {
       if (this.settleAt === undefined) {
         this.settleAt = time + this.tuning.encounterSettleSeconds;
@@ -614,7 +617,9 @@ export class CombatSystem {
     const forecast = this.chargeForecast(charge);
     const chain = this.chain.state(this.time);
     return {
-      charging: this.punchHeld && this.holdSeconds >= this.tuning.seriousMinChargeSeconds,
+      // Past the discriminator the gesture is committed to a serious punch,
+      // which is the moment the charge ring and its price tag should appear.
+      charging: this.punchHeld && this.holdSeconds > this.tuning.tapMaxHoldSeconds,
       charge,
       chargeSeconds: this.holdSeconds,
       chargeRangeMetres: forecast.rangeMetres,
