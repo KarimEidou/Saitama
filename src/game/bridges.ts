@@ -35,7 +35,7 @@
  * on every position update, and `assertAimOffset` proves it at runtime.
  */
 
-import type { EntityId, IQualityTier, Vec3 } from '@/types';
+import type { EntityId, Faction, IQualityTier, Vec3 } from '@/types';
 import type { CombatSystem } from '@/gameplay/combat';
 import type { MonsterSystem, IMonsterCombatDescriptor, IMonsterTarget } from '@/entities/monster';
 import type { CrowdSystem, IThreatSource } from '@/entities/npc';
@@ -307,7 +307,7 @@ export function perceivableTargets(
 ): readonly IMonsterTarget[] {
   // `Faction` has no 'player' member and should not: to a monster, Saitama is
   // one more hero standing in the street. `harmable` is what separates them.
-  let count = writeTarget(out, 0, playerId, playerPosition, true, 1, false);
+  let count = writeTarget(out, 0, playerId, 'hero', playerPosition, true, 1, false);
 
   for (const ally of crowd.allies) {
     // Allies stay in the list once downed as well as alive: `alive: false` is
@@ -317,6 +317,7 @@ export function perceivableTargets(
       out,
       count,
       ally.id,
+      'hero',
       ally.transform.position,
       !ally.isDead,
       // Above a civilian on purpose. A monster that always picks the nearest
@@ -379,7 +380,16 @@ function writeNearestCivilians(
     const vector = CIVILIAN_VECTORS[n]!;
     vector.x = agents.posX[i]!;
     vector.z = agents.posZ[i]!;
-    count = writeTarget(out, count, agents.idOf(i), vector, true, CIVILIAN_PRIORITY, true);
+    count = writeTarget(
+      out,
+      count,
+      agents.idOf(i),
+      'civilian',
+      vector,
+      true,
+      CIVILIAN_PRIORITY,
+      true
+    );
   }
   return count;
 }
@@ -392,6 +402,7 @@ function writeTarget(
   out: IMonsterTarget[],
   index: number,
   id: EntityId,
+  faction: Faction,
   position: Vec3,
   alive: boolean,
   priority: number,
@@ -399,10 +410,11 @@ function writeTarget(
 ): number {
   const entry = out[index] as MutableTarget | undefined;
   if (entry === undefined) {
-    out.push({ id, faction: 'hero', position, alive, priority, harmable });
+    out.push({ id, faction, position, alive, priority, harmable });
     return index + 1;
   }
   entry.id = id;
+  entry.faction = faction;
   entry.position = position;
   entry.alive = alive;
   entry.priority = priority;
