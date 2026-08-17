@@ -195,6 +195,8 @@ export class PlayerController {
   private lastDt = 1 / 60;
   private dashing = false;
   private charging = false;
+  /** Consecutive frames the sweep fell short of the commanded displacement. */
+  private blockedFrames = 0;
   private moveMagnitude = 0;
 
   /* --- air / jump --- */
@@ -204,6 +206,10 @@ export class PlayerController {
   private jumpHolding = false;
   private jumpElapsed = 0;
   private airborneSeconds = 0;
+  /** Airborne time measured at the most recent touchdown. */
+  private airborneAtTouchdown = 0;
+  /** Whether the flight that just ended was started by a jump. */
+  private jumpConsumedThisFlight = false;
   private apexY = 0;
   private groundY = 0;
   private previousY = 0;
@@ -438,6 +444,8 @@ export class PlayerController {
 
     /* ---- air bookkeeping -------------------------------------------- */
     if (this.grounded) {
+      this.airborneAtTouchdown = this.airborneSeconds;
+      this.jumpConsumedThisFlight = this.jumpConsumed;
       this.timeSinceGrounded = 0;
       this.airborneSeconds = 0;
       this.jumpConsumed = false;
@@ -451,7 +459,7 @@ export class PlayerController {
     /* ---- landing ----------------------------------------------------- */
     // Ordered so `onLanded()` still sees the pre-landing apex; `groundY` and
     // `apexY` are re-anchored to the contact point immediately afterwards.
-    if (this.grounded && !this.wasGrounded) this.onLanded();
+    if (this.grounded && !this.wasGrounded && !this.wasMicroAirborne()) this.onLanded();
     this.landingFromBus = null;
     this.wasGrounded = this.grounded;
     if (this.grounded) {
@@ -532,19 +540,35 @@ export class PlayerController {
    * Take the SOLVED horizontal velocity back from physics when the character
    * was actually blocked.
    *
-   * `ICharacterController.velocity` reports what the sweep achieved, so running
-   * into a wall reports ~0. Adopting that only when it is substantially below
-   * what was commanded means a wall kills speed immediately (and the slide
-   * direction comes back for free), while ordinary slope projection and skin
-   * jitter do not slowly erode a run.
+   * `ICharacterController.velocity` reports what the sweep ACHIEVED, so running
+   * into a wall reports ~0, and adopting that gives a wall slide for free.
+   *
+   * ── WHY IT TAKES TWO FRAMES ────────────────────────────────────────────
+   * Measured, not assumed: Rapier's sweep returns a shortened or redirected
+   * movement for a single step every dozen frames or so, on flat ground, with
+   * nothing anywhere near the capsule — ratios of 0.71 and 0.45 against the
+   * commanded displacement. Reacting to one frame of that turns a standing
+   * start from 0.18 s into 0.33 s and reads as the controls sticking.
+   *
+   * A wall lasts; a solver hiccup does not. Requiring the shortfall on two
+   * consecutive frames rejects every hiccup and costs a real collision 16 ms
+   * of speed nobody can see.
    */
   private reconcileVelocity(): void {
     const commanded = this.speed;
-    if (commanded < 1e-6) return;
+    if (commanded < 1e-6) {
+      this.blockedFrames = 0;
+      return;
+    }
     const solvedX = this.controller.velocity.x;
     const solvedZ = this.controller.velocity.z;
     const solved = Math.hypot(solvedX, solvedZ);
-    if (solved < commanded * 0.85) this.velocity.set(solvedX, 0, solvedZ);
+    if (solved >= commanded * 0.85) {
+      this.blockedFrames = 0;
+      return;
+    }
+    this.blockedFrames++;
+    if (this.blockedFrames >= 2) this.velocity.set(solvedX, 0, solvedZ);
   }
 
   /* ------------------------------------------------------------------ */
@@ -557,15 +581,21 @@ export class PlayerController {
    * ── HOW A VARIABLE JUMP IS BUILT OUT OF `jump(speed)` ──────────────────
    * The contract's `jump()` only ever RAISES vertical speed (`max`), so a jump
    * cannot be cut short after the fact. Instead the launch is the SHORT one —
-   * `hopSpeed`, apex ~12 m — and while the button stays held the controller
-   * re-issues `jump()` with a ceiling that ramps to `jumpSpeed` across
-   * `jumpHoldSeconds` and then decays under gravity.
+   * `hopSpeed` — and while the button stays held the controller re-issues
+   * `jump()` with a ceiling that ramps to `jumpSpeed` across
+   * `jumpRampSeconds` and then decays at exactly the rise gravity.
    *
-   * Because the ceiling decays at exactly the rise gravity, letting go at any
-   * moment leaves the vertical speed continuous: there is no step, no kink, and
-   * no frame where the character appears to be yanked upward. Release early and
-   * the apex is ~12 m; hold and it is ~28 m, which straddles the 15 m crater
-   * threshold — a hop is traversal, a held leap is a weapon.
+   * Because the ceiling decays at the rise gravity, letting go at any moment
+   * leaves the vertical speed continuous: there is no step, no kink, and no
+   * frame where the character appears to be yanked upward. And once the ramp
+   * completes, the ceiling has converged onto the free-flight curve, so the
+   * re-issues quietly stop doing anything.
+   *
+   * MEASURED against Rapier (`harness/player.verify.ts`): a tap reaches
+   * 11.73 m and a hold reaches 26.87 m, straddling the 15 m crater threshold —
+   * a hop is traversal, a held leap is a weapon. The held apex is 1.1 m short
+   * of the 28 m a single-shot launch would reach, which is the price of the
+   * ramp: every millisecond spent below full speed is height not bought.
    */
   private updateJump(held: boolean, dt: number): void {
     const loco = this.tuning.locomotion;
@@ -610,6 +640,17 @@ export class PlayerController {
   /* ------------------------------------------------------------------ */
   /* Landing                                                            */
   /* ------------------------------------------------------------------ */
+
+  /**
+   * True when the airborne interval just ended was too short and too shallow
+   * to have been real — a solver hiccup rather than a jump or a ledge.
+   */
+  private wasMicroAirborne(): boolean {
+    const loco = this.tuning.locomotion;
+    if (this.jumpConsumedThisFlight) return false;
+    if (this.airborneAtTouchdown > loco.groundGraceSeconds) return false;
+    return Math.max(0, this.apexY - this.position.y) < 0.5;
+  }
 
   private onLanded(): void {
     const loco = this.tuning.locomotion;
@@ -664,6 +705,16 @@ export class PlayerController {
     const current = machine.current;
 
     if (!this.grounded) {
+      // A single frame of lost contact is solver noise, not a fall. Hold the
+      // ground state until the grace window expires, unless a jump started it.
+      if (
+        !this.jumpConsumed &&
+        this.airborneSeconds <= loco.groundGraceSeconds &&
+        current !== 'jumpLaunch' &&
+        current !== 'fall'
+      ) {
+        return;
+      }
       // The launch pose holds briefly, then the arc reads as a fall. Using
       // vertical speed alone makes the flip happen at the exact apex frame,
       // which is a single-frame pop at the top of a 3 s leap.

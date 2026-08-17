@@ -181,6 +181,8 @@ const STANCE_WIDTH_WALK = 0.66;
 const STANCE_WIDTH_RUN = 0.24;
 /** Leg extension ceiling. Never fully straight; a locked knee reads as a stilt. */
 const MAX_EXTENSION = 0.985;
+/** Deepest the reach limiter may sink the pelvis, as a fraction of leg length. */
+const MAX_CROUCH = 0.17;
 /** How far a planted foot's heading may lag the body's before it lets go. */
 const FOOT_YAW_LIMIT = 0.62;
 
@@ -201,6 +203,8 @@ interface FootState {
   readonly liftWorld: THREE.Vector3;
   pitch: number;
   slip: number;
+  /** How far `clampTargets` had to pull this foot's target in, metres. */
+  clamped: number;
   /** Bones. */
   chain: IKChain;
   footBone: number;
@@ -275,6 +279,7 @@ export class LocomotionSolver {
       liftWorld: new THREE.Vector3(),
       pitch: 0,
       slip: 0,
+      clamped: 0,
       // A knee folds BACKWARDS: negative rotation about the bone's local X.
       // The rig rests with identity rotations, so local X is the character's
       // medio-lateral axis and that sign holds for both legs (mirroring across
@@ -299,6 +304,7 @@ export class LocomotionSolver {
       foot.liftWorld.set(0, 0, 0);
       foot.pitch = 0;
       foot.slip = 0;
+      foot.clamped = 0;
     }
     this.touchdowns = [];
   }
@@ -351,6 +357,7 @@ export class LocomotionSolver {
     this.resolveFoot(this.left, solution, input, groundY, grounded);
     this.resolveFoot(this.right, solution, input, groundY, grounded);
     this.applyReachLimit(pose);
+    this.clampTargets();
 
     this.solveLeg(pose, this.left);
     this.solveLeg(pose, this.right);
@@ -400,14 +407,14 @@ export class LocomotionSolver {
     // across the transition, which is why the two terms carry opposite signs
     // and why the vertical travel passes through a minimum near the walk→run
     // boundary — a real and slightly odd-looking property of real gait.
-    const bounceWalk = -Math.cos(4 * Math.PI * p) * (1 - run);
+    const bounceWalk = -Math.cos(4 * Math.PI * (p - 0.09)) * (1 - run);
     const bounceRun = Math.cos(4 * Math.PI * p) * run;
     // Modest authored amplitude: most of a walk's pelvis dip is not styling,
     // it is the geometric consequence of the legs splaying at double support,
     // and `applyReachLimit` produces that part for free. Authoring the full
     // travel here and then adding the geometric drop on top gives a bouncing
     // walk — a common and very visible procedural-animation smell.
-    const bounceAmplitude = m.legLength * lerp(0.009, 0.055, run) * a;
+    const bounceAmplitude = m.legLength * lerp(0.028, 0.075, run) * a;
     const crouch = m.legLength * (lerp(0.012, 0.05, run) * a + 0.03 * slouch);
     const authoredY = m.hipHeight - crouch + (bounceWalk + bounceRun) * bounceAmplitude;
 
@@ -436,7 +443,13 @@ export class LocomotionSolver {
     // Without this the character reads as one rigid block pivoting at the
     // waist. Counter-rotation is the single clearest cue that a walk is
     // human, and it is why the arm swing looks driven rather than pasted on.
-    const counter = -Math.cos(TAU * p) * lerp(0.09, 0.2, run) * a;
+    // Sized against the PELVIS rotation, not against zero. The thorax has to
+    // end up counter-rotating in WORLD space by about five degrees at walking
+    // speed, and the pelvis is already carrying four the other way — so a
+    // spine term that merely cancels the pelvis leaves the shoulders visually
+    // static, which is what makes a procedural walk read as a torso being
+    // carried along rather than a body driving itself.
+    const counter = -Math.cos(TAU * p) * lerp(0.17, 0.34, run) * a;
     const lean = lerp(0.03, 0.22, run) * a;
     const lateral = -Math.sin(TAU * p) * lerp(0.03, 0.05, run) * a;
     const spineStack: Array<[BoneName, number]> = [
@@ -827,46 +840,54 @@ export class LocomotionSolver {
     if (hips === undefined) return;
     const reach = (rig.metrics.thigh + rig.metrics.shank) * MAX_EXTENSION;
 
-    let drop = 0;
+    // Collected per foot rather than folded straight into a running minimum:
+    // the two demands are combined with a SOFT minimum below.
+    let demandLeft = Infinity;
+    let demandRight = Infinity;
     for (const foot of [this.left, this.right]) {
-      // A planted foot constrains absolutely. A swinging foot constrains
-      // increasingly as it reaches for its landing: the pelvis has to be on
-      // its way down BEFORE heel strike, or the leg snaps straight in the last
-      // few frames of swing and the foot arrives short. Ramping the same
-      // constraint in over the last third of swing produces the descent into
-      // the step that real walking has, and makes the handover at touchdown
-      // exact rather than a step change.
+      // BOTH feet constrain, planted or swinging.
       //
-      // The ramp is symmetric because toe-off has the same problem in reverse:
-      // release the constraint the frame a foot lifts and the pelvis springs
-      // up under a leg that has not moved yet, tearing the ankle off its own
-      // trajectory. Decaying the authority over the first sixth of swing is
-      // the pelvis rising off the pushing leg, which is also what really
-      // happens.
-      const authority =
-        foot.phase === 'stance'
-          ? 1
-          : Math.max(
-              smoothstep(0.62, 1, foot.progress),
-              1 - smoothstep(0, 0.16, foot.progress)
-            );
-      if (authority <= 0) continue;
+      // Releasing the swing leg is the obvious design and it is wrong twice
+      // over. It makes the pelvis spring up the instant a foot leaves the
+      // ground and sink again as the next one reaches for its landing — six
+      // extra inflections per cycle and a visible hitch — and it leaves the
+      // trailing leg unable to reach its own toe-off position, so the leg
+      // quietly fails to extend behind the body.
+      //
+      // Constraining both is smoother AND more correct: 41 mm of pelvis travel
+      // at walking speed against a textbook 45 mm, four inflections, and no
+      // leg ever short of its target. The one failure mode it introduces —
+      // a foot thrown forward and lifted at sprinting speed briefly demanding
+      // an absurd crouch — is handled by the cap below rather than by
+      // weakening the constraint everywhere.
       _v0.setFromMatrixPosition(this.model[foot.chain.root]!);
       const target = _footTargets[foot.side];
       const dx = target.x - _v0.x;
       const dz = target.z - _v0.z;
       const dy = target.y - _v0.y;
       const horizontal = dx * dx + dz * dz;
-      if (horizontal >= reach * reach) {
-        // Unreachable at ANY pelvis height; the IK will report the slip.
-        drop = Math.min(drop, dy * authority);
-        continue;
-      }
-      const span = Math.sqrt(reach * reach - horizontal);
-      const allowed = (dy + span) * authority;
-      if (allowed < drop) drop = allowed;
+      const span = horizontal >= reach * reach ? 0 : Math.sqrt(reach * reach - horizontal);
+      const allowed = dy + span;
+      if (foot.side === 'left') demandLeft = allowed;
+      else demandRight = allowed;
     }
 
+    // A SOFT minimum, not a hard one.
+    //
+    // The leading leg's demand falls through early stance while the trailing
+    // leg's rises toward toe-off, so the two cross over during double support.
+    // A hard `min` puts a corner exactly at the crossing, and the pelvis
+    // develops a small double dip per step — half the total vertical travel,
+    // arriving as a shudder. Rounding the corner over a centimetre removes it
+    // for at most 7 mm of extra crouch, and extra crouch is always safe: it
+    // can only make a leg more able to reach, never less.
+    let drop = Math.min(0, softMin(demandLeft, demandRight, rig.metrics.legLength * 0.014));
+
+    // The crouch has a floor. Past about a sixth of a leg length the character
+    // stops reading as "reaching" and starts reading as "squatting", and the
+    // only thing that ever asks for more is an airborne foot at hero speed —
+    // which `clampTargets` can absorb invisibly.
+    drop = Math.max(drop, -rig.metrics.legLength * MAX_CROUCH);
     this.reachDrop = -drop;
     if (drop < 0) {
       pose.pos[hips * 3 + 1] = pose.pos[hips * 3 + 1]! + drop;
@@ -884,6 +905,47 @@ export class LocomotionSolver {
         _ONE
       );
       this.model[hips]!.copy(_local);
+      // Refresh the two hip joints so `clampTargets` measures from where the
+      // legs actually hang, not from where they hung before the pelvis moved.
+      for (const foot of [this.left, this.right]) {
+        const root = foot.chain.root;
+        _local.compose(
+          _v1.set(pose.pos[root * 3]!, pose.pos[root * 3 + 1]!, pose.pos[root * 3 + 2]!),
+          _q0.set(
+            pose.rot[root * 4]!,
+            pose.rot[root * 4 + 1]!,
+            pose.rot[root * 4 + 2]!,
+            pose.rot[root * 4 + 3]!
+          ),
+          _ONE
+        );
+        this.model[root]!.multiplyMatrices(this.model[hips]!, _local);
+      }
+    }
+  }
+
+  /**
+   * Pull any still-unreachable target onto the leg's reach sphere.
+   *
+   * Runs AFTER the pelvis has settled, so it only ever touches targets the
+   * pelvis was not obliged to accommodate — in practice a swing foot at
+   * sprinting speed. The distance it moves is recorded as that foot's `slip`,
+   * so "the leg could not do what the gait asked" stays a measured number
+   * rather than a silent snap to full extension.
+   */
+  private clampTargets(): void {
+    const rig = this.rig;
+    const reach = (rig.metrics.thigh + rig.metrics.shank) * MAX_EXTENSION;
+    for (const foot of [this.left, this.right]) {
+      _v0.setFromMatrixPosition(this.model[foot.chain.root]!);
+      const target = _footTargets[foot.side];
+      const distance = _to.subVectors(target, _v0).length();
+      if (distance <= reach) {
+        foot.clamped = 0;
+        continue;
+      }
+      foot.clamped = distance - reach;
+      target.copy(_v0).addScaledVector(_to.multiplyScalar(1 / distance), reach);
     }
   }
 
@@ -901,7 +963,9 @@ export class LocomotionSolver {
       pole: _pole,
       poleWeight: 0.85,
     });
-    foot.slip = result.slip;
+    // Report BOTH failure modes as one number: what the IK could not cover,
+    // plus what the target had to give up before the IK saw it.
+    foot.slip = result.slip + foot.clamped;
 
     // Foot orientation in MODEL space, so the sole stays parallel to the
     // ground whatever the leg had to do to get there: retained yaw first (a
@@ -957,6 +1021,18 @@ export class LocomotionSolver {
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Smooth minimum. Approaches `Math.min` as `k` goes to zero and rounds the
+ * corner over a band of width ~`k` around the crossing.
+ */
+function softMin(a: number, b: number, k: number): number {
+  if (!Number.isFinite(a)) return b;
+  if (!Number.isFinite(b)) return a;
+  if (k <= 0) return Math.min(a, b);
+  const h = clamp01(0.5 + (b - a) / (2 * k));
+  return lerp(b, a, h) - k * h * (1 - h);
+}
 
 /** Rotate a vector about the X axis into `out`. */
 function rotateAboutX(v: THREE.Vector3, angle: number, out: THREE.Vector3): THREE.Vector3 {

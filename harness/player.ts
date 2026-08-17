@@ -470,13 +470,19 @@ async function status(text: string): Promise<void> {
 
 function buildScene(): void {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b1018);
-  scene.fog = new THREE.Fog(0x0b1018, 90, 320);
+  scene.background = new THREE.Color(0x1d2a3a);
+  scene.fog = new THREE.Fog(0x1d2a3a, 120, 420);
 
-  scene.add(new THREE.HemisphereLight(0x9fb6d8, 0x2a241c, 1.15));
-  const sun = new THREE.DirectionalLight(0xffe7c2, 2.1);
+  // Bright enough that the SHAPE of the framing is readable. A dark harness
+  // screenshot passes every pixel-statistics check and still tells you nothing
+  // about composition, which is the only thing these images are for.
+  scene.add(new THREE.HemisphereLight(0xbcd2f0, 0x4a4034, 2.6));
+  const sun = new THREE.DirectionalLight(0xfff0d8, 3.2);
   sun.position.set(-40, 60, 30);
   scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x9ab4d8, 1.1);
+  fill.position.set(35, 25, -40);
+  scene.add(fill);
 
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const byColour = new Map<number, Box[]>();
@@ -503,7 +509,7 @@ function buildScene(): void {
 
   // A grid on the ground plane gives the eye a speed and scale reference,
   // which is most of what makes a traversal screenshot readable at all.
-  const grid = new THREE.GridHelper(320, 80, 0x55627a, 0x323a49);
+  const grid = new THREE.GridHelper(320, 80, 0x8a9ab5, 0x4c586b);
   grid.position.y = 0.02;
   scene.add(grid);
 
@@ -701,6 +707,9 @@ function measureJump(hold: boolean, moving: boolean): JumpRun {
   let hardFrames = 0;
   let speedBefore = sim.rig.controller.speed;
   let landedAt = -1;
+  let craterLanding: ReturnType<() => typeof sim.rig.controller.landing> | undefined;
+  let speedAtCrater = 0;
+  let speedAfterCrater = 0;
 
   for (let i = 0; i < 420; i++) {
     if (!hold && i === 1) manager.synthetic.release('jump');
@@ -726,6 +735,14 @@ function measureJump(hold: boolean, moving: boolean): JumpRun {
       speedBefore = player.speed;
     }
     if (player.state === 'hardLand') {
+      if (hardFrames === 0) {
+        // The FIRST crater is the one this scenario is about. Reading
+        // `player.landing` at the end instead would report whatever the
+        // character last touched down from while running out the clock.
+        craterLanding = player.landing;
+        speedAtCrater = speedBefore;
+        speedAfterCrater = player.speed;
+      }
       hardFrames++;
       if (hardFrames === 3) {
         capturePose(
@@ -739,7 +756,7 @@ function measureJump(hold: boolean, moving: boolean): JumpRun {
     if (landedAt < 0 && player.landing !== undefined) landedAt = i;
   }
 
-  const landing = sim.rig.controller.landing;
+  const landing = craterLanding ?? sim.rig.controller.landing;
   const result: JumpRun = {
     apex: round(apex, 3),
     crater: landing?.hard ?? false,
@@ -751,8 +768,8 @@ function measureJump(hold: boolean, moving: boolean): JumpRun {
     hardFrames,
     slamAffected: sim.controller.lastGroundSlamAffected,
     landedEvents: sim.landings.length,
-    speedBefore: round(speedBefore, 3),
-    speedAfter: round(sim.rig.controller.speed, 3),
+    speedBefore: round(craterLanding ? speedAtCrater : speedBefore, 3),
+    speedAfter: round(craterLanding ? speedAfterCrater : sim.rig.controller.speed, 3),
     armAtApex: round(armAtApex, 3),
     heightAtArmSample: round(heightAtArmSample, 3),
   };
@@ -1060,7 +1077,14 @@ function measureClearance(): HarnessReport['clearance'] {
       if (hit !== undefined) minPivotClearance = Math.min(minPivotClearance, hit.distance);
     }
 
-    if (i === ENTER + 150) {
+    // Capture the alley pose only when the pitch sweep is near neutral and the
+    // arm is genuinely pinned by a wall: a shot taken at the top of the pitch
+    // sweep is a top-down view that says nothing about the clearance rule.
+    if (
+      i > ENTER + 60 &&
+      sim.rig.camera.isOccluded &&
+      Math.abs(sim.rig.camera.diagnostics().pitchDeg - 12) < 4
+    ) {
       capturePose(
         sim,
         'alley',

@@ -351,6 +351,19 @@ describe('field of view', () => {
     expect(r.camera.fov).toBeGreaterThan(owned + 10);
   });
 
+  it('widens as collision crushes the arm, and only then', () => {
+    const open = setup({ probe: wallProbe(60), yaw: Math.PI / 2 });
+    open.run(200);
+    expect(open.camera.fov).toBeCloseTo(C.fovBaseDeg, 1);
+    expect(open.rig.diagnostics().armCollapseRatio).toBe(0);
+
+    const tight = setup({ probe: wallProbe(1.6), yaw: Math.PI / 2 });
+    tight.run(200);
+    expect(tight.rig.diagnostics().armCollapseRatio).toBeGreaterThan(0.5);
+    expect(tight.camera.fov).toBeGreaterThan(C.fovBaseDeg + 4);
+    expect(tight.camera.fov).toBeLessThanOrEqual(C.fovBaseDeg + C.armCollapseFovBoostDeg + 1e-6);
+  });
+
   it('leaves FOV entirely alone when asked to', () => {
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1000);
     const target = new MutableTarget();

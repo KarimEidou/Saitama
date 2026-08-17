@@ -36,6 +36,15 @@
  * having moved under it and simply STOPS WRITING until it comes back — see
  * `updateFov()`. It never asks who moved it, which is the point.
  *
+ * ── THE LIMITATION THIS RIG DOES NOT SOLVE ─────────────────────────────────
+ * In a corridor narrower than about twice the resting arm, keeping the camera
+ * OUT of the wall means putting it close enough to the character that he fills
+ * the frame. The harness screenshots show this honestly at 2.4 m: no
+ * penetration, and also no usable shot. Widening the FOV as the arm collapses
+ * recovers some of it; the rest needs the character to fade out at short arm
+ * lengths, which is a material decision this module publishes
+ * `armCollapseRatio` for rather than making itself.
+ *
  * ── WHAT THIS FILE MAY NOT DO ──────────────────────────────────────────────
  * No DOM, no input backends, no physics package. World geometry is reached
  * through `ICameraProbe`, which `createPhysicsCameraProbe()` builds from the
@@ -161,6 +170,12 @@ export interface ICameraDiagnostics {
   readonly armActual: number;
   /** True while geometry is holding the arm shorter than it wants to be. */
   readonly occluded: boolean;
+  /**
+   * 0 when the arm is at full length, 1 when collision has crushed it to the
+   * minimum. Published for a character fade/dither: below ~0.5 the character
+   * starts filling the frame and something has to give.
+   */
+  readonly armCollapseRatio: number;
   /** Distance to the nearest blocker found by the sweep, or Infinity. */
   readonly nearestBlocker: number;
   readonly fov: number;
@@ -294,6 +309,7 @@ export class ThirdPersonCameraRig {
       armSmoothed: this.armSmoothed,
       armActual: this.armActual,
       occluded: this.occluded,
+      armCollapseRatio: this.armCollapseRatio(),
       nearestBlocker: this.nearestBlocker,
       fov: this.camera.fov,
       fovSuspended: this.fovSuspended,
@@ -486,6 +502,14 @@ export class ThirdPersonCameraRig {
   /* Placement and collision                                            */
   /* ------------------------------------------------------------------ */
 
+  /** How far collision has crushed the arm, 0..1. */
+  private armCollapseRatio(): number {
+    const cam = this.tuning.camera;
+    const span = this.armSmoothed - cam.armLengthMinM;
+    if (span <= 1e-4) return 0;
+    return clamp01((this.armSmoothed - this.armActual) / span);
+  }
+
   private composeDesiredPosition(): void {
     const pitch = this.pitch + this.autoPitchOffset;
     const cosP = Math.cos(pitch);
@@ -625,7 +649,13 @@ export class ThirdPersonCameraRig {
 
     const speed = Math.hypot(this.target.velocity.x, this.target.velocity.z);
     const t = clamp01(speed / Math.max(1e-4, cam.fovMaxAtSpeed));
-    const wanted = lerp(cam.fovBaseDeg, cam.fovMaxDeg, t);
+    // Widen as the arm collapses: a wall that steals four metres of distance
+    // has stolen most of the shot, and the lens is the only thing left to give.
+    const wanted = clamp(
+      lerp(cam.fovBaseDeg, cam.fovMaxDeg, t) + cam.armCollapseFovBoostDeg * this.armCollapseRatio(),
+      20,
+      95
+    );
     this.fov = this.initialised ? damp(this.fov, wanted, cam.fovSmoothing, dt) : wanted;
 
     if (Math.abs(this.camera.fov - this.fov) > 1e-4) {

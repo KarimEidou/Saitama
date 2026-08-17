@@ -77,6 +77,8 @@ export class StubCharacterController implements ICharacterController {
   private readonly ledgeZ: number;
   private grounded = true;
   private apexY: number;
+  /** Frames of forged contact loss; see `simulateContactLoss`. */
+  private contactLossFrames = 0;
 
   constructor(options: IStubControllerOptions = {}) {
     this.groundY = options.groundY ?? 0;
@@ -121,6 +123,17 @@ export class StubCharacterController implements ICharacterController {
     return this.grounded;
   }
 
+  /**
+   * Forge `frames` steps in which the sweep reports no ground contact while
+   * the character is plainly standing on the floor.
+   *
+   * This is not a hypothetical: Rapier does exactly this on flat ground every
+   * dozen frames or so at speed, and the feel layer has to be immune to it.
+   */
+  simulateContactLoss(frames: number): void {
+    this.contactLossFrames = frames;
+  }
+
   /** True where solid ground exists under `z`. */
   private hasGroundAt(z: number): boolean {
     return z <= this.ledgeZ;
@@ -147,6 +160,14 @@ export class StubCharacterController implements ICharacterController {
     this.position.y += this.velocity.y * dt + displacement.y;
 
     const wasGrounded = this.grounded;
+    if (this.contactLossFrames > 0) {
+      this.contactLossFrames--;
+      this.grounded = false;
+      this.position.y = Math.max(this.position.y, this.restY);
+      this.velocity.x = appliedX / dt;
+      this.velocity.z = appliedZ / dt;
+      return;
+    }
     if (this.hasGroundAt(this.position.z) && this.position.y <= this.restY) {
       this.position.y = this.restY;
       this.grounded = true;

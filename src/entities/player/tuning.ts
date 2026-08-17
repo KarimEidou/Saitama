@@ -185,6 +185,19 @@ export interface IPlayerLocomotionTuning {
   readonly runSpeedThreshold: number;
   /** Seconds the launch pose holds before the state becomes `fall`. */
   readonly jumpLaunchSeconds: number;
+  /**
+   * Ground contact may flicker off for this long without the character being
+   * considered to have left the ground.
+   *
+   * Not a nicety — a measured necessity. Rapier's sweep occasionally reports a
+   * shortened or redirected movement for a single step on perfectly flat
+   * ground, and at 9 m/s that is enough to drop contact for one frame. Without
+   * this filter the character enters `fall`, lands again 16 ms later, plays a
+   * landing, and eats a recovery window: a visible stutter caused entirely by
+   * solver noise. Kept well under `coyoteSeconds` so it cannot extend the
+   * jump-forgiveness window.
+   */
+  readonly groundGraceSeconds: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -224,7 +237,17 @@ export interface IPlayerCameraTuning {
   readonly armRecoverSpeedMps: number;
 
   /* ---- pivot ---- */
-  /** Height of the look pivot above the character's feet. */
+  /**
+   * Height of the look pivot above the target's POSITION — which is the
+   * physics capsule's CENTRE, not its soles.
+   *
+   * Getting this wrong is invisible in every number the harness prints and
+   * obvious the moment you look at a screenshot: aim a metre too high and the
+   * character sinks to the bottom of the frame with a wall of empty sky above
+   * him. 0.6 m above the capsule centre is ~1.48 m above the soles, i.e. the
+   * base of the neck on a 1.75 m character, which puts his chest at frame
+   * centre and his head just above it.
+   */
   readonly pivotHeightM: number;
   /** Over-the-shoulder lateral offset, in the camera's right direction. */
   readonly pivotSideM: number;
@@ -243,6 +266,14 @@ export interface IPlayerCameraTuning {
 
   /* ---- orientation ---- */
   readonly minPitchDeg: number;
+  /**
+   * Steepest downward look.
+   *
+   * 55 degrees, not more: past about sixty the horizon leaves the frame and a
+   * third-person shot turns into a top-down one, which loses every cue about
+   * which way forward is. Verified by looking at the alley screenshot with it
+   * set to 64.
+   */
   readonly maxPitchDeg: number;
   readonly defaultPitchDeg: number;
   /** Pitch the camera eases to at the top of a leap, so you look DOWN at the city. */
@@ -267,6 +298,18 @@ export interface IPlayerCameraTuning {
   readonly fovMaxDeg: number;
   /** Planar speed that maps to `fovMaxDeg`. */
   readonly fovMaxAtSpeed: number;
+  /**
+   * Extra FOV added in proportion to how far collision has collapsed the arm.
+   *
+   * A partial answer to the one framing problem this rig cannot solve: in a
+   * 2.4 m alley the arm is forced to ~1.5 m and the character fills the frame.
+   * Widening the lens as the arm shortens buys back some of the field of view
+   * the wall took away. It does not stop the character occluding the shot —
+   * that needs a dither/fade on the character material, which belongs to
+   * whoever owns it, and `ICameraDiagnostics.armCollapseRatio` is published
+   * here so they can drive it.
+   */
+  readonly armCollapseFovBoostDeg: number;
   readonly fovSmoothing: number;
 
   /* ---- look-ahead ---- */
@@ -343,6 +386,7 @@ export const DEFAULT_LOCOMOTION_TUNING: IPlayerLocomotionTuning = Object.freeze(
   idleSpeedThreshold: 0.15,
   runSpeedThreshold: 4.2,
   jumpLaunchSeconds: 0.18,
+  groundGraceSeconds: 0.08,
 } satisfies IPlayerLocomotionTuning);
 
 /** Third-person camera defaults. Frozen. */
@@ -355,7 +399,7 @@ export const DEFAULT_CAMERA_TUNING: IPlayerCameraTuning = Object.freeze({
   armExtendSmoothing: 1e-3,
   armRecoverSpeedMps: 7,
 
-  pivotHeightM: 1.55,
+  pivotHeightM: 0.6,
   pivotSideM: 0.45,
   // 1e-5 ≈ a 87 ms time constant. Fast enough that the character never drifts
   // off-centre at dash speed, slow enough to sand off the step-height pops.
@@ -365,7 +409,7 @@ export const DEFAULT_CAMERA_TUNING: IPlayerCameraTuning = Object.freeze({
   probeClearanceM: 0.22,
 
   minPitchDeg: -32,
-  maxPitchDeg: 64,
+  maxPitchDeg: 55,
   defaultPitchDeg: 12,
   apexPitchDeg: 34,
   autoPitchSmoothing: 5e-2,
@@ -377,9 +421,10 @@ export const DEFAULT_CAMERA_TUNING: IPlayerCameraTuning = Object.freeze({
   fovBaseDeg: 55,
   fovMaxDeg: 72,
   fovMaxAtSpeed: 22,
+  armCollapseFovBoostDeg: 12,
   fovSmoothing: 2e-3,
 
-  lookAheadSeconds: 0.22,
+  lookAheadSeconds: 0.16,
   lookAheadMaxM: 3,
   lookAheadSmoothing: 1e-3,
 

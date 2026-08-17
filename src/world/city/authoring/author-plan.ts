@@ -46,7 +46,7 @@ import type {
 } from '../plan-types';
 
 const HALF = WORLD_SIZE / 2;
-const PLAN_VERSION = 3;
+const PLAN_VERSION = 4;
 const WORLD_SEED = 0x5a17a3a;
 
 /* ========================================================================== */
@@ -629,9 +629,11 @@ function authorLandmarks(): IPlanLandmark[] {
       floors: 1,
       floorHeight: 4,
       style: 'shophouse',
-      facadeMaterial: CITY_MATERIALS.wall.concretePainted,
+      // Painted steel, the way a real shotengai canopy is built. Concrete
+      // reads as bare untextured geometry on members this thin.
+      facadeMaterial: CITY_MATERIALS.wall.shutter,
       roofMaterial: CITY_MATERIALS.roof.corrugated,
-      tint: 0xd8d4cb,
+      tint: 0xa8bda6,
       exclusionRadius: 10,
       description:
         'The covered shopping street. Vegetables, a butcher, a bargain sale that matters more than most fights.',

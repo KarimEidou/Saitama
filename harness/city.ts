@@ -34,6 +34,7 @@ import {
 } from '@/world/city';
 import { FallbackMaterialLibrary, buildProceduralSky } from './city.materials';
 import { ProxyModelLibrary } from './city.props';
+import { RealAssetLibrary } from './city.assets';
 
 /* -------------------------------------------------------------------------- */
 /* Setup                                                                      */
@@ -62,6 +63,23 @@ const sky = buildProceduralSky(renderer);
 
 const plan = rawPlan as unknown as ICityPlan;
 const generator = new CityGenerator(plan, { defaultDetail: 'full', includeProps: true });
+
+/**
+ * The processed Poly Haven set, when it is on disk.
+ *
+ * Resolution goes real-first, stand-in-second, per id: a texture that failed to
+ * transcode falls back on its own rather than dropping the whole city back to
+ * synthesised materials.
+ */
+let real: RealAssetLibrary | undefined;
+
+function resolveMaterial(key: string): THREE.Material {
+  return real?.getMaterial(key) ?? materials.get(key);
+}
+
+function resolveModel(key: string) {
+  return real?.getModel(key) ?? proxies.get(key);
+}
 
 /**
  * Where the street camera stands: North 4 Street, the shotengai, looking north
@@ -165,7 +183,7 @@ function buildRegion(
   const t1 = performance.now();
 
   const blockMeshes: ReturnType<typeof buildBlockMesh>[] = [];
-  const resolve = (key: string) => materials.get(key);
+  const resolve = resolveMaterial;
 
   for (const chunk of chunks) {
     for (const block of chunk.blocks) {
@@ -194,7 +212,7 @@ function buildRegion(
   const matrix = new THREE.Matrix4();
   for (const key of [...byKey.keys()].sort()) {
     const flat = byKey.get(key)!;
-    const model = proxies.get(key);
+    const model = resolveModel(key);
     if (!model) continue;
     const count = flat.length / 16;
     const instanced = new THREE.InstancedMesh(model.geometry, model.material, count);
@@ -369,6 +387,11 @@ interface IHarnessStats {
   readonly generationMs: number;
   readonly buildMs: number;
   readonly materialsSynthesised: number;
+  /** Materials resolved from the processed Poly Haven KTX2 set. */
+  readonly realMaterials: number;
+  /** Prop models resolved from the processed GLB set. */
+  readonly realModels: number;
+  readonly assetProblems: readonly string[];
   readonly propsResolved: number;
   readonly propsMissing: readonly string[];
   readonly usingRealTextures: boolean;
@@ -404,11 +427,12 @@ function render(): IHarnessStats {
     generationMs: view.built.generationMs,
     buildMs: view.built.buildMs,
     materialsSynthesised: materials.size,
+    realMaterials: real?.materialCount() ?? 0,
+    realModels: real?.modelCount() ?? 0,
+    assetProblems: (real?.problems() ?? []).slice(0, 6),
     propsResolved: proxies.resolved().length,
     propsMissing: proxies.missing(),
-    // No IAssetRegistry is wired in the harness, so this is always false today.
-    // It becomes true the moment `city.ts` is handed a registry.
-    usingRealTextures: false,
+    usingRealTextures: (real?.materialCount() ?? 0) > 0,
   };
   lastStats = stats;
   paintReadout(stats, view.label);
@@ -438,8 +462,10 @@ function paintReadout(stats: IHarnessStats, label: string): void {
     ['— generation —', ''],
     ['generate', `${stats.generationMs.toFixed(0)} ms`],
     ['scene build', `${stats.buildMs.toFixed(0)} ms`],
-    ['materials bound', String(stats.materialsSynthesised)],
-    ['prop models', String(stats.propsResolved)],
+    ['real materials', String(stats.realMaterials)],
+    ['real models', String(stats.realModels)],
+    ['stand-in materials', String(stats.materialsSynthesised)],
+    ['stand-in props', String(stats.propsResolved)],
   ];
   statsEl.innerHTML =
     '<table>' +
@@ -452,7 +478,12 @@ function paintReadout(stats: IHarnessStats, label: string): void {
       .join('') +
     '</table>';
   materialsNoteEl.innerHTML = stats.usingRealTextures
-    ? 'Materials resolved through IAssetRegistry.'
+    ? `Bound ${stats.realMaterials} Poly Haven CC0 KTX2 materials and ` +
+      `${stats.realModels} processed GLB models by manifest id.` +
+      (stats.assetProblems.length > 0
+        ? `<br><span class="warn">${stats.assetProblems.length} id(s) fell back: ` +
+          `${stats.assetProblems[0]}</span>`
+        : '')
     : '<span class="warn">Poly Haven KTX2 set not resident.</span> Materials are ' +
       'synthesised stand-ins bound to the same manifest ids; geometry, UV density ' +
       'and vertex tint are the shipping ones.';
@@ -498,6 +529,18 @@ window.__CITY_HARNESS__ = {
   },
 };
 
-window.addEventListener('resize', () => render());
-render();
-window.__CITY_HARNESS__.ready = true;
+async function boot(): Promise<void> {
+  // Best effort: a fresh clone has no `public/assets/`, and the harness has to
+  // still produce a picture.
+  real = await RealAssetLibrary.open('/assets', renderer, 'mobile', installDestructionHook, 4);
+  if (real) {
+    const required = generator.requiredAssets();
+    await real.loadMaterials(required.materials);
+    await real.loadModels(required.models);
+  }
+  window.addEventListener('resize', () => render());
+  render();
+  window.__CITY_HARNESS__.ready = true;
+}
+
+void boot();

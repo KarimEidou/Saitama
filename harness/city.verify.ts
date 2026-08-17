@@ -49,6 +49,9 @@ const MIME: Record<string, string> = {
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.ktx2': 'image/ktx2',
+  '.glb': 'model/gltf-binary',
+  '.wasm': 'application/wasm',
 };
 
 interface IReport {
@@ -77,6 +80,9 @@ interface IHarnessStats {
   readonly generationMs: number;
   readonly buildMs: number;
   readonly materialsSynthesised: number;
+  readonly realMaterials: number;
+  readonly realModels: number;
+  readonly assetProblems: readonly string[];
   readonly propsResolved: number;
   readonly propsMissing: readonly string[];
   readonly usingRealTextures: boolean;
@@ -108,16 +114,44 @@ async function buildHarness(): Promise<void> {
       sourcemap: false,
       rollupOptions: { input: { cityHarness: path.join(ROOT, 'harness', 'city.html') } },
     },
+    // `public/assets/` is 200 MB of processed KTX2 and GLB. Copying it into the
+    // build output would dominate the run; it is mounted straight off disk by
+    // the server below instead.
+    publicDir: false,
   };
   await build(config);
+}
+
+/**
+ * Extra mounts served alongside the bundle.
+ *
+ * `/assets` is the processed asset set, served from `public/` rather than
+ * copied. `/basis` and `/draco` are the KTX2 transcoder and Draco decoder the
+ * loaders fetch at runtime; they ship inside three's examples and simply need
+ * to be reachable over HTTP.
+ */
+const MOUNTS: readonly (readonly [string, string])[] = [
+  ['/assets', path.join(ROOT, 'public', 'assets')],
+  ['/basis', path.join(ROOT, 'node_modules', 'three', 'examples', 'jsm', 'libs', 'basis')],
+  ['/draco', path.join(ROOT, 'node_modules', 'three', 'examples', 'jsm', 'libs', 'draco', 'gltf')],
+];
+
+function resolveMount(pathname: string, fallbackDir: string): string {
+  for (const [prefix, dir] of MOUNTS) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+      return path.join(dir, pathname.slice(prefix.length));
+    }
+  }
+  return path.join(fallbackDir, pathname);
 }
 
 function serve(directory: string): Promise<{ server: Server; port: number }> {
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
-      const filePath = path.join(directory, decodeURIComponent(url.pathname));
-      if (!filePath.startsWith(directory)) {
+      const filePath = resolveMount(decodeURIComponent(url.pathname), directory);
+      const roots = [directory, ...MOUNTS.map(([, dir]) => dir)];
+      if (!roots.some((root) => filePath.startsWith(root))) {
         response.writeHead(403).end('forbidden');
         return;
       }
@@ -250,6 +284,11 @@ async function main(): Promise<void> {
       console.log(
         `  pixels: stdDev=${pixels.stdDev.toFixed(1)} colours=${pixels.colours} ` +
           `edges=${(pixels.edgeDensity * 100).toFixed(1)}% luma=${pixels.meanLuma.toFixed(0)}`
+      );
+      console.log(
+        `  assets: ${stats.realMaterials} real materials, ${stats.realModels} real models, ` +
+          `${stats.propsResolved} stand-in props` +
+          (stats.assetProblems.length ? ` | problems: ${stats.assetProblems.join('; ')}` : '')
       );
 
       /* -------------------------- assertions -------------------------- */

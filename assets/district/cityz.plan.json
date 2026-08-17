@@ -1,5 +1,5 @@
 {
-  "planVersion": 3,
+  "planVersion": 4,
   "name": "City Z — Central District",
   "description": "Hand-authored road graph, zoning and landmarks for City Z. Everything inside a block is generated from hash(blockId, planVersion); this file is the only authored input.",
   "worldSize": 1536,
@@ -1321,9 +1321,9 @@
       "floors": 1,
       "floorHeight": 4,
       "style": "shophouse",
-      "facadeMaterial": "mat.wall.concrete.painted",
+      "facadeMaterial": "mat.metal.shutter.painted",
       "roofMaterial": "mat.metal.corrugated",
-      "tint": 14210251,
+      "tint": 11058598,
       "exclusionRadius": 10,
       "description": "The covered shopping street. Vegetables, a butcher, a bargain sale that matters more than most fights."
     },

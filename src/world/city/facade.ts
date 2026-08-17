@@ -300,6 +300,18 @@ export function emitWindow(c: IPanelContext): void {
     );
   }
 
+  if (c.detail === 'full') {
+    // Frame. Four flat plates around the opening rather than four boxes: a
+    // window is the most repeated element in the city, and boxes here would
+    // cost more triangles than every roof in the district put together.
+    const frame: readonly [number, number, number] = [0.86, 0.85, 0.82];
+    const t = 0.075;
+    wallQuad(c, MatSlot.Facade, u0, sill, u1, sill + t, -REVEAL_DEPTH + 0.012, c.shade * 0.9, c.facadeUv, frame);
+    wallQuad(c, MatSlot.Facade, u0, head - t, u1, head, -REVEAL_DEPTH + 0.012, c.shade * 0.72, c.facadeUv, frame);
+    wallQuad(c, MatSlot.Facade, u0, sill, u0 + t, head, -REVEAL_DEPTH + 0.012, c.shade * 0.82, c.facadeUv, frame);
+    wallQuad(c, MatSlot.Facade, u1 - t, sill, u1, head, -REVEAL_DEPTH + 0.012, c.shade * 0.82, c.facadeUv, frame);
+  }
+
   // Glazing, sunk behind the reveal.
   const glassDepth = c.detail === 'full' ? REVEAL_DEPTH : 0.04;
   wallQuad(
@@ -393,6 +405,7 @@ export function emitShopfront(c: IPanelContext): void {
   // Signboard: lives in the emissive slot so shop signs glow at dusk.
   const signTint = SIGN_TINTS[c.rng.int(0, SIGN_TINTS.length - 1)];
   wallQuad(c, MatSlot.Glass, 0.05, signBottom, c.width - 0.05, signTop, 0.06, 1, c.glassUv, signTint);
+  if (c.detail === 'full') emitFasciaLettering(c, signBottom, signTop, signTint);
   // Sign body, so it has thickness rather than floating on the wall.
   boxAlongWall(
     c,
@@ -416,25 +429,230 @@ export function emitShopfront(c: IPanelContext): void {
 }
 
 /**
- * A sign board cantilevered out perpendicular to the wall.
+ * A sign board cantilevered out perpendicular to the wall, WITH CONTENT.
  *
- * Flat signage parallel to the facade disappears the moment you look down a
- * street, because you see it edge-on. Projecting signs are what actually fill
- * the view along a shopping street, which is why they get their own emitter
- * rather than being another wall quad.
+ * ── WHY THE BOARD IS NOT A COLOURED QUAD ───────────────────────────────────
+ * A shotengai is defined by its signage, and there are dozens of boards at eye
+ * height in any street-level frame — which makes them the first thing that
+ * reads as placeholder if they are flat rectangles of colour. The fix is not a
+ * texture: signage shares the emissive slot with every window in the block, so
+ * a per-sign texture would cost a per-sign material and blow the three-slot
+ * budget that holds a block to three draw calls.
+ *
+ * The fix is GEOMETRY. Each board gets a frame, a face plate proud of it, and
+ * rows — or, on a banner, a column — of small blocks standing in for glyphs,
+ * all carried in vertex colour. Real signage IS flat blocks of colour on a
+ * panel, so jittered rectangles at a few millimetres of relief read as
+ * lettering from any distance a player stands at, and they merge into the same
+ * three draw calls as the wall behind them.
+ *
+ * Two forms, because a real shopping street has both: a wide horizontal board
+ * with one or two lines, and the tall narrow banner hanging down the face with
+ * a single vertical column of characters.
  */
 function emitProjectingSign(c: IPanelContext, v: number): void {
-  const tint = SIGN_TINTS[c.rng.int(0, SIGN_TINTS.length - 1)];
-  const reach = c.rng.range(0.6, 0.95);
-  const height = c.rng.range(0.5, 1.15);
+  const face = SIGN_TINTS[c.rng.int(0, SIGN_TINTS.length - 1)];
+  const vertical = c.rng.bool(0.42);
+  const reach = vertical ? c.rng.range(0.42, 0.62) : c.rng.range(0.75, 1.15);
+  const height = vertical ? c.rng.range(1.5, 2.4) : c.rng.range(0.55, 0.85);
   const u = c.rng.range(0.35, Math.max(0.4, c.width - 0.35));
   const centre = v - height * 0.5;
-  if (centre - height * 0.5 < 0.4) return;
-  // Bracket back to the wall.
-  boxAlongWall(c, MatSlot.Facade, u, v - 0.06, reach * 0.5, 0.04, 0.04, reach * 0.5, [0.32, 0.31, 0.3]);
-  // The board itself, in the emissive slot so it lights up at dusk.
-  boxAlongWall(c, MatSlot.Glass, u, centre, reach, 0.035, height * 0.5, reach * 0.42, tint);
+  if (centre - height * 0.5 < 0.35) return;
+
+  const d0 = 0.09;
+  const d1 = d0 + reach;
+  const v0 = centre - height * 0.5;
+  const v1 = centre + height * 0.5;
+  const half = 0.035;
+
+  // Bracket back to the wall, plus a fixing plate against it.
+  boxAlongWall(
+    c,
+    MatSlot.Facade,
+    u,
+    v1 - 0.05,
+    (d0 + d1) * 0.5,
+    0.02,
+    0.02,
+    reach * 0.5,
+    [0.3, 0.29, 0.28]
+  );
+  boxAlongWall(c, MatSlot.Facade, u, centre, d0 * 0.5, 0.05, height * 0.42, d0 * 0.5, [
+    0.34, 0.33, 0.32,
+  ]);
+
+  // Board body in the opaque slot; the face plates stand proud of it so the
+  // border reads as a frame rather than as a painted edge.
+  boxAlongWall(c, MatSlot.Facade, u, centre, (d0 + d1) * 0.5, half, height * 0.5, reach * 0.5, [
+    0.24, 0.23, 0.22,
+  ]);
+
+  const border = 0.055;
+  for (const side of [1, -1] as const) {
+    const uf = u + side * (half + 0.004);
+    signFace(c, MatSlot.Glass, uf, d0 + border, d1 - border, v0 + border, v1 - border, side, face);
+    emitGlyphs(c, uf + side * 0.005, d0 + border, d1 - border, v0 + border, v1 - border, side, face, vertical);
+  }
+  c.builder.addVolume(reach * height * 0.06);
 }
+
+/**
+ * A quad in the (outward, up) plane at a fixed distance along the wall.
+ *
+ * `outward` is +1 for a face whose normal points along +u and -1 for -u. The
+ * winding differs between them, and getting it wrong makes every sign in the
+ * district invisible from one side of the street.
+ */
+function signFace(
+  c: IPanelContext,
+  slot: number,
+  u: number,
+  dLow: number,
+  dHigh: number,
+  v0: number,
+  v1: number,
+  outward: 1 | -1,
+  color: readonly [number, number, number]
+): void {
+  const uv: [number, number, number, number] = [
+    0,
+    0,
+    (dHigh - dLow) * c.glassUv,
+    (v1 - v0) * c.glassUv,
+  ];
+  if (outward > 0) {
+    c.builder.quad(
+      slot,
+      pt(c, u, v0, dLow),
+      pt(c, u, v0, dHigh),
+      pt(c, u, v1, dHigh),
+      pt(c, u, v1, dLow),
+      uv,
+      color
+    );
+  } else {
+    c.builder.quad(
+      slot,
+      pt(c, u, v0, dHigh),
+      pt(c, u, v0, dLow),
+      pt(c, u, v1, dLow),
+      pt(c, u, v1, dHigh),
+      uv,
+      color
+    );
+  }
+}
+
+/**
+ * Rows — or, on a banner, a column — of small blocks standing in for lettering.
+ *
+ * Deliberately irregular: real signage has words of different lengths, a large
+ * headline and smaller lines under it. An even grid reads as a checkerboard,
+ * which is worse than no glyphs at all.
+ */
+function emitGlyphs(
+  c: IPanelContext,
+  u: number,
+  dLow: number,
+  dHigh: number,
+  v0: number,
+  v1: number,
+  outward: 1 | -1,
+  face: readonly [number, number, number],
+  vertical: boolean
+): void {
+  // Ink either much darker or much lighter than the board, whichever gives
+  // more contrast: the one property that has to survive at distance is that
+  // the marks are legible AS marks.
+  const luma = face[0] * 0.299 + face[1] * 0.587 + face[2] * 0.114;
+  const ink: readonly [number, number, number] =
+    luma > 0.5 ? [0.09, 0.08, 0.09] : [0.95, 0.94, 0.9];
+
+  const width = dHigh - dLow;
+  const height = v1 - v0;
+
+  if (vertical) {
+    const count = c.rng.int(3, 6);
+    const cell = height / count;
+    const size = Math.min(cell * 0.64, width * 0.7);
+    for (let i = 0; i < count; i++) {
+      emitGlyphBlock(c, u, (dLow + dHigh) * 0.5, v1 - cell * (i + 0.5), size, size, outward, ink);
+    }
+    return;
+  }
+
+  const lines = c.rng.bool(0.45) ? 2 : 1;
+  let cursorV = v1;
+  for (let line = 0; line < lines; line++) {
+    const lineH = height * (lines === 1 ? 0.6 : line === 0 ? 0.46 : 0.26);
+    const cy = cursorV - lineH * 0.5 - height * 0.07;
+    cursorV -= lineH + height * 0.12;
+    const count = c.rng.int(3, 6);
+    const pad = width * 0.07;
+    const span = width - pad * 2;
+    let x = dLow + pad;
+    for (let i = 0; i < count; i++) {
+      const w = (span / count) * c.rng.range(0.5, 0.9);
+      emitGlyphBlock(c, u, x + w * 0.5, cy, w, lineH * 0.8, outward, ink);
+      x += span / count;
+    }
+  }
+}
+
+/** One glyph block: a small plate standing a few millimetres off the face. */
+function emitGlyphBlock(
+  c: IPanelContext,
+  u: number,
+  d: number,
+  v: number,
+  w: number,
+  h: number,
+  outward: 1 | -1,
+  ink: readonly [number, number, number]
+): void {
+  signFace(c, MatSlot.Glass, u, d - w * 0.5, d + w * 0.5, v - h * 0.5, v + h * 0.5, outward, ink);
+}
+
+/**
+ * Lettering across the fascia board above a shopfront.
+ *
+ * Same reasoning as the projecting boards, applied to the flat band: without
+ * marks on it, a shop fascia is a stripe of colour, and a street of stripes is
+ * the single loudest placeholder signal at eye height.
+ */
+function emitFasciaLettering(
+  c: IPanelContext,
+  v0: number,
+  v1: number,
+  board: readonly [number, number, number]
+): void {
+  const luma = board[0] * 0.299 + board[1] * 0.587 + board[2] * 0.114;
+  const ink: readonly [number, number, number] =
+    luma > 0.5 ? [0.1, 0.09, 0.1] : [0.96, 0.95, 0.92];
+  const height = (v1 - v0) * 0.56;
+  const cy = (v0 + v1) * 0.5;
+  const count = c.rng.int(3, 6);
+  const pad = c.width * 0.12;
+  const span = c.width - pad * 2;
+  let x = pad;
+  for (let i = 0; i < count; i++) {
+    const w = (span / count) * c.rng.range(0.5, 0.88);
+    wallQuad(
+      c,
+      MatSlot.Glass,
+      x + (span / count - w) * 0.5,
+      cy - height * 0.5,
+      x + (span / count - w) * 0.5 + w,
+      cy + height * 0.5,
+      0.075,
+      1,
+      c.glassUv,
+      ink
+    );
+    x += span / count;
+  }
+}
+
 
 /** Fabric awning over a shopfront, sloping down and out. */
 function emitAwning(c: IPanelContext, _riser: number, signBottom: number): void {

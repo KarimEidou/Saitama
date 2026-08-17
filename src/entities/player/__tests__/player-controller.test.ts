@@ -151,6 +151,70 @@ describe('blocked movement', () => {
     expect(h.player.speed).toBeLessThan(0.5);
     expect(h.player.state).toBe('idle');
   });
+
+  it('ignores a single frame of solver shortfall', () => {
+    // Rapier really does return a shortened sweep for one step on flat ground
+    // (measured: ratios of 0.71 and 0.45). Reacting to it costs a standing
+    // start most of its acceleration, so one bad frame must change nothing.
+    const clean = setup();
+    clean.input.setMove(0, 1);
+    clean.run(11);
+    const cleanSpeed = clean.player.speed;
+
+    const noisy = setup();
+    noisy.input.setMove(0, 1);
+    noisy.run(5);
+    // Forge one frame in which the controller reports half the movement.
+    const controller = noisy.stub;
+    const realVelocity = controller.velocity;
+    noisy.player.update(noisy.input.poll(DT), DT);
+    realVelocity.set(realVelocity.x * 0.45, realVelocity.y, realVelocity.z * 0.45);
+    noisy.player.postStep();
+    noisy.run(5);
+
+    expect(noisy.player.speed).toBeCloseTo(cleanSpeed, 6);
+  });
+
+  it('still gives way after two consecutive blocked frames', () => {
+    const h = setup();
+    h.input.setMove(0, 1);
+    h.run(60);
+    const before = h.player.speed;
+    for (let i = 0; i < 2; i++) {
+      h.player.update(h.input.poll(DT), DT);
+      h.stub.velocity.set(0, h.stub.velocity.y, 0);
+      h.player.postStep();
+    }
+    expect(h.player.speed).toBeLessThan(before * 0.2);
+  });
+});
+
+describe('ground contact grace', () => {
+  it('does not treat a one-frame loss of contact as a landing', () => {
+    const h = setup();
+    h.input.setMove(0, 1);
+    h.run(60);
+    expect(h.player.state).toBe('run');
+    const landingBefore = h.player.landing;
+
+    h.stub.simulateContactLoss(1);
+    h.run(1);
+    expect(h.player.isGrounded).toBe(false);
+    h.run(4);
+
+    expect(h.player.state).toBe('run');
+    expect(h.player.landing).toBe(landingBefore);
+    expect(h.player.diagnostics().recoveryRemaining).toBe(0);
+  });
+
+  it('still treats a real ledge exit as a fall', () => {
+    const h = setup();
+    h.input.setMove(0, 1);
+    h.run(60);
+    h.stub.simulateContactLoss(30);
+    h.run(20);
+    expect(h.player.state).toBe('fall');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
