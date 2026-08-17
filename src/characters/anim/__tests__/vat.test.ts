@@ -22,6 +22,9 @@ import { findClip } from '../clips';
 import { measureVatRoundTrip } from '../analysis';
 import { sampleClip } from '../bake';
 import { poseToModelMatrices, skinningMatrices } from '../pose';
+import { ProceduralAnimator } from '../animator';
+import { resolveRig } from '../rig';
+import { buildCivilian, createCharacterParts } from '@/characters/mesh';
 import { geometryData, heroFixture, showcaseFixtures } from './support';
 
 describe('vat layout', () => {
@@ -126,6 +129,70 @@ describe('vat fidelity', () => {
       expect(report.quantisationMax, fixtureN.name).toBeLessThan(0.002);
       bake.dispose();
     }
+  });
+});
+
+describe('the runtime and the bake agree', () => {
+  it('puts a GPU-skinned crowd member in the same pose as a CPU-skinned hero', () => {
+    // The end-to-end check the other tests cannot make: `measureVatRoundTrip`
+    // compares the bake against the sampler that produced it, which proves
+    // storage fidelity but not that the LIVE animator lands on the same pose.
+    // A crowd whose members drift out of step with the hero standing next to
+    // them is the failure this catches, and it would be invisible in every
+    // other assertion here.
+    const parts = createCharacterParts(buildCivilian(4242, 2), new THREE.MeshBasicMaterial());
+    const rig = resolveRig(parts);
+    const bake = bakeVat(rig, [findClip('walk')], { frames: 32, halfFloat: true });
+    const clip = bake.clips[0]!;
+
+    const animator = new ProceduralAnimator(
+      createCharacterParts(buildCivilian(4242, 2), new THREE.MeshBasicMaterial()),
+      new THREE.Group()
+    );
+    animator.play('walk', { fade: 0 });
+    const time = 1.37;
+    // Settle for the same four cycles the baker warms up for, so this compares
+    // two points of the same steady loop.
+    const steps = Math.round((4 * clip.duration + time) * 240);
+    for (let i = 0; i < steps; i++) animator.update(1 / 240);
+
+    const model: THREE.Matrix4[] = [];
+    const skin: THREE.Matrix4[] = [];
+    poseToModelMatrices(animator.pose, animator.rig, model);
+    skinningMatrices(model, animator.rig.boneInverses, skin);
+
+    const build = buildCivilian(4242, 2);
+    const data = geometryData(build);
+    const frameTime = (time / clip.duration) * clip.frames;
+    const matrix = new THREE.Matrix4();
+    const source = new THREE.Vector3();
+    const cpu = new THREE.Vector3();
+    const gpu = new THREE.Vector3();
+    const scratch = new THREE.Vector3();
+    let worst = 0;
+    const count = data.position.length / 3;
+    for (let v = 0; v < count; v++) {
+      cpu.set(0, 0, 0);
+      gpu.set(0, 0, 0);
+      for (let k = 0; k < 4; k++) {
+        const weight = data.skinWeight[v * 4 + k]!;
+        if (weight === 0) continue;
+        const bone = data.skinIndex[v * 4 + k]!;
+        source.set(
+          data.position[v * 3]!,
+          data.position[v * 3 + 1]!,
+          data.position[v * 3 + 2]!
+        );
+        cpu.addScaledVector(scratch.copy(source).applyMatrix4(skin[bone]!), weight);
+        sampleVatMatrix(bake, 0, frameTime, bone, matrix);
+        gpu.addScaledVector(scratch.copy(source).applyMatrix4(matrix), weight);
+      }
+      worst = Math.max(worst, cpu.distanceTo(gpu));
+    }
+    // Millimetres on a 1.7 m character: the two paths are the same animation.
+    expect(worst).toBeLessThan(0.01);
+    animator.dispose();
+    bake.dispose();
   });
 });
 

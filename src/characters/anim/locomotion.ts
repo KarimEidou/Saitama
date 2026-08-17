@@ -22,11 +22,11 @@
  *  second as the adult they were scaled from, which is the single most common
  *  tell in a game with mixed body sizes.
  *
- *      stride / L  = 2.20 · u^0.49       fitted to walk, run and sprint data
+ *      stride / L  = 2.28 · u^0.49       fitted to walk, run and sprint data
  *      duty factor = 0.42 · u^-0.51      stance fraction; < 0.5 implies flight
  *
- *  At u = 0.46 (an adult at 1.4 m/s) that gives a 1.40 m stride at 1.0 Hz —
- *  120 steps/min, 62 % stance. Those are the textbook numbers, and they fall
+ *  At u = 0.48 (an adult at 1.4 m/s) that gives a 1.37 m stride at 1.03 Hz —
+ *  123 steps/min, 61 % stance. Those are the textbook numbers, and they fall
  *  out of the formula rather than being typed in.
  *
  *  2. FEET ARE PINNED IN WORLD SPACE, NOT ANIMATED IN MODEL SPACE
@@ -84,7 +84,7 @@ const GRAVITY = 9.81;
 /* -------------------------------------------------------------------------- */
 
 /** Stride length as a multiple of leg length: `C · u^K`. */
-const STRIDE_C = 2.2;
+const STRIDE_C = 2.28;
 const STRIDE_K = 0.49;
 /** Stance fraction of the cycle: `C · u^-K`, clamped. */
 const DUTY_C = 0.42;
@@ -176,16 +176,16 @@ const ROLL_TOE_START = 0.55;
 /** Ankle pitch at heel strike (toes up) and at toe-off (toes down), radians. */
 const HEEL_STRIKE_PITCH = 0.16;
 /**
- * Twenty-nine degrees, not the forty this started at.
+ * The FOOT's angle to the ground at toe-off, not the ankle joint's angle.
  *
- * More plantar flexion buys reach — the ankle rides higher over the ball, so
- * the leg can be further behind the body without over-extending — and it is
- * tempting to spend that. But past about thirty degrees the trailing foot
- * reads as a pointed ballet toe rather than a push-off, which is visible in a
- * single frame. The reach it was buying is now provided by the standing
- * crouch instead.
+ * Easy to under-tune by reading the wrong number: published gait data quotes
+ * about 20 degrees of ankle plantar flexion at toe-off, but the foot segment
+ * itself is inclined 50-60 degrees to the floor, because the shank is leaning
+ * too. This value is the segment angle — 39 degrees — so it is if anything
+ * conservative, and it is what buys the reach that lets a 1.37 m stride
+ * happen without the pelvis sinking into a crouch.
  */
-const TOE_OFF_PITCH = -0.44;
+const TOE_OFF_PITCH = -0.68;
 /** Step width as a fraction of hip half-width, walking then running. */
 const STANCE_WIDTH_WALK = 0.66;
 const STANCE_WIDTH_RUN = 0.24;

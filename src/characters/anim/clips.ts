@@ -162,7 +162,10 @@ const idleBored: ClipFn = (ctx, t, pose) => {
       : t < YAWN_PEAK
         ? smoothstep(YAWN_IN, YAWN_PEAK, t)
         : 1 - smoothstep(YAWN_PEAK, YAWN_OUT, t);
-  const y = yawn * params.vigour * (0.55 + 0.45 * params.boredom);
+  // Kept near full strength regardless of boredom: the yawn is the beat that
+  // sells the clip, and scaling it down to half at boredom 0 leaves the arms
+  // stuck at shoulder height, which reads as a shrug.
+  const y = yawn * params.vigour * (0.82 + 0.18 * params.boredom);
 
   // Weight parked on one leg, shifting over about eight seconds because
   // standing on one hip is only comfortable for so long.
@@ -191,7 +194,7 @@ const idleBored: ClipFn = (ctx, t, pose) => {
       // Hands drift forward and inward — the dead-arm hang, not a soldier's.
       // The yawn straightens the elbows as it lifts: a stretch is an EXTENSION,
       // and folding the arms while raising them reads as a shrug instead.
-      abduct: 0.06 + 0.02 * b + y * 2.55,
+      abduct: 0.06 + 0.02 * b + y * 2.6,
       elbow: 0.3 + 0.35 * b - y * 0.42,
       flex: 0.12 * b + y * 0.34,
       twist: 0.42 * b - y * 0.6,
@@ -339,9 +342,13 @@ const jumpClip: ClipFn = (ctx, t, pose) => {
   for (const side of SIDES) {
     // Arms swing down and back on the load, then whip up through the launch.
     poseArm(pose, rig, side, {
-      abduct: 0.12 + extend * 1.5,
+      // Past 90 degrees of abduction the arm keeps going and ends up
+      // overhead. Stopping at 90 and adding fore/aft `flex` does nothing at
+      // all, because flexing an arm that points along the flexion axis is a
+      // no-op — the arms simply spread into a T.
+      abduct: 0.12 + extend * 2.35,
       elbow: 0.5 - extend * 0.32,
-      flex: -0.5 * load + extend * 1.15,
+      flex: -0.5 * load + extend * 0.55,
       twist: 0.2,
       shrug: extend * 0.24,
     });

@@ -40,6 +40,7 @@ import {
   bakeVat,
   copyPose,
   createPose,
+  defaultClipParams,
   findClip,
   LocomotionSolver,
   measureFootSlide,
@@ -63,6 +64,7 @@ declare global {
   }
 }
 
+const _UP = new THREE.Vector3(0, 1, 0);
 const params = new URLSearchParams(location.search);
 const MODE = params.get('mode') ?? 'walk';
 
@@ -303,12 +305,21 @@ function renderCell(cell: Cell, camera: THREE.Camera): void {
  * animation one. Twenty-four degrees keeps the legs legible and separates
  * both arms.
  */
-function profileCamera(cell: Cell, height: number, centerZ = 0): THREE.PerspectiveCamera {
-  const camera = new THREE.PerspectiveCamera(26, cell.w / cell.h, 0.1, 60);
-  const distance = height * 4.4;
+function profileCamera(
+  cell: Cell,
+  frameHeight: number,
+  centerZ = 0,
+  fov = 26
+): THREE.PerspectiveCamera {
+  const camera = new THREE.PerspectiveCamera(fov, cell.w / cell.h, 0.1, 60);
+  // Frame an exact world height rather than a multiple of the distance, so a
+  // comparison strip really is a comparison: every body is photographed at the
+  // same scale and a 1.22 m child has to read as small.
+  const distance = frameHeight / 2 / Math.tan((fov * Math.PI) / 360);
   const yaw = (24 * Math.PI) / 180;
-  camera.position.set(distance * Math.cos(yaw), height * 0.56, centerZ - distance * Math.sin(yaw));
-  camera.lookAt(0, height * 0.5, centerZ);
+  const aim = frameHeight * 0.36;
+  camera.position.set(distance * Math.cos(yaw), aim + frameHeight * 0.04, centerZ - distance * Math.sin(yaw));
+  camera.lookAt(0, aim, centerZ);
   return camera;
 }
 
@@ -385,7 +396,7 @@ function renderWalkCycle(): WalkStats {
       w: cellW,
       h: cellH,
     };
-    renderCell(cell, profileCamera(cell, rig.metrics.height, 0));
+    renderCell(cell, profileCamera(cell, rig.metrics.height * 2.0, 0));
 
     const phase = solver.phase;
     const stance = [report.left, report.right].filter((f) => f.phase === 'stance').length;
@@ -445,11 +456,15 @@ function poseFromClip(
   actor: Actor,
   slot: Parameters<typeof findClip>[0],
   variant: Parameters<typeof findClip>[1],
-  t: number
+  t: number,
+  boredom = 0
 ): void {
   const entry = findClip(slot, variant);
   const frames = 48;
-  const poses = sampleClip(actor.rig, entry, { frames });
+  const poses = sampleClip(actor.rig, entry, {
+    frames,
+    params: { ...defaultClipParams(), boredom },
+  });
   const index = Math.min(frames - 1, Math.max(0, Math.round(t * (frames - 1))));
   copyPose(actor.pose, poses[index]!);
   applyPose(actor.pose, actor.rig);
@@ -493,21 +508,22 @@ function renderClips(): ClipsStats {
   const top = 78;
   const clipRows = 3;
   const cellW = Math.floor(WIDTH / cols);
-  const cellH = 300;
+  const cellH = 276;
   const poses: string[] = [];
 
   renderer.clear();
   grid.forEach((item, i) => {
-    poseFromClip(actor, item.slot, item.variant, item.t);
+    poseFromClip(actor, item.slot, item.variant, item.t, item.variant === 'bored' ? 0.9 : 0);
     poses.push(Array.from(actor.pose.rot).map((v) => v.toFixed(3)).join(','));
     const col = i % cols;
     const row = Math.floor(i / cols);
     const cell: Cell = { x: col * cellW, y: top + row * cellH, w: cellW, h: cellH };
-    const camera = new THREE.PerspectiveCamera(24, cell.w / cell.h, 0.1, 60);
-    // Three-quarter view: the strikes read best off-axis, and a pure profile
-    // hides the shoulder rotation that carries the punch.
-    camera.position.set(3.4, 1.35, 5.6);
-    camera.lookAt(0, 0.92, 0);
+    const camera = new THREE.PerspectiveCamera(26, cell.w / cell.h, 0.1, 60);
+    // Three-quarter view FROM THE FRONT. Characters face -Z, so a camera at
+    // positive Z photographs the back of the head and, on Saitama, a white
+    // cape covering everything the clip was trying to show.
+    camera.position.set(3.1, 1.3, -5.0);
+    camera.lookAt(0, 0.88, 0);
     renderCell(cell, camera);
     const [name, detail] = item.caption.split('\n');
     label(
@@ -552,7 +568,10 @@ function renderClips(): ClipsStats {
     ground.setOffset(solver.rootPosition.z);
 
     const cell: Cell = { x: i * stripW, y: stripTop, w: stripW, h: stripH };
-    renderCell(cell, profileCamera(cell, 2.5));
+    // A COMMON frame for every body: a child that fills the cell as much as a
+    // monster proves nothing about proportions. 2.7 m of frame height holds
+    // the tallest with headroom and lets the 1.22 m child read as small.
+    renderCell(cell, profileCamera(cell, 3.0, 0, 40));
     const gait = solver.gait;
     bodies.push({
       name,
@@ -594,9 +613,7 @@ function renderClips(): ClipsStats {
       saitama.root.updateMatrixWorld(true);
       ground.setOffset(solver.rootPosition.z);
       const sub: Cell = { x: cell.x + i * inner, y: cell.y, w: inner, h: cell.h };
-      const camera = new THREE.PerspectiveCamera(20, sub.w / sub.h, 0.1, 60);
-      camera.position.set(9.5, 1.0, 0);
-      camera.lookAt(0, 0.9, 0);
+      const camera = profileCamera(sub, 2.6, 0, 40);
       renderCell(sub, camera);
       label(
         sub.x + 6,
@@ -673,14 +690,24 @@ function renderCrowd(): CrowdStats {
   const uniforms = applyVatSkinning(crowdMaterial, bake);
 
   const rng = createRng(90210).derive('crowd');
-  const instances = Array.from({ length: INSTANCES }, (_, i) => ({
-    clip: i % clips.length,
-    // A golden-ratio sequence rather than a random draw: it de-correlates the
-    // crowd more evenly than uniform noise, so no two neighbours land on the
-    // same frame by accident.
-    offset: (i * 0.6180339887498949) % 1,
-    rate: 0.88 + ((i * 7) % 13) * 0.02,
-  }));
+  const walkIndex = bake.index.get('walk:default')!;
+  const walkClip = bake.clips[walkIndex]!;
+  const PAIRS = 3;
+  const time = 1.37;
+
+  const instances = Array.from({ length: INSTANCES }, (_, i) => {
+    // The first three instances are the VAT half of the A/B pairs: same clip,
+    // same phase, no offset, standing beside a CPU-skinned twin.
+    if (i < PAIRS) return { clip: walkIndex, offset: 0, rate: 1 };
+    return {
+      clip: i % clips.length,
+      // A golden-ratio sequence rather than a random draw: it de-correlates
+      // the crowd more evenly than uniform noise, so no two neighbours land on
+      // the same frame by accident.
+      offset: (i * 0.6180339887498949) % 1,
+      rate: 0.88 + ((i * 7) % 13) * 0.02,
+    };
+  });
   geometry.setAttribute('vatParams', vatInstanceAttribute(bake, instances));
 
   const mesh = new THREE.InstancedMesh(geometry, crowdMaterial, INSTANCES);
@@ -689,44 +716,61 @@ function renderCrowd(): CrowdStats {
   const quaternion = new THREE.Quaternion();
   const position = new THREE.Vector3();
   const scale = new THREE.Vector3();
+  const PAIR_Z = 4.6;
+  const PAIR_X = -3.2;
+  const PAIR_GAP = 3.0;
   for (let i = 0; i < INSTANCES; i++) {
-    const col = i % 25;
-    const row = Math.floor(i / 25);
-    position.set(-11.5 + col * 0.96 + rng.range(-0.14, 0.14), 0, -row * 1.55 + rng.range(-0.2, 0.2));
-    quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rng.range(-0.5, 0.5) + Math.PI);
-    const s = rng.range(0.9, 1.12);
-    scale.set(s, s, s);
+    if (i < PAIRS) {
+      // VAT twin: half a metre to the right of its CPU counterpart.
+      position.set(PAIR_X + i * PAIR_GAP + 0.85, 0, PAIR_Z);
+      quaternion.setFromAxisAngle(_UP, Math.PI);
+      scale.set(1, 1, 1);
+    } else {
+      const col = (i - PAIRS) % 25;
+      const row = Math.floor((i - PAIRS) / 25);
+      position.set(
+        -11.5 + col * 0.96 + rng.range(-0.14, 0.14),
+        0,
+        -row * 1.55 + rng.range(-0.2, 0.2)
+      );
+      quaternion.setFromAxisAngle(_UP, rng.range(-0.5, 0.5) + Math.PI);
+      const s = rng.range(0.9, 1.12);
+      scale.set(s, s, s);
+    }
     mesh.setMatrixAt(i, matrix.compose(position, quaternion, scale));
   }
   mesh.instanceMatrix.needsUpdate = true;
   crowdScene.add(mesh);
 
-  // Three CPU-skinned references running the SAME clip at the same time, so
-  // any disagreement between the two skinning paths is visible side by side.
+  // The CPU half of each pair: a real SkinnedMesh driven by the runtime
+  // animator, at the same clip phase as its VAT twin. Any disagreement between
+  // the two skinning paths is then a side-by-side difference rather than a
+  // number in a log.
   const references: ProceduralAnimator[] = [];
-  const walkClip = bake.clips[bake.index.get('walk:default')!]!;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < PAIRS; i++) {
     const parts = createCharacterParts(buildCivilian(4242, 2), material());
     const animator = new ProceduralAnimator(parts, parts.root);
-    parts.root.position.set(-2.4 + i * 2.4, 0, 3.4);
+    parts.root.position.set(PAIR_X + i * PAIR_GAP - 0.85, 0, PAIR_Z);
     parts.root.rotation.y = Math.PI;
     crowdScene.add(parts.root);
     animator.play('walk', { fade: 0 });
     references.push(animator);
   }
 
-  const time = 1.37;
   uniforms.vatTime.value = time;
   uniforms.vatFps.value = walkClip.frames / walkClip.duration;
   for (const animator of references) {
-    const steps = Math.round(time * 120);
-    for (let s = 0; s < steps; s++) animator.update(1 / 120);
-    animator.rig.bones[0]!.updateMatrixWorld(true);
+    // Settle for the same four cycles the baker warms up for, so the two are
+    // comparing the same point of the same steady loop rather than the runtime
+    // mid-transient against the bake at rest.
+    const settle = 4 * walkClip.duration;
+    const steps = Math.round((settle + time) * 240);
+    for (let s = 0; s < steps; s++) animator.update(1 / 240);
   }
 
-  const camera = new THREE.PerspectiveCamera(38, WIDTH / HEIGHT, 0.1, 200);
-  camera.position.set(0.5, 5.6, 15.5);
-  camera.lookAt(0, 1.0, -4);
+  const camera = new THREE.PerspectiveCamera(34, WIDTH / HEIGHT, 0.1, 200);
+  camera.position.set(0.4, 3.9, 12.6);
+  camera.lookAt(0, 1.05, -3.2);
 
   renderer.setScissorTest(false);
   renderer.setViewport(0, 0, WIDTH, HEIGHT);
@@ -758,11 +802,12 @@ function renderCrowd(): CrowdStats {
       `<span class="ok">${drawCalls} draw calls</span> <span class="dim">for the whole frame</span>`
   );
   label(
-    WIDTH - 420,
-    HEIGHT - 96,
-    `<b>front row: CPU-skinned reference</b>\n` +
-      `<span class="dim">same clip, same clock, SkinnedMesh path</span>\n` +
-      `<span class="dim">round-trip max ${(report.quantisationMax * 1000).toFixed(2)} mm quantisation</span>`
+    WIDTH - 470,
+    HEIGHT - 112,
+    `<b>front row: ${PAIRS} A/B pairs</b>\n` +
+      `<span class="dim">left of each pair  CPU SkinnedMesh</span>\n` +
+      `<span class="dim">right of each pair VAT, same clip and phase</span>\n` +
+      `<span class="dim">round-trip max ${(report.quantisationMax * 1000).toFixed(2)} mm per vertex</span>`
   );
 
   for (const animator of references) animator.dispose();

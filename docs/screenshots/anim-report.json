@@ -3,13 +3,13 @@
     "mode": "walk",
     "phases": 8,
     "speed": 1.4,
-    "cadence": 1.0629232088170044,
-    "strideLength": 1.3171224302818167,
+    "cadence": 1.0256276576304428,
+    "strideLength": 1.3650177913829737,
     "duty": 0.6084511141923228,
-    "maxContactDrift": 0.00004271634653376655,
-    "maxFlatDrift": 0.00004271634653376655,
-    "naiveContactDrift": 0.10410627205252716,
-    "reachDrop": 0.005951507176208959,
+    "maxContactDrift": 0.00003872656883367668,
+    "maxFlatDrift": 0.00003872656883367668,
+    "naiveContactDrift": 0.1091049594387121,
+    "reachDrop": 0.02098891863642971,
     "stanceCounts": [
       2,
       1,
@@ -30,36 +30,36 @@
         "name": "Child",
         "height": 1.2200000286102295,
         "legLength": 0.5239831693470478,
-        "cadence": 1.3382062740955676,
-        "stride": 0.7962839619175561
+        "cadence": 1.2912516679869512,
+        "stride": 0.8252397423509218
       },
       {
         "name": "Tatsumaki",
         "height": 1.440000057220459,
         "legLength": 0.7115478217601776,
-        "cadence": 1.148364302238309,
-        "stride": 1.0813212174563784
+        "cadence": 1.1080708179492458,
+        "stride": 1.1206419890002466
       },
       {
         "name": "Saitama",
         "height": 1.75,
         "legLength": 0.8548050224781036,
-        "cadence": 1.0477271494375713,
-        "stride": 1.2990255599508886
+        "cadence": 1.0109647933169548,
+        "stride": 1.3462628530400118
       },
       {
         "name": "Heavy civilian",
         "height": 1.7400000095367432,
         "legLength": 0.8211660534143448,
-        "cadence": 1.068971770900606,
-        "stride": 1.2479052699723172
+        "cadence": 1.0314639894654969,
+        "stride": 1.293283643425856
       },
       {
         "name": "Monster humanoid",
         "height": 2.450000047683716,
         "legLength": 1.2387135699391365,
-        "cadence": 0.8703547078009827,
-        "stride": 1.8824416638826778
+        "cadence": 0.8398159461237553,
+        "stride": 1.9508940880238659
       }
     ],
     "distinctPoses": 18
@@ -74,9 +74,9 @@
       81,
       128
     ],
-    "quantisationMax": 0.001114938242216041,
-    "temporalMax": 0.012610343318320283,
-    "distinctOffsets": 250,
+    "quantisationMax": 0.0012799393804546813,
+    "temporalMax": 0.018262012837270046,
+    "distinctOffsets": 248,
     "cpuReferences": 3
   }
 }
