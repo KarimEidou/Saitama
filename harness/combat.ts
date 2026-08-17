@@ -39,7 +39,6 @@ import {
   aabbFromCentre,
   sphereInCone as combatSphereInCone,
   type ICombatBroadPhase,
-  type ICombatStructure,
   type ICombatTarget,
   type IEncounterResult,
   type IMutableVec3,
@@ -182,13 +181,28 @@ function buildScene(): void {
     displayName: 'Deep Sea King',
   });
 
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2;
+  // A monster wave advancing down the avenue. One of them is already at arm's
+  // length, which is what makes the tap screenshot mean anything: the same
+  // instant kill, without any of the consequences below.
+  combat.addTarget({
+    id: 'monster-0',
+    type: 'monster',
+    faction: 'monster',
+    position: { x: 0.2, y: 1, z: -2.2 },
+    radius: 1.2,
+    massKg: 380,
+    maxHealth: 5000,
+    threatTier: 'demon',
+    specId: 'mosquito-girl',
+    rewardPoints: 120,
+    displayName: 'Mosquito Girl',
+  });
+  for (let i = 1; i < 9; i++) {
     combat.addTarget({
       id: `monster-${i}`,
       type: 'monster',
       faction: 'monster',
-      position: { x: Math.cos(a) * 26 + rng.range(-6, 6), y: 1, z: -46 + Math.sin(a) * 22 },
+      position: { x: (i % 2 === 0 ? 1 : -1) * (2 + (i % 3) * 2), y: 1, z: -20 - i * 9 },
       radius: 1.2,
       massKg: 380,
       maxHealth: 5000,
@@ -360,6 +374,64 @@ const mirror = checkMirror();
 const broadPhaseReport = checkBroadPhase();
 
 /* -------------------------------------------------------------------------- */
+/* A stand-in for the destruction workstream                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What the destruction system does when it hears `ShockwaveFired`, reduced to
+ * the part combat's scoring depends on: sweep the structures the wave reached
+ * and release their chunks OVER SEVERAL FRAMES, because a real collapse is
+ * staggered to stay inside the debris budget.
+ *
+ * Combat never calls this, never imports it, and does not know it exists. It
+ * only hears `ChunkDetached` — which is the entire point.
+ */
+class HarnessDestruction {
+  private pending: { id: string; mass: number; z: number }[] = [];
+
+  constructor() {
+    bus.on('ShockwaveFired', (event) => {
+      if (event.punchKind !== 'serious' && event.punchKind !== 'slam') return;
+      const swept =
+        event.angle >= Math.PI - 1e-6
+          ? combat.structures.sweepRadius(event.origin, event.range)
+          : combat.structures.sweepCone(event.origin, event.direction, event.range, event.angle);
+      for (const structure of swept) {
+        for (let i = 0; i < 40; i++) {
+          this.pending.push({
+            id: structure.id,
+            mass: (structure.massKg * 0.22) / 40,
+            z: (structure.bounds.minZ + structure.bounds.maxZ) * 0.5,
+          });
+        }
+      }
+    });
+  }
+
+  /** Release up to twelve pieces. Once per frame. */
+  step(): void {
+    for (let i = 0; i < 12 && this.pending.length > 0; i++) {
+      const piece = this.pending.shift()!;
+      bus.emit('ChunkDetached', {
+        structureId: piece.id,
+        chunkIndex: i,
+        position: { x: 0, y: 5, z: piece.z },
+        mass: piece.mass,
+        impulse: { x: 0, y: 0, z: 0 },
+        material: 'concrete',
+        collateralCost: piece.mass * 3,
+      });
+    }
+  }
+
+  clear(): void {
+    this.pending.length = 0;
+  }
+}
+
+const destruction = new HarnessDestruction();
+
+/* -------------------------------------------------------------------------- */
 /* Drawing                                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -467,12 +539,15 @@ function drawEntities(): void {
     const [x, y] = toPx(target.position.x, target.position.z);
     const radius = Math.max(3, target.radius * scale);
     const boss = target.isBoss;
-    const colour = target.dead ? '#6b7280' : boss ? '#ff9f43' : FACTION_COLOUR[target.faction]!;
+    // The dead keep their faction colour, dimmed. Who died matters more than
+    // that someone did — thirty dimmed blue dots inside the cone is the whole
+    // argument against using it.
+    const colour = boss ? '#ff9f43' : FACTION_COLOUR[target.faction]!;
 
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = colour;
-    ctx.globalAlpha = target.dead ? 0.5 : 1;
+    ctx.globalAlpha = target.dead ? 0.4 : 1;
     ctx.fill();
     ctx.globalAlpha = 1;
 
@@ -617,7 +692,10 @@ function paintPanel(): void {
     ['verb', outcome?.punch.kind ?? '—'],
     ['intent', outcome?.punch.intent ?? '—'],
     ['charge', shot.charge.toFixed(2)],
-    ['cone length', `${Math.round(outcome?.punch.shockwave?.range ?? outcome?.punch.radius ?? 0)} m`],
+    [
+      'cone length',
+      `${(outcome?.punch.shockwave?.range ?? outcome?.punch.radius ?? 0).toFixed(1)} m`,
+    ],
     [
       'half angle',
       `${(((outcome?.punch.halfAngle ?? 0) * 180) / Math.PI).toFixed(1)} deg`,
@@ -682,6 +760,7 @@ function reset(): void {
     target.health = target.maxHealth;
   }
   broadPhase.rebuild(combat.targets.values());
+  destruction.clear();
   events.length = 0;
   shot.outcome = undefined;
   shot.label = 'idle';
@@ -750,12 +829,12 @@ function runScriptedEncounter(): IEncounterResult | undefined {
     bus.setFrame(frame, time);
     broadPhase.rebuild(combat.targets.values());
     combat.update(input.poll(frame, time), dt, time);
-    // Stand in for the destruction system: bill the wave's structures.
-    if (frame === 124) {
-      for (const structure of combat.structures.values()) {
-        if (shot.outcome?.destructiblesHit.some((d) => d.id === structure.id) !== true) continue;
-        emitCollapse(structure);
-      }
+    destruction.step();
+    // Keep the drawing showing whatever the input last produced.
+    const latest = combat.lastPunch;
+    if (latest !== undefined && latest !== shot.outcome) {
+      shot.outcome = latest;
+      shot.charge = latest.punch.charge ?? 0;
     }
   }
 
@@ -764,25 +843,6 @@ function runScriptedEncounter(): IEncounterResult | undefined {
   shot.label = 'SCRIPTED ENCOUNTER';
   draw();
   return lastResult;
-}
-
-function emitCollapse(structure: ICombatStructure): void {
-  const pieces = 40;
-  for (let i = 0; i < pieces; i++) {
-    bus.emit('ChunkDetached', {
-      structureId: structure.id,
-      chunkIndex: i,
-      position: {
-        x: (structure.bounds.minX + structure.bounds.maxX) * 0.5,
-        y: 5,
-        z: (structure.bounds.minZ + structure.bounds.maxZ) * 0.5,
-      },
-      mass: (structure.massKg * 0.22) / pieces,
-      impulse: { x: 0, y: 0, z: 0 },
-      material: 'concrete',
-      collateralCost: structure.massKg * 0.001,
-    });
-  }
 }
 
 /* -------------------------------------------------------------------------- */
