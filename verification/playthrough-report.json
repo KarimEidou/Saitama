@@ -1,0 +1,339 @@
+{
+  "boot": {
+    "bootTimeMs": 4995,
+    "boot": {
+      "probe": 0,
+      "renderer": 63,
+      "assets": 1940,
+      "physics": 263,
+      "sky": 2,
+      "crowd": 367,
+      "world": 544,
+      "systems": 486,
+      "warmup": 729,
+      "firstFrame": 4995
+    },
+    "bridge": 1,
+    "online": 24,
+    "skipped": {
+      "world.streaming": "chunk residency is driven by CityStreamer: the streaming worker protocol emits IGeometryBuffers with no UVs, no material groups and no aDestroyed attribute, so its chunks cannot be registered with DestructionSystem. ChunkDamageState and the chunkIndex convention ARE used."
+    },
+    "failed": {}
+  },
+  "spawn": {
+    "frame": 16,
+    "drawCalls": 154,
+    "triangles": 2643300,
+    "tier": "high",
+    "assetTier": "high",
+    "resolutionScale": 1,
+    "programs": 38,
+    "residentChunks": 3,
+    "chunkIndex": 136,
+    "structures": 22,
+    "chunksDetached": 0,
+    "debrisLive": 0,
+    "monsters": 1,
+    "civilians": 184,
+    "civiliansLost": 0,
+    "allies": 2,
+    "alliesDown": 0,
+    "witnesses": 98,
+    "rosterResident": 5,
+    "rosterBytes": 119405357,
+    "impostorBuildings": 2947,
+    "impostorDrift": 0,
+    "physicsBodies": 326,
+    "vfxEffects": 1,
+    "x": 9,
+    "y": 0.89,
+    "z": 40,
+    "state": "idle",
+    "timeOfDay": 0.3407,
+    "dayPhase": "morning",
+    "exposure": 1.039,
+    "rank": "388",
+    "errors": [],
+    "textureBytes": 114923237,
+    "textureCount": 39,
+    "geometryBytes": 34001418,
+    "sceneTriangles": 347899,
+    "instances": 178
+  },
+  "streaming": {
+    "distinctChunks": 33,
+    "built": 33,
+    "evicted": 10,
+    "residentAtEnd": 27,
+    "samples": 44
+  },
+  "leak": {
+    "legEndsHeapMb": [
+      289.9,
+      289.9,
+      289.9,
+      289.9,
+      289.9
+    ],
+    "lapOverLapGrowthMb": 0,
+    "wholeBeatGrowthMb": 0
+  },
+  "crowd": {
+    "stats": {
+      "near": 16,
+      "mid": 234,
+      "far": 1533,
+      "total": 250,
+      "moods": {
+        "commute": 249,
+        "gawk": 1,
+        "flee": 0,
+        "cower": 0,
+        "down": 0
+      },
+      "density": 1,
+      "peakAlarm": 0.11023593693971634,
+      "simMs": 8.199999999254942,
+      "alarmMs": 0.29999999701976776,
+      "flowMs": 3.400000002235174,
+      "saved": 0,
+      "lost": 0,
+      "witnessedSaves": 0
+    },
+    "instanced": {
+      "instances": 234,
+      "activeMeshes": 6,
+      "triangles": 105768,
+      "paletteBytes": 746496,
+      "distinctOffsets": 218
+    },
+    "posesChanged": 8,
+    "bandDelta": 0.3157523148148148
+  },
+  "normalPunch": {
+    "punches": 1,
+    "monsters": 6,
+    "killed": [
+      {
+        "id": "mob.wolf.pest#4",
+        "type": "monster",
+        "intent": "normal",
+        "tier": "wolf",
+        "killer": "player",
+        "frame": 441
+      }
+    ],
+    "freezes": [
+      {
+        "requested": 0.2025,
+        "intensity": 0.2025,
+        "phase": "hold",
+        "timeScale": 0.8056,
+        "fovOffset": 1.62,
+        "frame": 441
+      }
+    ],
+    "lastPunch": {
+      "intent": "normal",
+      "kind": "normal",
+      "hits": 1,
+      "kills": 1,
+      "instantKills": 1
+    }
+  },
+  "chargeForecast": {
+    "faced": true,
+    "forecastStructures": 0,
+    "forecastYen": 0,
+    "destructionIndex": 326,
+    "combatIndex": 0
+  },
+  "seriousPunch": {
+    "charge": {
+      "charging": true,
+      "charge": 0.5555555555555556,
+      "seconds": 0.6666666666666666,
+      "range": 117.77777777777779,
+      "yen": 0
+    },
+    "waves": [
+      {
+        "intent": "full",
+        "kind": "serious",
+        "power": 2100000,
+        "range": 156.7,
+        "source": "player",
+        "frame": 472
+      }
+    ],
+    "vfx": {
+      "tier": "high",
+      "effects": 16,
+      "effectCapacity": 16,
+      "sprites": 1707,
+      "spriteCapacity": 1800,
+      "spritesDropped": 495,
+      "shockwaves": 2,
+      "shockwaveCapacity": 14,
+      "decals": 62,
+      "decalCapacity": 256,
+      "trails": 64,
+      "trailCapacity": 64,
+      "speedlineIntensity": 0,
+      "trauma": 0.6583206325066667,
+      "drawCallsSubmitted": 3,
+      "programCount": 3
+    },
+    "lastPunch": {
+      "intent": "full",
+      "kind": "serious",
+      "charge": 0.8333333333333333,
+      "hits": 0,
+      "structures": -1
+    }
+  },
+  "destruction": {
+    "detachedAtImpact": 955,
+    "detachedAfter": 955,
+    "debrisPeak": 300,
+    "firstDetachments": [
+      {
+        "structure": "blk_-1_0.b1",
+        "chunk": 0,
+        "mass": 68691,
+        "frame": 472
+      },
+      {
+        "structure": "blk_-1_0.b1",
+        "chunk": 1,
+        "mass": 43682,
+        "frame": 472
+      },
+      {
+        "structure": "blk_-1_0.b1",
+        "chunk": 2,
+        "mass": 70257,
+        "frame": 472
+      },
+      {
+        "structure": "blk_-1_0.b1",
+        "chunk": 3,
+        "mass": 39251,
+        "frame": 472
+      },
+      {
+        "structure": "blk_-1_0.b1",
+        "chunk": 4,
+        "mass": 43457,
+        "frame": 472
+      },
+      {
+        "structure": "blk_-1_0.b1",
+        "chunk": 5,
+        "mass": 26196,
+        "frame": 472
+      }
+    ]
+  },
+  "shots": [
+    {
+      "name": "play-01a-loading",
+      "file": "/home/user/Saitama/verification/play-01a-loading.png",
+      "stdDev": 17.615854486064755,
+      "mean": 10.037946887860082,
+      "colors": 353,
+      "blank": false
+    },
+    {
+      "name": "play-01b-city-z",
+      "file": "/home/user/Saitama/verification/play-01b-city-z.png",
+      "stdDev": 35.49131367533051,
+      "mean": 66.92253022119343,
+      "colors": 2247,
+      "blank": false
+    },
+    {
+      "name": "play-02a-dash",
+      "file": "/home/user/Saitama/verification/play-02a-dash.png",
+      "stdDev": 62.1307765997146,
+      "mean": 122.56625900205762,
+      "colors": 2505,
+      "blank": false
+    },
+    {
+      "name": "play-02b-avenue",
+      "file": "/home/user/Saitama/verification/play-02b-avenue.png",
+      "stdDev": 54.8261519773915,
+      "mean": 107.22076195987654,
+      "colors": 2521,
+      "blank": false
+    },
+    {
+      "name": "play-03a-crowd",
+      "file": "/home/user/Saitama/verification/play-03a-crowd.png",
+      "stdDev": 58.478538040607845,
+      "mean": 79.49277327674896,
+      "colors": 2385,
+      "blank": false
+    },
+    {
+      "name": "play-03b-crowd-moved",
+      "file": "/home/user/Saitama/verification/play-03b-crowd-moved.png",
+      "stdDev": 57.69252588868249,
+      "mean": 79.59815072016461,
+      "colors": 2541,
+      "blank": false
+    },
+    {
+      "name": "play-04a-monster",
+      "file": "/home/user/Saitama/verification/play-04a-monster.png",
+      "stdDev": 65.33896202083815,
+      "mean": 86.07688850308642,
+      "colors": 2787,
+      "blank": false
+    },
+    {
+      "name": "play-04b-punch",
+      "file": "/home/user/Saitama/verification/play-04b-punch.png",
+      "stdDev": 41.06845564756244,
+      "mean": 66.02992283950617,
+      "colors": 2161,
+      "blank": false
+    },
+    {
+      "name": "play-05a-charging",
+      "file": "/home/user/Saitama/verification/play-05a-charging.png",
+      "stdDev": 52.87256632664121,
+      "mean": 68.1281288580247,
+      "colors": 1917,
+      "blank": false
+    },
+    {
+      "name": "play-05b-shockwave",
+      "file": "/home/user/Saitama/verification/play-05b-shockwave.png",
+      "stdDev": 52.37236452708637,
+      "mean": 66.47636252572016,
+      "colors": 2549,
+      "blank": false
+    },
+    {
+      "name": "play-06a-collapse",
+      "file": "/home/user/Saitama/verification/play-06a-collapse.png",
+      "stdDev": 58.311631107229054,
+      "mean": 77.7071199845679,
+      "colors": 2197,
+      "blank": false
+    },
+    {
+      "name": "play-06b-debris",
+      "file": "/home/user/Saitama/verification/play-06b-debris.png",
+      "stdDev": 59.36551214814983,
+      "mean": 77.93557548868311,
+      "colors": 2109,
+      "blank": false
+    }
+  ],
+  "notes": [
+    "crowd band pixel delta over 3 frames: 31.58%"
+  ]
+}
