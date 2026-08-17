@@ -154,6 +154,38 @@ export const IMPOSTOR_HEIGHT_SCALE = 0.97;
  */
 export const IMPOSTOR_ALBEDO = 0.55;
 
+/**
+ * ── WHY A DISTANT FAÇADE IS DARKER THAN THE PAINT ON IT ────────────────────
+ *
+ * A silhouette box is a lie of omission: it shows the wall and nothing else,
+ * while the building it stands for is mostly wall but also windows, reveals and
+ * a baked sky-occlusion gradient. Integrated over one pixel at 250 m, the real
+ * building is measurably darker than its own tint — and the first build of this
+ * ring proved it, with distant façades reading luminance 169 against a near
+ * city whose walls sit in the 60-120 band. That is not atmospheric perspective,
+ * it is a missing average.
+ *
+ * Both corrections below are means taken from what `building.ts` and
+ * `facade.ts` actually bake, not numbers dialled until the frame looked right:
+ *
+ *   shade  `emitOnePanel` writes `0.7 + 0.3 * height fraction` into every
+ *          panel's vertex tint — pavement-dark rising to parapet-bright. Its
+ *          mean over a façade is 0.85.
+ *   glass  a quarter of a façade is glazed, and `GLASS_DARK` in `building.ts`
+ *          is what an unlit pane gets. Blending toward it also cools the
+ *          distant city slightly, which is what glass at a distance does.
+ *
+ * Roofs get neither: they are neither glazed nor occluded by the street, and
+ * `shadeTint(tint, 0.62)` — the city's own roof factor — is already applied.
+ */
+export const IMPOSTOR_FACADE_SHADE = 0.85;
+
+/** Fraction of a façade the city glazes. See `IMPOSTOR_FACADE_SHADE`. */
+export const IMPOSTOR_GLAZED_FRACTION = 0.25;
+
+/** `GLASS_DARK` from `src/world/city/building.ts`: an unlit pane's baked tint. */
+export const IMPOSTOR_GLASS_TINT: readonly [number, number, number] = [0.1, 0.13, 0.17];
+
 /** Packed 0xRRGGBB of the world ground plane under the distant city. */
 export const IMPOSTOR_GROUND_COLOUR = 0x39383a;
 

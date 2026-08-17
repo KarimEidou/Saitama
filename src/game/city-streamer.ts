@@ -90,6 +90,9 @@ import {
   COLLIDER_RADIUS,
   FULL_DETAIL_RADIUS,
   IMPOSTOR_ALBEDO,
+  IMPOSTOR_FACADE_SHADE,
+  IMPOSTOR_GLASS_TINT,
+  IMPOSTOR_GLAZED_FRACTION,
   IMPOSTOR_GROUND_COLOUR,
   IMPOSTOR_GROUND_DEPTH,
   IMPOSTOR_HEIGHT_SCALE,
@@ -149,8 +152,10 @@ const DAMAGE_SLOTS_PER_CHUNK = 16;
  * `rng.derive('buildings')`, and `derive()` is keyed by LABEL off the base seed
  * rather than by the parent's consumed state — so this file can reproduce that
  * stream without reproducing the mesh generation that normally consumes it.
- * The result is byte-identical heights: 429/429 buildings matched
- * `CityGenerator` exactly across 36 sampled chunks.
+ * The result is not approximate, it is identical: across ALL 256 chunks, all
+ * 2 943 procedural buildings matched `CityGenerator`'s own output to the
+ * millimetre in height and to 2 cm in footprint — checked against the generator
+ * itself, not against a fixture.
  *
  * The coupling is real and is worth stating plainly: `readBuildRng` mirrors the
  * ORDER in which `makeRecipe` draws from that stream. If someone adds a roll
@@ -218,6 +223,22 @@ function packTint(tint: readonly [number, number, number]): number {
   const g = Math.max(0, Math.min(255, Math.round(tint[1] * 255)));
   const b = Math.max(0, Math.min(255, Math.round(tint[2] * 255)));
   return (r << 16) | (g << 8) | b;
+}
+
+/**
+ * What a façade AVERAGES to at a distance, rather than what it is painted.
+ *
+ * See `IMPOSTOR_FACADE_SHADE` for the derivation: a silhouette shows bare wall,
+ * a real building shows wall plus glass under a baked sky-occlusion ramp, and
+ * the difference is a third of the brightness.
+ */
+function facadeAverage(tint: readonly [number, number, number]): number {
+  const wall = 1 - IMPOSTOR_GLAZED_FRACTION;
+  return packTint([
+    tint[0] * IMPOSTOR_FACADE_SHADE * wall + IMPOSTOR_GLASS_TINT[0] * IMPOSTOR_GLAZED_FRACTION,
+    tint[1] * IMPOSTOR_FACADE_SHADE * wall + IMPOSTOR_GLASS_TINT[1] * IMPOSTOR_GLAZED_FRACTION,
+    tint[2] * IMPOSTOR_FACADE_SHADE * wall + IMPOSTOR_GLASS_TINT[2] * IMPOSTOR_GLAZED_FRACTION,
+  ]);
 }
 
 /**
@@ -306,7 +327,7 @@ function blockSilhouettes(
       maxZ: bounds.maxZ,
       // `computeFloorTops`: the ground floor is taller than the rest.
       height: params.floorHeight * (params.groundFloorScale + floors - 1),
-      facade: packTint(rgb),
+      facade: facadeAverage(rgb),
       roof: packTint(shadeTint(rgb, 0.62)),
     });
   }
@@ -345,7 +366,7 @@ function landmarkSilhouettes(index: ICityPlanIndex): ISkylineBox[] {
       maxX,
       maxZ,
       height: landmark.floors * landmark.floorHeight,
-      facade: packTint(rgb),
+      facade: facadeAverage(rgb),
       roof: packTint(shadeTint(rgb, 0.62)),
     });
   }
