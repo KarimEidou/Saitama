@@ -50,9 +50,44 @@ drives the same page headlessly and writes its evidence to `docs/screenshots/`.
 
 ```bash
 npm install          # Node >= 22.12
-npm run assets       # fetch + process the CC0 asset set  (see the caveat below)
+npm run assets       # fetch + process the CC0 asset set  (~10-25 min, once)
 npm run dev          # http://localhost:5173
 ```
+
+### Running it on a phone
+
+`localhost` is not reachable from your phone. Both commands below print a
+`Network:` URL — an address on your LAN like `http://192.168.1.42:5173`. Use
+that one, with the phone on the same Wi-Fi.
+
+```bash
+npm run dev -- --host            # dev server, fastest way onto a device
+# or, the optimised build:
+npx tsx scripts/build-web.ts     # prunes 262 MB -> 135 MB, one asset tier
+npx serve -s dist
+```
+
+**iOS**: open the `Network:` URL in **Safari** — not Chrome or Firefox, which
+use the same engine on iOS but cannot install to the home screen — then
+**Share → Add to Home Screen**. That gives a fullscreen app with an icon and no
+browser chrome. It works because iOS 15+ Safari has WebGL2 and Apple GPUs
+support ASTC, one of the transcode targets the KTX2 pipeline already emits.
+Verified booting at a 390×844 viewport: `__GAME_READY__` true, 0 HTTP 404s, 0
+console errors. Frame rate on a real device remains unmeasured.
+
+A **native** iOS app needs macOS:
+
+```bash
+npm i @capacitor/ios && npx tsx scripts/build-web.ts && npx cap add ios
+```
+
+generates and structurally validates `ios/App/App.xcodeproj` (bundle
+`com.saitama.onepunch`, deployment target 15.0) on any platform — but only
+Xcode on a Mac can compile and sign it. A free Apple ID sideloads for 7 days;
+a paid account for a year.
+
+If a firewall blocks the port, macOS and Windows both prompt on first run —
+allow it, or the phone just times out.
 
 `npm run assets` is two stages:
 
