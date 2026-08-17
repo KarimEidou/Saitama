@@ -677,10 +677,23 @@ export class Game {
           out.y = player.controller.position.y + FIST_HEIGHT;
           out.z = player.controller.position.z;
         },
+        // ══════════════════════════════════════════════════════════════════
+        //  THE TWO YAW CONVENTIONS IN THIS REPOSITORY
+        // ══════════════════════════════════════════════════════════════════
+        // `PlayerController` follows three.js: an object's forward is its local
+        // -Z, so it computes its own yaw as `atan2(-dx, -dz)` and its forward
+        // is `(-sin y, 0, -cos y)`. `MonsterBrain` uses the opposite —
+        // `(+sin y, +cos y)`. Each is internally consistent; the seam between
+        // them is HERE, and getting it wrong points every punch a hundred and
+        // eighty degrees away from the thing the player is looking at.
+        //
+        // Caught by the playthrough, not by review: the traverse beat pushed
+        // the stick forward and the diagnostics reported the player at
+        // z = -22 after starting at z = +40.
         getFacing(out): void {
-          out.x = Math.sin(player.controller.yaw);
+          out.x = -Math.sin(player.controller.yaw);
           out.y = 0;
-          out.z = Math.cos(player.controller.yaw);
+          out.z = -Math.cos(player.controller.yaw);
         },
       },
     });
@@ -932,25 +945,46 @@ export class Game {
   }
 
   private async loadRemainingMaterials(): Promise<void> {
-    const wanted = this.cityGenerator.requiredAssets();
     try {
-      for (const key of wanted.materials) {
-        if (this.disposed) return;
-        await this.registry.load(key, 'low');
-        this.materials.adopt([key]);
+      // Only what the resident city is actually BINDING, re-asked after each
+      // wave because chunks keep streaming in. Walking the manifest's full
+      // 41-material, 51 MB list instead would spend a minute of main-thread
+      // texture uploads on materials nothing in view uses — which is exactly
+      // long enough to make the first minute of play stutter.
+      let pending = this.materials.pendingUpgrades();
+      const seen = new Set<string>();
+      while (pending.length > 0 && !this.disposed) {
+        for (const key of pending) {
+          if (this.disposed) return;
+          seen.add(key);
+          await this.registry.load(key, 'low');
+          this.materials.adopt([key]);
+          await nextFrame();
+        }
+        pending = this.materials.pendingUpgrades().filter((key) => !seen.has(key));
       }
-      log.info(`upgraded ${this.materials.upgraded.size}/${wanted.materials.length} city materials`);
+      log.info(`upgraded ${this.materials.upgraded.size} city materials`);
 
-      // Street furniture. 24 MB of GLB, and the reason the first assembled
-      // build looked like a town planner's massing model rather than a street:
-      // the lamps, hydrants, bins, shop shutters and parked cars are all here
-      // and none of them are on the boot path.
-      for (const key of wanted.models) {
-        if (this.disposed) return;
-        await this.registry.load(key, 'low');
+      // Street furniture. 24 MB of GLB across 39 models, and the reason the
+      // first assembled build looked like a town planner's massing model
+      // rather than a street: the lamps, hydrants, bins, shop shutters and
+      // parked cars are all here, and none of them belong on the boot path.
+      //
+      // Only what the resident ring actually references, re-asked after each
+      // wave so a chunk that streamed in meanwhile is picked up too.
+      let props = this.cityStreamer.requiredPropModels();
+      const done = new Set<string>();
+      while (props.length > 0 && !this.disposed) {
+        for (const key of props) {
+          if (this.disposed) return;
+          done.add(key);
+          await this.registry.load(key, 'low');
+          await nextFrame();
+        }
         this.propsAttached += this.cityStreamer.attachProps(this.resolveProp);
+        props = this.cityStreamer.requiredPropModels().filter((key) => !done.has(key));
       }
-      log.info(`attached ${this.propsAttached} prop batches`);
+      log.info(`attached ${this.propsAttached} prop batches from ${done.size} models`);
     } catch (error) {
       recordError(this.diagnostics, 'background-load', error);
     }
@@ -1247,12 +1281,15 @@ export class Game {
     try {
       const archetype = monsterArchetype(archetypeId);
       const yaw = this.player.controller.yaw;
+      // Player forward is `(-sin y, -cos y)` — three's convention. The monster
+      // is placed along it and turned to face back, which in the MONSTER's
+      // convention `(+sin, +cos)` is the player's own yaw unchanged.
       const position = {
-        x: this.player.controller.position.x + Math.sin(yaw) * distanceMetres,
+        x: this.player.controller.position.x - Math.sin(yaw) * distanceMetres,
         y: 0,
-        z: this.player.controller.position.z + Math.cos(yaw) * distanceMetres,
+        z: this.player.controller.position.z - Math.cos(yaw) * distanceMetres,
       };
-      const monster = this.monsters.spawn(archetype, position, yaw + Math.PI);
+      const monster = this.monsters.spawn(archetype, position, yaw);
       this.combatTargets.sync();
       return monster.id;
     } catch (error) {
@@ -1274,7 +1311,8 @@ export class Game {
       }
     }
     if (best === undefined) return false;
-    this.player.controller.yaw = Math.atan2(best.x - from.x, best.z - from.z);
+    // `atan2(-dx, -dz)`, not `atan2(dx, dz)`: three's forward is local -Z.
+    this.player.controller.yaw = Math.atan2(from.x - best.x, from.z - best.z);
     this.player.camera.yaw = this.player.controller.yaw;
     return true;
   }
@@ -1292,7 +1330,7 @@ export class Game {
       }
     }
     if (best === undefined) return false;
-    this.player.controller.yaw = Math.atan2(best.x - from.x, best.z - from.z);
+    this.player.controller.yaw = Math.atan2(from.x - best.x, from.z - best.z);
     this.player.camera.yaw = this.player.controller.yaw;
     return true;
   }
@@ -1748,4 +1786,18 @@ function tuneBloomThreshold(post: PostProcessing, threshold: number): void {
     const candidate = pass as unknown as { threshold?: number };
     if (typeof candidate.threshold === 'number') candidate.threshold = threshold;
   }
+}
+
+/**
+ * Yield until the next presented frame.
+ *
+ * Used between background asset loads. `await` on a settled promise resumes on
+ * a MICROTASK, which never lets `requestAnimationFrame` run — a chain of them
+ * starves the render loop completely, and the symptom is a game that boots fast
+ * and then appears to hang while it quietly finishes loading.
+ */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
 }

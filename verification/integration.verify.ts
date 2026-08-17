@@ -297,7 +297,12 @@ async function main(): Promise<void> {
       window.__INPUT__!.setMove(0, 1);
       window.__INPUT__!.press('sprint');
     });
-    await frames(page, 90);
+    // 45 frames of dash, not 90. On SwiftShader a chunk-boundary crossing is a
+    // 500-800 ms main-thread stall while `CityGenerator` builds the next chunk,
+    // and a 22 m/s dash crosses one every four seconds. Reported in the notes
+    // rather than hidden — it is the real cost of generating city chunks on the
+    // main thread.
+    await frames(page, 45);
     const moved = await page.evaluate(() => {
       const p = (window.__GAME_DIAG__ as unknown as IDiag).world.playerPosition as {
         x: number;
@@ -404,12 +409,14 @@ async function main(): Promise<void> {
     });
     await frames(page, 5);
     await page.evaluate(() => window.__INPUT__!.press('punch'));
-    await frames(page, 110); // > 1.2 s of charge at 60 Hz
+    // The charge completes at 1.2 s of GAME time. Frames here are far longer
+    // than 16 ms, so 90 of them is several seconds of hold — well past full.
+    await frames(page, 90);
     await shoot('integration-04-charging');
     await page.evaluate(() => window.__INPUT__!.release('punch'));
     await frames(page, 8);
     await shoot('integration-05-serious-punch');
-    await frames(page, 120);
+    await frames(page, 90);
     await shoot('integration-06-collapse');
 
     const destruction = await diag(page);

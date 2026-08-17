@@ -24,11 +24,18 @@
  *   populate   crowd spawn slots and obstacle rectangles
  *   index      static AABBs into the quadtree, for culling
  *
- * ── THE BUDGET ─────────────────────────────────────────────────────────────
- * Generation is 30-480 ms per chunk on the main thread, measured. That cannot
- * happen inside a frame, so exactly ONE chunk is built per `update()` and only
- * when the frame has budget left. The boot path calls `buildImmediate` for the
- * ring that is unavoidably in shot; everything beyond arrives during play.
+ * ── THE BUDGET, AND WHAT IT COSTS ──────────────────────────────────────────
+ * Generation is 30-800 ms per chunk on the MAIN THREAD, measured, so exactly
+ * one chunk is built per `STREAM_INTERVAL_SECONDS` and never two in a frame.
+ * The boot path calls `buildImmediate` for the ring that is unavoidably in
+ * shot; everything beyond arrives during play.
+ *
+ * Be honest about the consequence: crossing a chunk boundary at dash speed
+ * (22 m/s, one boundary every four seconds) is a visible hitch, because the
+ * work is synchronous and there is nowhere else to put it. `src/world/streaming`
+ * solves exactly this with a worker pool — it is the right long-term home, and
+ * moving there means teaching its worker protocol to carry UVs, material groups
+ * and the per-vertex destruction byte the pre-fractured city needs.
  */
 
 import * as THREE from 'three';
@@ -235,6 +242,23 @@ export class CityStreamer {
       added += meshes.length;
     }
     return added;
+  }
+
+  /**
+   * Distinct prop models the RESIDENT chunks reference.
+   *
+   * The manifest holds 39 prop models and 24 MB of GLB; a nine-chunk ring
+   * references about half of them. Loading only these is the difference between
+   * street furniture appearing a few seconds after boot and appearing after
+   * every model in the game has been decoded.
+   */
+  requiredPropModels(): string[] {
+    const keys = new Set<string>();
+    for (const chunk of this.resident.values()) {
+      if (chunk.props.length > 0) continue;
+      for (const batch of chunk.build.instances) keys.add(batch.assetKey);
+    }
+    return [...keys].sort();
   }
 
   /** Obstacle rectangles for every resident building. Fed to the crowd. */

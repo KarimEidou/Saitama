@@ -184,6 +184,22 @@ export class CityMaterialLibrary {
     return this.adopt([...this.cache.keys()]);
   }
 
+  /**
+   * Ids that have been handed out but are still a synthesised stand-in.
+   *
+   * THE list the background upgrade should work from. The manifest holds 41
+   * city materials and 51 MB of KTX2; a nine-chunk ring binds about ten of
+   * them, and fetching the other thirty-one buys nothing the player can see
+   * while costing the main thread every one of their texture uploads.
+   */
+  pendingUpgrades(): string[] {
+    const out: string[] = [];
+    for (const key of this.cache.keys()) {
+      if (!this.upgraded.has(key)) out.push(key);
+    }
+    return out;
+  }
+
   adopt(keys: readonly string[]): number {
     const registry = this.registry;
     if (registry === undefined) return 0;
