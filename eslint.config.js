@@ -12,6 +12,10 @@ export default tseslint.config(
       'ios/**',
       'assets/source/**',
       'assets/generated/**',
+      // Generated GPU-native asset output (`npm run assets:process`), including
+      // the vendored Emscripten `basis/basis_transcoder.js`. Gitignored, but flat
+      // config does not read .gitignore, so it needs listing here too.
+      'public/assets/**',
       'verification/*.png',
       // Scratch/probe files written while investigating. Flat config does NOT
       // read .gitignore, so these need listing here or they fail the lint gate

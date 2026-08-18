@@ -72,6 +72,7 @@ verification/*.webm
 .probe*.ts
 
 .*scratch*
+.*-audit-notes.md
 
 # Generated app icons (npx tsx scripts/make-icons.ts)
 public/icons/
