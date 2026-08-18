@@ -17,12 +17,14 @@
 
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
+import type { IAssetRegistry } from '@/types';
 import { generateBuilding } from '../building';
 import { CITY_MATERIALS } from '../materials';
 import {
   DESTROYED_FLAG,
   buildBlockMesh,
   buildChunkNodes,
+  createRegistryResolver,
   destroyFractureChunk,
   extractDebrisGeometry,
   instanceableGeometry,
@@ -283,6 +285,56 @@ describe('instanceable geometry', () => {
     for (const mesh of nodes.instanced) {
       expect(Object.keys(mesh.geometry.morphAttributes)).toHaveLength(0);
     }
+  });
+});
+
+/**
+ * THE REGISTRY RESOLVER
+ *
+ * A material whose textures failed to load is still BUILT and still sitting in
+ * the registry, bound to the missing-asset checker — so `getMaterial(key) ??
+ * fallback(key)` could never reach the injected procedural stand-in, and one
+ * absent transcoder was enough to render the whole city as a magenta test
+ * pattern with the fallback the game already had sitting unused.
+ */
+describe('registry resolver', () => {
+  const registryServing = (material: THREE.Material | undefined): IAssetRegistry =>
+    ({ getMaterial: () => material }) as unknown as IAssetRegistry;
+
+  const withMissing = (missing: readonly string[]): THREE.MeshStandardMaterial => {
+    const material = new THREE.MeshStandardMaterial();
+    material.userData.missingTextures = [...missing];
+    return material;
+  };
+
+  it('serves the registry material when every texture bound for real', () => {
+    const real = withMissing([]);
+    const resolve = createRegistryResolver(
+      registryServing(real),
+      () => new THREE.MeshBasicMaterial()
+    );
+    expect(resolve('mat.wall.brick.red')).toBe(real);
+  });
+
+  it('falls back when the registry material is bound to the checker', () => {
+    const stand = new THREE.MeshBasicMaterial();
+    const resolve = createRegistryResolver(
+      registryServing(withMissing(['mat.wall.brick.red.albedo'])),
+      () => stand
+    );
+    expect(resolve('mat.wall.brick.red')).toBe(stand);
+  });
+
+  it('falls back when nothing is resident, and caches one instance per key', () => {
+    let built = 0;
+    const resolve = createRegistryResolver(registryServing(undefined), () => {
+      built++;
+      return new THREE.MeshBasicMaterial();
+    });
+    // One material instance per key: every block mesh in the district binds the
+    // same object, which is what makes the later in-place upgrade possible.
+    expect(resolve('mat.roof.bitumen')).toBe(resolve('mat.roof.bitumen'));
+    expect(built).toBe(1);
   });
 });
 

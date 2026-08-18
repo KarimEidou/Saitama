@@ -1,5 +1,9 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath, URL } from 'node:url';
+// Explicit `.ts` extension (allowed by `allowImportingTsExtensions`): Vite's
+// forthcoming `configLoader: 'native'` cannot resolve an extensionless config
+// import and warns on every build without it.
+import { basisTranscoderPlugin } from './scripts/stage-basis-transcoder.ts';
 
 /**
  * Vite configuration for the One Punch Man open-world mobile build.
@@ -11,10 +15,20 @@ import { fileURLToPath, URL } from 'node:url';
  *    `assetsInclude` so Vite emits them as files rather than trying to parse them.
  *  - `three` is split into its own chunk so the engine payload can be cached
  *    independently of game code.
+ *  - `basisTranscoderPlugin()` must stay registered. It is the ONLY thing that
+ *    puts the Basis transcoder where the runtime looks for it; drop it and the
+ *    build still succeeds and still boots, just with every texture unparseable.
  */
 export default defineConfig({
   // Relative base: mandatory for Capacitor file:// loading.
   base: './',
+
+  // Copies `basis_transcoder.js` + `.wasm` into `assets/basis/`, the directory
+  // `KTX2Loader` fetches them from at runtime (`BASIS_TRANSCODER_DIR`,
+  // src/assets/constants.ts:56). They must be served verbatim and therefore
+  // cannot be imported through the bundler (src/assets/ktx2.ts:151), so nothing
+  // in the module graph pulls them in and nothing else would copy them.
+  plugins: [basisTranscoderPlugin()],
 
   resolve: {
     alias: {

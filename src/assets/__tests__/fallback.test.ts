@@ -35,6 +35,44 @@ function handleFor(key: string): TextureHandle {
   return new ManagedTextureHandle({ key, texture, colorSpace: 'linear', tier: 'mobile' });
 }
 
+/** A handle in the shape the registry installs when a transcode FAILS. */
+function fallbackHandleFor(key: string): ManagedTextureHandle {
+  return new ManagedTextureHandle({
+    key,
+    texture: missingTexture(),
+    colorSpace: 'linear',
+    tier: 'fallback',
+    fallback: true,
+  });
+}
+
+/**
+ * A manifest entry in the shape `mat.glass.window` and `mat.road.markings`
+ * actually ship in: every texture declared by ROLE, and a spec that binds none
+ * of them. Built here rather than in `fixtures.ts` because the fixture
+ * deliberately mirrors the well-formed majority.
+ */
+function roleOnlyEntry(id: string): IMaterialAsset {
+  return {
+    id,
+    kind: 'material',
+    name: id,
+    attribution: { license: 'CC0-1.0', author: 'test', sourceUrl: 'https://example.invalid' },
+    sourceUrl: 'https://example.invalid',
+    sha256: 'x',
+    targetFormat: 'json',
+    outputs: [],
+    preload: true,
+    spec: { id, kind: 'standard', color: 0xffffff, roughness: 1, metalness: 1 },
+    textureKeys: {
+      albedo: `${id}.albedo`,
+      normal: `${id}.normal`,
+      orm: `${id}.orm`,
+    },
+    tileSizeMeters: 3,
+  } as IMaterialAsset;
+}
+
 describe('missing-asset fallbacks', () => {
   it('is a marked checker, not a flat magenta fill', () => {
     disposeFallbacks();
@@ -143,6 +181,58 @@ describe('buildMaterial', () => {
     expect(isMissingAsset(material.map ?? undefined)).toBe(true);
     // It still built a usable material — no throw, no null material.
     expect(material.isMeshStandardMaterial).toBe(true);
+  });
+
+  it('reports a RESIDENT stand-in, not just an absent one', () => {
+    // The live failure this exists for: with no Basis transcoder EVERY texture
+    // load fails, and the registry answers each one with a `fallback: true`
+    // handle wrapping the checker. `resolve` therefore SUCCEEDS for all three,
+    // so the material was 100% magenta while `missingTextures` was empty and
+    // every safety net downstream of it stayed asleep.
+    const handles = new Map<string, ManagedTextureHandle>();
+    for (const key of requiredTextures(entry)) handles.set(key, fallbackHandleFor(key));
+
+    const built = buildMaterial(entry, (key) => handles.get(key));
+    const material = built.material as THREE.MeshStandardMaterial;
+
+    expect([...built.missingTextures].sort()).toEqual([...requiredTextures(entry)].sort());
+    // `IAssetRegistry` exposes only `getMaterial(key): THREE.Material`, so
+    // `userData` is the one channel a consumer has to ask through.
+    expect(material.userData.missingTextures).toEqual(built.missingTextures);
+    // The marked pattern still has to be ON SCREEN — this reports the gap, it
+    // does not hide it.
+    expect(isMissingAsset(material.map ?? undefined)).toBe(true);
+    // And reference counting is untouched: retained exactly once each.
+    expect(built.handles).toHaveLength(3);
+    for (const handle of handles.values()) expect(handle.refCount).toBe(1);
+  });
+
+  it('publishes an empty gap list when every map bound for real', () => {
+    const handles = new Map<string, TextureHandle>();
+    for (const key of requiredTextures(entry)) handles.set(key, handleFor(key));
+    const built = buildMaterial(entry, (key) => handles.get(key));
+    expect(built.missingTextures).toHaveLength(0);
+    expect(built.material.userData.missingTextures).toEqual([]);
+  });
+
+  it('binds by ROLE when the spec names no map keys at all', () => {
+    // `mat.glass.window` and `mat.road.markings` ship exactly like this. The
+    // registry preloads all three of their textures because `requiredTextures`
+    // unions both sides — so an unbound role is a texture that was fetched,
+    // transcoded and never sampled, on a surface that renders flat.
+    const byRole = roleOnlyEntry('mat.glass.window');
+    const handles = new Map<string, TextureHandle>();
+    for (const key of requiredTextures(byRole)) handles.set(key, handleFor(key));
+
+    const built = buildMaterial(byRole, (key) => handles.get(key));
+    const material = built.material as THREE.MeshStandardMaterial;
+
+    expect(built.missingTextures).toHaveLength(0);
+    expect(material.map?.name).toBe('mat.glass.window.albedo');
+    expect(material.normalMap?.name).toBe('mat.glass.window.normal');
+    expect(material.roughnessMap?.name).toBe('mat.glass.window.orm');
+    expect(built.ormBound).toBe(true);
+    expect(isMissingAsset(material.map ?? undefined)).toBe(false);
   });
 
   it('lists every texture the spec needs, including ones textureKeys forgot', () => {

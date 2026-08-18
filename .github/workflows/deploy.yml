@@ -64,6 +64,22 @@ jobs:
           npm run assets:fetch
           npm run assets:process -- --tier mobile
 
+      # Characters come from a SEPARATE pipeline, and `tools/build-characters.ts`
+      # is the only thing that ever writes `public/assets/chr/`. Without this
+      # step the published site 404s `assets/chr/characters.runtime.json` and all
+      # fourteen characters -- Saitama included -- render as the mesh generator's
+      # flat vertex colours. The build stays green, the game boots, and the only
+      # trace is one diagnostics line nobody reads.
+      #
+      # UNCONDITIONAL, unlike the step above: a cache hit proves a `public/assets`
+      # tree was restored, not that it holds `chr/`, and the roster lives under
+      # `src/characters/` which the cache key does not hash -- skipping on a hit
+      # would ship yesterday's characters, or none. It is cheap next to the KTX2
+      # encoding above. On a hit `assets/source/` is absent, so the CC0 detail
+      # tiles are skipped with a warning; that costs grain, not silhouettes.
+      - name: Bake character atlases
+        run: npm run assets:characters
+
       # Prunes the build to a single asset tier: 262 MB -> ~135 MB. Serving
       # every tier to a phone over mobile data would be indefensible, and the
       # runtime only ever requests one of them.

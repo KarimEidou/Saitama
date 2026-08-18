@@ -18,7 +18,7 @@
  */
 
 import * as THREE from 'three';
-import type { IMaterialAsset, MaterialSpec, TextureHandle } from '@/types';
+import type { IMaterialAsset, MaterialSpec, TextureHandle, TextureRole } from '@/types';
 import { createLogger } from '@/util';
 import { bindPackedOrm, withRepeat } from './textures';
 import { missingTexture } from './fallback';
@@ -33,7 +33,10 @@ export interface IBuiltMaterial {
   readonly material: THREE.Material;
   /** Handles retained by this material; release on dispose. */
   readonly handles: readonly TextureHandle[];
-  /** Texture ids the spec asked for that were not resident. */
+  /**
+   * Texture ids this material could not bind for real: not resident, OR
+   * resolved to a handle that is itself a marked stand-in.
+   */
   readonly missingTextures: readonly string[];
   /** True when the ORM map bound to all three slots. */
   readonly ormBound: boolean;
@@ -103,7 +106,10 @@ function instantiate(spec: MaterialSpec): THREE.Material {
  * Every texture the spec names is retained; the caller owns releasing them via
  * `IBuiltMaterial.handles`. A texture that is not resident binds the marked
  * missing-texture pattern and is reported in `missingTextures` — never a
- * silent black surface, and never an exception.
+ * silent black surface, and never an exception. A texture that IS resident but
+ * resolved to a stand-in handle is reported too: see `bind` below for why that
+ * distinction is the difference between a magenta city and a fallback that
+ * fires.
  */
 export function buildMaterial(
   entry: IMaterialAsset,
@@ -115,6 +121,30 @@ export function buildMaterial(
   const handles: TextureHandle[] = [];
   const missing: string[] = [];
 
+  /**
+   * The texture id for one map slot: the spec's explicit key, or the matching
+   * ROLE from `entry.textureKeys` when the spec never named one.
+   *
+   * Both directions have to work. `requiredTextures` already unions the two,
+   * so the registry downloads and transcodes every key EITHER side names — and
+   * a role the spec forgot is therefore a texture that was fetched, decoded,
+   * uploaded and never sampled. Two of the shipped materials are exactly that
+   * shape (`mat.glass.window` and `mat.road.markings`: three roles each, an
+   * empty spec), which is six preloaded textures on the boot path paying for
+   * two surfaces that render flat and untextured.
+   */
+  const keyFor = (specKey: string | undefined, role: TextureRole): string | undefined => {
+    if (specKey !== undefined) return specKey;
+    const byRole = entry.textureKeys[role];
+    if (byRole === undefined) return undefined;
+    log.warnOnce(
+      `role-fallback:${spec.id}`,
+      `material "${spec.id}" names textures by role but binds none of them in ` +
+        `its spec; binding by role instead. The manifest should carry both.`
+    );
+    return byRole;
+  };
+
   const bind = (key: string | undefined, srgb: boolean): THREE.Texture | null => {
     if (key === undefined) return null;
     const handle = resolve(key);
@@ -122,6 +152,18 @@ export function buildMaterial(
       missing.push(key);
       log.warn(`material "${spec.id}" wants texture "${key}", which is not resident`);
       return missingTexture();
+    }
+    // A texture can be RESIDENT and still be a stand-in. When a transcode
+    // fails the registry installs a handle flagged `fallback` that wraps the
+    // checker, so `resolve` SUCCEEDS, the material binds the missing-asset
+    // pattern, and `missing` stays empty — which is how one absent Basis
+    // transcoder painted the whole city magenta while `missingTextures`
+    // reported nothing wrong and every downstream fallback stayed asleep.
+    // `TextureHandle`, the contract type, has no `fallback` field, so the flag
+    // is read structurally rather than by widening the contract.
+    if ((handle as { fallback?: boolean }).fallback === true) {
+      missing.push(key);
+      log.warn(`material "${spec.id}" bound texture "${key}", which is a marked stand-in`);
     }
     handles.push(handle.retain());
     const texture = withRepeat(handle.texture, spec.uvRepeat);
@@ -131,12 +173,12 @@ export function buildMaterial(
   };
 
   const pbr = material as THREE.MeshStandardMaterial;
-  if ('map' in material) pbr.map = bind(spec.mapKey, true);
-  if ('normalMap' in material) pbr.normalMap = bind(spec.normalMapKey, false);
+  if ('map' in material) pbr.map = bind(keyFor(spec.mapKey, 'albedo'), true);
+  if ('normalMap' in material) pbr.normalMap = bind(keyFor(spec.normalMapKey, 'normal'), false);
 
   let ormBound = false;
   if ('roughnessMap' in material) {
-    const orm = bind(spec.ormMapKey, false);
+    const orm = bind(keyFor(spec.ormMapKey, 'orm'), false);
     if (orm) {
       bindPackedOrm(pbr, orm);
       ormBound = true;
@@ -144,7 +186,7 @@ export function buildMaterial(
   }
 
   if ('emissiveMap' in material) {
-    pbr.emissiveMap = bind(spec.emissiveMapKey, true);
+    pbr.emissiveMap = bind(keyFor(spec.emissiveMapKey, 'emissive'), true);
     if (spec.emissive !== undefined) {
       pbr.emissive = new THREE.Color(spec.emissive);
       pbr.emissiveIntensity = spec.emissiveIntensity ?? 1;
@@ -154,6 +196,8 @@ export function buildMaterial(
       pbr.emissiveIntensity = spec.emissiveIntensity ?? 1;
     }
   }
+  // `alphaMap` stays spec-only on purpose: binding it off a role would start
+  // cutting holes in a surface whose author never asked for a cutout.
   if ('alphaMap' in material) pbr.alphaMap = bind(spec.alphaMapKey, false);
 
   if ('normalScale' in material && pbr.normalMap !== null && spec.normalScale !== undefined) {
@@ -167,6 +211,12 @@ export function buildMaterial(
   material.userData.tileSizeMeters = entry.tileSizeMeters;
   material.userData.castShadow = spec.castShadow ?? true;
   material.userData.receiveShadow = spec.receiveShadow ?? true;
+  // Published on the material itself because `IAssetRegistry` hands consumers
+  // only `getMaterial(key): THREE.Material` — no detail object. The city
+  // resolver and `CityMaterialLibrary` both have to refuse a checker-backed
+  // material, and `userData` is the only channel they have to ask through.
+  // Copied so a consumer cannot reach back into `missing`.
+  material.userData.missingTextures = [...missing];
   material.needsUpdate = true;
 
   return { material, handles, missingTextures: missing, ormBound };

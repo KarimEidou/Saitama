@@ -1,5 +1,5 @@
 /**
- * WEB BUILD — vite build -> icons -> single-tier prune.
+ * WEB BUILD — icons -> characters -> vite build -> single-tier prune.
  *
  * This is the build you serve to a phone browser, and the only practical way to
  * run the game on iOS without a Mac: Safari supports WebGL2, and Apple GPUs
@@ -25,7 +25,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const DIST = path.resolve('dist');
@@ -74,7 +74,25 @@ function main(): void {
   log(`building web bundle  tier=${tier}  prune=${prune}`);
 
   run('npx', ['tsx', 'scripts/make-icons.ts']);
+  // Characters are build output for exactly the reason icons are: `tools/build-
+  // characters.ts` is the only writer of `public/assets/chr/`, and that tree is
+  // gitignored, so a clean checkout has no character art at all.
+  run('npx', ['tsx', 'tools/build-characters.ts']);
   run('npm', ['run', 'build']);
+
+  // This build used to ship with no characters and say nothing about it: vite
+  // copies whatever `public/assets` happens to hold, so a missing bake exits 0
+  // and publishes a game that boots with all fourteen characters drawn in the
+  // mesh generator's flat vertex colours. Assert the one file the runtime asks
+  // for first, before the prune, so the wiring above cannot silently rot again.
+  const chrIndex = path.join(DIST, 'assets', 'chr', 'characters.runtime.json');
+  if (!existsSync(chrIndex)) {
+    process.stderr.write(
+      `\nFAILED: dist/assets/chr/characters.runtime.json is missing — ` +
+        `tools/build-characters.ts produced no baked atlases.\n`
+    );
+    process.exit(1);
+  }
 
   if (!prune) {
     log(`\n  dist ${mb(sizeOf(walk(DIST)))} (unpruned)`);

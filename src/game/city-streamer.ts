@@ -584,8 +584,22 @@ export interface IResidentChunk {
   readonly props: THREE.InstancedMesh[];
   /** Ids registered with destruction, so they can be unregistered on evict. */
   readonly structureIds: readonly string[];
-  /** Physics body handles owned by this chunk. */
-  readonly bodyHandles: readonly number[];
+  /**
+   * Physics body handles owned by this chunk, for the ring it is in RIGHT NOW.
+   *
+   * Mutable, and it has to be: the resident ring is wider than the collider
+   * ring, so a chunk built at ring 2 has none of these and grows them the
+   * moment the focus walks onto it. See `refreshColliders`.
+   */
+  readonly bodyHandles: number[];
+  /**
+   * `[minX, minY, minZ, maxX, maxY, maxZ]` per building that gets a collider.
+   *
+   * Recorded at build time whatever ring the chunk was built in, so promoting
+   * it into the collider ring later costs one Rapier body per building and no
+   * regeneration — the chunk build is 30-800 ms and cannot be paid twice.
+   */
+  readonly colliderBoxes: readonly (readonly [number, number, number, number, number, number])[];
   /** Quadtree handles, released on evict. */
   readonly staticHandles: readonly number[];
   readonly obstacles: readonly IObstacleRect[];
@@ -934,14 +948,21 @@ export class CityStreamer {
 
     // Evict with one chunk of hysteresis, so walking a chunk boundary back and
     // forth does not rebuild a 400 ms chunk twice a second.
+    //
+    // The distance is computed for EVERY resident chunk, not just the ones that
+    // fell out of `wanted`, because collider residency is maintained from the
+    // same number — and the chunks that need promoting are precisely the ones
+    // still wanted.
     for (const [index, chunk] of this.resident) {
-      if (wanted.has(index)) continue;
       const distance = Math.max(
         Math.abs(chunk.cx - this.focusChunkX),
         Math.abs(chunk.cz - this.focusChunkZ)
       );
-      if (distance <= this.residentRadius + 1) continue;
-      this.evict(index);
+      if (!wanted.has(index) && distance > this.residentRadius + 1) {
+        this.evict(index);
+        continue;
+      }
+      this.refreshColliders(chunk, distance);
     }
     this.onResidencyChanged?.(this.chunks);
   }
@@ -986,6 +1007,7 @@ export class CityStreamer {
     const blocks: IBlockMesh[] = [];
     const structureIds: string[] = [];
     const bodyHandles: number[] = [];
+    const colliderBoxes: [number, number, number, number, number, number][] = [];
     const staticHandles: number[] = [];
     const obstacles: IObstacleRect[] = [];
     let drawCalls = 0;
@@ -1035,6 +1057,11 @@ export class CityStreamer {
 
         const [minX, minY, minZ, maxX, maxY, maxZ] = summary.bounds;
         obstacles.push({ minX, minZ, maxX, maxZ, height: maxY - minY });
+        // Kept whether or not this chunk gets physics today. `distance` is the
+        // ring the chunk happened to be in when it was built and `build()`
+        // never runs again for it, so a chunk raised at ring 2 would otherwise
+        // have nothing to build colliders FROM once the player walks onto it.
+        colliderBoxes.push([minX, minY, minZ, maxX, maxY, maxZ]);
 
         if (this.physics !== undefined && distance <= COLLIDER_RADIUS) {
           phase = performance.now();
@@ -1092,6 +1119,7 @@ export class CityStreamer {
       blocks,
       structureIds,
       bodyHandles,
+      colliderBoxes,
       staticHandles,
       obstacles,
       props: [],
@@ -1142,6 +1170,49 @@ export class CityStreamer {
       `impostor drift: ${drifted} of chunk ${index}'s silhouettes do not match the ` +
         `buildings generated for it — readBuildRng is out of step with makeRecipe`
     );
+  }
+
+  /**
+   * Give a resident chunk the physics its CURRENT ring says it should have.
+   *
+   * The resident ring is deliberately wider than the collider ring — radius 2
+   * against `COLLIDER_RADIUS` of 1 at tier medium and high, see the header on
+   * `RESIDENT_RADIUS_BY_TIER` — so at those tiers most chunks are BUILT outside
+   * the collider ring and only walk into it later. `build()` decides once, from
+   * the distance it was handed, and returns early for anything already
+   * resident, so nothing else in this file can ever close that gap.
+   *
+   * Left unclosed it is a fall out of the world: sixteen chunks of ring 2 carry
+   * geometry, registered destructible structures, crowd obstacles and a visible
+   * road, and no ground slab at all. The instant the focus moves onto one the
+   * player is standing on a chunk with nothing under it.
+   *
+   * Demotion keeps ONE ring of hysteresis, mirroring the eviction rule in
+   * `rescore`: a player pacing a chunk boundary must not create and destroy a
+   * dozen Rapier bodies twice a second.
+   */
+  private refreshColliders(chunk: IResidentChunk, distance: number): void {
+    const physics = this.physics;
+    if (physics === undefined) return;
+
+    if (distance <= COLLIDER_RADIUS) {
+      // The ground slab is always one of the handles, so a non-empty list is a
+      // reliable "already promoted" and this stays idempotent across the
+      // several `rescore` calls a single boundary crossing can produce.
+      if (chunk.bodyHandles.length > 0) return;
+      for (const [minX, minY, minZ, maxX, maxY, maxZ] of chunk.colliderBoxes) {
+        const handle = this.addBuildingCollider(minX, minY, minZ, maxX, maxY, maxZ);
+        if (handle !== undefined) chunk.bodyHandles.push(handle);
+      }
+      const ground = this.addGroundSlab(chunk.cx, chunk.cz);
+      if (ground !== undefined) chunk.bodyHandles.push(ground);
+      return;
+    }
+
+    if (distance <= COLLIDER_RADIUS + 1) return;
+    if (chunk.bodyHandles.length === 0) return;
+    for (const handle of chunk.bodyHandles) physics.removeBody(handle);
+    chunk.bodyHandles.length = 0;
   }
 
   private addBuildingCollider(

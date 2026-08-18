@@ -212,6 +212,16 @@ export class CityMaterialLibrary {
         continue;
       }
       const source = real as THREE.MeshStandardMaterial;
+      // A registry material can be RESIDENT and still be the checker: the asset
+      // layer binds the missing-asset pattern for every texture that failed to
+      // load and lists them in `userData.missingTextures`. Adopting one would
+      // paint a perfectly good synthesised brick with a magenta test pattern
+      // AND mark the id `upgraded`, which drops it out of `pendingUpgrades()`
+      // permanently — the city would never get another chance at it. Skipping
+      // leaves the id in `synthesised` and in the pending list, so a later wave
+      // can still adopt the real maps once they arrive.
+      const missing = (source.userData as { missingTextures?: readonly string[] }).missingTextures;
+      if (Array.isArray(missing) && missing.length > 0) continue;
       live.map = source.map;
       live.normalMap = source.normalMap;
       live.roughnessMap = source.roughnessMap;

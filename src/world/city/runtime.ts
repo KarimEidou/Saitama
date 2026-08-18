@@ -55,11 +55,33 @@ export type MaterialResolver = (key: string) => THREE.Material;
 export const DESTROYED_FLAG = 255;
 
 /**
+ * True when a registry material is standing on the missing-asset checker.
+ *
+ * The asset layer publishes the texture ids a material could not bind for real
+ * in `userData.missingTextures`; a non-empty list means that material is on
+ * screen as a magenta test pattern rather than as art. It is read
+ * STRUCTURALLY, not imported: `src/world/city/` takes the `IAssetRegistry`
+ * TYPE from `@/types` and nothing else from the asset layer at runtime, and
+ * that layering is the reason the generator can run in a worker at all.
+ */
+function isCheckerBacked(material: THREE.Material): boolean {
+  const missing = (material.userData as { missingTextures?: readonly string[] }).missingTextures;
+  return Array.isArray(missing) && missing.length > 0;
+}
+
+/**
  * Resolve through an `IAssetRegistry`, falling back when the asset is not yet
- * resident.
+ * resident — or when it is resident but broken.
  *
  * The fallback is injected rather than built in: the city must never decide
  * what an unresolved material looks like, and it must never know a file path.
+ *
+ * `getMaterial(key) ?? fallback(key)` is NOT enough, and that is the whole
+ * point of `isCheckerBacked`. A material whose textures failed to load is
+ * still built and still in the registry — bound to the checker — so
+ * `getMaterial` returns it, `??` never fires, and the injected procedural
+ * stand-in the game already synthesised could not win no matter how broken the
+ * real asset was.
  */
 export function createRegistryResolver(
   registry: IAssetRegistry,
@@ -69,7 +91,9 @@ export function createRegistryResolver(
   return (key: string): THREE.Material => {
     const cached = cache.get(key);
     if (cached) return cached;
-    const resolved = registry.getMaterial(key) ?? fallback(key);
+    const registered = registry.getMaterial(key);
+    const resolved =
+      registered !== undefined && !isCheckerBacked(registered) ? registered : fallback(key);
     cache.set(key, resolved);
     return resolved;
   };

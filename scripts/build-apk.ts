@@ -475,6 +475,12 @@ function main(): void {
     // them, so without this a from-clean build ships an APK with no launcher
     // icon at all — `scripts/build-web.ts` runs the same step for the same reason.
     run('npx', ['tsx', 'scripts/make-icons.ts'], REPO_ROOT);
+    // Characters are the same kind of build output: `tools/build-characters.ts`
+    // is the only writer of `public/assets/chr/`, which is gitignored, so a
+    // from-clean build packages an APK whose entire roster — Saitama included —
+    // renders as the mesh generator's flat vertex colours. The `--skip-web`
+    // branch deliberately skips this too: it reuses whatever `dist/` already has.
+    run('npx', ['tsx', 'tools/build-characters.ts'], REPO_ROOT);
     run('npm', ['run', 'build'], REPO_ROOT);
   } else {
     log('skipping web build (--skip-web)');

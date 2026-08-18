@@ -50,7 +50,7 @@ drives the same page headlessly and writes its evidence to `docs/screenshots/`.
 
 ```bash
 npm install          # Node >= 22.12
-npm run assets       # fetch + process the CC0 asset set  (~10-25 min, once)
+npm run assets       # fetch + process assets, bake characters  (~10-25 min, once)
 npm run dev          # http://localhost:5173
 ```
 
@@ -89,7 +89,7 @@ a paid account for a year.
 If a firewall blocks the port, macOS and Windows both prompt on first run —
 allow it, or the phone just times out.
 
-`npm run assets` is two stages:
+`npm run assets` is three stages:
 
 - **`assets:fetch`** downloads **1.65 GB** across **376 files** from Poly Haven
   into a content-addressed store under `assets/source/` (gitignored). Every file
@@ -100,8 +100,15 @@ allow it, or the phone just times out.
   environments. Roughly **6 minutes for the mobile tier** on the build machine;
   a **warm re-run is a sub-second no-op**, because every output is keyed by a
   content hash of its inputs and encoder flags.
+- **`assets:characters`** bakes the fourteen-entry roster into
+  `public/assets/chr/` — per-character albedo/ORM/normal/face atlases, a skinned
+  GLB per character and the crowd's animation texture — plus the runtime index
+  the game asks for first. This is a **separate pipeline** from
+  `assets:process`, and the only thing anywhere that writes `chr/`: skip it and
+  every character, Saitama included, renders in the mesh generator's flat vertex
+  colours, with nothing on screen to say why.
 
-Both stages are re-runnable and idempotent. Neither downloaded nor generated
+All three stages are re-runnable and idempotent. Neither downloaded nor generated
 assets are committed — `npm run guard` rejects any tracked binary outside
 `docs/screenshots/`.
 
@@ -110,6 +117,7 @@ Other scripts:
 | Command                               | What it does                                                       |
 | ------------------------------------- | ------------------------------------------------------------------ |
 | `npm run build`                       | production web build into `dist/`                                  |
+| `npm run assets:characters`           | bake the 14-character roster into `public/assets/chr/`             |
 | `npm test`                            | Vitest unit tests                                                  |
 | `npm run typecheck`                   | `tsc --noEmit`, strict                                             |
 | `npm run lint`                        | ESLint over the whole tree                                         |
