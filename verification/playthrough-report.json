@@ -1,17 +1,17 @@
 {
   "boot": {
-    "bootTimeMs": 4995,
+    "bootTimeMs": 3499,
     "boot": {
       "probe": 0,
-      "renderer": 63,
-      "assets": 1940,
-      "physics": 263,
-      "sky": 2,
-      "crowd": 367,
-      "world": 544,
-      "systems": 486,
-      "warmup": 729,
-      "firstFrame": 4995
+      "renderer": 30,
+      "assets": 1368,
+      "physics": 171,
+      "sky": 1,
+      "crowd": 260,
+      "world": 379,
+      "systems": 341,
+      "warmup": 548,
+      "firstFrame": 3499
     },
     "bridge": 1,
     "online": 24,
@@ -21,9 +21,9 @@
     "failed": {}
   },
   "spawn": {
-    "frame": 16,
+    "frame": 15,
     "drawCalls": 154,
-    "triangles": 2643300,
+    "triangles": 2638084,
     "tier": "high",
     "assetTier": "high",
     "resolutionScale": 1,
@@ -34,7 +34,7 @@
     "chunksDetached": 0,
     "debrisLive": 0,
     "monsters": 1,
-    "civilians": 184,
+    "civilians": 180,
     "civiliansLost": 0,
     "allies": 2,
     "alliesDown": 0,
@@ -46,23 +46,23 @@
     "physicsBodies": 326,
     "vfxEffects": 1,
     "x": 9,
-    "y": 0.89,
+    "y": 0.9,
     "z": 40,
     "state": "idle",
-    "timeOfDay": 0.3407,
+    "timeOfDay": 0.3406,
     "dayPhase": "morning",
     "exposure": 1.039,
     "rank": "388",
     "errors": [],
     "textureBytes": 114923237,
     "textureCount": 39,
-    "geometryBytes": 34001418,
-    "sceneTriangles": 347899,
-    "instances": 178
+    "geometryBytes": 33984906,
+    "sceneTriangles": 347699,
+    "instances": 174
   },
   "streaming": {
-    "distinctChunks": 33,
-    "built": 33,
+    "distinctChunks": 32,
+    "built": 34,
     "evicted": 10,
     "residentAtEnd": 27,
     "samples": 44
@@ -82,7 +82,7 @@
     "stats": {
       "near": 16,
       "mid": 234,
-      "far": 1533,
+      "far": 1535,
       "total": 250,
       "moods": {
         "commute": 249,
@@ -92,10 +92,10 @@
         "down": 0
       },
       "density": 1,
-      "peakAlarm": 0.11023593693971634,
-      "simMs": 8.199999999254942,
-      "alarmMs": 0.29999999701976776,
-      "flowMs": 3.400000002235174,
+      "peakAlarm": 0.10687615722417831,
+      "simMs": 1.599999999627471,
+      "alarmMs": 0.30000000074505806,
+      "flowMs": 2.599999999627471,
       "saved": 0,
       "lost": 0,
       "witnessedSaves": 0
@@ -105,10 +105,10 @@
       "activeMeshes": 6,
       "triangles": 105768,
       "paletteBytes": 746496,
-      "distinctOffsets": 218
+      "distinctOffsets": 221
     },
     "posesChanged": 8,
-    "bandDelta": 0.3157523148148148
+    "bandDelta": 0.6320891203703703
   },
   "normalPunch": {
     "punches": 1,
@@ -120,7 +120,7 @@
         "intent": "normal",
         "tier": "wolf",
         "killer": "player",
-        "frame": 441
+        "frame": 436
       }
     ],
     "freezes": [
@@ -130,7 +130,7 @@
         "phase": "hold",
         "timeScale": 0.8056,
         "fovOffset": 1.62,
-        "frame": 441
+        "frame": 436
       }
     ],
     "lastPunch": {
@@ -160,19 +160,19 @@
       {
         "intent": "full",
         "kind": "serious",
-        "power": 2100000,
-        "range": 156.7,
+        "power": 2033467,
+        "range": 152.8,
         "source": "player",
-        "frame": 472
+        "frame": 470
       }
     ],
     "vfx": {
       "tier": "high",
       "effects": 16,
       "effectCapacity": 16,
-      "sprites": 1707,
+      "sprites": 1739,
       "spriteCapacity": 1800,
-      "spritesDropped": 495,
+      "spritesDropped": 432,
       "shockwaves": 2,
       "shockwaveCapacity": 14,
       "decals": 62,
@@ -180,160 +180,561 @@
       "trails": 64,
       "trailCapacity": 64,
       "speedlineIntensity": 0,
-      "trauma": 0.6583206325066667,
+      "trauma": 0.49342378247500024,
       "drawCallsSubmitted": 3,
       "programCount": 3
     },
     "lastPunch": {
       "intent": "full",
       "kind": "serious",
-      "charge": 0.8333333333333333,
+      "charge": 0.8056111111110335,
       "hits": 0,
       "structures": -1
     }
   },
   "destruction": {
-    "detachedAtImpact": 955,
-    "detachedAfter": 955,
+    "detachedAtImpact": 1098,
+    "detachedAfter": 1098,
     "debrisPeak": 300,
     "firstDetachments": [
       {
         "structure": "blk_-1_0.b1",
         "chunk": 0,
         "mass": 68691,
-        "frame": 472
+        "frame": 470
       },
       {
         "structure": "blk_-1_0.b1",
         "chunk": 1,
         "mass": 43682,
-        "frame": 472
+        "frame": 470
       },
       {
         "structure": "blk_-1_0.b1",
         "chunk": 2,
         "mass": 70257,
-        "frame": 472
+        "frame": 470
       },
       {
         "structure": "blk_-1_0.b1",
         "chunk": 3,
         "mass": 39251,
-        "frame": 472
+        "frame": 470
       },
       {
         "structure": "blk_-1_0.b1",
         "chunk": 4,
         "mass": 43457,
-        "frame": 472
+        "frame": 470
       },
       {
         "structure": "blk_-1_0.b1",
         "chunk": 5,
         "mass": 26196,
-        "frame": 472
+        "frame": 470
       }
     ]
+  },
+  "allies": {
+    "engagement": {
+      "allies": [
+        {
+          "id": "genos",
+          "health": 420,
+          "dead": false,
+          "x": -109.5,
+          "z": 237.5
+        },
+        {
+          "id": "mumenRider",
+          "health": 95,
+          "dead": false,
+          "x": -87.4,
+          "z": 204
+        }
+      ],
+      "monsters": [
+        {
+          "id": "mob.tiger.stalker#0",
+          "target": "none",
+          "harmable": false,
+          "state": "idle",
+          "x": -146.1,
+          "z": 295.7
+        },
+        {
+          "id": "mob.wolf.pest#1",
+          "target": "none",
+          "harmable": false,
+          "state": "idle",
+          "x": -412.7,
+          "z": 148.2
+        },
+        {
+          "id": "mob.wolf.pest#2",
+          "target": "none",
+          "harmable": false,
+          "state": "idle",
+          "x": -304.2,
+          "z": 290.1
+        },
+        {
+          "id": "mob.tiger.stalker#3",
+          "target": "none",
+          "harmable": false,
+          "state": "idle",
+          "x": 273.7,
+          "z": -78.6
+        },
+        {
+          "id": "mob.tiger.brute#5",
+          "target": "none",
+          "harmable": false,
+          "state": "idle",
+          "x": 42.1,
+          "z": 86.4
+        },
+        {
+          "id": "mob.demon.carapace#6",
+          "target": "hero-mumenRider",
+          "harmable": true,
+          "state": "attack",
+          "x": -87.3,
+          "z": 203.6
+        }
+      ]
+    },
+    "proof": {
+      "genos": {
+        "before": 420,
+        "after": 0,
+        "dead": true
+      },
+      "mumen": {
+        "before": 95,
+        "after": 0,
+        "dead": true
+      },
+      "downedEvents": 2,
+      "waves": 97,
+      "elapsedSeconds": 83.19999999999784,
+      "lastTargetId": "hero-genos",
+      "waveOrigins": [
+        {
+          "x": -87.6,
+          "z": 204.3,
+          "range": 16,
+          "power": 7400,
+          "intent": "serious"
+        },
+        {
+          "x": -87,
+          "z": 203,
+          "range": 9,
+          "power": 2600,
+          "intent": "serious"
+        },
+        {
+          "x": -83.3,
+          "z": 205.5,
+          "range": 150,
+          "power": 640000,
+          "intent": "full"
+        },
+        {
+          "x": -97.8,
+          "z": 219.3,
+          "range": 18,
+          "power": 120000,
+          "intent": "full"
+        },
+        {
+          "x": -103.8,
+          "z": 182.6,
+          "range": 16,
+          "power": 7400,
+          "intent": "serious"
+        },
+        {
+          "x": -97.2,
+          "z": 218.8,
+          "range": 18,
+          "power": 120000,
+          "intent": "full"
+        },
+        {
+          "x": -103.8,
+          "z": 182.6,
+          "range": 9,
+          "power": 2600,
+          "intent": "serious"
+        },
+        {
+          "x": -97.2,
+          "z": 218.8,
+          "range": 18,
+          "power": 120000,
+          "intent": "full"
+        }
+      ],
+      "geneosDistance": 0.9,
+      "mumenDistance": 18.6,
+      "targetTimeline": [
+        {
+          "at": 0.03,
+          "id": "hero-mumenRider",
+          "harmable": true
+        },
+        {
+          "at": 2.9,
+          "id": "hero-genos",
+          "harmable": true
+        }
+      ],
+      "retargets": 0
+    }
+  },
+  "dayNight": {
+    "noonMean": 47.62624228395061,
+    "midnightMean": 3.651411394032922,
+    "ratio": 0.07666805565433822,
+    "skyNoon": 70.85555555555555,
+    "skyNight": 2.2201210826210827,
+    "noonPhase": "noon",
+    "midnightPhase": "midnight"
+  },
+  "jump": {
+    "apexMetres": -1.97,
+    "riseMetres": -1.04,
+    "fromY": -0.93,
+    "framesToApex": 1
+  },
+  "budgetHigh": {
+    "frame": 666,
+    "drawCalls": 1999,
+    "triangles": 9733368,
+    "tier": "high",
+    "assetTier": "high",
+    "resolutionScale": 0.65,
+    "programs": 48,
+    "residentChunks": 33,
+    "chunkIndex": 167,
+    "structures": 368,
+    "chunksDetached": 2371,
+    "debrisLive": 300,
+    "monsters": 14,
+    "civilians": 250,
+    "civiliansLost": 97,
+    "allies": 2,
+    "alliesDown": 2,
+    "witnesses": 98,
+    "rosterResident": 8,
+    "rosterBytes": 188537518,
+    "impostorBuildings": 2947,
+    "impostorDrift": 0,
+    "physicsBodies": 428,
+    "vfxEffects": 1,
+    "x": -87.2,
+    "y": -9.5,
+    "z": 215.6,
+    "state": "fall",
+    "timeOfDay": 0.4225,
+    "dayPhase": "morning",
+    "exposure": 1.01,
+    "rank": "390",
+    "errors": [],
+    "textureBytes": 194704075,
+    "textureCount": 109,
+    "geometryBytes": 106848432,
+    "sceneTriangles": 1166567,
+    "instances": 1486,
+    "withoutShadowPass": {
+      "drawCalls": 951,
+      "triangles": 3017072
+    },
+    "budget": {
+      "drawCalls": 420,
+      "triangles": 1100000,
+      "textureBytes": 576716800
+    }
+  },
+  "final": {
+    "frame": 674,
+    "drawCalls": 1985,
+    "triangles": 9624956,
+    "tier": "high",
+    "assetTier": "high",
+    "resolutionScale": 0.65,
+    "programs": 54,
+    "residentChunks": 33,
+    "chunkIndex": 167,
+    "structures": 368,
+    "chunksDetached": 2379,
+    "debrisLive": 300,
+    "monsters": 14,
+    "civilians": 250,
+    "civiliansLost": 101,
+    "allies": 2,
+    "alliesDown": 2,
+    "witnesses": 98,
+    "rosterResident": 8,
+    "rosterBytes": 188537518,
+    "impostorBuildings": 2947,
+    "impostorDrift": 0,
+    "physicsBodies": 428,
+    "vfxEffects": 8,
+    "x": -87.2,
+    "y": -29.1,
+    "z": 215.6,
+    "state": "fall",
+    "timeOfDay": 0.4229,
+    "dayPhase": "morning",
+    "exposure": 1.01,
+    "rank": "390",
+    "errors": [],
+    "textureBytes": 194704075,
+    "textureCount": 109,
+    "geometryBytes": 106848432,
+    "sceneTriangles": 1166567,
+    "instances": 1486
+  },
+  "ledger": {
+    "freezes": 104,
+    "killed": 104,
+    "detached": 400,
+    "shockwaves": 145,
+    "allyDowned": 2,
+    "civilianLost": 101,
+    "encounters": [
+      {
+        "id": "wave.0",
+        "tier": "tiger"
+      }
+    ]
+  },
+  "outOfWorld": [
+    "beat 7 staging: y=-2.2 state=fall",
+    "before beat 8: y=-126.4 state=fall",
+    "before the jump: y=-123.7 state=fall",
+    "before the budget reading: y=-89.1 state=fall"
+  ],
+  "budgetLow": {
+    "frame": 14,
+    "drawCalls": 84,
+    "triangles": 885846,
+    "tier": "low",
+    "assetTier": "high",
+    "resolutionScale": 1,
+    "programs": 20,
+    "residentChunks": 9,
+    "chunkIndex": 136,
+    "structures": 82,
+    "chunksDetached": 0,
+    "debrisLive": 0,
+    "monsters": 1,
+    "civilians": 90,
+    "civiliansLost": 0,
+    "allies": 2,
+    "alliesDown": 0,
+    "witnesses": 82,
+    "rosterResident": 4,
+    "rosterBytes": 92217380,
+    "impostorBuildings": 2947,
+    "impostorDrift": 0,
+    "physicsBodies": 392,
+    "vfxEffects": 1,
+    "x": 9,
+    "y": 0.9,
+    "z": 40,
+    "state": "idle",
+    "timeOfDay": 0.3405,
+    "dayPhase": "morning",
+    "exposure": 1.039,
+    "rank": "388",
+    "errors": [],
+    "textureBytes": 96223632,
+    "textureCount": 38,
+    "geometryBytes": 67824892,
+    "sceneTriangles": 675513,
+    "instances": 85,
+    "budget": {
+      "drawCalls": 220,
+      "triangles": 450000,
+      "textureBytes": 314572800
+    }
   },
   "shots": [
     {
       "name": "play-01a-loading",
       "file": "/home/user/Saitama/verification/play-01a-loading.png",
-      "stdDev": 17.615854486064755,
-      "mean": 10.037946887860082,
-      "colors": 353,
+      "stdDev": 16.864651999476298,
+      "mean": 9.9162204218107,
+      "colors": 336,
       "blank": false
     },
     {
       "name": "play-01b-city-z",
       "file": "/home/user/Saitama/verification/play-01b-city-z.png",
-      "stdDev": 35.49131367533051,
-      "mean": 66.92253022119343,
-      "colors": 2247,
+      "stdDev": 31.18125669574806,
+      "mean": 63.28248778292181,
+      "colors": 2279,
       "blank": false
     },
     {
       "name": "play-02a-dash",
       "file": "/home/user/Saitama/verification/play-02a-dash.png",
-      "stdDev": 62.1307765997146,
-      "mean": 122.56625900205762,
-      "colors": 2505,
+      "stdDev": 51.025407322963694,
+      "mean": 95.74732124485597,
+      "colors": 2432,
       "blank": false
     },
     {
       "name": "play-02b-avenue",
       "file": "/home/user/Saitama/verification/play-02b-avenue.png",
-      "stdDev": 54.8261519773915,
-      "mean": 107.22076195987654,
-      "colors": 2521,
+      "stdDev": 47.38299059976106,
+      "mean": 96.52730774176955,
+      "colors": 2564,
       "blank": false
     },
     {
       "name": "play-03a-crowd",
       "file": "/home/user/Saitama/verification/play-03a-crowd.png",
-      "stdDev": 58.478538040607845,
-      "mean": 79.49277327674896,
-      "colors": 2385,
+      "stdDev": 31.636543841556364,
+      "mean": 80.60697145061728,
+      "colors": 2336,
       "blank": false
     },
     {
       "name": "play-03b-crowd-moved",
       "file": "/home/user/Saitama/verification/play-03b-crowd-moved.png",
-      "stdDev": 57.69252588868249,
-      "mean": 79.59815072016461,
-      "colors": 2541,
+      "stdDev": 37.08212186961796,
+      "mean": 90.36393647119341,
+      "colors": 2472,
       "blank": false
     },
     {
       "name": "play-04a-monster",
       "file": "/home/user/Saitama/verification/play-04a-monster.png",
-      "stdDev": 65.33896202083815,
-      "mean": 86.07688850308642,
-      "colors": 2787,
+      "stdDev": 41.62431172520068,
+      "mean": 97.72440136316872,
+      "colors": 2661,
       "blank": false
     },
     {
       "name": "play-04b-punch",
       "file": "/home/user/Saitama/verification/play-04b-punch.png",
-      "stdDev": 41.06845564756244,
-      "mean": 66.02992283950617,
-      "colors": 2161,
+      "stdDev": 26.313638972790333,
+      "mean": 80.52147890946502,
+      "colors": 1989,
       "blank": false
     },
     {
       "name": "play-05a-charging",
       "file": "/home/user/Saitama/verification/play-05a-charging.png",
-      "stdDev": 52.87256632664121,
-      "mean": 68.1281288580247,
-      "colors": 1917,
+      "stdDev": 25.26478558334776,
+      "mean": 50.23382330246914,
+      "colors": 1560,
       "blank": false
     },
     {
       "name": "play-05b-shockwave",
       "file": "/home/user/Saitama/verification/play-05b-shockwave.png",
-      "stdDev": 52.37236452708637,
-      "mean": 66.47636252572016,
-      "colors": 2549,
+      "stdDev": 41.24862713137967,
+      "mean": 57.574801954732514,
+      "colors": 2285,
       "blank": false
     },
     {
       "name": "play-06a-collapse",
       "file": "/home/user/Saitama/verification/play-06a-collapse.png",
-      "stdDev": 58.311631107229054,
-      "mean": 77.7071199845679,
-      "colors": 2197,
+      "stdDev": 54.28884365065284,
+      "mean": 60.19628150720164,
+      "colors": 2050,
       "blank": false
     },
     {
       "name": "play-06b-debris",
       "file": "/home/user/Saitama/verification/play-06b-debris.png",
-      "stdDev": 59.36551214814983,
-      "mean": 77.93557548868311,
-      "colors": 2109,
+      "stdDev": 53.87167164422925,
+      "mean": 59.119474022633746,
+      "colors": 2028,
+      "blank": false
+    },
+    {
+      "name": "play-07a-ally-threatened",
+      "file": "/home/user/Saitama/verification/play-07a-ally-threatened.png",
+      "stdDev": 43.35157206782028,
+      "mean": 78.34354230967078,
+      "colors": 2944,
+      "blank": false
+    },
+    {
+      "name": "play-07b-ally-down",
+      "file": "/home/user/Saitama/verification/play-07b-ally-down.png",
+      "stdDev": 18.78522466515004,
+      "mean": 21.99651234567901,
+      "colors": 668,
+      "blank": false
+    },
+    {
+      "name": "play-08a-noon",
+      "file": "/home/user/Saitama/verification/play-08a-noon.png",
+      "stdDev": 54.33882176444005,
+      "mean": 47.62624228395061,
+      "colors": 1382,
+      "blank": false
+    },
+    {
+      "name": "play-08b-midnight",
+      "file": "/home/user/Saitama/verification/play-08b-midnight.png",
+      "stdDev": 9.350461751506856,
+      "mean": 3.651411394032922,
+      "colors": 234,
+      "blank": false
+    },
+    {
+      "name": "play-09-hud-rank",
+      "file": "/home/user/Saitama/verification/play-09-hud-rank.png",
+      "stdDev": 24.244959988312356,
+      "mean": 18.091049382716047,
+      "colors": 1051,
+      "blank": false
+    },
+    {
+      "name": "play-09-hud-quests",
+      "file": "/home/user/Saitama/verification/play-09-hud-quests.png",
+      "stdDev": 11.056543551968986,
+      "mean": 14.1033699845679,
+      "colors": 712,
+      "blank": false
+    },
+    {
+      "name": "play-09-hud-pause",
+      "file": "/home/user/Saitama/verification/play-09-hud-pause.png",
+      "stdDev": 16.860517214973175,
+      "mean": 16.242928883744856,
+      "colors": 813,
+      "blank": false
+    },
+    {
+      "name": "play-10-jump-apex",
+      "file": "/home/user/Saitama/verification/play-10-jump-apex.png",
+      "stdDev": 46.798427066148605,
+      "mean": 75.92650591563786,
+      "colors": 3318,
+      "blank": false
+    },
+    {
+      "name": "play-11-low-tier",
+      "file": "/home/user/Saitama/verification/play-11-low-tier.png",
+      "stdDev": 35.04934339728036,
+      "mean": 114.68455118312757,
+      "colors": 2317,
       "blank": false
     }
   ],
   "notes": [
-    "crowd band pixel delta over 3 frames: 31.58%"
+    "crowd band pixel delta over 3 frames: 63.21%",
+    "midnight/noon frame luminance ratio 7.7% (sky band 3.1%)"
   ]
 }
