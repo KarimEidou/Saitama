@@ -96,12 +96,7 @@ export class StructureIndex {
    * Structures whose box intersects the cone, sorted by id so the result is
    * order-independent and byte-identical between runs.
    */
-  sweepCone(
-    origin: Vec3,
-    direction: Vec3,
-    range: number,
-    halfAngle: number
-  ): ICombatStructure[] {
+  sweepCone(origin: Vec3, direction: Vec3, range: number, halfAngle: number): ICombatStructure[] {
     const axis = normalise(direction.x, direction.y, direction.z);
     const out: ICombatStructure[] = [];
     for (const structure of this.structures.values()) {

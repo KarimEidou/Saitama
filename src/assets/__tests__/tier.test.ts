@@ -52,9 +52,9 @@ describe('selectQualityTier', () => {
   });
 
   it('respects Save-Data', () => {
-    expect(
-      selectQualityTier({ ...DESKTOP, saveData: true }, { builtTiers: ALL_TIERS }).tier
-    ).toBe('mobile');
+    expect(selectQualityTier({ ...DESKTOP, saveData: true }, { builtTiers: ALL_TIERS }).tier).toBe(
+      'mobile'
+    );
   });
 
   it('drops to mobile on a low-memory machine', () => {
@@ -65,9 +65,9 @@ describe('selectQualityTier', () => {
 
   it('uses ultra only on a roomy desktop with big textures', () => {
     expect(selectQualityTier(DESKTOP, { builtTiers: ALL_TIERS }).tier).toBe('ultra');
-    expect(
-      selectQualityTier({ ...DESKTOP, cpuCores: 8 }, { builtTiers: ALL_TIERS }).tier
-    ).toBe('high');
+    expect(selectQualityTier({ ...DESKTOP, cpuCores: 8 }, { builtTiers: ALL_TIERS }).tier).toBe(
+      'high'
+    );
   });
 
   it('clamps down to the tiers that were actually built', () => {
@@ -141,11 +141,7 @@ describe('TierAvailability', () => {
 
   it('writes off a whole tier after repeated misses, sparing later assets', () => {
     const availability = new TierAvailability(built, 3);
-    for (const id of [
-      'hdri.sky.day',
-      'hdri.sky.night',
-      'mat.road.asphalt.worn.albedo',
-    ]) {
+    for (const id of ['hdri.sky.day', 'hdri.sky.night', 'mat.road.asphalt.worn.albedo']) {
       const entry = entryFor(id);
       availability.markMissing(entry.id, 'ultra', entry, '404');
     }

@@ -79,7 +79,7 @@ export class TargetRegistry {
       threatTier: spec.threatTier,
       specId: spec.specId,
       isBoss: spec.isBoss ?? false,
-      phaseResolved: spec.phaseResolved ?? (spec.isBoss !== true),
+      phaseResolved: spec.phaseResolved ?? spec.isBoss !== true,
       rewardPoints: spec.rewardPoints ?? 0,
       invulnerable: spec.invulnerable,
       dead: false,

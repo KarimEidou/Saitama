@@ -26,7 +26,13 @@
  */
 
 import * as THREE from 'three';
-import type { Ball, Collider, EventQueue, Ray, World as RapierWorld } from '@dimforge/rapier3d-compat';
+import type {
+  Ball,
+  Collider,
+  EventQueue,
+  Ray,
+  World as RapierWorld,
+} from '@dimforge/rapier3d-compat';
 import type {
   BodyHandle,
   EntityId,

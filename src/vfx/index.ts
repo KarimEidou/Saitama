@@ -25,39 +25,19 @@
  * are TIMED to read well while it holds, and never reimplement it.
  */
 
-export {
-  VFXSystem,
-  type IVFXSystemOptions,
-  type IVFXDiagnostics,
-} from './vfx-system';
+export { VFXSystem, type IVFXSystemOptions, type IVFXDiagnostics } from './vfx-system';
 
 export { CameraShake, type ICameraShakeOptions } from './camera-shake';
 export { Speedlines, type ISpeedlinesOptions } from './speedlines';
 
-export {
-  SpriteLayer,
-  createSpriteParams,
-  type ISpriteParams,
-} from './sprite-layer';
+export { SpriteLayer, createSpriteParams, type ISpriteParams } from './sprite-layer';
 export { DecalLayer, createDecalParams, type IDecalParams } from './decal-layer';
-export {
-  ShockwaveLayer,
-  createShockwaveParams,
-  type IShockwaveParams,
-} from './shockwave-layer';
+export { ShockwaveLayer, createShockwaveParams, type IShockwaveParams } from './shockwave-layer';
 export { EffectEmitters } from './effects';
 
-export {
-  createParticleAtlas,
-  createCrackAtlas,
-  atlasBytes,
-} from './atlas';
+export { createParticleAtlas, createCrackAtlas, atlasBytes } from './atlas';
 
-export {
-  createQuadGeometry,
-  createArcGridGeometry,
-  createFullScreenGeometry,
-} from './geometry';
+export { createQuadGeometry, createArcGridGeometry, createFullScreenGeometry } from './geometry';
 
 export {
   createSharedUniforms,

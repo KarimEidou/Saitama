@@ -16,10 +16,26 @@ import { DAY_LENGTH_SECONDS, EXPOSURE_MAX, EXPOSURE_MIN } from '../constants';
 
 const MANIFEST = {
   environments: {
-    'hdri.sky.dawn': { meanLuminance: 1.0980531162976837, maxLuminance: 8.44295, sh9: tint(3.8, 1.0, 0.95, 0.85) },
-    'hdri.sky.day': { meanLuminance: 0.73268945997054, maxLuminance: 136998.3, sh9: tint(2.52, 1.0, 1.0, 1.02) },
-    'hdri.sky.dusk': { meanLuminance: 0.9044060619958861, maxLuminance: 4.04, sh9: tint(2.76, 1.0, 0.9, 0.8) },
-    'hdri.sky.night': { meanLuminance: 0.712214196645703, maxLuminance: 554.8, sh9: tint(2.35, 0.9, 0.95, 1.1) },
+    'hdri.sky.dawn': {
+      meanLuminance: 1.0980531162976837,
+      maxLuminance: 8.44295,
+      sh9: tint(3.8, 1.0, 0.95, 0.85),
+    },
+    'hdri.sky.day': {
+      meanLuminance: 0.73268945997054,
+      maxLuminance: 136998.3,
+      sh9: tint(2.52, 1.0, 1.0, 1.02),
+    },
+    'hdri.sky.dusk': {
+      meanLuminance: 0.9044060619958861,
+      maxLuminance: 4.04,
+      sh9: tint(2.76, 1.0, 0.9, 0.8),
+    },
+    'hdri.sky.night': {
+      meanLuminance: 0.712214196645703,
+      maxLuminance: 554.8,
+      sh9: tint(2.35, 0.9, 0.95, 1.1),
+    },
   },
 };
 
@@ -322,7 +338,14 @@ describe('published lighting', () => {
     for (let i = 0; i <= 1000; i++) {
       system.setTimeOfDay(i / 1000);
       const l = system.lighting;
-      for (const value of [l.sunIntensity, l.ambientIntensity, l.exposure, l.envMapIntensity, l.fogDensity, l.shadowRadius]) {
+      for (const value of [
+        l.sunIntensity,
+        l.ambientIntensity,
+        l.exposure,
+        l.envMapIntensity,
+        l.fogDensity,
+        l.shadowRadius,
+      ]) {
         expect(Number.isFinite(value)).toBe(true);
       }
       for (const color of [l.sunColor, l.ambientColor, l.groundColor, l.fogColor]) {

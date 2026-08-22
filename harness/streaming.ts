@@ -364,10 +364,7 @@ function buildSpatialIndex(): { index: SpatialIndex; pvsBuildMs: number } {
           maxX: building.maxX,
           maxZ: building.maxZ,
         });
-        boxes.push(
-          building.minX, 0, building.minZ,
-          building.maxX, building.height, building.maxZ
-        );
+        boxes.push(building.minX, 0, building.minZ, building.maxX, building.height, building.maxZ);
       }
     }
   }
@@ -381,7 +378,14 @@ function buildSpatialIndex(): { index: SpatialIndex; pvsBuildMs: number } {
 
   const index = new SpatialIndex({ pvs, quadtree: { capacity: footprints.length + 64 } });
   for (let i = 0; i < boxes.length; i += 6) {
-    index.insertStatic(boxes[i]!, boxes[i + 1]!, boxes[i + 2]!, boxes[i + 3]!, boxes[i + 4]!, boxes[i + 5]!);
+    index.insertStatic(
+      boxes[i]!,
+      boxes[i + 1]!,
+      boxes[i + 2]!,
+      boxes[i + 3]!,
+      boxes[i + 4]!,
+      boxes[i + 5]!
+    );
   }
   return { index, pvsBuildMs };
 }
@@ -721,7 +725,10 @@ async function runLaps(count: number): Promise<ILapReport[]> {
       evictions: after.totalEvictions - before.totalEvictions,
       maxUploadsPerFrame: Math.max(0, ...samples.map((s) => s.uploads)),
       maxUploadMs: Math.max(0, ...uploadMs),
-      p95UploadMs: percentile(uploadMs.filter((v) => v > 0), 0.95),
+      p95UploadMs: percentile(
+        uploadMs.filter((v) => v > 0),
+        0.95
+      ),
       meanUploadMs:
         uploadMs.reduce((a, b) => a + b, 0) / Math.max(1, uploadMs.filter((v) => v > 0).length),
       maxChunkUploadMs: after.peakChunkUploadMs,
@@ -787,9 +794,7 @@ function priorityReport(): IPriorityReport {
     const isBehind = dot < -0.6;
     if (!isAhead && !isBehind) continue;
 
-    const band = Math.round(
-      Math.max(Math.abs(dx), Math.abs(dz)) / CHUNK_SIZE
-    );
+    const band = Math.round(Math.max(Math.abs(dx), Math.abs(dz)) / CHUNK_SIZE);
     let bucket = byBand.get(band);
     if (bucket === undefined) {
       bucket = { ahead: [], behind: [] };
@@ -853,7 +858,11 @@ async function runDamageProbe(): Promise<IDamageReport> {
   const targetCx = -1;
   const targetCz = 0;
   const target = chunkIndex(targetCx, targetCz);
-  const near = new THREE.Vector3(targetCx * CHUNK_SIZE + CHUNK_SIZE * 0.5, EYE_HEIGHT, targetCz * CHUNK_SIZE + CHUNK_SIZE * 0.5);
+  const near = new THREE.Vector3(
+    targetCx * CHUNK_SIZE + CHUNK_SIZE * 0.5,
+    EYE_HEIGHT,
+    targetCz * CHUNK_SIZE + CHUNK_SIZE * 0.5
+  );
 
   camera.position.copy(near);
   camera.lookAt(near.x, near.y - 40, near.z - 200);
@@ -1173,12 +1182,21 @@ function drawPanels(): void {
 
   budgetPanel.innerHTML =
     '<table>' +
-    row('uploads / frame', `${stats.uploadsLastFrame} / ${MAX_UPLOADS_PER_FRAME}`,
-      stats.uploadsLastFrame > MAX_UPLOADS_PER_FRAME ? 'bad' : 'good') +
-    row('upload ms (frame)', stats.uploadMsLastFrame.toFixed(3),
-      stats.uploadMsLastFrame > UPLOAD_BUDGET_MS ? 'warn' : 'good') +
-    row('peak frame upload ms', stats.peakUploadMs.toFixed(3),
-      stats.peakUploadMs > 50 ? 'bad' : stats.peakUploadMs > UPLOAD_BUDGET_MS ? 'warn' : 'good') +
+    row(
+      'uploads / frame',
+      `${stats.uploadsLastFrame} / ${MAX_UPLOADS_PER_FRAME}`,
+      stats.uploadsLastFrame > MAX_UPLOADS_PER_FRAME ? 'bad' : 'good'
+    ) +
+    row(
+      'upload ms (frame)',
+      stats.uploadMsLastFrame.toFixed(3),
+      stats.uploadMsLastFrame > UPLOAD_BUDGET_MS ? 'warn' : 'good'
+    ) +
+    row(
+      'peak frame upload ms',
+      stats.peakUploadMs.toFixed(3),
+      stats.peakUploadMs > 50 ? 'bad' : stats.peakUploadMs > UPLOAD_BUDGET_MS ? 'warn' : 'good'
+    ) +
     row('peak chunk upload ms', stats.peakChunkUploadMs.toFixed(3)) +
     row('unload ms (frame)', stats.unloadMsLastFrame.toFixed(3)) +
     row('queued', String(stats.queued)) +
@@ -1189,23 +1207,31 @@ function drawPanels(): void {
   worldPanel.innerHTML =
     '<table>' +
     row('resident chunks', String(stats.residentChunks)) +
-    row('R0 / R1 / R2',
-      `${stats.chunksByRing[RING_R0]} / ${stats.chunksByRing[RING_R1]} / ${stats.chunksByRing[RING_R2]}`) +
+    row(
+      'R0 / R1 / R2',
+      `${stats.chunksByRing[RING_R0]} / ${stats.chunksByRing[RING_R1]} / ${stats.chunksByRing[RING_R2]}`
+    ) +
     row('resident MB', (stats.totalMemoryBytes / 1048576).toFixed(2)) +
     row('loads / evictions', `${stats.totalLoads} / ${stats.totalEvictions}`) +
     row('ring changes', `${stats.ringTransitions} (${stats.ringTransitionsSuppressed} damped)`) +
     row('colliders', `${colliderSink.byChunk.size} chunks / ${colliderSink.boxCount} boxes`) +
     row('crowd slots', `${crowdSink.byChunk.size} chunks / ${crowdSink.slotCount} slots`) +
     row('damaged chunks', String(stats.damagedChunks)) +
-    row('impostor', impostorStats.built
-      ? `${impostorStats.buildings} bldg / ${(impostorStats.triangles / 1000).toFixed(1)}k tri / 1 draw`
-      : 'baking') +
+    row(
+      'impostor',
+      impostorStats.built
+        ? `${impostorStats.buildings} bldg / ${(impostorStats.triangles / 1000).toFixed(1)}k tri / 1 draw`
+        : 'baking'
+    ) +
     '</table>';
 
   workerPanel.innerHTML =
     '<table>' +
-    row('mode', stats.workersInline ? 'INLINE (no Worker)' : '2 module workers',
-      stats.workersInline ? 'bad' : 'good') +
+    row(
+      'mode',
+      stats.workersInline ? 'INLINE (no Worker)' : '2 module workers',
+      stats.workersInline ? 'bad' : 'good'
+    ) +
     row('worker ms total', stats.workerTimeMs.toFixed(1)) +
     row('impostor bake ms', impostorStats.generationTimeMs.toFixed(1)) +
     row('impostor upload ms', impostorStats.uploadTimeMs.toFixed(2)) +

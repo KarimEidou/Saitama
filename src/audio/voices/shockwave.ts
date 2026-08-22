@@ -286,7 +286,14 @@ export class ShockwaveVoice extends SynthVoice {
     );
 
     // 3. Sub drop, plus its octave for small speakers.
-    sweep(this.sub.frequency, t, shape.subFrom * rate, shape.subTo * rate, shape.subSweep * stretch, nq);
+    sweep(
+      this.sub.frequency,
+      t,
+      shape.subFrom * rate,
+      shape.subTo * rate,
+      shape.subSweep * stretch,
+      nq
+    );
     sweep(
       this.subOctave.frequency,
       t,

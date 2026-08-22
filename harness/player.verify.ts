@@ -307,7 +307,9 @@ async function main(): Promise<void> {
         failures.push(`run top speed ${report.run.topSpeed} m/s, expected ~${report.run.target}`);
       }
       if (Math.abs(report.dash.topSpeed - report.dash.target) > 0.35) {
-        failures.push(`dash top speed ${report.dash.topSpeed} m/s, expected ~${report.dash.target}`);
+        failures.push(
+          `dash top speed ${report.dash.topSpeed} m/s, expected ~${report.dash.target}`
+        );
       }
       if (report.run.timeTo90PctSec <= 0 || report.run.timeTo90PctSec > 0.35) {
         failures.push(`run reaches 90% in ${report.run.timeTo90PctSec}s — too sluggish`);
@@ -315,7 +317,8 @@ async function main(): Promise<void> {
 
       // Jump.
       const j = report.jump;
-      if (j.tapApexM >= 15) failures.push(`a tapped jump reached ${j.tapApexM} m — it would crater`);
+      if (j.tapApexM >= 15)
+        failures.push(`a tapped jump reached ${j.tapApexM} m — it would crater`);
       if (j.tapApexM < 8) failures.push(`a tapped jump only reached ${j.tapApexM} m`);
       if (j.heldApexM < 20) failures.push(`a held leap only reached ${j.heldApexM} m`);
       if (Math.abs(j.heldApexM - j.predictedHeldApexM) > 1.5) {
@@ -330,7 +333,8 @@ async function main(): Promise<void> {
       // Landing.
       const l = report.landing;
       if (!l.createsCrater) failures.push('the hard landing did not register as a ground slam');
-      if (!l.fromBus) failures.push('the landing was not sourced from the physics PlayerLanded event');
+      if (!l.fromBus)
+        failures.push('the landing was not sourced from the physics PlayerLanded event');
       if (l.playerLandedEvents < 1) failures.push('no PlayerLanded event was emitted');
       if (l.groundSlamAffected < 1) {
         failures.push('the ground slam moved no loose bodies');

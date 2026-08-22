@@ -28,13 +28,7 @@
  */
 
 import { clamp } from '@/util';
-import {
-  FIELD_CELL,
-  FIELD_COUNT,
-  FIELD_DIM,
-  FIELD_ORIGIN,
-  SIGHT_RANGE,
-} from './constants';
+import { FIELD_CELL, FIELD_COUNT, FIELD_DIM, FIELD_ORIGIN, SIGHT_RANGE } from './constants';
 import type { IObstacleRect } from './types';
 
 /** Clear of a façade by this much after a push-out, metres. */

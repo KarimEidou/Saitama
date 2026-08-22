@@ -256,7 +256,10 @@ export function sweep3(
   const c = clampFreq(to, nyquist);
   resetParam(param, t0, a);
   param.exponentialRampToValueAtTime(b, t0 + Math.max(firstSeconds, 0.001));
-  param.exponentialRampToValueAtTime(c, t0 + Math.max(firstSeconds, 0.001) + Math.max(secondSeconds, 0.001));
+  param.exponentialRampToValueAtTime(
+    c,
+    t0 + Math.max(firstSeconds, 0.001) + Math.max(secondSeconds, 0.001)
+  );
 }
 
 /* -------------------------------------------------------------------------- */

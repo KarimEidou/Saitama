@@ -69,11 +69,7 @@ export class CollapseScheduler {
    * order — the generator's `collapsingFloors` returns them that way, and the
    * wave assignment depends on it.
    */
-  enqueue(
-    structure: RegisteredStructure,
-    floors: readonly number[],
-    currentFrame: number
-  ): number {
+  enqueue(structure: RegisteredStructure, floors: readonly number[], currentFrame: number): number {
     if (floors.length === 0) return 0;
     let queued = 0;
     for (let i = 0; i < floors.length; i++) {

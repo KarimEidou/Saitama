@@ -304,12 +304,7 @@ function buildLandmarkBlock(
  * straight line down a street instead of stepping in and out with the
  * building line — a detail the eye picks up immediately at street level.
  */
-function addStreetLamps(
-  index: ICityPlanIndex,
-  cx: number,
-  cz: number,
-  out: IRawPlacement[]
-): void {
+function addStreetLamps(index: ICityPlanIndex, cx: number, cz: number, out: IRawPlacement[]): void {
   const dense = chunkIndex(cx, cz);
   if (dense < 0) return;
   const x0 = cx * CHUNK_SIZE;

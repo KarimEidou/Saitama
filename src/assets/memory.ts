@@ -111,8 +111,7 @@ export function estimateGpuBytes(texture: THREE.Texture): number {
 
   let bytes = width * height * perPixel;
   // A full mip chain adds a third again (1 + 1/4 + 1/16 + ... -> 4/3).
-  const hasMips =
-    texture.generateMipmaps === true || (mipmaps !== undefined && mipmaps.length > 1);
+  const hasMips = texture.generateMipmaps === true || (mipmaps !== undefined && mipmaps.length > 1);
   if (hasMips) bytes *= 4 / 3;
   return Math.round(bytes);
 }

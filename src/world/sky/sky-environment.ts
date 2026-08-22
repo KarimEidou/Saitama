@@ -266,8 +266,11 @@ export class SkyEnvironment implements IDisposable {
     this.scene.environmentIntensity = blend.luminance;
 
     const signature = signatureOf(blend);
-    if (force || !Number.isFinite(this.lastBuiltSignature) ||
-        Math.abs(signature - this.lastBuiltSignature) >= ENVIRONMENT_REBUILD_THRESHOLD) {
+    if (
+      force ||
+      !Number.isFinite(this.lastBuiltSignature) ||
+      Math.abs(signature - this.lastBuiltSignature) >= ENVIRONMENT_REBUILD_THRESHOLD
+    ) {
       this.rebuildRadiance();
       this.lastBuiltSignature = signature;
     }

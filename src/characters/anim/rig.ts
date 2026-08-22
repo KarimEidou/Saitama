@@ -136,9 +136,7 @@ export function resolveRig(source: RigLike): AnimRig {
 
   const metrics = measureBody(index, bindModel, source.profile);
   if (!identityRest) {
-    log.warn(
-      'rig rests with non-identity bone rotations; procedural hinge axes are approximate'
-    );
+    log.warn('rig rests with non-identity bone rotations; procedural hinge axes are approximate');
   }
 
   return {

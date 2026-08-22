@@ -209,7 +209,11 @@ export class ChunkDamageState {
   serialize(): Uint8Array {
     const bytes = new Uint8Array(DAMAGE_HEADER_BYTES + DAMAGE_TOTAL_BYTES);
     const view = new DataView(bytes.buffer);
-    const words = new Uint32Array(bytes.buffer, DAMAGE_HEADER_BYTES, CHUNK_COUNT * DAMAGE_WORDS_PER_CHUNK);
+    const words = new Uint32Array(
+      bytes.buffer,
+      DAMAGE_HEADER_BYTES,
+      CHUNK_COUNT * DAMAGE_WORDS_PER_CHUNK
+    );
     for (const [chunk, mask] of this.masks) {
       words.set(mask, chunk * DAMAGE_WORDS_PER_CHUNK);
     }
@@ -223,12 +227,15 @@ export class ChunkDamageState {
   /** Restore a snapshot produced by `serialize`. Throws on a bad container. */
   static deserialize(bytes: Uint8Array): ChunkDamageState {
     if (bytes.byteLength !== DAMAGE_HEADER_BYTES + DAMAGE_TOTAL_BYTES) {
-      throw new Error(`damage snapshot is ${bytes.byteLength} B, expected ${DAMAGE_HEADER_BYTES + DAMAGE_TOTAL_BYTES}`);
+      throw new Error(
+        `damage snapshot is ${bytes.byteLength} B, expected ${DAMAGE_HEADER_BYTES + DAMAGE_TOTAL_BYTES}`
+      );
     }
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     if (view.getUint32(0, true) !== DAMAGE_MAGIC) throw new Error('damage snapshot: bad magic');
     if (view.getUint32(4, true) !== DAMAGE_VERSION) throw new Error('damage snapshot: bad version');
-    if (view.getUint32(8, true) !== CHUNK_COUNT) throw new Error('damage snapshot: chunk count mismatch');
+    if (view.getUint32(8, true) !== CHUNK_COUNT)
+      throw new Error('damage snapshot: chunk count mismatch');
 
     // Copy rather than alias: the caller's buffer may be a view into a larger
     // save blob with an offset the Uint32Array constructor would reject.
@@ -236,7 +243,8 @@ export class ChunkDamageState {
     for (let i = 0; i < words.length; i++) {
       words[i] = view.getUint32(DAMAGE_HEADER_BYTES + i * 4, true);
     }
-    if (view.getUint32(12, true) !== checksum(words)) throw new Error('damage snapshot: checksum mismatch');
+    if (view.getUint32(12, true) !== checksum(words))
+      throw new Error('damage snapshot: checksum mismatch');
 
     const state = new ChunkDamageState();
     for (let chunk = 0; chunk < CHUNK_COUNT; chunk++) {

@@ -72,12 +72,7 @@ export function aabbFromCentre(
 }
 
 /** Squared distance from a point to a box; 0 when the point is inside. */
-export function pointAabbDistanceSq(
-  px: number,
-  py: number,
-  pz: number,
-  box: ICombatAabb
-): number {
+export function pointAabbDistanceSq(px: number, py: number, pz: number, box: ICombatAabb): number {
   const dx = px < box.minX ? box.minX - px : px > box.maxX ? px - box.maxX : 0;
   const dy = py < box.minY ? box.minY - py : py > box.maxY ? py - box.maxY : 0;
   const dz = pz < box.minZ ? box.minZ - pz : pz > box.maxZ ? pz - box.maxZ : 0;
@@ -85,12 +80,7 @@ export function pointAabbDistanceSq(
 }
 
 /** Squared distance from a point to the FARTHEST corner of a box. */
-export function pointAabbFarthestSq(
-  px: number,
-  py: number,
-  pz: number,
-  box: ICombatAabb
-): number {
+export function pointAabbFarthestSq(px: number, py: number, pz: number, box: ICombatAabb): number {
   const dx = Math.max(px - box.minX, box.maxX - px);
   const dy = Math.max(py - box.minY, box.maxY - py);
   const dz = Math.max(pz - box.minZ, box.maxZ - pz);
@@ -228,9 +218,7 @@ export function sphereInConeBrute(
         const w = (k / steps) * 2 - 1;
         const lenSq = u * u + v * v + w * w;
         if (lenSq > 1) continue;
-        if (
-          pointInCone(cx + u * r, cy + v * r, cz + w * r, nx, ny, nz, range, halfAngle)
-        ) {
+        if (pointInCone(cx + u * r, cy + v * r, cz + w * r, nx, ny, nz, range, halfAngle)) {
           return true;
         }
       }

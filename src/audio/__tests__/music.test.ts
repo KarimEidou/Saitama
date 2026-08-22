@@ -66,7 +66,10 @@ describe('layer tables', () => {
       for (const part of layer.parts) {
         expect(part.steps, `${state}/${part.id}`).toHaveLength(STEPS_PER_BAR);
         if (part.fill) expect(part.fill).toHaveLength(STEPS_PER_BAR);
-        expect(part.steps.some((s) => s !== REST), `${state}/${part.id} is empty`).toBe(true);
+        expect(
+          part.steps.some((s) => s !== REST),
+          `${state}/${part.id} is empty`
+        ).toBe(true);
         expect(part.velocity).toBeGreaterThan(0);
         expect(part.velocity).toBeLessThanOrEqual(1);
         expect(part.gate).toBeGreaterThan(0);
@@ -228,18 +231,30 @@ describe('granular onset scheduler', () => {
   });
 
   it('is deterministic for a given seed and different for a different one', () => {
-    const a = poissonOnsets(30, 1, (() => {
-      const r = createRng(7);
-      return () => r.next();
-    })());
-    const b = poissonOnsets(30, 1, (() => {
-      const r = createRng(7);
-      return () => r.next();
-    })());
-    const c = poissonOnsets(30, 1, (() => {
-      const r = createRng(8);
-      return () => r.next();
-    })());
+    const a = poissonOnsets(
+      30,
+      1,
+      (() => {
+        const r = createRng(7);
+        return () => r.next();
+      })()
+    );
+    const b = poissonOnsets(
+      30,
+      1,
+      (() => {
+        const r = createRng(7);
+        return () => r.next();
+      })()
+    );
+    const c = poissonOnsets(
+      30,
+      1,
+      (() => {
+        const r = createRng(8);
+        return () => r.next();
+      })()
+    );
     expect(a).toEqual(b);
     expect(a).not.toEqual(c);
   });

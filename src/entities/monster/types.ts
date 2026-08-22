@@ -526,7 +526,9 @@ export interface ISpawnPolicy {
 }
 
 /** Per-district tier weighting. Rows need not sum to 1. */
-export type DistrictTierWeights = Readonly<Record<DistrictType, Readonly<Record<ThreatTier, number>>>>;
+export type DistrictTierWeights = Readonly<
+  Record<DistrictType, Readonly<Record<ThreatTier, number>>>
+>;
 
 /** Live director state, for the HUD and the harness. */
 export interface ISpawnDirectorStats {

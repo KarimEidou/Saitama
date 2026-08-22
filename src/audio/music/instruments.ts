@@ -30,16 +30,7 @@ import { createNoiseSource } from '../noise';
 
 /** Every instrument in the palette. */
 export type InstrumentId =
-  | 'drone'
-  | 'pad'
-  | 'pluck'
-  | 'bass'
-  | 'kick'
-  | 'hat'
-  | 'snare'
-  | 'taiko'
-  | 'stab'
-  | 'lead';
+  'drone' | 'pad' | 'pluck' | 'bass' | 'kick' | 'hat' | 'snare' | 'taiko' | 'stab' | 'lead';
 
 /** Common instrument surface. */
 export interface IInstrument {
@@ -226,12 +217,20 @@ export class PadInstrument implements IInstrument {
   }
 
   noteOn(time: number, midi: number, velocity: number, seconds: number): number {
-    const unit = this.units.find((u) => u.freeAt <= time) ?? this.units[this.cursor++ % this.units.length]!;
+    const unit =
+      this.units.find((u) => u.freeAt <= time) ?? this.units[this.cursor++ % this.units.length]!;
     const hz = midiToFreq(midi);
     for (const osc of unit.oscs) resetParam(osc.frequency, time, hz);
     // The filter opens with the note and closes as it fades: the pad breathes.
     sweep(unit.lp.frequency, time, hz * 3, hz * 8, seconds * 0.5, 20000);
-    unit.freeAt = asr(unit.amp.gain, time, 0.2 * velocity, seconds * 0.35, seconds * 0.3, seconds * 0.9);
+    unit.freeAt = asr(
+      unit.amp.gain,
+      time,
+      0.2 * velocity,
+      seconds * 0.35,
+      seconds * 0.3,
+      seconds * 0.9
+    );
     return unit.freeAt;
   }
 

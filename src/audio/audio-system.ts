@@ -417,7 +417,9 @@ export class AudioSystem implements IAudioSystem {
       return undefined;
     }
     const classSpec = VOICE_CLASSES[spec.voiceClass];
-    return classSpec.sustained ? this.playSustained(spec, options) : this.playOneShot(spec, options);
+    return classSpec.sustained
+      ? this.playSustained(spec, options)
+      : this.playOneShot(spec, options);
   }
 
   playAt(key: string, position: Vec3, options: ISynthPlayOptions = {}): ISoundHandle | undefined {
@@ -437,7 +439,8 @@ export class AudioSystem implements IAudioSystem {
 
     const variation = options.pitchVariation ?? spec.pitchVariation;
     const rate =
-      (options.rate ?? 1) * (variation > 0 ? lerp(1 - variation, 1 + variation, this.rng.next()) : 1);
+      (options.rate ?? 1) *
+      (variation > 0 ? lerp(1 - variation, 1 + variation, this.rng.next()) : 1);
     const volume = spec.gain * clamp(options.volume ?? 1, 0, 4);
     const intensity = clamp01(options.intensity ?? spec.intensity);
 
@@ -672,11 +675,7 @@ export class AudioSystem implements IAudioSystem {
   setAmbientWind(level: number): void {
     this.ambientWind = clamp01(level);
     if (this.ambienceRunning) {
-      this.wind().setIntensity(
-        Math.max(this.ambientWind, this.speedWind),
-        this.ctx.currentTime,
-        2
-      );
+      this.wind().setIntensity(Math.max(this.ambientWind, this.speedWind), this.ctx.currentTime, 2);
     }
   }
 

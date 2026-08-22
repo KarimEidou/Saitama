@@ -12,13 +12,14 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@/util';
+import { HudStore, displayRankGainMultiplier, prettyEncounterName, seatDelta } from '../store';
 import {
-  HudStore,
-  displayRankGainMultiplier,
-  prettyEncounterName,
-  seatDelta,
-} from '../store';
-import { ALERT_LIMIT, RANK_FEED_LIMIT, compareQuests, questUrgency, type IQuestRow } from '../model';
+  ALERT_LIMIT,
+  RANK_FEED_LIMIT,
+  compareQuests,
+  questUrgency,
+  type IQuestRow,
+} from '../model';
 
 function makeStore(): { bus: EventBus; store: HudStore } {
   const bus = new EventBus();
@@ -350,9 +351,9 @@ describe('quests', () => {
     expect(questUrgency(quest({ id: 'a', title: 'a', timeRemaining: 300 }))).toBe('none');
     expect(questUrgency(quest({ id: 'a', title: 'a', timeRemaining: 90 }))).toBe('soon');
     expect(questUrgency(quest({ id: 'a', title: 'a', timeRemaining: 20 }))).toBe('critical');
-    expect(
-      questUrgency(quest({ id: 'a', title: 'a', timeRemaining: 20, state: 'failed' }))
-    ).toBe('none');
+    expect(questUrgency(quest({ id: 'a', title: 'a', timeRemaining: 20, state: 'failed' }))).toBe(
+      'none'
+    );
   });
 
   it('drops a tracked id that is no longer in the list', () => {

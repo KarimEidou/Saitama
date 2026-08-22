@@ -33,12 +33,7 @@
 
 import { createRng, type IRandom } from '@/util';
 import type { BuildingStyle, StructureMaterial } from '@/types';
-import {
-  MatSlot,
-  MeshBuilder,
-  type AABB6,
-  type IGeometryBuffers,
-} from './mesh-builder';
+import { MatSlot, MeshBuilder, type AABB6, type IGeometryBuffers } from './mesh-builder';
 import { shadeTint, tintToRgb, uvScaleFor } from './materials';
 import {
   emitPanel,
@@ -59,12 +54,7 @@ import {
   type IFractureLayout,
   type IFractureSlotRange,
 } from './fracture';
-import {
-  polygonCentroid,
-  triangulate,
-  type Polygon,
-  type Vec2,
-} from './polygon';
+import { polygonCentroid, triangulate, type Polygon, type Vec2 } from './polygon';
 
 /** Nominal facade module. See `facade.ts` for why it is 2.4 m. */
 export const PANEL_WIDTH = 2.4;
@@ -480,11 +470,7 @@ function emitOnePanel(
 
   const context: IPanelContext = {
     builder,
-    origin: [
-      edge.a[0] + edge.dir[0] * panel.u,
-      y0,
-      edge.a[1] + edge.dir[1] * panel.u,
-    ],
+    origin: [edge.a[0] + edge.dir[0] * panel.u, y0, edge.a[1] + edge.dir[1] * panel.u],
     right: [edge.dir[0], 0, edge.dir[1]],
     normal: [edge.normal[0], 0, edge.normal[1]],
     width: edge.panelWidth,
@@ -597,7 +583,12 @@ function emitParapet(
       [edge.a[0] - nx * thickness, edge.a[1] - nz * thickness],
       [edge.b[0] - nx * thickness, edge.b[1] - nz * thickness],
     ];
-    const uv: [number, number, number, number] = [0, y * uvScale, edge.length * uvScale, (y + height) * uvScale];
+    const uv: [number, number, number, number] = [
+      0,
+      y * uvScale,
+      edge.length * uvScale,
+      (y + height) * uvScale,
+    ];
 
     // Outer face — continues the wall, so it takes the wall material.
     builder.quad(
@@ -686,7 +677,15 @@ function planRoofClutter(
   const place = (kind: ClutterKind, scale: number, tint: readonly [number, number, number]) => {
     const x = minX + inset + rng.next() * w;
     const z = minZ + inset + rng.next() * d;
-    items.push({ kind, x, z, rotation: rng.int(0, 3) * (Math.PI / 2), scale, quadrant: quadrantOf(x, z), tint });
+    items.push({
+      kind,
+      x,
+      z,
+      rotation: rng.int(0, 3) * (Math.PI / 2),
+      scale,
+      quadrant: quadrantOf(x, z),
+      tint,
+    });
   };
 
   // Every building tall enough to need stairs gets a bulkhead.
@@ -709,9 +708,30 @@ function emitClutter(builder: MeshBuilder, item: IClutterItem, y: number, uvScal
   const s = item.scale;
   switch (item.kind) {
     case 'hvac': {
-      builder.box(MatSlot.Roof, item.x, y + 0.45 * s, item.z, 0.85 * s, 0.45 * s, 0.62 * s, uvScale, item.tint, 0b101111);
+      builder.box(
+        MatSlot.Roof,
+        item.x,
+        y + 0.45 * s,
+        item.z,
+        0.85 * s,
+        0.45 * s,
+        0.62 * s,
+        uvScale,
+        item.tint,
+        0b101111
+      );
       // Fan cowl on top, so it is not a plain crate.
-      builder.cylinder(MatSlot.Roof, item.x, y + 0.9 * s, item.z, 0.34 * s, 0.16 * s, 8, uvScale, shadeTint(item.tint, 0.8));
+      builder.cylinder(
+        MatSlot.Roof,
+        item.x,
+        y + 0.9 * s,
+        item.z,
+        0.34 * s,
+        0.16 * s,
+        8,
+        uvScale,
+        shadeTint(item.tint, 0.8)
+      );
       break;
     }
     case 'tank': {
@@ -723,23 +743,78 @@ function emitClutter(builder: MeshBuilder, item: IClutterItem, y: number, uvScal
         [-r * 0.65, r * 0.65],
         [r * 0.65, r * 0.65],
       ]) {
-        builder.box(MatSlot.Roof, item.x + ox, y + legH * 0.5, item.z + oz, 0.07 * s, legH * 0.5, 0.07 * s, uvScale, shadeTint(item.tint, 0.6), 0b101111);
+        builder.box(
+          MatSlot.Roof,
+          item.x + ox,
+          y + legH * 0.5,
+          item.z + oz,
+          0.07 * s,
+          legH * 0.5,
+          0.07 * s,
+          uvScale,
+          shadeTint(item.tint, 0.6),
+          0b101111
+        );
       }
       builder.cylinder(MatSlot.Roof, item.x, y + legH, item.z, r, 1.5 * s, 10, uvScale, item.tint);
       break;
     }
     case 'bulkhead': {
-      builder.box(MatSlot.Roof, item.x, y + 1.25 * s, item.z, 1.55 * s, 1.25 * s, 1.15 * s, uvScale, item.tint, 0b101111);
-      builder.box(MatSlot.Roof, item.x, y + 2.56 * s, item.z, 1.65 * s, 0.06 * s, 1.25 * s, uvScale, shadeTint(item.tint, 1.1), 0b000010);
+      builder.box(
+        MatSlot.Roof,
+        item.x,
+        y + 1.25 * s,
+        item.z,
+        1.55 * s,
+        1.25 * s,
+        1.15 * s,
+        uvScale,
+        item.tint,
+        0b101111
+      );
+      builder.box(
+        MatSlot.Roof,
+        item.x,
+        y + 2.56 * s,
+        item.z,
+        1.65 * s,
+        0.06 * s,
+        1.25 * s,
+        uvScale,
+        shadeTint(item.tint, 1.1),
+        0b000010
+      );
       break;
     }
     case 'mast': {
       const h = 5.5 * s;
-      builder.box(MatSlot.Roof, item.x, y + h * 0.5, item.z, 0.09, h * 0.5, 0.09, uvScale, item.tint, 0b001101);
+      builder.box(
+        MatSlot.Roof,
+        item.x,
+        y + h * 0.5,
+        item.z,
+        0.09,
+        h * 0.5,
+        0.09,
+        uvScale,
+        item.tint,
+        0b001101
+      );
       for (let i = 1; i <= 3; i++) {
         const yy = y + (h * i) / 4;
         const len = 0.85 - i * 0.15;
-        builder.box(MatSlot.Roof, item.x, yy, item.z, len, 0.035, 0.035, uvScale, item.tint, 0b111111);
+        builder.box(
+          MatSlot.Roof,
+          item.x,
+          yy,
+          item.z,
+          len,
+          0.035,
+          0.035,
+          uvScale,
+          item.tint,
+          0b111111
+        );
       }
       break;
     }

@@ -104,7 +104,11 @@ export function handleRequest(request: WorkerRequest): WorkerResponse {
     if (request.kind === 'impostor') {
       const generator = impostorGenerators.get(request.generator);
       if (generator === undefined) {
-        return { kind: 'error', id: request.id, message: `unknown generator "${request.generator}"` };
+        return {
+          kind: 'error',
+          id: request.id,
+          message: `unknown generator "${request.generator}"`,
+        };
       }
       return { ...generator(request.seed), id: request.id };
     }

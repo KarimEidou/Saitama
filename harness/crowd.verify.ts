@@ -93,7 +93,13 @@ interface CrowdStats {
   lostByPlayer: number;
   outcomesWithLineOfSight: number;
   outcomesWithBystanders: number;
-  allies: { name: string; health: number; maxHealth: number; reEngagements: number; dead: boolean }[];
+  allies: {
+    name: string;
+    health: number;
+    maxHealth: number;
+    reEngagements: number;
+    dead: boolean;
+  }[];
   allyDowned: string[];
   mumenReEngagements: number;
   determinismHash: number;
@@ -300,10 +306,7 @@ function assertPanic(stats: CrowdStats): void {
     stats.frontSpeed > 15 && stats.frontSpeed < 60,
     `panic front advances at ${stats.frontSpeed.toFixed(1)} m/s`
   );
-  check(
-    stats.frontFinal > 90,
-    `panic reached ${stats.frontFinal.toFixed(0)} m from the monster`
-  );
+  check(stats.frontFinal > 90, `panic reached ${stats.frontFinal.toFixed(0)} m from the monster`);
   // Strictly outward WHILE the only source is the monster standing there.
   // After it swings and takes a building with it, the extra impulses push the
   // front further out and then expire, so the radius legitimately falls back

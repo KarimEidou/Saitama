@@ -182,7 +182,8 @@ export function deriveLighting(
   // Airmass reddening: near the horizon the path length through the
   // atmosphere is long and short wavelengths scatter out.
   const horizonMix = 1 - smoothstep(0.0, 0.5, Math.max(0, sun.elevation));
-  const sunIntensity = SUN_PEAK_INTENSITY * sunAbove * (0.35 + 0.65 * Math.sin(Math.max(0, sun.elevation)) ** 0.5);
+  const sunIntensity =
+    SUN_PEAK_INTENSITY * sunAbove * (0.35 + 0.65 * Math.sin(Math.max(0, sun.elevation)) ** 0.5);
 
   /* Moon ----------------------------------------------------------------- */
 
@@ -314,9 +315,12 @@ export function fillDayNightState(
   // "is it daytime" and must not be answered with a moon.
   state.sunDirection.set(-sun.toBodyX, -sun.toBodyY, -sun.toBodyZ).normalize();
   state.sunElevation = sun.elevation;
-  state.sunIntensity = derived.moonIsKeyLight ? 0 : clamp01(lighting.sunIntensity / SUN_PEAK_INTENSITY);
+  state.sunIntensity = derived.moonIsKeyLight
+    ? 0
+    : clamp01(lighting.sunIntensity / SUN_PEAK_INTENSITY);
   state.moonIntensity = clamp01(
-    (moonIllumination(input.lunarAgeDays) * smoothstep(-0.05, 0.15, derived.moonElevation)) *
+    moonIllumination(input.lunarAgeDays) *
+      smoothstep(-0.05, 0.15, derived.moonElevation) *
       derived.nightFactor
   );
   state.ambientColor.copy(lighting.ambientColor);

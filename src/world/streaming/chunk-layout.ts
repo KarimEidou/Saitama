@@ -84,9 +84,7 @@ const DISTRICT_FILL: readonly number[] = [0.94, 0.86, 0.7, 0.12, 0.8];
  * Base façade colour per district as packed 0xRRGGBB. Districts read as
  * distinct masses from the air, which is what makes the impostor ring legible.
  */
-const DISTRICT_BASE_COLOUR: readonly number[] = [
-  0x6d7a92, 0x9a7f6a, 0x77726a, 0x4f6b4a, 0x6f8798,
-];
+const DISTRICT_BASE_COLOUR: readonly number[] = [0x6d7a92, 0x9a7f6a, 0x77726a, 0x4f6b4a, 0x6f8798];
 
 /**
  * District for a chunk, from the world seed alone.
@@ -377,7 +375,8 @@ export function fracturePieces(building: IBuildingLayout): IFracturePiece[] {
     for (let pz = 0; pz < FRACTURE_PLAN_DIVISIONS; pz++) {
       for (let px = 0; px < FRACTURE_PLAN_DIVISIONS; px++) {
         pieces.push({
-          piece: band * FRACTURE_PLAN_DIVISIONS * FRACTURE_PLAN_DIVISIONS +
+          piece:
+            band * FRACTURE_PLAN_DIVISIONS * FRACTURE_PLAN_DIVISIONS +
             pz * FRACTURE_PLAN_DIVISIONS +
             px,
           minX: building.minX + px * spanX,

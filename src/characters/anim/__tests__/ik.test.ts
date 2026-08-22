@@ -196,7 +196,13 @@ describe('two-bone IK', () => {
       const hipPos = new THREE.Vector3().setFromMatrixPosition(model[c.root]!);
       const target = hipPos
         .clone()
-        .add(new THREE.Vector3(0.1 * r.metrics.legLength, -0.75 * r.metrics.legLength, -0.3 * r.metrics.legLength));
+        .add(
+          new THREE.Vector3(
+            0.1 * r.metrics.legLength,
+            -0.75 * r.metrics.legLength,
+            -0.3 * r.metrics.legLength
+          )
+        );
       solveChain(pose, r, model, c, target);
       poseToModelMatrices(pose, r, model);
       const achieved = new THREE.Vector3().setFromMatrixPosition(model[c.end]!);
@@ -210,7 +216,14 @@ describe('geometric two-bone helper', () => {
     const root = new THREE.Vector3(0, 1, 0);
     const target = new THREE.Vector3(0, 0.2, 0);
     const mid = new THREE.Vector3();
-    const result = twoBoneJointPositions(root, target, 0.45, 0.45, new THREE.Vector3(0, 0, -1), mid);
+    const result = twoBoneJointPositions(
+      root,
+      target,
+      0.45,
+      0.45,
+      new THREE.Vector3(0, 0, -1),
+      mid
+    );
     expect(result.reachable).toBe(true);
     expect(mid.distanceTo(root)).toBeCloseTo(0.45, 9);
     expect(mid.distanceTo(target)).toBeCloseTo(0.45, 9);

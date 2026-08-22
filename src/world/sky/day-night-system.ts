@@ -23,11 +23,7 @@
 import * as THREE from 'three';
 import type { DayPhase, IDayNightState, IDayNightSystem, IEventBus } from '@/types';
 import { createLogger } from '@/util';
-import {
-  DAY_LENGTH_SECONDS,
-  INITIAL_LUNAR_AGE_DAYS,
-  SYNODIC_MONTH_DAYS,
-} from './constants';
+import { DAY_LENGTH_SECONDS, INITIAL_LUNAR_AGE_DAYS, SYNODIC_MONTH_DAYS } from './constants';
 import {
   blendSH9,
   sampleSkyBlend,

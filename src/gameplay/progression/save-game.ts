@@ -43,7 +43,9 @@ export interface ISaveBackend {
 /** Extra state the shared `ISaveGame` contract has no field for. */
 export interface ISaveExtras {
   /** Rival standings, keyed by rival id. */
-  readonly rivals?: Readonly<Record<string, { points: number; shared: number; offscreen: number; joint: number }>>;
+  readonly rivals?: Readonly<
+    Record<string, { points: number; shared: number; offscreen: number; joint: number }>
+  >;
   /** Heroic deeds recorded this session, for the "how did I get here" screen. */
   readonly heroicDeeds?: readonly string[];
   /** Lunar age in days, so the sky reloads identically. */
@@ -126,7 +128,9 @@ export class CapacitorSaveBackend implements ISaveBackend {
   static async open(): Promise<CapacitorSaveBackend | undefined> {
     if (!isCapacitorNative()) return undefined;
     try {
-      const module = (await import('@capacitor/preferences')) as { Preferences: IPreferencesPlugin };
+      const module = (await import('@capacitor/preferences')) as {
+        Preferences: IPreferencesPlugin;
+      };
       return new CapacitorSaveBackend(module.Preferences);
     } catch (error) {
       log.warn(`@capacitor/preferences unavailable: ${String(error)}`);
@@ -268,7 +272,9 @@ export class SaveManager {
     }
     const backend = await this.resolveBackend();
     await backend.set(this.key, JSON.stringify(save));
-    log.info(`saved to ${backend.name} (${save.questStates ? Object.keys(save.questStates).length : 0} quests)`);
+    log.info(
+      `saved to ${backend.name} (${save.questStates ? Object.keys(save.questStates).length : 0} quests)`
+    );
   }
 
   /** Read the slot. Resolves undefined when empty or unreadable. */

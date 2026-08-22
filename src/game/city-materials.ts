@@ -33,7 +33,11 @@
 import * as THREE from 'three';
 import type { IAssetRegistry } from '@/types';
 import { createNoiseAlbedo, createNoiseNormal } from '@/engine';
-import { createRegistryResolver, installDestructionHook, type MaterialResolver } from '@/world/city';
+import {
+  createRegistryResolver,
+  installDestructionHook,
+  type MaterialResolver,
+} from '@/world/city';
 import { createRng } from '@/util';
 
 /* -------------------------------------------------------------------------- */
@@ -71,7 +75,10 @@ const DEFAULT_LOOK: ILook = {
 const FAMILY_LOOKS: readonly (readonly [string, Partial<ILook>])[] = [
   ['mat.road.markings', { color: 0xe8e6df, roughness: 0.7, grain: 0.04, bump: 0 }],
   ['mat.road.asphalt', { color: 0x4c4c4f, roughness: 0.96, grain: 0.24, bump: 0.35, repeat: 6 }],
-  ['mat.ground.cobblestone', { color: 0x8e8a84, roughness: 0.95, grain: 0.3, bump: 1.1, repeat: 8 }],
+  [
+    'mat.ground.cobblestone',
+    { color: 0x8e8a84, roughness: 0.95, grain: 0.3, bump: 1.1, repeat: 8 },
+  ],
   ['mat.ground.sidewalk', { color: 0xa9a69f, roughness: 0.91, grain: 0.14, bump: 0.5, repeat: 5 }],
   ['mat.ground.plaza', { color: 0xb4b1a9, roughness: 0.85, grain: 0.12, bump: 0.5, repeat: 5 }],
   ['mat.ground.gravel', { color: 0x9c9489, roughness: 1, grain: 0.4, bump: 1.2, repeat: 10 }],
@@ -86,7 +93,10 @@ const FAMILY_LOOKS: readonly (readonly [string, Partial<ILook>])[] = [
   ['mat.metal.rust', { color: 0x86603f, roughness: 0.88, metalness: 0.32, grain: 0.32, bump: 0.8 }],
   ['mat.metal.grate', { color: 0x6b5c4d, roughness: 0.85, metalness: 0.4, grain: 0.3, bump: 1 }],
   ['mat.metal', { color: 0x969b9d, roughness: 0.62, metalness: 0.55, grain: 0.14, bump: 0.5 }],
-  ['mat.roof.tiles.ceramic', { color: 0x8f5f45, roughness: 0.85, grain: 0.18, bump: 0.9, repeat: 8 }],
+  [
+    'mat.roof.tiles.ceramic',
+    { color: 0x8f5f45, roughness: 0.85, grain: 0.18, bump: 0.9, repeat: 8 },
+  ],
   ['mat.roof.tiles', { color: 0x6f7276, roughness: 0.88, grain: 0.16, bump: 0.9, repeat: 8 }],
   ['mat.roof', { color: 0x4d4b48, roughness: 0.96, grain: 0.2, bump: 0.5, repeat: 6 }],
   // Glass is near-white on purpose: every window and shop sign gets its colour

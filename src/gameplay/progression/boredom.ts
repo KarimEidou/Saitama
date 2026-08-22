@@ -178,7 +178,9 @@ export class BoredomModel {
     this.history.push({ deed, delta: applied, time: this.elapsed, detail });
     if (this.history.length > this.historyLimit) this.history.shift();
     if (applied !== 0) {
-      log.debug(`heroism "${deed}"${detail ? ` (${detail})` : ''} -> boredom ${this.value.toFixed(3)}`);
+      log.debug(
+        `heroism "${deed}"${detail ? ` (${detail})` : ''} -> boredom ${this.value.toFixed(3)}`
+      );
     }
     return applied;
   }

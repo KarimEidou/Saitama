@@ -253,7 +253,6 @@ export function solveChain(
   return { slip: _endPos.distanceTo(target), flexion, clamped };
 }
 
-
 /** Largest flexion the solver will consider. Past this the joint has folded. */
 const FLEX_MAX = Math.PI * 0.999;
 

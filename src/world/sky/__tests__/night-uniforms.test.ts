@@ -68,7 +68,9 @@ describe('NightUniforms', () => {
     uniforms.attach(window, 'window');
 
     expect(compile(lamp).fragmentShader).toContain('uLampColor * uLampIntensity * uNightFactor');
-    expect(compile(window).fragmentShader).toContain('uWindowColor * uWindowIntensity * uNightFactor');
+    expect(compile(window).fragmentShader).toContain(
+      'uWindowColor * uWindowIntensity * uNightFactor'
+    );
     expect(compile(lamp).fragmentShader).not.toContain('uWindowLitFraction');
   });
 
@@ -146,7 +148,10 @@ describe('onBeforeCompile composition — the regression', () => {
     const hooks = (material.userData as { engineShaderHooks?: { key: string; fn: unknown }[] })
       .engineShaderHooks;
     expect(hooks).toBeDefined();
-    hooks!.push({ key: 'csm2', fn: (s: unknown, r: unknown) => assigned.call(material, s as never, r as never) });
+    hooks!.push({
+      key: 'csm2',
+      fn: (s: unknown, r: unknown) => assigned.call(material, s as never, r as never),
+    });
     // -----------------------------------------------------------------------
 
     const shader = compile(material);
@@ -164,7 +169,12 @@ describe('onBeforeCompile composition — the regression', () => {
     // Another system got there first, using the shared convention.
     let firstRan = false;
     const hooks: { key: string; fn: (s: unknown, r: unknown) => void }[] = [
-      { key: 'materialLib', fn: () => { firstRan = true; } },
+      {
+        key: 'materialLib',
+        fn: () => {
+          firstRan = true;
+        },
+      },
     ];
     (material.userData as { engineShaderHooks?: unknown }).engineShaderHooks = hooks;
     material.onBeforeCompile = (shader, renderer) => {

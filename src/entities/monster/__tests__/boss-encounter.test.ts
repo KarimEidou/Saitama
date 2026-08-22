@@ -28,7 +28,10 @@ import { makeBrain, mirrorOf, mirrorPunch, recordingBus } from './fixtures';
 const ORIGIN = { x: 0, y: 0, z: 0 };
 
 /** Boss at the origin, player wherever the test puts them. */
-function scene(encounterId: string, ally?: { id: string; displayName: string; position: { x: number; y: number; z: number } }) {
+function scene(
+  encounterId: string,
+  ally?: { id: string; displayName: string; position: { x: number; y: number; z: number } }
+) {
   const recorder = recordingBus();
   const script = bossScript(encounterId);
   const boss = makeBrain(script.archetypeId, recorder.bus, ORIGIN, 'boss#1');
@@ -38,8 +41,7 @@ function scene(encounterId: string, ally?: { id: string; displayName: string; po
     boss,
     rng: createRng('encounter-test'),
     ally,
-    onSummon: (_archetypeId, count) =>
-      Array.from({ length: count }, (_unused, i) => `summon#${i}`),
+    onSummon: (_archetypeId, count) => Array.from({ length: count }, (_unused, i) => `summon#${i}`),
   });
   return { recorder, script, boss, encounter, target: mirrorOf(boss) };
 }
@@ -285,7 +287,10 @@ describe('Deep Sea King: the ally branch', () => {
   const ALLY = { id: 'mumen-rider', displayName: 'Mumen Rider', position: { x: 30, y: 0, z: 0 } };
 
   it('PLAYER FAST — reaching the ally in time means AllyDowned never fires', () => {
-    const { encounter, recorder } = scene('boss.deepSeaKing', { ...ALLY, position: { ...ALLY.position } });
+    const { encounter, recorder } = scene('boss.deepSeaKing', {
+      ...ALLY,
+      position: { ...ALLY.position },
+    });
     encounter.begin(0);
 
     // The player runs straight there and arrives at t = 8 s, inside the 18 s
@@ -299,7 +304,10 @@ describe('Deep Sea King: the ally branch', () => {
   });
 
   it('PLAYER SLOW — dawdling past the window fires AllyDowned exactly once', () => {
-    const { encounter, recorder } = scene('boss.deepSeaKing', { ...ALLY, position: { ...ALLY.position } });
+    const { encounter, recorder } = scene('boss.deepSeaKing', {
+      ...ALLY,
+      position: { ...ALLY.position },
+    });
     encounter.begin(0);
 
     // The player clears the street first. Twenty-five seconds, never within
@@ -318,12 +326,15 @@ describe('Deep Sea King: the ally branch', () => {
     expect(recorder.ofType('AllyDowned')).toHaveLength(1);
   });
 
-  it('PLAYER SLOW — the clock is the script\'s 18 s, to the frame', () => {
+  it("PLAYER SLOW — the clock is the script's 18 s, to the frame", () => {
     // The beat is a WALL CLOCK the player cannot negotiate with, and its value
     // is a number in `boss-scripts.ts` rather than an emergent property of
     // anything. Asserted against the elapsed time the event was emitted at,
     // because "it fires eventually" would still pass with the clock broken.
-    const { encounter, recorder } = scene('boss.deepSeaKing', { ...ALLY, position: { ...ALLY.position } });
+    const { encounter, recorder } = scene('boss.deepSeaKing', {
+      ...ALLY,
+      position: { ...ALLY.position },
+    });
     encounter.begin(0);
 
     const dt = 1 / 60;
@@ -356,7 +367,10 @@ describe('Deep Sea King: the ally branch', () => {
   });
 
   it('yields to the hero-NPC system when IT downs the ally first', () => {
-    const { encounter, recorder } = scene('boss.deepSeaKing', { ...ALLY, position: { ...ALLY.position } });
+    const { encounter, recorder } = scene('boss.deepSeaKing', {
+      ...ALLY,
+      position: { ...ALLY.position },
+    });
     encounter.begin(0);
     run(encounter, 4, { x: -60, y: 0, z: 0 });
 
@@ -411,9 +425,7 @@ describe('determinism', () => {
       const { encounter, recorder } = scene('boss.boros');
       encounter.begin(0);
       driveToFinisher(encounter);
-      return JSON.stringify(
-        recorder.events.map((e) => ({ ...e, time: 0, frame: 0 }))
-      );
+      return JSON.stringify(recorder.events.map((e) => ({ ...e, time: 0, frame: 0 })));
     };
     expect(replay()).toBe(replay());
   });

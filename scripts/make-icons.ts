@@ -65,7 +65,8 @@ async function main(): Promise<void> {
   const manifest = {
     name: 'One Punch Man — City Z',
     short_name: 'One Punch Man',
-    description: 'An open-world City Z where the only question is how much of it you are willing to destroy.',
+    description:
+      'An open-world City Z where the only question is how much of it you are willing to destroy.',
     start_url: './',
     scope: './',
     display: 'fullscreen',

@@ -526,10 +526,7 @@ async function captureFreezeFrame(page: Page): Promise<PixelReport> {
     `[freeze] only ${snap.vfx.sprites} particles were live during the hold — the ` +
       `effects peak after the freeze rather than during it`
   );
-  check(
-    snap.vfx.shockwaves > 0,
-    '[freeze] no shockwave shell was live during the hold'
-  );
+  check(snap.vfx.shockwaves > 0, '[freeze] no shockwave shell was live during the hold');
   console.log(
     `vfx-impact-freeze.png        timeScale ${snap.clock.timeScale.toFixed(3)}  ` +
       `fov punch ${snap.impact.fovOffset.toFixed(2)} deg  sprites ${snap.vfx.sprites}  ` +
@@ -754,10 +751,7 @@ async function main(): Promise<void> {
 
         const snap = await snapshot(page);
         check(snap.isWebGL2, `[${tier}] WebGL2 context was not obtained`);
-        check(
-          errors.length === 0,
-          `[${tier}] console errors: ${errors.slice(0, 5).join(' | ')}`
-        );
+        check(errors.length === 0, `[${tier}] console errors: ${errors.slice(0, 5).join(' | ')}`);
         check(
           snap.consoleErrors.length === 0,
           `[${tier}] page-reported errors: ${snap.consoleErrors.slice(0, 5).join(' | ')}`

@@ -748,11 +748,7 @@ export class PlayerController {
 
   private syncRoot(): void {
     if (this.root === null) return;
-    this.root.position.set(
-      this.position.x,
-      this.position.y - this.footOffset,
-      this.position.z
-    );
+    this.root.position.set(this.position.x, this.position.y - this.footOffset, this.position.z);
     this.root.rotation.set(0, this.yaw, 0);
   }
 

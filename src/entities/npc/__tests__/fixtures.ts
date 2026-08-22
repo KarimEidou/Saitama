@@ -27,12 +27,7 @@ export function cityRects(seed: number, radius = 2): IObstacleRect[] {
 }
 
 /** One square building, for tests that need an obstacle they can reason about. */
-export function singleBlock(
-  cx: number,
-  cz: number,
-  half: number,
-  height = 20
-): IObstacleRect[] {
+export function singleBlock(cx: number, cz: number, half: number, height = 20): IObstacleRect[] {
   return [{ minX: cx - half, minZ: cz - half, maxX: cx + half, maxZ: cz + half, height }];
 }
 

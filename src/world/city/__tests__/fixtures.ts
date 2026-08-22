@@ -36,7 +36,9 @@ export const SAMPLE_CHUNKS: readonly (readonly [number, number])[] = [
 ];
 
 /** Flatten every building's fracture chunks in a block into one layout. */
-export function combineLayouts(layouts: Readonly<Record<string, IFractureLayout>>): IFractureLayout {
+export function combineLayouts(
+  layouts: Readonly<Record<string, IFractureLayout>>
+): IFractureLayout {
   const all = Object.keys(layouts).sort();
   const chunks = all.flatMap((k) => layouts[k].chunks);
   const first = layouts[all[0]];

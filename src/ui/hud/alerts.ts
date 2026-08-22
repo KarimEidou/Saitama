@@ -69,9 +69,7 @@ export class AlertLayer {
       attrs: { role: 'alert' },
       children: [
         el(this.doc, 'div', { className: 'hud-alert__title', text: alert.title }),
-        alert.body
-          ? el(this.doc, 'div', { className: 'hud-alert__body', text: alert.body })
-          : null,
+        alert.body ? el(this.doc, 'div', { className: 'hud-alert__body', text: alert.body }) : null,
       ],
     });
   }

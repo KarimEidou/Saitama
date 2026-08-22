@@ -171,11 +171,7 @@ export class SpatialIndex {
    * Cull from a raw view-projection matrix and eye position. The camera-free
    * path, used by tests, the harness and any off-thread visibility prepass.
    */
-  cullFromViewProjection(
-    elements: ArrayLike<number>,
-    eyeX: number,
-    eyeZ: number
-  ): ICullStats {
+  cullFromViewProjection(elements: ArrayLike<number>, eyeX: number, eyeZ: number): ICullStats {
     this.frustum.setFromViewProjection(elements);
     return this.cullWithFrustum(eyeX, eyeZ);
   }

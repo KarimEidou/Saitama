@@ -331,10 +331,20 @@ describe('the emitted event sequence', () => {
       ['mid', -16],
     ];
     for (const [id, z] of positions) {
-      forward.registry.add({ id, type: 'monster', faction: 'monster', position: { x: 0, y: 1, z } });
+      forward.registry.add({
+        id,
+        type: 'monster',
+        faction: 'monster',
+        position: { x: 0, y: 1, z },
+      });
     }
     for (const [id, z] of [...positions].reverse()) {
-      reverse.registry.add({ id, type: 'monster', faction: 'monster', position: { x: 0, y: 1, z } });
+      reverse.registry.add({
+        id,
+        type: 'monster',
+        faction: 'monster',
+        position: { x: 0, y: 1, z },
+      });
     }
 
     const a = forward.resolver.resolve(punch()).hits.map((h) => h.targetId);
@@ -348,11 +358,7 @@ describe('the emitted event sequence', () => {
     for (const id of ['zeta', 'alpha', 'mu']) {
       registry.add({ id, type: 'monster', faction: 'monster', position: { x: 0, y: 1.4, z: -10 } });
     }
-    expect(resolver.resolve(punch()).hits.map((h) => h.targetId)).toEqual([
-      'alpha',
-      'mu',
-      'zeta',
-    ]);
+    expect(resolver.resolve(punch()).hits.map((h) => h.targetId)).toEqual(['alpha', 'mu', 'zeta']);
   });
 
   it('stamps ShockwaveFired with the WAVE range, not the lethal radius', () => {
@@ -373,7 +379,12 @@ describe('the emitted event sequence', () => {
 
   it('kills inside the LETHAL radius and only shoves beyond it', () => {
     const { registry, resolver } = harness();
-    registry.add({ id: 'close', type: 'npc', faction: 'civilian', position: { x: 0, y: 1, z: -6 } });
+    registry.add({
+      id: 'close',
+      type: 'npc',
+      faction: 'civilian',
+      position: { x: 0, y: 1, z: -6 },
+    });
     registry.add({ id: 'far', type: 'npc', faction: 'civilian', position: { x: 0, y: 1, z: -18 } });
 
     const outcome = resolver.resolve(
@@ -437,8 +448,7 @@ describe('hit records', () => {
     const hits = resolver.resolve(punch()).hits;
     const light = hits.find((h) => h.targetId === 'light')!;
     const heavy = hits.find((h) => h.targetId === 'heavy')!;
-    const magnitude = (v: { x: number; y: number; z: number }): number =>
-      Math.hypot(v.x, v.y, v.z);
+    const magnitude = (v: { x: number; y: number; z: number }): number => Math.hypot(v.x, v.y, v.z);
     expect(magnitude(heavy.impulse) / magnitude(light.impulse)).toBeCloseTo(10, 1);
   });
 
@@ -456,7 +466,12 @@ describe('hit records', () => {
 
   it('points the contact normal back at the attacker', () => {
     const { registry, resolver } = harness();
-    registry.add({ id: 'm', type: 'monster', faction: 'monster', position: { x: 0, y: 1.4, z: -9 } });
+    registry.add({
+      id: 'm',
+      type: 'monster',
+      faction: 'monster',
+      position: { x: 0, y: 1.4, z: -9 },
+    });
     const hit = resolver.resolve(punch()).hits[0]!;
     expect(hit.normal.z).toBeCloseTo(1, 6);
     expect(hit.point.z).toBeCloseTo(-9 + 0.45, 5);

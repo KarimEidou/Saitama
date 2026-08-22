@@ -148,7 +148,9 @@ export class WitnessField {
 
     for (const witness of this.witnesses.values()) {
       if (!witness.active) continue;
-      if (distanceSq3(position.x, position.y, position.z, witness.x, witness.y, witness.z) > radiusSq) {
+      if (
+        distanceSq3(position.x, position.y, position.z, witness.x, witness.y, witness.z) > radiusSq
+      ) {
         continue;
       }
       count++;

@@ -87,8 +87,7 @@ export function gatherWitnesses(
   const pdz = player.z - z;
   const playerDistance = Math.sqrt(pdx * pdx + pdz * pdz);
   const byPlayer =
-    playerDistance <= SIGHT_RANGE &&
-    obstacles.segmentClear(player.x, player.z, x, z, SIGHT_RANGE);
+    playerDistance <= SIGHT_RANGE && obstacles.segmentClear(player.x, player.z, x, z, SIGHT_RANGE);
   return { byPlayer, bystanders, playerDistance };
 }
 

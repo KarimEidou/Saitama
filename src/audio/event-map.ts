@@ -315,7 +315,12 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
         const tier = e.threatTier ?? 'demon';
         return {
           cues: [
-            { key: 'monster.death', variant: tier, intensity: 0.5 + tierScalar(tier) * 0.5, position: e.position },
+            {
+              key: 'monster.death',
+              variant: tier,
+              intensity: 0.5 + tierScalar(tier) * 0.5,
+              position: e.position,
+            },
             { key: 'impact.body', intensity: 0.5, position: e.position },
           ],
           duck: tierScalar(tier) > 0.6 ? STINGER_DUCK : undefined,
@@ -373,7 +378,8 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
 
   CivilianSaved: {
     type: 'CivilianSaved',
-    summary: 'Relief: a crowd cheer at the rescue, plus a confirmation chime when the player did it.',
+    summary:
+      'Relief: a crowd cheer at the rescue, plus a confirmation chime when the player did it.',
     sounds: ['crowd.cheer', 'ui.confirm'],
     effects: [],
     resolve: (e) => ({
@@ -433,7 +439,14 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
         },
         // A serious threat sends the street running.
         ...(tierScalar(e.threatTier) >= 0.5
-          ? [{ key: 'crowd.panic' as SoundKey, intensity: tierScalar(e.threatTier), position: e.position, delay: 0.5 }]
+          ? [
+              {
+                key: 'crowd.panic' as SoundKey,
+                intensity: tierScalar(e.threatTier),
+                position: e.position,
+                delay: 0.5,
+              },
+            ]
           : []),
       ],
       music: musicForTier(e.threatTier, e.isBoss),
@@ -512,7 +525,8 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
 
   RankChanged: {
     type: 'RankChanged',
-    summary: 'Hero Association standing moved: the promotion fanfare, or the deny motif on demotion.',
+    summary:
+      'Hero Association standing moved: the promotion fanfare, or the deny motif on demotion.',
     sounds: ['ui.rankUp', 'ui.deny'],
     effects: ['duck'],
     resolve: (e) =>

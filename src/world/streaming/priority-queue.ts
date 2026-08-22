@@ -38,11 +38,7 @@
  */
 
 import { CHUNK_SIZE, chunkCentreX, chunkCentreZ } from '@/spatial/constants';
-import {
-  ANGLE_PRIORITY_WEIGHT,
-  PVS_PRIORITY_PENALTY,
-  RING_PRIORITY_STRIDE,
-} from './constants';
+import { ANGLE_PRIORITY_WEIGHT, PVS_PRIORITY_PENALTY, RING_PRIORITY_STRIDE } from './constants';
 
 /** One queued chunk build. */
 export interface IQueuedChunk {

@@ -307,8 +307,21 @@ export class CollapseVoice extends SynthVoice {
 
     // Settle: one final thud as the pile stops.
     const settleAt = t + spread * 0.85;
-    sweep(this.settle.frequency, settleAt, shape.settleHz * p.rate, shape.settleHz * 0.55 * p.rate, 0.3, nq);
-    const settleEnd = percussive(this.settleGain.gain, settleAt, 0.5 * lerp(0.5, 1, power), 0.01, 0.6);
+    sweep(
+      this.settle.frequency,
+      settleAt,
+      shape.settleHz * p.rate,
+      shape.settleHz * 0.55 * p.rate,
+      0.3,
+      nq
+    );
+    const settleEnd = percussive(
+      this.settleGain.gain,
+      settleAt,
+      0.5 * lerp(0.5, 1, power),
+      0.01,
+      0.6
+    );
 
     return Math.max(groanEnd, rumbleEnd, crackleEnd, settleEnd) - t;
   }

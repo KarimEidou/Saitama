@@ -475,9 +475,7 @@ function runScript(
   }
 
   if (MODE !== 'calm') {
-    target.setThreats([
-      { id: 'monster', position: monsterPosition, intensity: 1, tier: 'dragon' },
-    ]);
+    target.setThreats([{ id: 'monster', position: monsterPosition, intensity: 1, tier: 'dragon' }]);
     targetBus.emit('EncounterStarted', {
       encounterId: 'harness',
       threatTier: 'dragon',
@@ -781,7 +779,8 @@ function presentAllies(): void {
     body.root.position.copy(body.ally.transform.position);
     body.root.rotation.y = body.ally.transform.yaw;
     const status = body.ally.status();
-    if (status.isDead) body.animator.play('death', { fade: 0, loop: 'once', clampWhenFinished: true });
+    if (status.isDead)
+      body.animator.play('death', { fade: 0, loop: 'once', clampWhenFinished: true });
     else if (status.state === 'knocked-down') body.animator.play('stagger', { fade: 0 });
     else body.animator.play('attack', { fade: 0 });
     for (let i = 0; i < 24; i++) body.animator.update(DT);
@@ -900,7 +899,7 @@ function main(): void {
   text(
     'numbers',
     `<span class="ok">${snapshot.draws.crowd} draw calls</span> <span class="dim">for ${snapshot.draws.packed} VAT civilians</span>\n` +
-      `<span class="dim">${(snapshot.draws.triangles / 1000).toFixed(0)}k tris · palettes ${(((snapshot.render?.paletteBytes ?? 0) / 1024) | 0)} KB · ${snapshot.render?.distinctOffsets ?? 0} distinct gait phases</span>\n` +
+      `<span class="dim">${(snapshot.draws.triangles / 1000).toFixed(0)}k tris · palettes ${((snapshot.render?.paletteBytes ?? 0) / 1024) | 0} KB · ${snapshot.render?.distinctOffsets ?? 0} distinct gait phases</span>\n` +
       `<span class="dim">sim ${mean(simSamples).toFixed(3)} ms/frame mean · ${percentile(simSamples, 0.95).toFixed(3)} ms p95</span>\n` +
       `<span class="dim">panic front ${speed.toFixed(1)} m/s · min separation ${minSeparation === Infinity ? 'n/a' : `${minSeparation.toFixed(3)} m`}</span>\n` +
       `<span class="${buildingPenetrations === 0 ? 'ok' : 'warn'}">${buildingPenetrations} agents inside buildings</span> <span class="dim">over ${penetrationChecks} checks</span>\n` +
@@ -998,6 +997,7 @@ function mumenKnockdownTest(): number {
 try {
   main();
 } catch (error) {
-  window.__HARNESS_ERROR__ = error instanceof Error ? `${error.message}\n${error.stack}` : String(error);
+  window.__HARNESS_ERROR__ =
+    error instanceof Error ? `${error.message}\n${error.stack}` : String(error);
   window.__HARNESS_READY__ = true;
 }

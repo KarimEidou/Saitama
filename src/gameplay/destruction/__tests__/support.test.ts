@@ -16,7 +16,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { collapsingFloors as cityCollapsingFloors, remainingSupport as cityRemainingSupport } from '@/world/city';
+import {
+  collapsingFloors as cityCollapsingFloors,
+  remainingSupport as cityRemainingSupport,
+} from '@/world/city';
 import { createRng } from '@/util';
 import { collapsingFloors, remainingSupport } from '../support';
 import { COLLAPSE_SUPPORT_RATIO } from '../constants';

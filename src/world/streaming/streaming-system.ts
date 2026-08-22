@@ -85,7 +85,12 @@ import {
   type CrowdMode,
 } from './constants';
 import { ChunkDamageState } from './damage-state';
-import { ChunkPriorityQueue, chunkDistanceUnits, scoreChunk, type IPriorityView } from './priority-queue';
+import {
+  ChunkPriorityQueue,
+  chunkDistanceUnits,
+  scoreChunk,
+  type IPriorityView,
+} from './priority-queue';
 import { RingAssigner, residentRadiusFor, shouldEvict, shouldLoad } from './lod-rings';
 import { ChunkWorkerPool } from './worker-pool';
 import { DEFAULT_GENERATOR } from './chunk-worker';

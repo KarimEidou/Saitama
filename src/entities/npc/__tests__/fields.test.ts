@@ -217,11 +217,7 @@ describe('FlowField', () => {
     const flow = new FlowField();
     flow.rebuild(obstacles, [threatAt(0, 0)]);
     const ortho = flow.sampleCost(flow.flee, cellCentreX(cellX(0) + 4), cellCentreZ(cellZ(0)));
-    const diag = flow.sampleCost(
-      flow.flee,
-      cellCentreX(cellX(0) + 4),
-      cellCentreZ(cellZ(0) + 4)
-    );
+    const diag = flow.sampleCost(flow.flee, cellCentreX(cellX(0) + 4), cellCentreZ(cellZ(0) + 4));
     expect(diag).toBeGreaterThan(ortho);
     expect(ortho).toBeGreaterThanOrEqual(STEP_ORTHO * 4);
   });

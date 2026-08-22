@@ -74,11 +74,7 @@ export {
   shouldLoad,
 } from './lod-rings';
 
-export {
-  ChunkWorkerPool,
-  type IWorkerPoolOptions,
-  type IWorkerPoolStats,
-} from './worker-pool';
+export { ChunkWorkerPool, type IWorkerPoolOptions, type IWorkerPoolStats } from './worker-pool';
 
 export {
   DEFAULT_GENERATOR,

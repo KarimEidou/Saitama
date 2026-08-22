@@ -30,10 +30,26 @@ import { TIME_KEYFRAMES } from '../constants';
  */
 const MEASURED = {
   environments: {
-    'hdri.sky.dawn': { meanLuminance: 1.0980531162976837, maxLuminance: 8.44295, sh9: fill(3.8, 27) },
-    'hdri.sky.day': { meanLuminance: 0.73268945997054, maxLuminance: 136998.2976, sh9: fill(2.5, 27) },
-    'hdri.sky.dusk': { meanLuminance: 0.9044060619958861, maxLuminance: 4.0358875, sh9: fill(2.76, 27) },
-    'hdri.sky.night': { meanLuminance: 0.712214196645703, maxLuminance: 554.8064, sh9: fill(2.35, 27) },
+    'hdri.sky.dawn': {
+      meanLuminance: 1.0980531162976837,
+      maxLuminance: 8.44295,
+      sh9: fill(3.8, 27),
+    },
+    'hdri.sky.day': {
+      meanLuminance: 0.73268945997054,
+      maxLuminance: 136998.2976,
+      sh9: fill(2.5, 27),
+    },
+    'hdri.sky.dusk': {
+      meanLuminance: 0.9044060619958861,
+      maxLuminance: 4.0358875,
+      sh9: fill(2.76, 27),
+    },
+    'hdri.sky.night': {
+      meanLuminance: 0.712214196645703,
+      maxLuminance: 554.8064,
+      sh9: fill(2.35, 27),
+    },
   },
 };
 
@@ -92,7 +108,14 @@ describe('parseEnvironmentMeasurements', () => {
   });
 
   it('survives a malformed manifest', () => {
-    for (const junk of [null, undefined, 42, 'nope', { environments: null }, { environments: { 'hdri.sky.day': { meanLuminance: 0 } } }]) {
+    for (const junk of [
+      null,
+      undefined,
+      42,
+      'nope',
+      { environments: null },
+      { environments: { 'hdri.sky.day': { meanLuminance: 0 } } },
+    ]) {
       const m = parseEnvironmentMeasurements(junk);
       expect(Number.isFinite(normalisationScale(m.day))).toBe(true);
       expect(normalisationScale(m.day)).toBeGreaterThan(0);

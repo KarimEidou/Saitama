@@ -63,9 +63,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readTiers(value: unknown): readonly QualityTier[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((tier): tier is QualityTier =>
-    TIER_ORDER.includes(tier as QualityTier)
-  );
+  return value.filter((tier): tier is QualityTier => TIER_ORDER.includes(tier as QualityTier));
 }
 
 function readEnvironments(value: unknown): Record<string, IEnvironmentRecord> {
@@ -147,9 +145,7 @@ export function emptyRuntimeManifest(): IRuntimeManifest {
 /* -------------------------------------------------------------------------- */
 
 /** Index entries by id for O(1) lookup. */
-export function indexById(
-  entries: readonly AnyAssetEntry[]
-): ReadonlyMap<string, AnyAssetEntry> {
+export function indexById(entries: readonly AnyAssetEntry[]): ReadonlyMap<string, AnyAssetEntry> {
   const map = new Map<string, AnyAssetEntry>();
   for (const entry of entries) map.set(entry.id, entry);
   return map;

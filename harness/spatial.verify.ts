@@ -188,7 +188,8 @@ async function main(): Promise<void> {
     /* ---------------------------- assertions ---------------------------- */
     if (pixels.stdDev < 3) failures.push(`screenshot looks flat (stdDev ${pixels.stdDev})`);
     if (pixels.colours < 24) failures.push(`too few colours (${pixels.colours})`);
-    if (snapshot.nodes !== 5461) failures.push(`quadtree has ${snapshot.nodes} nodes, expected 5461`);
+    if (snapshot.nodes !== 5461)
+      failures.push(`quadtree has ${snapshot.nodes} nodes, expected 5461`);
     if (snapshot.pvsBytes !== 8192) failures.push(`PVS is ${snapshot.pvsBytes} B, expected 8192`);
     if (snapshot.instances < 1000) failures.push(`only ${snapshot.instances} instances indexed`);
     if (snapshot.chunksWithPvs > snapshot.chunksFrustum) {

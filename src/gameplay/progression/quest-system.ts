@@ -55,7 +55,11 @@ export interface IQuestSystemOptions {
   /** Called when an active quest wants the clock pinned, and when it lets go. */
   readonly onForceTimeOfDay?: (timeOfDay: number | undefined, questId: string) => void;
   /** Called when a quest completes or fails, before the state change is published. */
-  readonly onResolved?: (quest: RuntimeQuest, outcome: 'completed' | 'failed', reason: string) => void;
+  readonly onResolved?: (
+    quest: RuntimeQuest,
+    outcome: 'completed' | 'failed',
+    reason: string
+  ) => void;
 }
 
 /** Ordinal for class comparison. C < B < A < S. */
@@ -204,11 +208,19 @@ export class QuestSystem implements IQuestSystem {
   }
 
   /** Force a quest into a state. Save loading only. */
-  restoreState(questId: string, state: QuestState, progress?: Readonly<Record<string, number>>): void {
+  restoreState(
+    questId: string,
+    state: QuestState,
+    progress?: Readonly<Record<string, number>>
+  ): void {
     const quest = this.byId.get(questId);
     if (!quest) return;
     quest.state = state;
-    if (state === 'active' && quest.timeLimitSeconds !== undefined && quest.timeRemaining === undefined) {
+    if (
+      state === 'active' &&
+      quest.timeLimitSeconds !== undefined &&
+      quest.timeRemaining === undefined
+    ) {
       quest.timeRemaining = quest.timeLimitSeconds;
     }
     if (!progress) return;

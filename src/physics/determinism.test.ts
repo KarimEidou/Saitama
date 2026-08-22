@@ -26,7 +26,12 @@ import {
   initPhysics,
   poseRigIdle,
 } from './index';
-import { generateDebrisField, makeGround, maxAbsDifference, snapshotPositions } from './test-support';
+import {
+  generateDebrisField,
+  makeGround,
+  maxAbsDifference,
+  snapshotPositions,
+} from './test-support';
 
 beforeAll(async () => {
   await initPhysics();
@@ -221,7 +226,9 @@ describe('determinism', () => {
         }).handle
       );
     }
-    const first = world.overlapSphere(new THREE.Vector3(0, 1, 0), 10, ['debris']).map((b) => b.handle);
+    const first = world
+      .overlapSphere(new THREE.Vector3(0, 1, 0), 10, ['debris'])
+      .map((b) => b.handle);
     world.step(FIXED_STEP, 20);
     const second = world
       .overlapSphere(new THREE.Vector3(0, 1, 0), 10, ['debris'])

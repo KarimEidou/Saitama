@@ -97,25 +97,11 @@ export {
   type IPvsStats,
 } from './pvs';
 
-export {
-  DynamicEntityGrid,
-  sphereInCone,
-  ALL_LAYERS,
-  type IEntityGridStats,
-} from './entity-grid';
+export { DynamicEntityGrid, sphereInCone, ALL_LAYERS, type IEntityGridStats } from './entity-grid';
 
-export {
-  GroundBVH,
-  createGroundHit,
-  type IGroundHit,
-  type IGroundBvhOptions,
-} from './mesh-bvh';
+export { GroundBVH, createGroundHit, type IGroundHit, type IGroundBvhOptions } from './mesh-bvh';
 
-export {
-  SpatialIndex,
-  type ISpatialIndexOptions,
-  type ISpatialStats,
-} from './spatial-index';
+export { SpatialIndex, type ISpatialIndexOptions, type ISpatialStats } from './spatial-index';
 
 export {
   generateSyntheticCity,

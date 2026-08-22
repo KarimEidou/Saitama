@@ -296,7 +296,9 @@ async function main(): Promise<void> {
     boot = (await page.evaluate(() =>
       window.__STREAMING_HARNESS__!.snapshot()
     )) as unknown as ISnapshot;
-    console.log(`cold start: ${boot.residentChunks} chunks resident, workers inline = ${boot.workersInline}`);
+    console.log(
+      `cold start: ${boot.residentChunks} chunks resident, workers inline = ${boot.workersInline}`
+    );
 
     // The cold start IS the priority experiment: nothing was resident, so the
     // order chunks arrived in is the streamer's own ordering, unpolluted.
@@ -462,7 +464,10 @@ async function main(): Promise<void> {
     if (priority.bandsOrderedByMean < priority.bandsComparable) {
       const offenders = priority.bands
         .filter((b) => b.ahead >= 2 && b.behind >= 2 && b.aheadMeanRank >= b.behindMeanRank)
-        .map((b) => `${b.distanceChunks} chunks (${b.aheadMeanRank.toFixed(0)} vs ${b.behindMeanRank.toFixed(0)})`);
+        .map(
+          (b) =>
+            `${b.distanceChunks} chunks (${b.aheadMeanRank.toFixed(0)} vs ${b.behindMeanRank.toFixed(0)})`
+        );
       failures.push(
         `${priority.bandsComparable - priority.bandsOrderedByMean} distance band(s) loaded ` +
           `what was behind the camera first: ${offenders.join(', ')}`
@@ -480,9 +485,7 @@ async function main(): Promise<void> {
     }
 
     if (!damage.persisted) {
-      failures.push(
-        `damage did not survive the round trip: ${JSON.stringify(damage)}`
-      );
+      failures.push(`damage did not survive the round trip: ${JSON.stringify(damage)}`);
     }
     if (damage.buildingsAfterDestroy !== damage.buildingsBefore - 2) {
       failures.push(

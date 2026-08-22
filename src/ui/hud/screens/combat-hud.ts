@@ -308,7 +308,10 @@ export class CombatHudScreen extends HudScreen {
         el(doc, 'div', {
           className: 'hud-ledger__cell hud-ledger__cell--saved',
           children: [
-            el(doc, 'span', { className: 'hud-ledger__value', children: [this.savedCount.element] }),
+            el(doc, 'span', {
+              className: 'hud-ledger__value',
+              children: [this.savedCount.element],
+            }),
             el(doc, 'span', { className: 'hud-label', text: 'SAVED' }),
           ],
         }),

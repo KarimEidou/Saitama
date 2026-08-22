@@ -40,16 +40,7 @@ export const MUSIC_STATES: readonly MusicState[] = ['bored', 'calm', 'alert', 'c
 
 /** A named part in the arrangement. */
 export type PartId =
-  | 'drone'
-  | 'pad'
-  | 'pluck'
-  | 'bass'
-  | 'kick'
-  | 'hat'
-  | 'snare'
-  | 'stab'
-  | 'taiko'
-  | 'lead';
+  'drone' | 'pad' | 'pluck' | 'bass' | 'kick' | 'hat' | 'snare' | 'stab' | 'taiko' | 'lead';
 
 /** A rest in a step pattern. */
 export const REST = -1;
@@ -251,16 +242,7 @@ export const LAYERS: Record<MusicState, IMusicLayer> = {
       {
         id: 'bass',
         instrument: 'bass',
-        steps: pattern(
-          [0, 0],
-          [3, 0],
-          [4, 0],
-          [6, 1],
-          [8, 0],
-          [10, 0],
-          [11, 3],
-          [14, 1]
-        ),
+        steps: pattern([0, 0], [3, 0], [4, 0], [6, 1], [8, 0], [10, 0], [11, 3], [14, 1]),
         velocity: 0.75,
         octave: 0,
         gate: 2,

@@ -107,7 +107,10 @@ export function normaliseInsets(insets: Partial<SafeAreaInsets> | undefined): Sa
  * allowed to be a plain style write. It still only writes custom properties,
  * because the stylesheet is what turns them into padding.
  */
-export function applySafeArea(root: HTMLElement, insets: Partial<SafeAreaInsets> | undefined): void {
+export function applySafeArea(
+  root: HTMLElement,
+  insets: Partial<SafeAreaInsets> | undefined
+): void {
   const value = normaliseInsets(insets);
   root.style.setProperty(SAFE_AREA_VARS.top, `${value.top}px`);
   root.style.setProperty(SAFE_AREA_VARS.right, `${value.right}px`);

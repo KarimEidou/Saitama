@@ -176,7 +176,8 @@ export const VOICE_CLASSES: Record<VoiceClassId, IVoiceClassSpec> = {
     category: 'ambience',
     poolSize: 2,
     sustained: false,
-    create: (ctx, dest, i) => new CrowdReactionVoice(ctx, dest, 'crowdReaction', 'ambience', offset(i)),
+    create: (ctx, dest, i) =>
+      new CrowdReactionVoice(ctx, dest, 'crowdReaction', 'ambience', offset(i)),
   },
   ui: {
     id: 'ui',

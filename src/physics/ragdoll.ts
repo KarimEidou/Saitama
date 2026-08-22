@@ -675,15 +675,9 @@ export function createRagdoll(
     const direction = new THREE.Vector3().subVectors(end, start).normalize();
     directions.set(spec.name, direction);
 
-    const parentDirection =
-      spec.parent === undefined ? undefined : directions.get(spec.parent);
+    const parentDirection = spec.parent === undefined ? undefined : directions.get(spec.parent);
     const parentSegmentForBasis = spec.parent === undefined ? undefined : byName.get(spec.parent);
-    const rotation = segmentOrientation(
-      spec,
-      direction,
-      parentDirection,
-      parentSegmentForBasis
-    );
+    const rotation = segmentOrientation(spec, direction, parentDirection, parentSegmentForBasis);
     /** Bind-pose bend at a hinge, in radians. 0 when the limb starts straight. */
     const bindBend =
       spec.hinge === true && parentDirection !== undefined
@@ -749,7 +743,9 @@ export function createRagdoll(
   }
 
   if (segments.length !== RAGDOLL_BODY_COUNT) {
-    throw new Error(`createRagdoll: expected ${RAGDOLL_BODY_COUNT} segments, built ${segments.length}`);
+    throw new Error(
+      `createRagdoll: expected ${RAGDOLL_BODY_COUNT} segments, built ${segments.length}`
+    );
   }
 
   // Optional exact total mass: scale every segment by the same factor.

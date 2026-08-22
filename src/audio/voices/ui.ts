@@ -151,7 +151,16 @@ const SHAPES: Record<string, UiShape> = {
   /** Rejected. A falling minor third with a bend and some grit. */
   deny: {
     steps: [
-      { midi: 64, at: 0, gain: 0.18, attack: 0.004, hold: 0.05, release: 0.1, type: 'square', cutoff: 1800 },
+      {
+        midi: 64,
+        at: 0,
+        gain: 0.18,
+        attack: 0.004,
+        hold: 0.05,
+        release: 0.1,
+        type: 'square',
+        cutoff: 1800,
+      },
       {
         midi: 59,
         at: 0.09,
@@ -182,10 +191,46 @@ const SHAPES: Record<string, UiShape> = {
    */
   alert: {
     steps: [
-      { midi: 81, at: 0, gain: 0.15, attack: 0.003, hold: 0.06, release: 0.05, type: 'square', cutoff: 3000 },
-      { midi: 76, at: 0.13, gain: 0.15, attack: 0.003, hold: 0.06, release: 0.05, type: 'square', cutoff: 2600 },
-      { midi: 81, at: 0.3, gain: 0.15, attack: 0.003, hold: 0.06, release: 0.05, type: 'square', cutoff: 3000 },
-      { midi: 76, at: 0.43, gain: 0.16, attack: 0.003, hold: 0.08, release: 0.16, type: 'square', cutoff: 2600 },
+      {
+        midi: 81,
+        at: 0,
+        gain: 0.15,
+        attack: 0.003,
+        hold: 0.06,
+        release: 0.05,
+        type: 'square',
+        cutoff: 3000,
+      },
+      {
+        midi: 76,
+        at: 0.13,
+        gain: 0.15,
+        attack: 0.003,
+        hold: 0.06,
+        release: 0.05,
+        type: 'square',
+        cutoff: 2600,
+      },
+      {
+        midi: 81,
+        at: 0.3,
+        gain: 0.15,
+        attack: 0.003,
+        hold: 0.06,
+        release: 0.05,
+        type: 'square',
+        cutoff: 3000,
+      },
+      {
+        midi: 76,
+        at: 0.43,
+        gain: 0.16,
+        attack: 0.003,
+        hold: 0.08,
+        release: 0.16,
+        type: 'square',
+        cutoff: 2600,
+      },
     ],
     tickGain: 0.05,
     tickHz: 3800,
@@ -382,7 +427,10 @@ export class UiVoice extends SynthVoice {
 
     if (s.tickGain > 0) {
       resetParam(this.tickHp.frequency, t, Math.min(s.tickHz, nq * 0.45));
-      end = Math.max(end, percussive(this.tickGain.gain, t, s.tickGain * level, 0.0004, s.tickDecay));
+      end = Math.max(
+        end,
+        percussive(this.tickGain.gain, t, s.tickGain * level, 0.0004, s.tickDecay)
+      );
     } else {
       resetParam(this.tickGain.gain, t, 0);
     }

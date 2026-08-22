@@ -696,10 +696,7 @@ function paintPanel(): void {
       'cone length',
       `${(outcome?.punch.shockwave?.range ?? outcome?.punch.radius ?? 0).toFixed(1)} m`,
     ],
-    [
-      'half angle',
-      `${(((outcome?.punch.halfAngle ?? 0) * 180) / Math.PI).toFixed(1)} deg`,
-    ],
+    ['half angle', `${(((outcome?.punch.halfAngle ?? 0) * 180) / Math.PI).toFixed(1)} deg`],
     ['power', (outcome?.punch.power ?? 0).toExponential(2)],
     ['killed', outcome?.kills ?? 0, (outcome?.kills ?? 0) > 0 ? 'warn' : ''],
     [
@@ -713,9 +710,9 @@ function paintPanel(): void {
   ]);
 
   const boredom = combat.boredom;
-  (document.getElementById('boredom-bar') as HTMLElement).style.width = `${(
-    boredom * 100
-  ).toFixed(1)}%`;
+  (document.getElementById('boredom-bar') as HTMLElement).style.width = `${(boredom * 100).toFixed(
+    1
+  )}%`;
   const recent = combat.boredomMeter.log.slice(-4);
   document.getElementById('boredom')!.innerHTML =
     rows([
@@ -744,7 +741,10 @@ function paintPanel(): void {
           ['witnessed', lastResult.witnessed],
           ['normal punches', lastResult.normalPunches],
           ['serious punches', lastResult.seriousPunches],
-          ['boredom', `${lastResult.boredomBefore.toFixed(2)} to ${lastResult.boredomAfter.toFixed(2)}`],
+          [
+            'boredom',
+            `${lastResult.boredomBefore.toFixed(2)} to ${lastResult.boredomAfter.toFixed(2)}`,
+          ],
         ]
   );
 }

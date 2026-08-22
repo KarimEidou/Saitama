@@ -72,7 +72,11 @@ describe('ringWithHysteresis', () => {
     // The defining property of hysteresis: for every distance in the band,
     // the answer depends on where you came from.
     const boundary = RING_OUTER_CHUNKS[1]!;
-    for (let offset = -RING_HYSTERESIS_CHUNKS * 0.9; offset < RING_HYSTERESIS_CHUNKS * 0.9; offset += 0.05) {
+    for (
+      let offset = -RING_HYSTERESIS_CHUNKS * 0.9;
+      offset < RING_HYSTERESIS_CHUNKS * 0.9;
+      offset += 0.05
+    ) {
       const d = boundary + offset;
       expect(ringWithHysteresis(d, RING_R1)).toBe(RING_R1);
       expect(ringWithHysteresis(d, RING_R2)).toBe(RING_R2);

@@ -442,14 +442,8 @@ export async function renderDuckProbe(
     return { punchAt };
   });
 
-  const before = result.mono.subarray(
-    Math.floor(1.2 * sampleRate),
-    Math.floor(1.95 * sampleRate)
-  );
-  const after = result.mono.subarray(
-    Math.floor(2.05 * sampleRate),
-    Math.floor(2.35 * sampleRate)
-  );
+  const before = result.mono.subarray(Math.floor(1.2 * sampleRate), Math.floor(1.95 * sampleRate));
+  const after = result.mono.subarray(Math.floor(2.05 * sampleRate), Math.floor(2.35 * sampleRate));
   result.extras.rmsBefore = A.rms(before);
   result.extras.rmsAfter = A.rms(after);
   result.extras.duckRatio = A.rms(before) > 0 ? A.rms(after) / A.rms(before) : 1;
@@ -618,10 +612,15 @@ export async function renderReverbTailProbe(
 ): Promise<IProbeMetrics> {
   const sampleRate = options.sampleRate ?? 44100;
   const seconds = 6;
-  const result = await render(seconds, sampleRate, { ...options, environment: preset }, (system) => {
-    system.play('ui.tap', { intensity: 1, delay: TRIGGER_AT, pitchVariation: 0, send: 1 });
-    return { };
-  });
+  const result = await render(
+    seconds,
+    sampleRate,
+    { ...options, environment: preset },
+    (system) => {
+      system.play('ui.tap', { intensity: 1, delay: TRIGGER_AT, pitchVariation: 0, send: 1 });
+      return {};
+    }
+  );
 
   const at = (from: number, to: number): Float32Array =>
     result.mono.subarray(Math.floor(from * sampleRate), Math.floor(to * sampleRate));
@@ -691,10 +690,15 @@ export async function renderEnvironmentProbe(
   const sampleRate = options.sampleRate ?? 44100;
   const seconds = Math.min(secondsFor(key) + 3, 14);
   const spec = SOUND_SPECS[key];
-  const result = await render(seconds, sampleRate, { ...options, environment: preset }, (system) => {
-    system.play(key, { intensity: spec.intensity, delay: TRIGGER_AT, pitchVariation: 0 });
-    return { send: spec.reverbSend };
-  });
+  const result = await render(
+    seconds,
+    sampleRate,
+    { ...options, environment: preset },
+    (system) => {
+      system.play(key, { intensity: spec.intensity, delay: TRIGGER_AT, pitchVariation: 0 });
+      return { send: spec.reverbSend };
+    }
+  );
 
   // How much of the sound is ROOM rather than source.
   //
@@ -739,7 +743,11 @@ export async function renderChainProbe(
   const sampleRate = options.sampleRate ?? 44100;
   const seconds = 3.2;
   const key: SoundKey =
-    variant === 'barrage' ? 'punch.barrage' : variant === 'flurry' ? 'punch.flurry' : 'punch.consecutive';
+    variant === 'barrage'
+      ? 'punch.barrage'
+      : variant === 'flurry'
+        ? 'punch.flurry'
+        : 'punch.consecutive';
   const hits = chainSchedule(variant, intensity, 1);
 
   const result = await render(seconds, sampleRate, options, (system) => {
@@ -1046,7 +1054,8 @@ export async function renderAllProbes(options: IProbeOptions = {}): Promise<IPro
   out.push(await renderDebrisDensityProbe(1, 'debris.glass', options));
   out.push(await renderChainProbe('consecutive', 0.6, options));
   out.push(await renderChainProbe('barrage', 0.9, options));
-  for (const tier of THREAT_TIERS) out.push(await renderMonsterTierProbe('monster.roar', tier, options));
+  for (const tier of THREAT_TIERS)
+    out.push(await renderMonsterTierProbe('monster.roar', tier, options));
   for (const surface of ['concrete', 'metal', 'grass', 'water', 'rubble']) {
     out.push(await renderVariantProbe('move.footstep', surface, 0.6, 0.8, options));
   }

@@ -51,7 +51,13 @@ import {
   type PriorityName,
 } from './constants';
 import { HttpAssetProvider } from './provider';
-import { createKTX2Loader, describeTranscodeSupport, parseKTX2, prepareTexture, type ITranscodeSupport } from './ktx2';
+import {
+  createKTX2Loader,
+  describeTranscodeSupport,
+  parseKTX2,
+  prepareTexture,
+  type ITranscodeSupport,
+} from './ktx2';
 import { estimateGpuBytes, TextureMemory, type IEvictionReport } from './memory';
 import { ManagedTextureHandle, type IManagedTextureHandle } from './textures';
 import { buildMaterial, requiredTextures, type IBuiltMaterial } from './materials';
@@ -155,7 +161,11 @@ export class AssetRegistry implements IAssetRegistry {
   private evictedTotal = 0;
   private disposed = false;
 
-  private constructor(options: IAssetRegistryOptions, manifest: IRuntimeManifest, tier: QualityTier) {
+  private constructor(
+    options: IAssetRegistryOptions,
+    manifest: IRuntimeManifest,
+    tier: QualityTier
+  ) {
     this.provider = options.provider;
     this.manifestValue = manifest;
     this.tier = tier;
@@ -174,9 +184,7 @@ export class AssetRegistry implements IAssetRegistry {
       pmrem: options.pmrem,
     });
     this.scheduler = new LoadScheduler(options.concurrency);
-    this.memory = new TextureMemory(
-      options.memoryBudgetBytes ?? TEXTURE_MEMORY_BUDGET_BYTES[tier]
-    );
+    this.memory = new TextureMemory(options.memoryBudgetBytes ?? TEXTURE_MEMORY_BUDGET_BYTES[tier]);
   }
 
   /**
@@ -487,7 +495,10 @@ export class AssetRegistry implements IAssetRegistry {
     const record = this.manifestValue.environments[entry.id];
     try {
       const result = await this.provider.fetchAsset(entry.id, this.tier);
-      this.loadedEnvironments.set(entry.id, await this.environments.parse(entry.id, result.bytes, record));
+      this.loadedEnvironments.set(
+        entry.id,
+        await this.environments.parse(entry.id, result.bytes, record)
+      );
     } catch (error) {
       this.recordFailure(entry.id, 'hdri', String(error));
       this.loadedEnvironments.set(entry.id, this.environments.fallbackFor(entry.id, record));

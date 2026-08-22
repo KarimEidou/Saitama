@@ -8,7 +8,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ChunkPriorityQueue, chunkDistanceUnits, scoreChunk, type IPriorityView } from '../priority-queue';
+import {
+  ChunkPriorityQueue,
+  chunkDistanceUnits,
+  scoreChunk,
+  type IPriorityView,
+} from '../priority-queue';
 import { chunkIndex, CHUNK_SIZE, chunkCentreX, chunkCentreZ } from '@/spatial/constants';
 import { RING_PRIORITY_STRIDE } from '../constants';
 
@@ -153,6 +158,9 @@ describe('chunkDistanceUnits', () => {
     expect(chunkDistanceUnits(chunkIndex(1, 1), centreX, centreZ)).toBeCloseTo(1, 6);
     expect(chunkDistanceUnits(chunkIndex(3, -2), centreX, centreZ)).toBeCloseTo(3, 6);
     // Half a chunk of camera drift moves the metric by exactly half a unit.
-    expect(chunkDistanceUnits(chunkIndex(1, 0), centreX + CHUNK_SIZE * 0.5, centreZ)).toBeCloseTo(0.5, 6);
+    expect(chunkDistanceUnits(chunkIndex(1, 0), centreX + CHUNK_SIZE * 0.5, centreZ)).toBeCloseTo(
+      0.5,
+      6
+    );
   });
 });

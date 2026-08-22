@@ -31,7 +31,15 @@
 
 import type { ClipName } from '@/types';
 import { clamp01, lerp, smoothstep, TAU } from '@/util';
-import { poseArm, poseHead, poseLeg, posePelvis, poseSpine, springDecay, strikeCurve } from './posture';
+import {
+  poseArm,
+  poseHead,
+  poseLeg,
+  posePelvis,
+  poseSpine,
+  springDecay,
+  strikeCurve,
+} from './posture';
 import { solveGait } from './locomotion';
 import { REFERENCE_LEG } from './rig';
 import type { AnimRig, ClipDefinition, ClipParams, ClipVariant, Pose } from './types';
@@ -224,8 +232,20 @@ const idleCombat: ClipFn = (ctx, t, pose) => {
   poseSpine(pose, rig, { bend: 0.13, twist: 0.26, side: 0.03 });
   poseHead(pose, rig, -0.06, -0.26, 0);
   // Orthodox stance: left foot leads, right foot back and turned out.
-  poseLeg(pose, rig, -1, { flex: phi + 0.22, knee: 2 * phi, ankle: phi - 0.12, abduct: 0.1, twist: 0.16 });
-  poseLeg(pose, rig, 1, { flex: phi - 0.24, knee: 2 * phi + 0.1, ankle: phi + 0.1, abduct: 0.16, twist: 0.42 });
+  poseLeg(pose, rig, -1, {
+    flex: phi + 0.22,
+    knee: 2 * phi,
+    ankle: phi - 0.12,
+    abduct: 0.1,
+    twist: 0.16,
+  });
+  poseLeg(pose, rig, 1, {
+    flex: phi - 0.24,
+    knee: 2 * phi + 0.1,
+    ankle: phi + 0.1,
+    abduct: 0.16,
+    twist: 0.42,
+  });
   // Lead hand out, rear hand cocked at the jaw.
   poseArm(pose, rig, -1, { abduct: 0.34, elbow: 1.5, flex: 0.62, twist: -0.5, shrug: 0.07 });
   poseArm(pose, rig, 1, { abduct: 0.26, elbow: 2.05, flex: 0.3, twist: -0.66, shrug: 0.1 });
@@ -448,7 +468,13 @@ const attackClip: ClipFn = (ctx, t, pose) => {
     twist: -0.45,
     shrug: 0.06,
   });
-  poseLeg(pose, rig, -1, { flex: phi + 0.24, knee: 2 * phi, ankle: phi - 0.14, abduct: 0.1, twist: 0.16 });
+  poseLeg(pose, rig, -1, {
+    flex: phi + 0.24,
+    knee: 2 * phi,
+    ankle: phi - 0.14,
+    abduct: 0.1,
+    twist: 0.16,
+  });
   poseLeg(pose, rig, 1, {
     flex: phi - 0.26 + drive * 0.2,
     knee: 2 * phi,
@@ -550,13 +576,42 @@ const dodgeClip: ClipFn = (ctx, t, pose) => {
   const air = smoothstep(0.15, 0.45, t) * (1 - smoothstep(0.55, 0.85, t));
   const phi = 0.2 + push * 0.5 + air * 0.35;
 
-  posePelvis(pose, rig, -rig.metrics.legLength * 0.12 * air, squatPelvis(rig, phi), 0, 0.1, 0.2 * air, -0.34 * air);
+  posePelvis(
+    pose,
+    rig,
+    -rig.metrics.legLength * 0.12 * air,
+    squatPelvis(rig, phi),
+    0,
+    0.1,
+    0.2 * air,
+    -0.34 * air
+  );
   poseSpine(pose, rig, { bend: 0.16 * push + 0.1 * air, twist: -0.24 * air, side: -0.38 * air });
   poseHead(pose, rig, -0.1, -0.3 * air, -0.26 * air);
-  poseArm(pose, rig, -1, { abduct: 0.3 + air * 1.05, elbow: 0.7 + air * 0.5, flex: 0.2 - air * 0.4, twist: -0.2 });
-  poseArm(pose, rig, 1, { abduct: 0.24 + air * 0.4, elbow: 1.0 + air * 1.3, flex: 0.4 + air * 0.6, twist: -0.5 });
-  poseLeg(pose, rig, -1, { flex: phi - 0.2, knee: 2 * phi, ankle: phi + 0.1, abduct: 0.24 + air * 0.16 });
-  poseLeg(pose, rig, 1, { flex: phi + 0.34 * air, knee: 2 * phi + air * 0.6, ankle: phi - 0.2, abduct: 0.08 });
+  poseArm(pose, rig, -1, {
+    abduct: 0.3 + air * 1.05,
+    elbow: 0.7 + air * 0.5,
+    flex: 0.2 - air * 0.4,
+    twist: -0.2,
+  });
+  poseArm(pose, rig, 1, {
+    abduct: 0.24 + air * 0.4,
+    elbow: 1.0 + air * 1.3,
+    flex: 0.4 + air * 0.6,
+    twist: -0.5,
+  });
+  poseLeg(pose, rig, -1, {
+    flex: phi - 0.2,
+    knee: 2 * phi,
+    ankle: phi + 0.1,
+    abduct: 0.24 + air * 0.16,
+  });
+  poseLeg(pose, rig, 1, {
+    flex: phi + 0.34 * air,
+    knee: 2 * phi + air * 0.6,
+    ankle: phi - 0.2,
+    abduct: 0.08,
+  });
 };
 
 /**
@@ -621,8 +676,18 @@ const staggerClip: ClipFn = (ctx, t, pose) => {
   }
   // Back foot shoots out to catch the fall — the reason a stagger reads as
   // recoverable rather than as a death.
-  poseLeg(pose, rig, -1, { flex: phi - 0.5 * w, knee: 2 * phi, ankle: phi + 0.2 * w, abduct: 0.14 });
-  poseLeg(pose, rig, 1, { flex: phi + 0.3 * w, knee: 2 * phi + 0.5 * w, ankle: phi - 0.2, abduct: 0.3 * w + 0.1 });
+  poseLeg(pose, rig, -1, {
+    flex: phi - 0.5 * w,
+    knee: 2 * phi,
+    ankle: phi + 0.2 * w,
+    abduct: 0.14,
+  });
+  poseLeg(pose, rig, 1, {
+    flex: phi + 0.3 * w,
+    knee: 2 * phi + 0.5 * w,
+    ankle: phi - 0.2,
+    abduct: 0.3 * w + 0.1,
+  });
 };
 
 /**
@@ -652,7 +717,11 @@ const deathClip: ClipFn = (ctx, t, pose) => {
     0.3 * collapse,
     -0.5 * collapse
   );
-  poseSpine(pose, rig, { bend: 0.5 * buckle - 0.2 * collapse, twist: 0.3 * collapse, side: -0.4 * collapse });
+  poseSpine(pose, rig, {
+    bend: 0.5 * buckle - 0.2 * collapse,
+    twist: 0.3 * collapse,
+    side: -0.4 * collapse,
+  });
   poseHead(pose, rig, 0.55 * buckle - 0.1 * collapse, 0.3 * collapse, -0.35 * collapse);
   for (const side of SIDES) {
     poseArm(pose, rig, side, {
@@ -663,8 +732,18 @@ const deathClip: ClipFn = (ctx, t, pose) => {
       shrug: -0.2 * collapse,
     });
   }
-  poseLeg(pose, rig, -1, { flex: phi * 0.7 + collapse * 0.7, knee: 2 * phi, ankle: 0.1, abduct: 0.3 * collapse });
-  poseLeg(pose, rig, 1, { flex: phi * 0.4, knee: 2 * phi + collapse * 0.5, ankle: -0.2, abduct: 0.5 * collapse });
+  poseLeg(pose, rig, -1, {
+    flex: phi * 0.7 + collapse * 0.7,
+    knee: 2 * phi,
+    ankle: 0.1,
+    abduct: 0.3 * collapse,
+  });
+  poseLeg(pose, rig, 1, {
+    flex: phi * 0.4,
+    knee: 2 * phi + collapse * 0.5,
+    ankle: -0.2,
+    abduct: 0.5 * collapse,
+  });
 };
 
 /** Taunt: a beckon. Saitama does not do this; Garou very much does. */
@@ -712,7 +791,11 @@ const specialClip: ClipFn = (ctx, t, pose) => {
     -0.62 * gather + strike * 1.35,
     0
   );
-  poseSpine(pose, rig, { bend: 0.24 * gather - 0.3 * strike, twist: 0.72 * gather - 1.6 * strike, side: 0.06 });
+  poseSpine(pose, rig, {
+    bend: 0.24 * gather - 0.3 * strike,
+    twist: 0.72 * gather - 1.6 * strike,
+    side: 0.06,
+  });
   poseHead(pose, rig, 0.1 * gather - 0.14 * strike, 0.5 * gather - 0.85 * strike, 0);
   poseArm(pose, rig, 1, {
     abduct: 0.16 + gather * 0.34 + strike * 0.34,
@@ -728,7 +811,13 @@ const specialClip: ClipFn = (ctx, t, pose) => {
     twist: -0.3,
     shrug: gather * 0.1,
   });
-  poseLeg(pose, rig, -1, { flex: phi + 0.34, knee: 2 * phi + 0.1, ankle: phi - 0.18, abduct: 0.12, twist: 0.2 });
+  poseLeg(pose, rig, -1, {
+    flex: phi + 0.34,
+    knee: 2 * phi + 0.1,
+    ankle: phi - 0.18,
+    abduct: 0.12,
+    twist: 0.2,
+  });
   poseLeg(pose, rig, 1, {
     flex: phi - 0.5 + strike * 0.4,
     knee: 2 * phi + gather * 0.24,
@@ -779,9 +868,7 @@ const GRAVITY = 9.81;
 export const CLIP_LIBRARY: readonly ClipEntry[] = [
   { def: def('idle', 'default', 5.4, true, 'full'), evaluate: idleDefault },
   {
-    def: def('idle', 'bored', 9.2, true, 'full', [
-      { name: 'voice', at: 0.655, strength: 0.4 },
-    ]),
+    def: def('idle', 'bored', 9.2, true, 'full', [{ name: 'voice', at: 0.655, strength: 0.4 }]),
     evaluate: idleBored,
   },
   { def: def('idle', 'combat', 2.1, true, 'full'), evaluate: idleCombat },
@@ -880,9 +967,7 @@ for (const entry of CLIP_LIBRARY) BY_KEY.set(`${entry.def.slot}:${entry.def.vari
  */
 export function findClip(slot: ClipName, variant: ClipVariant = 'default'): ClipEntry {
   return (
-    BY_KEY.get(`${slot}:${variant}`) ??
-    BY_KEY.get(`${slot}:default`) ??
-    BY_KEY.get('idle:default')!
+    BY_KEY.get(`${slot}:${variant}`) ?? BY_KEY.get(`${slot}:default`) ?? BY_KEY.get('idle:default')!
   );
 }
 

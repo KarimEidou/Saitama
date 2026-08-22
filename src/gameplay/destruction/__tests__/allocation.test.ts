@@ -66,9 +66,11 @@ function openProfiler(): ISamplingProfiler | undefined {
 
   const post = (method: string, params?: object): Promise<Record<string, unknown>> =>
     new Promise((resolve, reject) => {
-      (session as unknown as {
-        post(m: string, p: object | undefined, cb: (e: unknown, r: unknown) => void): void;
-      }).post(method, params, (error, result) =>
+      (
+        session as unknown as {
+          post(m: string, p: object | undefined, cb: (e: unknown, r: unknown) => void): void;
+        }
+      ).post(method, params, (error, result) =>
         error ? reject(error as Error) : resolve(result as Record<string, unknown>)
       );
     });
@@ -225,84 +227,96 @@ describe('allocation under sustained destruction', () => {
   const profiler = openProfiler();
   const gc = getGc();
 
-  it.skipIf(profiler === undefined)('creates no object per detached chunk', async () => {
-    const scene = buildScene(nullBus(), 260);
-    await profiler!.start();
-    const detaches = destroyEverything(scene);
-    const { bytes, overhead, sites } = await profiler!.stop();
-    scene.system.dispose();
+  it.skipIf(profiler === undefined)(
+    'creates no object per detached chunk',
+    async () => {
+      const scene = buildScene(nullBus(), 260);
+      await profiler!.start();
+      const detaches = destroyEverything(scene);
+      const { bytes, overhead, sites } = await profiler!.stop();
+      scene.system.dispose();
 
-    const perDetach = bytes / detaches;
-    console.log(
-      `[destruction] ${detaches} detaches allocated ${bytes} B — ` +
-        `${perDetach.toFixed(2)} B/detach (profiler overhead ${overhead} B, excluded)`
-    );
-    for (const site of sites.slice(0, 5)) {
-      console.log(`    ${String(site.size).padStart(7)} B  ${site.fn}  (${site.where})`);
-    }
+      const perDetach = bytes / detaches;
+      console.log(
+        `[destruction] ${detaches} detaches allocated ${bytes} B — ` +
+          `${perDetach.toFixed(2)} B/detach (profiler overhead ${overhead} B, excluded)`
+      );
+      for (const site of sites.slice(0, 5)) {
+        console.log(`    ${String(site.size).padStart(7)} B  ${site.fn}  (${site.where})`);
+      }
 
-    expect(detaches).toBeGreaterThan(10_000);
-    // THE THRESHOLD, AND WHY IT IS 32.
-    //
-    // The smallest object V8 can put on the heap is 16 bytes and a plain
-    // two-field literal measures around 72. "Under 32 bytes per detach" is
-    // therefore not a soft budget — it is the statement that NO OBJECT IS
-    // CREATED PER DETACH AT ALL. What the profiler does attribute is V8
-    // boxing doubles inside the arithmetic (`sqrt`, the cone test, the
-    // velocity solve) and occasional array growth, neither of which is
-    // removable from JavaScript.
-    expect(perDetach).toBeLessThan(32);
-  }, 180_000);
+      expect(detaches).toBeGreaterThan(10_000);
+      // THE THRESHOLD, AND WHY IT IS 32.
+      //
+      // The smallest object V8 can put on the heap is 16 bytes and a plain
+      // two-field literal measures around 72. "Under 32 bytes per detach" is
+      // therefore not a soft budget — it is the statement that NO OBJECT IS
+      // CREATED PER DETACH AT ALL. What the profiler does attribute is V8
+      // boxing doubles inside the arithmetic (`sqrt`, the cone test, the
+      // velocity solve) and occasional array growth, neither of which is
+      // removable from JavaScript.
+      expect(perDetach).toBeLessThan(32);
+    },
+    180_000
+  );
 
-  it.skipIf(profiler === undefined)('stays under budget with the real event bus', async () => {
-    // The bus builds a fresh event and copies its vectors on every emit — its
-    // own documented contract, which destruction cannot opt out of. Measured
-    // here rather than hidden, with a real subscriber attached so V8 cannot
-    // escape-analyse the event away and flatter the number.
-    const bus = createEventBus();
-    let seen = 0;
-    bus.on('ChunkDetached', () => {
-      seen++;
-    });
-    const scene = buildScene(bus, 260);
-    await profiler!.start();
-    const detaches = destroyEverything(scene);
-    const { bytes } = await profiler!.stop();
-    scene.system.dispose();
+  it.skipIf(profiler === undefined)(
+    'stays under budget with the real event bus',
+    async () => {
+      // The bus builds a fresh event and copies its vectors on every emit — its
+      // own documented contract, which destruction cannot opt out of. Measured
+      // here rather than hidden, with a real subscriber attached so V8 cannot
+      // escape-analyse the event away and flatter the number.
+      const bus = createEventBus();
+      let seen = 0;
+      bus.on('ChunkDetached', () => {
+        seen++;
+      });
+      const scene = buildScene(bus, 260);
+      await profiler!.start();
+      const detaches = destroyEverything(scene);
+      const { bytes } = await profiler!.stop();
+      scene.system.dispose();
 
-    const perDetach = bytes / detaches;
-    console.log(
-      `[destruction] with the real EventBus and a live subscriber: ` +
-        `${perDetach.toFixed(1)} B/detach across ${detaches} detaches`
-    );
-    expect(seen).toBeGreaterThan(10_000);
-    // One event object plus two copied vectors is the bus's floor. A ceiling
-    // of 400 B catches destruction starting to hand it something expensive
-    // (a per-event array, a formatted string) without pretending the bus
-    // itself is free.
-    expect(perDetach).toBeLessThan(400);
-  }, 180_000);
+      const perDetach = bytes / detaches;
+      console.log(
+        `[destruction] with the real EventBus and a live subscriber: ` +
+          `${perDetach.toFixed(1)} B/detach across ${detaches} detaches`
+      );
+      expect(seen).toBeGreaterThan(10_000);
+      // One event object plus two copied vectors is the bus's floor. A ceiling
+      // of 400 B catches destruction starting to hand it something expensive
+      // (a per-event array, a formatted string) without pretending the bus
+      // itself is free.
+      expect(perDetach).toBeLessThan(400);
+    },
+    180_000
+  );
 
-  it.skipIf(gc === undefined)('retains nothing per detach — the leak check', () => {
-    const scene = buildScene(nullBus(), 220);
-    gc!();
-    gc!();
-    const before = process.memoryUsage().heapUsed;
-    const detaches = destroyEverything(scene);
-    gc!();
-    gc!();
-    const retained = Math.max(0, process.memoryUsage().heapUsed - before);
-    scene.system.dispose();
+  it.skipIf(gc === undefined)(
+    'retains nothing per detach — the leak check',
+    () => {
+      const scene = buildScene(nullBus(), 220);
+      gc!();
+      gc!();
+      const before = process.memoryUsage().heapUsed;
+      const detaches = destroyEverything(scene);
+      gc!();
+      gc!();
+      const retained = Math.max(0, process.memoryUsage().heapUsed - before);
+      scene.system.dispose();
 
-    console.log(
-      `[destruction] retained after ${detaches} detaches: ${retained} B ` +
-        `(${(retained / detaches).toFixed(2)} B/detach)`
-    );
-    expect(detaches).toBeGreaterThan(8_000);
-    // Retention scales with buildings touched (one coalesced update range
-    // each), never with chunks.
-    expect(retained / detaches).toBeLessThan(16);
-  }, 180_000);
+      console.log(
+        `[destruction] retained after ${detaches} detaches: ${retained} B ` +
+          `(${(retained / detaches).toFixed(2)} B/detach)`
+      );
+      expect(detaches).toBeGreaterThan(8_000);
+      // Retention scales with buildings touched (one coalesced update range
+      // each), never with chunks.
+      expect(retained / detaches).toBeLessThan(16);
+    },
+    180_000
+  );
 
   it('reuses the same event payload object every emit', () => {
     const seen = new Set<object>();

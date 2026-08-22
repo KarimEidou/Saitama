@@ -80,17 +80,9 @@ export {
   type IDeriveLightingInput,
 } from './sky-lighting';
 
-export {
-  DayNightSystem,
-  type IDayNightOptions,
-  type TimeOverrideMode,
-} from './day-night-system';
+export { DayNightSystem, type IDayNightOptions, type TimeOverrideMode } from './day-night-system';
 
-export {
-  NightUniforms,
-  type INightUniformOptions,
-  type NightEmissiveMode,
-} from './night-uniforms';
+export { NightUniforms, type INightUniformOptions, type NightEmissiveMode } from './night-uniforms';
 
 export {
   HttpAssetProvider,

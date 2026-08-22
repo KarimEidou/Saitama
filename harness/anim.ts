@@ -158,7 +158,10 @@ function makeActor(name: string, build: HumanoidBuild): Actor {
 }
 
 const recipes = showcaseBodies();
-const saitama = makeActor('Saitama', buildHumanoid(recipes[0]!.profile, { ...recipes[0]!.options }));
+const saitama = makeActor(
+  'Saitama',
+  buildHumanoid(recipes[0]!.profile, { ...recipes[0]!.options })
+);
 
 /* -------------------------------------------------------------------------- */
 /* Ground                                                                     */
@@ -214,12 +217,20 @@ scene.add(ground.group);
 ground.group.visible = false;
 
 /** Small rings marking where the solver pinned each foot, in model space. */
-function makePlantMarkers(): { group: THREE.Group; set: (report: LocomotionReport, solver: LocomotionSolver) => void } {
+function makePlantMarkers(): {
+  group: THREE.Group;
+  set: (report: LocomotionReport, solver: LocomotionSolver) => void;
+} {
   const group = new THREE.Group();
   const make = (color: number): THREE.Mesh => {
     const mesh = new THREE.Mesh(
       new THREE.RingGeometry(0.05, 0.075, 24),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.95,
+        side: THREE.DoubleSide,
+      })
     );
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = 0.004;
@@ -317,7 +328,11 @@ function profileCamera(
   const distance = frameHeight / 2 / Math.tan((fov * Math.PI) / 360);
   const yaw = (24 * Math.PI) / 180;
   const aim = frameHeight * 0.36;
-  camera.position.set(distance * Math.cos(yaw), aim + frameHeight * 0.04, centerZ - distance * Math.sin(yaw));
+  camera.position.set(
+    distance * Math.cos(yaw),
+    aim + frameHeight * 0.04,
+    centerZ - distance * Math.sin(yaw)
+  );
   camera.lookAt(0, aim, centerZ);
   return camera;
 }
@@ -513,7 +528,11 @@ function renderClips(): ClipsStats {
   renderer.clear();
   grid.forEach((item, i) => {
     poseFromClip(actor, item.slot, item.variant, item.t, item.variant === 'bored' ? 0.9 : 0);
-    poses.push(Array.from(actor.pose.rot).map((v) => v.toFixed(3)).join(','));
+    poses.push(
+      Array.from(actor.pose.rot)
+        .map((v) => v.toFixed(3))
+        .join(',')
+    );
     const col = i % cols;
     const row = Math.floor(i / cols);
     const cell: Cell = { x: col * cellW, y: top + row * cellH, w: cellW, h: cellH };
@@ -863,6 +882,7 @@ try {
   const node = document.getElementById('error') as HTMLPreElement;
   node.style.display = 'block';
   node.textContent = error instanceof Error ? `${error.message}\n${error.stack}` : String(error);
-  window.__HARNESS_ERROR__ = error instanceof Error ? error.stack ?? error.message : String(error);
+  window.__HARNESS_ERROR__ =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
   window.__HARNESS_READY__ = true;
 }

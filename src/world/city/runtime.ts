@@ -308,7 +308,9 @@ export interface IChunkNodes {
 export function buildChunkNodes(
   build: ICityChunkBuild,
   resolve: MaterialResolver,
-  resolveModel: (assetKey: string) => { geometry: THREE.BufferGeometry; material: THREE.Material } | undefined
+  resolveModel: (
+    assetKey: string
+  ) => { geometry: THREE.BufferGeometry; material: THREE.Material } | undefined
 ): IChunkNodes {
   const group = new THREE.Group();
   group.name = `chunk:${build.key}`;
@@ -422,7 +424,10 @@ export function extractDebrisGeometry(
  * `ICityChunkBuild` (typed arrays, transferable, zero copy) and this is the
  * one place those become Three objects.
  */
-export function toChunkPayload(build: ICityChunkBuild, roads: readonly IRoadSegment[] = []): ChunkPayload {
+export function toChunkPayload(
+  build: ICityChunkBuild,
+  roads: readonly IRoadSegment[] = []
+): ChunkPayload {
   const coord: IChunkCoord = { x: build.coord.x, z: build.coord.z };
   const spawnPoints: ISpawnPoint[] = build.spawns.map((s) => ({
     position: new THREE.Vector3(s.x, s.y, s.z),
@@ -454,15 +459,13 @@ export function toChunkPayload(build: ICityChunkBuild, roads: readonly IRoadSegm
       integrity: b.integrity,
     })),
     roads,
-    props: block.props.map(
-      (p): IPropPlacement => ({
-        assetKey: p.assetKey,
-        position: new THREE.Vector3(p.x, p.y, p.z),
-        rotationY: p.rotationY,
-        scale: p.scale,
-        destructible: p.destructible,
-      })
-    ),
+    props: block.props.map((p): IPropPlacement => ({
+      assetKey: p.assetKey,
+      position: new THREE.Vector3(p.x, p.y, p.z),
+      rotationY: p.rotationY,
+      scale: p.scale,
+      destructible: p.destructible,
+    })),
     district: block.district,
     seed: block.seed,
     spawnPoints: block.spawns.map((s) => ({

@@ -365,7 +365,9 @@ async function main(): Promise<void> {
     console.log(`seed                 ${report.seed}`);
     console.log(`rapier init          ${fmt(report.rapierInitMs, 1)} ms`);
     console.log('\n── debris ──');
-    console.log(`pieces               ${d.spawned} (${d.simulated} solved, ${d.ballistic} ballistic)`);
+    console.log(
+      `pieces               ${d.spawned} (${d.simulated} solved, ${d.ballistic} ballistic)`
+    );
     console.log(
       `step, all awake      avg ${fmt(d.awake.avgMs)} ms  p50 ${fmt(d.awake.p50Ms)}  ` +
         `p95 ${fmt(d.awake.p95Ms)}  max ${fmt(d.awake.maxMs)}   (${d.stepsAwake} steps)`
@@ -379,9 +381,7 @@ async function main(): Promise<void> {
     console.log(`budget               ${d.budgetMs} ms`);
     console.log(`settled / awake      ${d.settledAtEnd} settled, ${d.awakeAtEnd} bodies awake`);
     console.log(`pile height          ${d.lowestY} … ${d.highestY} m`);
-    console.log(
-      `ballistic rest y     ${d.ballisticLowestY} … ${d.ballisticHighestY} m`
-    );
+    console.log(`ballistic rest y     ${d.ballisticLowestY} … ${d.ballisticHighestY} m`);
     console.log('\n── ragdolls ──');
     console.log(`spawned              ${r.spawned} (cap ${r.cap}), ${r.bodiesEach} bodies each`);
     console.log(`after cap            ${r.activeAfterCap} active, ${r.frozenAfterCap} frozen`);
@@ -394,7 +394,9 @@ async function main(): Promise<void> {
     console.log(`non-finite           ${r.anyNonFinite ? 'YES' : 'none'}`);
     console.log(`step (117 bodies)    avg ${fmt(r.stepMs.avgMs)} ms`);
     console.log('\n── determinism ──');
-    console.log(`bodies compared      ${report.determinism.bodies} (${report.determinism.values} values)`);
+    console.log(
+      `bodies compared      ${report.determinism.bodies} (${report.determinism.values} values)`
+    );
     console.log(`max |delta|          ${report.determinism.maxDelta}`);
     console.log(`different seed       ${report.determinism.differentSeedDelta}`);
     console.log('\n── character ──');

@@ -48,7 +48,9 @@ describe('BoredomModel', () => {
 
   it('drains ONLY through heroism, and logs each act', () => {
     const model = new BoredomModel({ initial: 0.9 });
-    for (const deed of Object.keys(HEROISM_BOREDOM_RELIEF) as (keyof typeof HEROISM_BOREDOM_RELIEF)[]) {
+    for (const deed of Object.keys(
+      HEROISM_BOREDOM_RELIEF
+    ) as (keyof typeof HEROISM_BOREDOM_RELIEF)[]) {
       expect(HEROISM_BOREDOM_RELIEF[deed]).toBeLessThan(0);
       model.recordHeroicDeed(deed, 'detail');
     }
@@ -215,7 +217,9 @@ describe('boredom and the shopping', () => {
     });
 
     expect(missed.coordinator.boredom.boredom).toBeCloseTo(BOREDOM_ON_MISSED_SALE, 9);
-    expect(missed.coordinator.boredom.boredom).toBeGreaterThan(subjugation.coordinator.boredom.boredom);
+    expect(missed.coordinator.boredom.boredom).toBeGreaterThan(
+      subjugation.coordinator.boredom.boredom
+    );
     missed.dispose();
     subjugation.dispose();
   });
@@ -273,8 +277,12 @@ describe('heroism derived from the bus', () => {
     });
     for (const harness of [standing, fallen]) harness.endEncounter('e.joint');
 
-    expect(standing.coordinator.boredom.heroicHistory.map((r) => r.deed)).toContain('alliesStanding');
-    expect(fallen.coordinator.boredom.heroicHistory.map((r) => r.deed)).not.toContain('alliesStanding');
+    expect(standing.coordinator.boredom.heroicHistory.map((r) => r.deed)).toContain(
+      'alliesStanding'
+    );
+    expect(fallen.coordinator.boredom.heroicHistory.map((r) => r.deed)).not.toContain(
+      'alliesStanding'
+    );
     standing.dispose();
     fallen.dispose();
   });

@@ -91,8 +91,7 @@ function multiplyMatrices(a: ArrayLike<number>, b: ArrayLike<number>, out: Float
     const b2 = b[col * 4 + 2]!;
     const b3 = b[col * 4 + 3]!;
     for (let row = 0; row < 4; row++) {
-      out[col * 4 + row] =
-        a[row]! * b0 + a[4 + row]! * b1 + a[8 + row]! * b2 + a[12 + row]! * b3;
+      out[col * 4 + row] = a[row]! * b0 + a[4 + row]! * b1 + a[8 + row]! * b2 + a[12 + row]! * b3;
     }
   }
 }
@@ -297,8 +296,15 @@ export class Frustum {
       // Positive vertex: the corner farthest along the inward normal. If even
       // that corner is behind the plane the whole box is outside.
       if (
-        dotPlane(nx, ny, nz, d, nx >= 0 ? maxX : minX, ny >= 0 ? maxY : minY, nz >= 0 ? maxZ : minZ) <
-        0
+        dotPlane(
+          nx,
+          ny,
+          nz,
+          d,
+          nx >= 0 ? maxX : minX,
+          ny >= 0 ? maxY : minY,
+          nz >= 0 ? maxZ : minZ
+        ) < 0
       ) {
         return OUTSIDE;
       }
@@ -306,8 +312,15 @@ export class Frustum {
       // Negative vertex: the corner nearest the plane. Inside means the whole
       // box clears this plane, so descendants never need to test it again.
       if (
-        dotPlane(nx, ny, nz, d, nx >= 0 ? minX : maxX, ny >= 0 ? minY : maxY, nz >= 0 ? minZ : maxZ) >=
-        0
+        dotPlane(
+          nx,
+          ny,
+          nz,
+          d,
+          nx >= 0 ? minX : maxX,
+          ny >= 0 ? minY : maxY,
+          nz >= 0 ? minZ : maxZ
+        ) >= 0
       ) {
         remaining &= ~bit;
       }

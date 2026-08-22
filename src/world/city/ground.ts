@@ -223,7 +223,15 @@ function emitParcel(
 
   // Parcel surface behind the property line.
   const lotTint = LOT_TINT[zone.params.lotSurface] ?? [1, 1, 1];
-  builder.horizontalPolygon(GroundSlot.Lot, inner, triangulate(inner), KERB_HEIGHT, lotUv, lotTint, true);
+  builder.horizontalPolygon(
+    GroundSlot.Lot,
+    inner,
+    triangulate(inner),
+    KERB_HEIGHT,
+    lotUv,
+    lotTint,
+    true
+  );
 }
 
 const LOT_TINT: Readonly<Record<string, readonly [number, number, number]>> = {
@@ -397,10 +405,22 @@ function emitCrater(
       const a0 = (s / segments) * Math.PI * 2;
       const a1 = ((s + 1) / segments) * Math.PI * 2;
       const pts: [number, number][] = [
-        [crater.centre[0] + Math.cos(a0) * crater.radius * t0, crater.centre[1] + Math.sin(a0) * crater.radius * t0],
-        [crater.centre[0] + Math.cos(a1) * crater.radius * t0, crater.centre[1] + Math.sin(a1) * crater.radius * t0],
-        [crater.centre[0] + Math.cos(a1) * crater.radius * t1, crater.centre[1] + Math.sin(a1) * crater.radius * t1],
-        [crater.centre[0] + Math.cos(a0) * crater.radius * t1, crater.centre[1] + Math.sin(a0) * crater.radius * t1],
+        [
+          crater.centre[0] + Math.cos(a0) * crater.radius * t0,
+          crater.centre[1] + Math.sin(a0) * crater.radius * t0,
+        ],
+        [
+          crater.centre[0] + Math.cos(a1) * crater.radius * t0,
+          crater.centre[1] + Math.sin(a1) * crater.radius * t0,
+        ],
+        [
+          crater.centre[0] + Math.cos(a1) * crater.radius * t1,
+          crater.centre[1] + Math.sin(a1) * crater.radius * t1,
+        ],
+        [
+          crater.centre[0] + Math.cos(a0) * crater.radius * t1,
+          crater.centre[1] + Math.sin(a0) * crater.radius * t1,
+        ],
       ];
       // Clip to the chunk so the crater streams with the chunks it touches.
       if (!pts.some((p) => p[0] >= x0 - 2 && p[0] <= x1 + 2 && p[1] >= z0 - 2 && p[1] <= z1 + 2)) {
@@ -486,13 +506,7 @@ function quadXZ(
   builder.horizontalPolygon(slot, ring, [0, 1, 2, 0, 2, 3], y, uvScale, color, true);
 }
 
-function rectInsidePolygon(
-  poly: Polygon,
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number
-): boolean {
+function rectInsidePolygon(poly: Polygon, ax: number, az: number, bx: number, bz: number): boolean {
   // Cheap conservative test: axis-aligned parcels are the common case, and a
   // false negative only costs a hidden quad.
   let minX = Infinity;

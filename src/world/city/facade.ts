@@ -35,13 +35,7 @@ import { shadeTint } from './materials';
 
 /** Panel archetypes in the kit. */
 export type PanelKind =
-  | 'window'
-  | 'shopfront'
-  | 'door'
-  | 'blank'
-  | 'balcony'
-  | 'ac_unit'
-  | 'fire_escape_anchor';
+  'window' | 'shopfront' | 'door' | 'blank' | 'balcony' | 'ac_unit' | 'fire_escape_anchor';
 
 /** Every kind, in a stable order — weight tables index against this. */
 export const PANEL_KINDS: readonly PanelKind[] = [
@@ -114,12 +108,7 @@ export interface IPanelContext {
  * Point on the panel: `u` metres along the wall, `v` metres up, `d` metres out
  * along the wall normal (negative goes into the building).
  */
-function pt(
-  c: IPanelContext,
-  u: number,
-  v: number,
-  d: number
-): [number, number, number] {
+function pt(c: IPanelContext, u: number, v: number, d: number): [number, number, number] {
   return [
     c.origin[0] + c.right[0] * u + c.normal[0] * d,
     c.origin[1] + v,
@@ -306,26 +295,59 @@ export function emitWindow(c: IPanelContext): void {
     // cost more triangles than every roof in the district put together.
     const frame: readonly [number, number, number] = [0.86, 0.85, 0.82];
     const t = 0.075;
-    wallQuad(c, MatSlot.Facade, u0, sill, u1, sill + t, -REVEAL_DEPTH + 0.012, c.shade * 0.9, c.facadeUv, frame);
-    wallQuad(c, MatSlot.Facade, u0, head - t, u1, head, -REVEAL_DEPTH + 0.012, c.shade * 0.72, c.facadeUv, frame);
-    wallQuad(c, MatSlot.Facade, u0, sill, u0 + t, head, -REVEAL_DEPTH + 0.012, c.shade * 0.82, c.facadeUv, frame);
-    wallQuad(c, MatSlot.Facade, u1 - t, sill, u1, head, -REVEAL_DEPTH + 0.012, c.shade * 0.82, c.facadeUv, frame);
+    wallQuad(
+      c,
+      MatSlot.Facade,
+      u0,
+      sill,
+      u1,
+      sill + t,
+      -REVEAL_DEPTH + 0.012,
+      c.shade * 0.9,
+      c.facadeUv,
+      frame
+    );
+    wallQuad(
+      c,
+      MatSlot.Facade,
+      u0,
+      head - t,
+      u1,
+      head,
+      -REVEAL_DEPTH + 0.012,
+      c.shade * 0.72,
+      c.facadeUv,
+      frame
+    );
+    wallQuad(
+      c,
+      MatSlot.Facade,
+      u0,
+      sill,
+      u0 + t,
+      head,
+      -REVEAL_DEPTH + 0.012,
+      c.shade * 0.82,
+      c.facadeUv,
+      frame
+    );
+    wallQuad(
+      c,
+      MatSlot.Facade,
+      u1 - t,
+      sill,
+      u1,
+      head,
+      -REVEAL_DEPTH + 0.012,
+      c.shade * 0.82,
+      c.facadeUv,
+      frame
+    );
   }
 
   // Glazing, sunk behind the reveal.
   const glassDepth = c.detail === 'full' ? REVEAL_DEPTH : 0.04;
-  wallQuad(
-    c,
-    MatSlot.Glass,
-    u0,
-    sill,
-    u1,
-    head,
-    -glassDepth,
-    1,
-    c.glassUv,
-    c.glassTint
-  );
+  wallQuad(c, MatSlot.Glass, u0, sill, u1, head, -glassDepth, 1, c.glassUv, c.glassTint);
   // Mullion: one vertical bar splits the light and reads as a real window.
   if (c.detail === 'full' && u1 - u0 > 1.1) {
     boxAlongWall(
@@ -358,17 +380,7 @@ export function emitShopfront(c: IPanelContext): void {
   wallQuad(c, MatSlot.Facade, 0, 0, c.width, riser, 0, c.shade * 0.85, c.facadeUv);
   wallQuad(c, MatSlot.Facade, 0, signTop, c.width, c.height, 0, c.shade, c.facadeUv);
   wallQuad(c, MatSlot.Facade, 0, riser, margin, signBottom, 0, c.shade, c.facadeUv);
-  wallQuad(
-    c,
-    MatSlot.Facade,
-    c.width - margin,
-    riser,
-    c.width,
-    signBottom,
-    0,
-    c.shade,
-    c.facadeUv
-  );
+  wallQuad(c, MatSlot.Facade, c.width - margin, riser, c.width, signBottom, 0, c.shade, c.facadeUv);
 
   if (c.detail === 'full') {
     reveal(c, margin, riser, c.width - margin, glassTop, inset);
@@ -485,21 +497,47 @@ function emitProjectingSign(c: IPanelContext, v: number): void {
     reach * 0.5,
     [0.3, 0.29, 0.28]
   );
-  boxAlongWall(c, MatSlot.Facade, u, centre, d0 * 0.5, 0.05, height * 0.42, d0 * 0.5, [
-    0.34, 0.33, 0.32,
-  ]);
+  boxAlongWall(
+    c,
+    MatSlot.Facade,
+    u,
+    centre,
+    d0 * 0.5,
+    0.05,
+    height * 0.42,
+    d0 * 0.5,
+    [0.34, 0.33, 0.32]
+  );
 
   // Board body in the opaque slot; the face plates stand proud of it so the
   // border reads as a frame rather than as a painted edge.
-  boxAlongWall(c, MatSlot.Facade, u, centre, (d0 + d1) * 0.5, half, height * 0.5, reach * 0.5, [
-    0.24, 0.23, 0.22,
-  ]);
+  boxAlongWall(
+    c,
+    MatSlot.Facade,
+    u,
+    centre,
+    (d0 + d1) * 0.5,
+    half,
+    height * 0.5,
+    reach * 0.5,
+    [0.24, 0.23, 0.22]
+  );
 
   const border = 0.055;
   for (const side of [1, -1] as const) {
     const uf = u + side * (half + 0.004);
     signFace(c, MatSlot.Glass, uf, d0 + border, d1 - border, v0 + border, v1 - border, side, face);
-    emitGlyphs(c, uf + side * 0.005, d0 + border, d1 - border, v0 + border, v1 - border, side, face, vertical);
+    emitGlyphs(
+      c,
+      uf + side * 0.005,
+      d0 + border,
+      d1 - border,
+      v0 + border,
+      v1 - border,
+      side,
+      face,
+      vertical
+    );
   }
   c.builder.addVolume(reach * height * 0.06);
 }
@@ -636,7 +674,16 @@ function emitGlyphBlock(
     const t = bars === 1 ? 0.5 : i / (bars - 1);
     const cy = v - h * 0.5 + stroke * 0.5 + t * (h - stroke);
     const inset = c.rng.range(0, w * 0.18);
-    emitStroke(c, u, d - w * 0.5 + inset, d + w * 0.5 - inset, cy - stroke * 0.5, cy + stroke * 0.5, outward, ink);
+    emitStroke(
+      c,
+      u,
+      d - w * 0.5 + inset,
+      d + w * 0.5 - inset,
+      cy - stroke * 0.5,
+      cy + stroke * 0.5,
+      outward,
+      ink
+    );
   }
   // One or two vertical strokes crossing them.
   const uprights = 1;
@@ -696,8 +743,7 @@ function emitFasciaLettering(
   board: readonly [number, number, number]
 ): void {
   const luma = board[0] * 0.299 + board[1] * 0.587 + board[2] * 0.114;
-  const ink: readonly [number, number, number] =
-    luma > 0.5 ? [0.1, 0.09, 0.1] : [0.96, 0.95, 0.92];
+  const ink: readonly [number, number, number] = luma > 0.5 ? [0.1, 0.09, 0.1] : [0.96, 0.95, 0.92];
   const height = (v1 - v0) * 0.48;
   const cy = (v0 + v1) * 0.5;
   const count = c.rng.int(3, 6);
@@ -717,11 +763,18 @@ function emitFasciaLettering(
       wallFlat(c, left, by - stroke * 0.5, left + w, by + stroke * 0.5, 0.075, ink);
     }
     const midX = left + w * 0.5;
-    wallFlat(c, midX - stroke * 0.5, cy - height * 0.5, midX + stroke * 0.5, cy + height * 0.5, 0.075, ink);
+    wallFlat(
+      c,
+      midX - stroke * 0.5,
+      cy - height * 0.5,
+      midX + stroke * 0.5,
+      cy + height * 0.5,
+      0.075,
+      ink
+    );
     x += span / count;
   }
 }
-
 
 /** Fabric awning over a shopfront, sloping down and out. */
 function emitAwning(c: IPanelContext, _riser: number, signBottom: number): void {
@@ -963,7 +1016,17 @@ export function emitFireEscapeAnchor(c: IPanelContext): void {
     );
   }
   for (const u of [0.1, c.width * 0.5, c.width - 0.1]) {
-    boxAlongWall(c, MatSlot.Roof, u, 0.53, depth - 0.04, 0.03, 0.5, 0.03, shadeTint(steel, c.shade));
+    boxAlongWall(
+      c,
+      MatSlot.Roof,
+      u,
+      0.53,
+      depth - 0.04,
+      0.03,
+      0.5,
+      0.03,
+      shadeTint(steel, c.shade)
+    );
   }
   const anchor = pt(c, c.width * 0.5, 0, depth * 0.5);
   c.attachments.push({

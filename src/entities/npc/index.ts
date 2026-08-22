@@ -34,20 +34,18 @@
  * merely intended.
  */
 
-export { CrowdSystem, chunkIndexForCrowd, makeThreat, type ICrowdSystemOptions } from './crowd-system';
+export {
+  CrowdSystem,
+  chunkIndexForCrowd,
+  makeThreat,
+  type ICrowdSystemOptions,
+} from './crowd-system';
 
 export { AlarmField } from './alarm-field';
 
 export { FlowField, type IConvergenceReport, type IDirectionField } from './flow-field';
 
-export {
-  ObstacleField,
-  cellCentreX,
-  cellCentreZ,
-  cellIndexAt,
-  cellX,
-  cellZ,
-} from './obstacles';
+export { ObstacleField, cellCentreX, cellCentreZ, cellIndexAt, cellX, cellZ } from './obstacles';
 
 export {
   CrowdAgents,
@@ -85,24 +83,13 @@ export {
   type ICrowdRenderStats,
 } from './crowd-renderer';
 
-export {
-  COWER_CLIP,
-  COWER_KEY,
-  GAWK_CLIP,
-  GAWK_KEY,
-  evaluateCrowdClip,
-} from './crowd-clips';
+export { COWER_CLIP, COWER_KEY, GAWK_CLIP, GAWK_KEY, evaluateCrowdClip } from './crowd-clips';
 
 export { NearCivilian, type ICivilianHost } from './near-civilian';
 
 export { HeroNpc, HERO_SPECS, type IHeroSpec, type IHeroWorld } from './hero-npc';
 
-export {
-  CrowdLedger,
-  gatherWitnesses,
-  scoreOutcome,
-  type IWitnessReport,
-} from './witness';
+export { CrowdLedger, gatherWitnesses, scoreOutcome, type IWitnessReport } from './witness';
 
 export {
   BehaviourTree,

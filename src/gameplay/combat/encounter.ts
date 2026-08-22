@@ -28,13 +28,7 @@
  * other owner would have to ask combat for them anyway.
  */
 
-import type {
-  DistrictType,
-  EntityId,
-  GameEventOf,
-  IEventBus,
-  Vec3,
-} from '@/types';
+import type { DistrictType, EntityId, GameEventOf, IEventBus, Vec3 } from '@/types';
 import { saturate } from '@/util';
 import { PROPERTY_DAMAGE_HALF_YEN, ZONING_YEN_PER_KG, type ICombatTuning } from './tuning';
 import type { IEncounterResult } from './types';
@@ -185,9 +179,11 @@ export class EncounterTracker {
    *
    * @param boredom boredom AFTER the fight, so the scorecard shows the swing.
    */
-  end(time: number, boredom: number, outcome: 'victory' | 'defeat' | 'fled' | 'aborted' = 'victory'):
-    | IEncounterResult
-    | undefined {
+  end(
+    time: number,
+    boredom: number,
+    outcome: 'victory' | 'defeat' | 'fled' | 'aborted' = 'victory'
+  ): IEncounterResult | undefined {
     const tally = this.tally;
     if (tally === undefined) return undefined;
     tally.endTime = time;

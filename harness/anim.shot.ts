@@ -124,9 +124,7 @@ async function main(): Promise<void> {
       if (pageError !== undefined) throw new Error(`harness (${mode.name}) threw:\n${pageError}`);
 
       const stats = (await page.evaluate(() => window.__HARNESS_STATS__)) as
-        | WalkStats
-        | ClipsStats
-        | CrowdStats;
+        WalkStats | ClipsStats | CrowdStats;
       collected[mode.name] = stats;
 
       if (stats.mode === 'walk') assertWalk(stats);
@@ -223,8 +221,14 @@ function assertWalk(stats: WalkStats): void {
     stats.stanceCounts.every((n) => n >= 1),
     'never both feet airborne during a walk'
   );
-  check(stats.stanceCounts.some((n) => n === 2), 'double support present');
-  check(stats.stanceCounts.some((n) => n === 1), 'single support present');
+  check(
+    stats.stanceCounts.some((n) => n === 2),
+    'double support present'
+  );
+  check(
+    stats.stanceCounts.some((n) => n === 1),
+    'single support present'
+  );
 }
 
 function assertClips(stats: ClipsStats): void {

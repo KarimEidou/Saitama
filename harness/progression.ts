@@ -52,7 +52,11 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** The six times screenshotted. One camera, six clocks, nothing else varies. */
-export const SHOT_TIMES: readonly { readonly id: string; readonly t: number; readonly label: string }[] = [
+export const SHOT_TIMES: readonly {
+  readonly id: string;
+  readonly t: number;
+  readonly label: string;
+}[] = [
   { id: 'midnight', t: 0.0, label: '00:00 midnight' },
   { id: 'dawn', t: 0.198, label: '04:45 dawn' },
   { id: 'morning', t: 0.3333, label: '08:00 morning' },
@@ -487,7 +491,12 @@ export function runScenarios(): readonly IScenarioResult[] {
       coordinator.witnesses.register(`civ${i}`, 'civilian', { x: i, y: 0, z: 0 });
     }
     for (let i = 0; i < 40; i++) {
-      bus.emit('CivilianSaved', { entityId: `s${i}`, position: { x: 0, y: 0, z: 0 }, byPlayer: true, reputationDelta: 1 });
+      bus.emit('CivilianSaved', {
+        entityId: `s${i}`,
+        position: { x: 0, y: 0, z: 0 },
+        byPlayer: true,
+        reputationDelta: 1,
+      });
     }
     const peak = coordinator.progression.points;
     const peakRank = formatRank(coordinator.progression.state.rank);
@@ -567,8 +576,14 @@ export function runScenarios(): readonly IScenarioResult[] {
     }
     coordinator.update(1);
 
-    const playerCredit = coordinator.progression.incidentReports.reduce((sum, r) => sum + r.awardedPoints, 0);
-    const genosCredit = coordinator.progression.incidentReports.reduce((sum, r) => sum + (r.rivalCredit.genos ?? 0), 0);
+    const playerCredit = coordinator.progression.incidentReports.reduce(
+      (sum, r) => sum + r.awardedPoints,
+      0
+    );
+    const genosCredit = coordinator.progression.incidentReports.reduce(
+      (sum, r) => sum + (r.rivalCredit.genos ?? 0),
+      0
+    );
 
     results.push({
       name: 'genosIrony',
@@ -1146,7 +1161,11 @@ class ProgressionHarness {
         ['net (lum x exp)', sky.netLuminance.toFixed(4)],
         ['measured SH', sky.hasMeasuredEnvironment ? 'yes' : 'NO — neutral fallback'],
         ...snapshot.normalisation.map(
-          (row) => [`  ${row.sky} mean`, `${row.meanLuminance.toFixed(3)} -> x${row.scale.toFixed(3)}`] as [string, string]
+          (row) =>
+            [
+              `  ${row.sky} mean`,
+              `${row.meanLuminance.toFixed(3)} -> x${row.scale.toFixed(3)}`,
+            ] as [string, string]
         ),
       ]),
       section('Sun / moon', [
@@ -1187,7 +1206,9 @@ class ProgressionHarness {
       ]),
       section(
         'Quests',
-        Object.entries(p.questCounts).map(([key, value]) => [key, String(value)] as [string, string])
+        Object.entries(p.questCounts).map(
+          ([key, value]) => [key, String(value)] as [string, string]
+        )
       ),
       snapshot.problems.length > 0
         ? `<h2>Problems</h2><div class="bad">${snapshot.problems.join('<br>')}</div>`

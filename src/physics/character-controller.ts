@@ -159,9 +159,16 @@ export class CharacterController implements ICharacterController {
     colliderDesc.setFriction(0);
     this.collider = world.raw.createCollider(colliderDesc, this.raw);
 
-    this.body = new PhysicsBody(this.raw, this.collider, 'kinematic', layer, options.entityId, () => {
-      /* kinematic bodies ignore forces */
-    });
+    this.body = new PhysicsBody(
+      this.raw,
+      this.collider,
+      'kinematic',
+      layer,
+      options.entityId,
+      () => {
+        /* kinematic bodies ignore forces */
+      }
+    );
     world.register(this.body);
 
     this.controller = world.raw.createCharacterController(CHARACTER_SKIN);

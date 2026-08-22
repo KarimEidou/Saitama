@@ -46,23 +46,11 @@ import type {
   NPCBehaviourKind,
 } from '@/types';
 import { clamp01 } from '@/util';
-import {
-  ProceduralAnimator,
-  applyPose,
-  copyPose,
-  createPose,
-  type Pose,
-} from '@/characters/anim';
+import { ProceduralAnimator, applyPose, copyPose, createPose, type Pose } from '@/characters/anim';
 import type { CharacterParts } from '@/characters/mesh';
 import { ActorStateMachine, ActorTransform, PROCEDURAL_ANIMATIONS } from './actor-support';
 import { COWER_CLIP, GAWK_CLIP, evaluateCrowdClip } from './crowd-clips';
-import {
-  CrowdAgents,
-  MOOD_COWER,
-  MOOD_DOWN,
-  MOOD_FLEE,
-  MOOD_GAWK,
-} from './crowd-agents';
+import { CrowdAgents, MOOD_COWER, MOOD_DOWN, MOOD_FLEE, MOOD_GAWK } from './crowd-agents';
 import { RESCUE_RADIUS } from './constants';
 import { BehaviourTree, action, guard, selector, type BtNode } from './behaviour-tree';
 

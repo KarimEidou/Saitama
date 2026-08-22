@@ -124,7 +124,11 @@ export class ResultsScreen extends HudScreen {
       this.line('Resolved in', formatDuration(invoice.timeToKill)),
       this.line('Hostiles down', String(invoice.kills)),
       this.line('Civilians saved', String(invoice.civiliansSaved), 'saved'),
-      this.line('Civilians lost', String(invoice.civiliansLost), invoice.civiliansLost > 0 ? 'lost' : undefined),
+      this.line(
+        'Civilians lost',
+        String(invoice.civiliansLost),
+        invoice.civiliansLost > 0 ? 'lost' : undefined
+      ),
     ];
     if (invoice.alliesSaved + invoice.alliesDowned > 0) {
       rows.push(
@@ -167,9 +171,7 @@ export class ResultsScreen extends HudScreen {
 
     /* The rival lines: same fight, different arithmetic. */
     for (const rival of invoice.rivalCredit) {
-      rows.push(
-        this.line(`Credited — ${rival.name}`, formatPoints(rival.points), 'collateral')
-      );
+      rows.push(this.line(`Credited — ${rival.name}`, formatPoints(rival.points), 'collateral'));
     }
 
     rows.push(
@@ -232,7 +234,10 @@ export class ResultsScreen extends HudScreen {
         'Resolved without a single witness. Filed as unverified. ' +
         'Credit requires an audience; blame does not.';
       colour = 'var(--hud-ink-muted)';
-    } else if (invoice.rivalCredit.length > 0 && invoice.rivalCredit[0]!.points > invoice.awardedPoints) {
+    } else if (
+      invoice.rivalCredit.length > 0 &&
+      invoice.rivalCredit[0]!.points > invoice.awardedPoints
+    ) {
       text =
         `${invoice.rivalCredit[0]!.name} filed a full statement with recordings. ` +
         `You said you punched it. The committee scored both accounts.`;

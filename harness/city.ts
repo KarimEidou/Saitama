@@ -142,8 +142,7 @@ function makeScene(fogNear: number, fogFar: number): THREE.Scene {
 /** Aim the shadow camera at a point, with a given half-extent in metres. */
 function focusShadows(scene: THREE.Scene, at: THREE.Vector3, extent: number): void {
   const sun = scene.children.find((c) => c instanceof THREE.DirectionalLight) as
-    | THREE.DirectionalLight
-    | undefined;
+    THREE.DirectionalLight | undefined;
   if (!sun) return;
   sun.target.position.copy(at);
   sun.target.updateMatrixWorld();
@@ -177,7 +176,8 @@ function buildRegion(
     for (let cx = focusChunk[0] - radii.box; cx <= focusChunk[0] + radii.box; cx++) {
       if (cx < -8 || cx > 7 || cz < -8 || cz > 7) continue;
       const distance = Math.max(Math.abs(cx - focusChunk[0]), Math.abs(cz - focusChunk[1]));
-      const detail = distance <= radii.full ? 'full' : distance <= radii.reduced ? 'reduced' : 'box';
+      const detail =
+        distance <= radii.full ? 'full' : distance <= radii.reduced ? 'reduced' : 'box';
       chunks.push(
         generator.generate(cx, cz, {
           detail,
@@ -289,11 +289,15 @@ function aspect(): number {
 }
 
 function makeStreetView(): IView {
-  const built = buildRegion([0, -3], { full: 2, reduced: 4, box: 6 }, {
-    props: true,
-    fog: [180, 1100],
-    propRadius: 120,
-  });
+  const built = buildRegion(
+    [0, -3],
+    { full: 2, reduced: 4, box: 6 },
+    {
+      props: true,
+      fog: [180, 1100],
+      propRadius: 120,
+    }
+  );
   focusShadows(built.scene, STREET_EYE, 110);
   const camera = new THREE.PerspectiveCamera(58, aspect(), 0.2, 1400);
   camera.position.copy(STREET_EYE);
@@ -306,11 +310,15 @@ function makeStreetView(): IView {
 }
 
 function makeMapView(): IView {
-  const built = buildRegion([0, 0], { full: -1, reduced: 0, box: 8 }, {
-    props: false,
-    fog: [2000, 4000],
-    propRadius: 0,
-  });
+  const built = buildRegion(
+    [0, 0],
+    { full: -1, reduced: 0, box: 8 },
+    {
+      props: false,
+      fog: [2000, 4000],
+      propRadius: 0,
+    }
+  );
   built.scene.background = new THREE.Color(0x1a2130);
   focusShadows(built.scene, new THREE.Vector3(0, 0, 0), 820);
   const half = 800;
@@ -322,11 +330,15 @@ function makeMapView(): IView {
 }
 
 function makeSkylineView(): IView {
-  const built = buildRegion([1, 0], { full: 1, reduced: 3, box: 7 }, {
-    props: true,
-    fog: [200, 1100],
-    propRadius: 90,
-  });
+  const built = buildRegion(
+    [1, 0],
+    { full: 1, reduced: 3, box: 7 },
+    {
+      props: true,
+      fog: [200, 1100],
+      propRadius: 90,
+    }
+  );
   focusShadows(built.scene, new THREE.Vector3(0, 20, 0), 320);
   const camera = new THREE.PerspectiveCamera(46, aspect(), 0.5, 2200);
   camera.position.set(330, 132, 330);
@@ -335,11 +347,15 @@ function makeSkylineView(): IView {
 }
 
 function makeFractureView(): IView {
-  const built = buildRegion([1, -4], { full: 1, reduced: 2, box: 3 }, {
-    props: true,
-    fog: [180, 900],
-    propRadius: 130,
-  });
+  const built = buildRegion(
+    [1, -4],
+    { full: 1, reduced: 2, box: 3 },
+    {
+      props: true,
+      fog: [180, 900],
+      propRadius: 130,
+    }
+  );
   focusShadows(built.scene, new THREE.Vector3(96, 12, -330), 120);
 
   // Take out floors 1-3 of everything near the camera. The holes land on the
@@ -568,7 +584,13 @@ async function boot(): Promise<void> {
   // and the harness still has to produce a picture; so must a run where one
   // texture refuses to transcode.
   try {
-    real = await RealAssetLibrary.open('/game-assets', renderer, 'mobile', installDestructionHook, 4);
+    real = await RealAssetLibrary.open(
+      '/game-assets',
+      renderer,
+      'mobile',
+      installDestructionHook,
+      4
+    );
     if (real) {
       const required = generator.requiredAssets();
       await real.loadMaterials(required.materials);

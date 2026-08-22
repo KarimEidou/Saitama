@@ -263,7 +263,12 @@ export class Mixer {
     return strip;
   }
 
-  duck(category: AudioCategory, toVolume: number, seconds: number, now = this.ctx.currentTime): void {
+  duck(
+    category: AudioCategory,
+    toVolume: number,
+    seconds: number,
+    now = this.ctx.currentTime
+  ): void {
     this.strip(category).duck(toVolume, seconds, now);
   }
 

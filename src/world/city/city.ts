@@ -39,12 +39,14 @@ export interface ICityOptions {
  * resolve at that range anyway, and which is exactly what a top-down district
  * map wants.
  */
-export const DETAIL_BANDS: readonly { readonly maxDistance: number; readonly detail: BuildingDetail }[] =
-  [
-    { maxDistance: 160, detail: 'full' },
-    { maxDistance: 380, detail: 'reduced' },
-    { maxDistance: Infinity, detail: 'box' },
-  ];
+export const DETAIL_BANDS: readonly {
+  readonly maxDistance: number;
+  readonly detail: BuildingDetail;
+}[] = [
+  { maxDistance: 160, detail: 'full' },
+  { maxDistance: 380, detail: 'reduced' },
+  { maxDistance: Infinity, detail: 'box' },
+];
 
 /** Pick a building detail for a chunk at a given distance from the focus. */
 export function detailForDistance(distance: number): BuildingDetail {

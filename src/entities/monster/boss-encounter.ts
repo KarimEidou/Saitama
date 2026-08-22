@@ -290,7 +290,12 @@ export class BossEncounter {
       this.pulseTimer -= dt;
       if (this.pulseTimer <= 0) {
         this.pulseTimer = phase.pulsePeriodSeconds;
-        this.pulse(phase.pulseRangeMetres, phase.pulseHalfAngleRad, phase.pulsePower, playerPosition);
+        this.pulse(
+          phase.pulseRangeMetres,
+          phase.pulseHalfAngleRad,
+          phase.pulsePower,
+          playerPosition
+        );
       }
     }
 

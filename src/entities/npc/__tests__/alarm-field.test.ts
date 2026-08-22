@@ -9,13 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { AlarmField } from '../alarm-field';
-import {
-  ALARM_GATE,
-  ALARM_RISE,
-  FIELD_CELL,
-  FIELD_DIM,
-  ALARM_HZ,
-} from '../constants';
+import { ALARM_GATE, ALARM_RISE, FIELD_CELL, FIELD_DIM, ALARM_HZ } from '../constants';
 import { cellX, cellZ } from '../obstacles';
 import { threatAt } from './fixtures';
 

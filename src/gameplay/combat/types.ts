@@ -112,8 +112,10 @@ export function isTargetAlive(target: ICombatTarget): boolean {
  * of a live `IActor`, plus the three fields the resolver needs that the shared
  * contract has no room for.
  */
-export interface IPunchRequest
-  extends Omit<IPunchEvent, 'origin' | 'direction' | 'source' | 'shockwave'> {
+export interface IPunchRequest extends Omit<
+  IPunchEvent,
+  'origin' | 'direction' | 'source' | 'shockwave'
+> {
   /** World-space origin — the fist socket, or the crater centre for a slam. */
   readonly origin: Vec3;
   /** Unit propagation axis. Normalised by the resolver if it is not already. */
@@ -148,8 +150,10 @@ export interface IPunchRequest
  * a lethal hit does not compute a number, it sets a flag. Anything reading
  * `damage` to size a health bar is reading the wrong field; read `killed`.
  */
-export interface ICombatHit
-  extends Omit<HitInfo, 'target' | 'attacker' | 'point' | 'normal' | 'impulse'> {
+export interface ICombatHit extends Omit<
+  HitInfo,
+  'target' | 'attacker' | 'point' | 'normal' | 'impulse'
+> {
   readonly targetId: EntityId;
   readonly targetType: EntityType;
   readonly faction: Faction;

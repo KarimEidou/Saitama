@@ -24,13 +24,7 @@ import {
   type IStreamingSystemOptions,
 } from '../streaming-system';
 import { ChunkDamageState } from '../damage-state';
-import {
-  MAX_UPLOADS_PER_FRAME,
-  RING_R0,
-  RING_R1,
-  RING_R2,
-  UPLOAD_BUDGET_MS,
-} from '../constants';
+import { MAX_UPLOADS_PER_FRAME, RING_R0, RING_R1, RING_R2, UPLOAD_BUDGET_MS } from '../constants';
 import type { ColliderMode, CrowdMode } from '../constants';
 import type { IColliderBox, ICrowdSlot } from '../protocol';
 

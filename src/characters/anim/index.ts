@@ -30,17 +30,9 @@
  * All of the above is asserted in `__tests__`, not merely intended.
  */
 
-export {
-  ProceduralAnimator,
-  allClips,
-  type AnimatorOptions,
-} from './animator';
+export { ProceduralAnimator, allClips, type AnimatorOptions } from './animator';
 
-export {
-  LocomotionSolver,
-  solveGait,
-  type LocomotionOptions,
-} from './locomotion';
+export { LocomotionSolver, solveGait, type LocomotionOptions } from './locomotion';
 
 export {
   CLIP_LIBRARY,
@@ -127,13 +119,7 @@ export {
   type SpinePose,
 } from './posture';
 
-export {
-  clipTimeScale,
-  resolveRig,
-  ANIM_BONE_ORDER,
-  REFERENCE_HEIGHT,
-  REFERENCE_LEG,
-} from './rig';
+export { clipTimeScale, resolveRig, ANIM_BONE_ORDER, REFERENCE_HEIGHT, REFERENCE_LEG } from './rig';
 
 export {
   gaitProfile,

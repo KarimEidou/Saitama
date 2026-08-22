@@ -74,7 +74,12 @@ export class DynamicEntityGrid {
   private maxRadius = 0;
   private built = false;
 
-  constructor(capacity = 512, cellSize = ENTITY_CELL_SIZE, dim = ENTITY_GRID_DIM, origin = WORLD_MIN) {
+  constructor(
+    capacity = 512,
+    cellSize = ENTITY_CELL_SIZE,
+    dim = ENTITY_GRID_DIM,
+    origin = WORLD_MIN
+  ) {
     this.cellSize = cellSize;
     this.dim = dim;
     this.originX = origin;

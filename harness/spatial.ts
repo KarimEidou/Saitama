@@ -168,8 +168,7 @@ function drawVisibleInstances(): void {
   ctx.fillStyle = '#ffd230';
   for (let i = 0; i < index.visibleInstances.length; i++) {
     const ref = index.quadtree.getRef(index.visibleInstances.at(i)) as
-      | { minX: number; minZ: number; maxX: number; maxZ: number }
-      | undefined;
+      { minX: number; minZ: number; maxX: number; maxZ: number } | undefined;
     if (ref === undefined) continue;
     ctx.fillRect(
       toPixelX(ref.minX),
@@ -190,14 +189,8 @@ function drawFrustum(cam: ICameraSample): void {
 
   ctx.beginPath();
   ctx.moveTo(toPixelX(cam.x), toPixelZ(cam.z));
-  ctx.lineTo(
-    toPixelX(cam.x - Math.sin(left) * FAR),
-    toPixelZ(cam.z - Math.cos(left) * FAR)
-  );
-  ctx.lineTo(
-    toPixelX(cam.x - Math.sin(right) * FAR),
-    toPixelZ(cam.z - Math.cos(right) * FAR)
-  );
+  ctx.lineTo(toPixelX(cam.x - Math.sin(left) * FAR), toPixelZ(cam.z - Math.cos(left) * FAR));
+  ctx.lineTo(toPixelX(cam.x - Math.sin(right) * FAR), toPixelZ(cam.z - Math.cos(right) * FAR));
   ctx.closePath();
   ctx.fillStyle = 'rgba(255, 107, 107, 0.12)';
   ctx.fill();
@@ -230,14 +223,7 @@ function frustumChunkSet(): Set<number> {
     if (node < 0 || index.quadtree.getNodeTotal(node) === 0) continue;
     index.quadtree.getNodeBounds(node, bounds);
     if (
-      scratchFrustum.testBox(
-        bounds[0]!,
-        bounds[1]!,
-        bounds[2]!,
-        bounds[3]!,
-        bounds[4]!,
-        bounds[5]!
-      )
+      scratchFrustum.testBox(bounds[0]!, bounds[1]!, bounds[2]!, bounds[3]!, bounds[4]!, bounds[5]!)
     ) {
       set.add(c);
     }

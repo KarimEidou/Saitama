@@ -40,13 +40,7 @@ import { rebaseLayout, type IFractureLayout } from './fracture';
 import { pickProp, propDestructible, propRadius, yawAlong, type IRawPlacement } from './props';
 import type { IPlanBlock, IPlanZone, IPlanZoneParams, ZoneKind } from './plan-types';
 import { blockSeed } from './plan';
-import {
-  polygonArea,
-  polygonBounds,
-  polygonCentroid,
-  type Polygon,
-  type Vec2,
-} from './polygon';
+import { polygonArea, polygonBounds, polygonCentroid, type Polygon, type Vec2 } from './polygon';
 import type { PanelKind } from './facade';
 
 /** A single development parcel inside a block. */
@@ -220,15 +214,33 @@ export function generateBlock(
   // Courtyard: sheds, parked cars and the small structures that fill the
   // middle of a real block. Skipped for parks and craters.
   if (zone.kind !== 'park' && zone.kind !== 'crater') {
-    fillCourtyard(block, zone, params, materials, options, rng.derive('yard'), (build, place, summary) => {
-      buildings.push(build);
-      placements.push(place);
-      summaries.push(summary);
-    }, props, spawns);
+    fillCourtyard(
+      block,
+      zone,
+      params,
+      materials,
+      options,
+      rng.derive('yard'),
+      (build, place, summary) => {
+        buildings.push(build);
+        placements.push(place);
+        summaries.push(summary);
+      },
+      props,
+      spawns
+    );
   }
 
   if (zone.kind === 'park') {
-    emitParkPlanting(block, materials, options, rng.derive('park'), buildings, placements, summaries);
+    emitParkPlanting(
+      block,
+      materials,
+      options,
+      rng.derive('park'),
+      buildings,
+      placements,
+      summaries
+    );
   }
 
   if (options.includeProps) {
@@ -413,7 +425,10 @@ export function subdivideBlock(
   // Small parcels take the whole footprint as one building rather than a ring
   // of slivers around a courtyard two metres across.
   if (minSide < depth * 2.3 + 6) {
-    const runs = Math.max(1, Math.round(Math.max(width, depthZ) / rng.range(params.lotWidth[0], params.lotWidth[1])));
+    const runs = Math.max(
+      1,
+      Math.round(Math.max(width, depthZ) / rng.range(params.lotWidth[0], params.lotWidth[1]))
+    );
     const alongX = width >= depthZ;
     for (let i = 0; i < runs; i++) {
       const t0 = i / runs;
@@ -511,7 +526,10 @@ function pushRun(
     const start = cursor;
     cursor += span;
     // The back edge wobbles so the courtyard is not a perfect rectangle.
-    const backJitter = rng.range(0, Math.min(2.5, (axis === 'x' ? rect.maxZ - rect.minZ : rect.maxX - rect.minX) * 0.22));
+    const backJitter = rng.range(
+      0,
+      Math.min(2.5, (axis === 'x' ? rect.maxZ - rect.minZ : rect.maxX - rect.minX) * 0.22)
+    );
     const lotRect: IRect =
       axis === 'x'
         ? {
@@ -654,7 +672,8 @@ function structureFor(style: BuildingStyle, facadeMaterial: string): StructureMa
 
 /** Integrity budget: bigger, taller, heavier buildings survive more punches. */
 function integrityFor(material: StructureMaterial, floors: number, area: number): number {
-  const base = material === 'metal' ? 900 : material === 'brick' ? 700 : material === 'wood' ? 380 : 1000;
+  const base =
+    material === 'metal' ? 900 : material === 'brick' ? 700 : material === 'wood' ? 380 : 1000;
   return Math.round(base * (0.6 + floors * 0.14) * (0.5 + Math.min(2.5, area / 220)));
 }
 
@@ -860,7 +879,8 @@ function scatterProps(
     const z = point.z + point.nz * rng.range(1.1, 2.4);
     const assetKey = pickProp(zone.kind, rng);
     const radius = propRadius(assetKey);
-    if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < radius + propRadius(p.assetKey))) continue;
+    if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < radius + propRadius(p.assetKey)))
+      continue;
     const placement: IRawPlacement = {
       assetKey,
       x,
@@ -883,12 +903,7 @@ function scatterProps(
  * the whole resident set — and they give the street a sense of scale that a
  * lamp post cannot.
  */
-function parkAtKerb(
-  block: IPlanBlock,
-  zone: IPlanZone,
-  rng: IRandom,
-  out: IRawPlacement[]
-): void {
+function parkAtKerb(block: IPlanBlock, zone: IPlanZone, rng: IRandom, out: IRawPlacement[]): void {
   if (zone.kind === 'park' || zone.kind === 'crater') return;
   const chance = zone.kind === 'downtown' || zone.kind === 'shopping' ? 0.4 : 0.28;
   const outline = block.outline;

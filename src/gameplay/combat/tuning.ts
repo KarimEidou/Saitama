@@ -42,11 +42,7 @@ import { DEG2RAD } from '@/util';
  * from a massacre. Every other intent instantly kills any non-boss it touches,
  * regardless of health, tier or resistances.
  */
-export const LETHAL_INTENTS: readonly LethalIntent[] = Object.freeze([
-  'normal',
-  'serious',
-  'full',
-]);
+export const LETHAL_INTENTS: readonly LethalIntent[] = Object.freeze(['normal', 'serious', 'full']);
 
 /** True when a hit at this intent instantly kills a non-boss. */
 export function isLethalIntent(intent: LethalIntent): boolean {

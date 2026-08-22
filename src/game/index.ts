@@ -21,11 +21,7 @@
 
 export { Game, type IBootOptions } from './game';
 
-export {
-  CityStreamer,
-  type ICityStreamerOptions,
-  type IResidentChunk,
-} from './city-streamer';
+export { CityStreamer, type ICityStreamerOptions, type IResidentChunk } from './city-streamer';
 
 export { CityMaterialLibrary } from './city-materials';
 

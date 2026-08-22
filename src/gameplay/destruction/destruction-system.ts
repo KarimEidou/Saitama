@@ -40,13 +40,7 @@
  */
 
 import * as THREE from 'three';
-import type {
-  EntityId,
-  GameEventOf,
-  IEventBus,
-  LethalIntent,
-  Vec3,
-} from '@/types';
+import type { EntityId, GameEventOf, IEventBus, LethalIntent, Vec3 } from '@/types';
 import { clamp, clamp01, createRng, hashString, mixSeeds, type IRandom } from '@/util';
 import {
   BLAST_DELTA_V_FAR,
@@ -184,7 +178,7 @@ interface IMutableDetachPayload {
  */
 function signedUnit(seed: number, a: number, b: number): number {
   const h = mixSeeds(mixSeeds(seed, a >>> 0), b >>> 0);
-  return (h / 2147483648) - 1;
+  return h / 2147483648 - 1;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -478,10 +472,20 @@ export class DestructionSystem {
       const b = structure.worldBounds;
       if (
         !aabbInCone(
-          b[0]!, b[1]!, b[2]!, b[3]!, b[4]!, b[5]!,
-          origin.x, origin.y, origin.z,
-          ax, ay, az,
-          range, halfAngle
+          b[0]!,
+          b[1]!,
+          b[2]!,
+          b[3]!,
+          b[4]!,
+          b[5]!,
+          origin.x,
+          origin.y,
+          origin.z,
+          ax,
+          ay,
+          az,
+          range,
+          halfAngle
         )
       ) {
         continue;
@@ -493,10 +497,20 @@ export class DestructionSystem {
         const c = this.chunkBounds;
         if (
           !aabbInCone(
-            c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!,
-            origin.x, origin.y, origin.z,
-            ax, ay, az,
-            range, halfAngle
+            c[0]!,
+            c[1]!,
+            c[2]!,
+            c[3]!,
+            c[4]!,
+            c[5]!,
+            origin.x,
+            origin.y,
+            origin.z,
+            ax,
+            ay,
+            az,
+            range,
+            halfAngle
           )
         ) {
           continue;
@@ -532,7 +546,18 @@ export class DestructionSystem {
       const structure = this.ordered[s]!;
       const b = structure.worldBounds;
       if (
-        !aabbInSphere(b[0]!, b[1]!, b[2]!, b[3]!, b[4]!, b[5]!, origin.x, origin.y, origin.z, radius)
+        !aabbInSphere(
+          b[0]!,
+          b[1]!,
+          b[2]!,
+          b[3]!,
+          b[4]!,
+          b[5]!,
+          origin.x,
+          origin.y,
+          origin.z,
+          radius
+        )
       ) {
         continue;
       }
@@ -543,8 +568,15 @@ export class DestructionSystem {
         const c = this.chunkBounds;
         if (
           !aabbInSphere(
-            c[0]!, c[1]!, c[2]!, c[3]!, c[4]!, c[5]!,
-            origin.x, origin.y, origin.z,
+            c[0]!,
+            c[1]!,
+            c[2]!,
+            c[3]!,
+            c[4]!,
+            c[5]!,
+            origin.x,
+            origin.y,
+            origin.z,
             radius
           )
         ) {
@@ -692,7 +724,8 @@ export class DestructionSystem {
     const horizontal = Math.sqrt(ox * ox + oz * oz);
     const outX = horizontal > 1e-4 ? ox / horizontal : jx;
     const outZ = horizontal > 1e-4 ? oz / horizontal : jz;
-    const outward = cause === 'collapse' ? COLLAPSE_OUTWARD_DELTA_V : COLLAPSE_OUTWARD_DELTA_V * 0.5;
+    const outward =
+      cause === 'collapse' ? COLLAPSE_OUTWARD_DELTA_V : COLLAPSE_OUTWARD_DELTA_V * 0.5;
 
     this.deltaV[0] = outX * outward + jx * DETACH_JITTER_DELTA_V;
     this.deltaV[1] = -COLLAPSE_DELTA_V + jy * DETACH_JITTER_DELTA_V * 0.5;

@@ -304,11 +304,7 @@ export class DebrisPool implements IDebrisPool {
       slot.position.copy(centroidWorld);
       slot.velocity.copy(impulse).divideScalar(Math.max(0.01, mass));
       // Deterministic tumble; a seeded stream, never Math.random().
-      slot.spin.set(
-        this.rng.range(-6, 6),
-        this.rng.range(-6, 6),
-        this.rng.range(-6, 6)
-      );
+      slot.spin.set(this.rng.range(-6, 6), this.rng.range(-6, 6), this.rng.range(-6, 6));
       slot.mesh.quaternion.copy(tmpQuat);
       this.writeMeshTransform(slot, slot.position, tmpQuat);
     } else {
@@ -316,10 +312,7 @@ export class DebrisPool implements IDebrisPool {
       // Through the wrapper, so `PhysicsBody.isEnabled` (and therefore
       // `world.activeBodyCount`) stays truthful.
       slot.body.setEnabled(true);
-      slot.raw.setTranslation(
-        { x: centroidWorld.x, y: centroidWorld.y, z: centroidWorld.z },
-        true
-      );
+      slot.raw.setTranslation({ x: centroidWorld.x, y: centroidWorld.y, z: centroidWorld.z }, true);
       slot.raw.setRotation({ x: tmpQuat.x, y: tmpQuat.y, z: tmpQuat.z, w: tmpQuat.w }, true);
       slot.raw.setLinvel({ x: 0, y: 0, z: 0 }, false);
       slot.raw.setAngvel({ x: 0, y: 0, z: 0 }, false);

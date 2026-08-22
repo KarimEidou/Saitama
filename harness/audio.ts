@@ -267,9 +267,14 @@ addButton(eventsEl, 'ChunkDetached x60', 'A whole structure failing in one frame
 const musicEl = $('music');
 const musicButtons = new Map<MusicState | 'off', HTMLButtonElement>();
 for (const state of MUSIC_STATES) {
-  const button = addButton(musicEl, state, `Switch to the "${state}" layer on the next bar.`, () => {
-    audio.playMusic(state);
-  });
+  const button = addButton(
+    musicEl,
+    state,
+    `Switch to the "${state}" layer on the next bar.`,
+    () => {
+      audio.playMusic(state);
+    }
+  );
   musicButtons.set(state, button);
 }
 musicButtons.set(

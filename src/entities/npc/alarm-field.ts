@@ -267,7 +267,8 @@ export class AlarmField {
         let diag = 0;
         if (hasLeft && hasUp && value[i - FIELD_DIM - 1]! > diag) diag = value[i - FIELD_DIM - 1]!;
         if (hasRight && hasUp && value[i - FIELD_DIM + 1]! > diag) diag = value[i - FIELD_DIM + 1]!;
-        if (hasLeft && hasDown && value[i + FIELD_DIM - 1]! > diag) diag = value[i + FIELD_DIM - 1]!;
+        if (hasLeft && hasDown && value[i + FIELD_DIM - 1]! > diag)
+          diag = value[i + FIELD_DIM - 1]!;
         if (hasRight && hasDown && value[i + FIELD_DIM + 1]! > diag) {
           diag = value[i + FIELD_DIM + 1]!;
         }

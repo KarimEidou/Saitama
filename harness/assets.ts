@@ -636,14 +636,13 @@ async function runBudgetProbe(registry: AssetRegistry): Promise<IBudgetReport> {
     evicted,
     pinned: [...(report?.pinned ?? [])],
     retainedKeys: referenced,
-    retainedStillResident: referenced.every(
-      (key) => registry.getTextureDetail(key) !== undefined
-    ),
+    retainedStillResident: referenced.every((key) => registry.getTextureDetail(key) !== undefined),
     evictedWereUnreferenced: evicted.every((key) => unreferenced.includes(key)),
     // Eviction walks the LRU in order, so the first key out is the oldest
     // unreferenced one even though newer unreferenced keys also qualify.
     evictedInLruOrder:
-      evicted.length === 0 || (evicted[0] === unreferenced[0] && evicted.length <= unreferenced.length),
+      evicted.length === 0 ||
+      (evicted[0] === unreferenced[0] && evicted.length <= unreferenced.length),
     overBudget: report?.overBudget ?? false,
   };
 }

@@ -95,9 +95,9 @@ export function detectPlatform(): PlatformKind {
  * `maxTextureSize` needs a live GL context, so pass the renderer when one
  * exists; without it the ceiling is treated as unknown rather than assumed.
  */
-export function detectTierSignals(
-  renderer?: { capabilities?: { maxTextureSize?: number } }
-): ITierSignals {
+export function detectTierSignals(renderer?: {
+  capabilities?: { maxTextureSize?: number };
+}): ITierSignals {
   const nav = (globalThis as { navigator?: INavigatorLike }).navigator;
   return {
     isNative: isCapacitorNative(),
@@ -276,7 +276,12 @@ export class TierAvailability {
    * variant left. Callers must treat undefined as "use the fallback", never as
    * an error to throw.
    */
-  markMissing(key: string, tier: QualityTier, entry: AnyAssetEntry, reason: string): QualityTier | undefined {
+  markMissing(
+    key: string,
+    tier: QualityTier,
+    entry: AnyAssetEntry,
+    reason: string
+  ): QualityTier | undefined {
     const id = `${key}@${tier}`;
     if (!this.missed.has(id)) {
       this.missed.add(id);

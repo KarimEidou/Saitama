@@ -346,7 +346,9 @@ async function setScene(page: Page, scene: string): Promise<void> {
   // Two animation frames so CSS transitions on entry have settled.
   await page.evaluate(
     () =>
-      new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
   );
 }
 
@@ -415,10 +417,7 @@ async function main(): Promise<void> {
         );
       }
 
-      const scenes = [
-        ...CORE_SCENES,
-        ...(profile.id === 'phone-landscape' ? VARIANT_SCENES : []),
-      ];
+      const scenes = [...CORE_SCENES, ...(profile.id === 'phone-landscape' ? VARIANT_SCENES : [])];
 
       for (const scene of scenes) {
         await setScene(page, scene);
@@ -454,7 +453,10 @@ async function main(): Promise<void> {
             ? `${panels.length} panels inside the safe box`
             : outside
                 .slice(0, 3)
-                .map((p) => `${p.id}[${p.x.toFixed(0)},${p.y.toFixed(0)} ${p.width.toFixed(0)}x${p.height.toFixed(0)}]`)
+                .map(
+                  (p) =>
+                    `${p.id}[${p.x.toFixed(0)},${p.y.toFixed(0)} ${p.width.toFixed(0)}x${p.height.toFixed(0)}]`
+                )
                 .join(' ')
         );
 
@@ -560,9 +562,7 @@ async function main(): Promise<void> {
         check(
           'no direct assignment to a layout-affecting property',
           measurement.directWrites.length === 0,
-          measurement.directWrites.length === 0
-            ? 'none'
-            : measurement.directWrites.join(', ')
+          measurement.directWrites.length === 0 ? 'none' : measurement.directWrites.join(', ')
         );
         check(
           'ZERO forced reflows — no layout property is read during the window',
@@ -669,7 +669,12 @@ async function main(): Promise<void> {
       /* ------------------------------------------------------------- */
 
       if (profile.id === 'phone-landscape') {
-        for (const palette of ['deuteranopia', 'protanopia', 'tritanopia', 'highContrast'] as const) {
+        for (const palette of [
+          'deuteranopia',
+          'protanopia',
+          'tritanopia',
+          'highContrast',
+        ] as const) {
           await setScene(page, 'combat');
           await page.evaluate((name) => {
             window.__HUD_HARNESS__!.setSettings({ palette: name as never });
@@ -712,7 +717,9 @@ async function main(): Promise<void> {
         check(
           'the layout survives HUD scale at 130%',
           overflow.length === 0,
-          overflow.length === 0 ? 'nothing overflows the safe box' : overflow.map((p) => p.id).join(', ')
+          overflow.length === 0
+            ? 'nothing overflows the safe box'
+            : overflow.map((p) => p.id).join(', ')
         );
         await page.evaluate(() => {
           window.__HUD_HARNESS__!.setSettings({ hudScale: 1 as never });

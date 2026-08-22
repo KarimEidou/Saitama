@@ -203,7 +203,10 @@ export class RealAssetLibrary {
     }
   }
 
-  private async loadTexture(key: string | undefined, srgb: boolean): Promise<THREE.Texture | undefined> {
+  private async loadTexture(
+    key: string | undefined,
+    srgb: boolean
+  ): Promise<THREE.Texture | undefined> {
     if (!key) return undefined;
     const cached = this.textures.get(key);
     if (cached) return cached;
@@ -310,8 +313,7 @@ export class RealAssetLibrary {
       // per-vertex destruction hook — its `aDestroyed` attribute does not
       // exist on a GLB.
       const src = (Array.isArray(parts[0].material) ? parts[0].material[0] : parts[0].material) as
-        | THREE.MeshStandardMaterial
-        | undefined;
+        THREE.MeshStandardMaterial | undefined;
       const material = new THREE.MeshStandardMaterial({
         map: src?.map ?? null,
         normalMap: src?.normalMap ?? null,

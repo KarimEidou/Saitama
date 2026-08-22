@@ -468,7 +468,10 @@ export function measureLimbSanity(
           if (lowest < 0) maxGroundPenetration = Math.max(maxGroundPenetration, -lowest);
         }
       }
-      maxPelvisRise = Math.max(maxPelvisRise, report.pelvisY - rig.rest.pos[rig.index.Hips! * 3 + 1]!);
+      maxPelvisRise = Math.max(
+        maxPelvisRise,
+        report.pelvisY - rig.rest.pos[rig.index.Hips! * 3 + 1]!
+      );
     }
   }
 
@@ -532,11 +535,7 @@ export function measureVatRoundTrip(
   let quantCount = 0;
   let temporalCount = 0;
 
-  const measure = (
-    pose: Pose,
-    frameTime: number,
-    onError: (error: number) => void
-  ): void => {
+  const measure = (pose: Pose, frameTime: number, onError: (error: number) => void): void => {
     poseToModelMatrices(pose, rig, model);
     skinningMatrices(model, rig.boneInverses, skin);
     for (let v = 0; v < vertexCount; v += stride) {

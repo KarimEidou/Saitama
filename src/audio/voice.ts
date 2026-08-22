@@ -31,7 +31,12 @@
 import type { AudioCategory, Vec3 } from '@/types';
 import type { IRandom } from '@/util';
 import { fadeOut } from './dsp';
-import { configurePanner, createSpatialPanner, SPATIAL_DEFAULTS, type ISpatialSettings } from './panner';
+import {
+  configurePanner,
+  createSpatialPanner,
+  SPATIAL_DEFAULTS,
+  type ISpatialSettings,
+} from './panner';
 
 /* -------------------------------------------------------------------------- */
 /* Trigger parameters                                                         */

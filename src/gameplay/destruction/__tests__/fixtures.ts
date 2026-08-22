@@ -154,7 +154,12 @@ let generator: CityGenerator | undefined;
 export function realLayouts(
   cx: number,
   cz: number
-): { id: string; layout: IStructureLayout; vertexCount: number; position: [number, number, number] }[] {
+): {
+  id: string;
+  layout: IStructureLayout;
+  vertexCount: number;
+  position: [number, number, number];
+}[] {
   generator ??= new CityGenerator(plan, { defaultDetail: 'full', includeProps: false });
   const chunk = generator.generate(cx, cz, { detail: 'full', includeProps: false });
   const out: {
@@ -214,7 +219,11 @@ export class FakeDebrisPool implements IDebrisSink {
     return this.issued - this.retiredThrough;
   }
 
-  spawn(chunk: FractureChunk, _worldMatrix: unknown, _impulse: unknown): { id: number } | undefined {
+  spawn(
+    chunk: FractureChunk,
+    _worldMatrix: unknown,
+    _impulse: unknown
+  ): { id: number } | undefined {
     void chunk;
     this.spawnCalls++;
     if (this.count >= this.capacity) return undefined;
@@ -245,7 +254,11 @@ export class FakeRagdollSink {
     this.maxActive = maxActive;
   }
 
-  launch(entityId: string, _position: unknown, impulse: { x: number; y: number; z: number }): boolean {
+  launch(
+    entityId: string,
+    _position: unknown,
+    impulse: { x: number; y: number; z: number }
+  ): boolean {
     if (this.activeCount >= this.maxActive) {
       this.refusals++;
       return false;

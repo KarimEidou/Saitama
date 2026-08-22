@@ -97,7 +97,14 @@ class HitUnit {
     subTo: number,
     nyquist: number
   ): number {
-    sweep(this.sub.frequency, t, subFrom * pitch, subTo * pitch, Math.min(decay * 0.32, 0.022), nyquist);
+    sweep(
+      this.sub.frequency,
+      t,
+      subFrom * pitch,
+      subTo * pitch,
+      Math.min(decay * 0.32, 0.022),
+      nyquist
+    );
     const subEnd = percussive(this.subGain.gain, t, 0.68 * gain, 0.0012, decay);
 
     sweep(this.bodyFilter.frequency, t, 1100 * pitch, 260 * pitch, decay * 0.35, nyquist);

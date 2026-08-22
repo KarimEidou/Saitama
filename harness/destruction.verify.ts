@@ -271,7 +271,10 @@ interface IRegion {
 }
 
 /** Stats for a REGION, materialised through `toBuffer` so the crop is real. */
-async function regionStats(file: string, region: IRegion): Promise<IPixelStats & { pixels: number }> {
+async function regionStats(
+  file: string,
+  region: IRegion
+): Promise<IPixelStats & { pixels: number }> {
   // MATERIALISE FIRST. See the note on `analyse`.
   const cropped = await sharp(file).extract(region).png().toBuffer();
   const stats = await sharp(cropped).stats();
@@ -373,7 +376,9 @@ async function main(): Promise<void> {
 
     /* ---------------- 2. THE PUNCH, MID-COLLAPSE ---------------- */
 
-    const atPunch = (await page.evaluate(() => window.__DESTRUCTION_HARNESS__.punch())) as IHarnessStats;
+    const atPunch = (await page.evaluate(() =>
+      window.__DESTRUCTION_HARNESS__.punch()
+    )) as IHarnessStats;
     console.log(
       `\npunch frame: ${atPunch.destruction.chunksDestroyed} chunks off, ` +
         `${atPunch.destruction.collapsesTriggered} collapses queued ` +
@@ -613,7 +618,9 @@ async function main(): Promise<void> {
       failures.push(`ragdoll cap is ${after.ragdollsMax}, expected 8`);
     }
     if (after.destruction.ragdollsLaunched > 8) {
-      failures.push(`${after.destruction.ragdollsLaunched} ragdolls were launched against a cap of 8`);
+      failures.push(
+        `${after.destruction.ragdollsLaunched} ragdolls were launched against a cap of 8`
+      );
     }
     if (after.destruction.ragdollsLaunched < 1) {
       failures.push('no ragdoll was launched, so the cap was never exercised');
@@ -642,7 +649,9 @@ async function main(): Promise<void> {
       failures.push('nothing was written into the persistent 8 KB bitmask');
     }
     if (persistence.maskBytes > 8192) {
-      failures.push(`the damage bitmask is holding ${persistence.maskBytes} B, over its 8 KB budget`);
+      failures.push(
+        `the damage bitmask is holding ${persistence.maskBytes} B, over its 8 KB budget`
+      );
     }
 
     // --- determinism ---

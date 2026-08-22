@@ -82,7 +82,8 @@ export class ChunkWorkerPool {
 
   constructor(options: IWorkerPoolOptions) {
     this.onResult = options.onResult;
-    this.onError = options.onError ?? ((message) => console.error(`[streaming] worker: ${message}`));
+    this.onError =
+      options.onError ?? ((message) => console.error(`[streaming] worker: ${message}`));
     this.maxInFlight = options.maxInFlight ?? MAX_IN_FLIGHT_JOBS;
 
     const wanted = options.workerCount ?? STREAMING_WORKER_COUNT;

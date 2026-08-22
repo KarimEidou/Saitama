@@ -97,8 +97,20 @@ describe('WitnessField', () => {
   });
 
   it('merges reports by keeping the strongest evidence for each claim', () => {
-    const a = { count: 3, credibility: 3, corroboration: 0.4, collateralReportRate: 0.6, heroIds: ['h1'] };
-    const b = { count: 1, credibility: 7, corroboration: 1, collateralReportRate: 0.9, heroIds: ['h2'] };
+    const a = {
+      count: 3,
+      credibility: 3,
+      corroboration: 0.4,
+      collateralReportRate: 0.6,
+      heroIds: ['h1'],
+    };
+    const b = {
+      count: 1,
+      credibility: 7,
+      corroboration: 1,
+      collateralReportRate: 0.9,
+      heroIds: ['h2'],
+    };
     const merged = mergeReports(a, b);
     expect(merged.count).toBe(3);
     expect(merged.corroboration).toBe(1);
@@ -132,7 +144,8 @@ describe('rank does NOT move on kills', () => {
     for (let i = 0; i < 25; i++) {
       const id = `encounter.alley.${i}`;
       harness.startEncounter(id, { threatTier: 'demon', position: at(i * 400, 0, 0) });
-      for (let k = 0; k < 8; k++) harness.killMonster({ threatTier: 'demon', position: at(i * 400, 0, 0) });
+      for (let k = 0; k < 8; k++)
+        harness.killMonster({ threatTier: 'demon', position: at(i * 400, 0, 0) });
       harness.endEncounter(id);
       harness.tick(0.5);
     }
@@ -316,7 +329,9 @@ describe('RankChanged', () => {
   it('fires only when the seat actually changes', () => {
     const harness = makeHarness();
     const events: { promoted: boolean; rank: number }[] = [];
-    harness.bus.on('RankChanged', (event) => events.push({ promoted: event.promoted, rank: event.rank }));
+    harness.bus.on('RankChanged', (event) =>
+      events.push({ promoted: event.promoted, rank: event.rank })
+    );
 
     // An UNWITNESSED save is worth 0.4 points: real, recorded, and nowhere
     // near a rank at the C-class step cost of 10.

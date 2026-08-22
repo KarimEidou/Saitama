@@ -138,12 +138,13 @@ describe('CssNumber', () => {
     const writer = new FrameWriter();
     const seen: [string, string][] = [];
     const original = (number.element as unknown as { style: { setProperty: unknown } }).style;
-    (number.element as unknown as { style: { setProperty: (n: string, v: string) => void } }).style =
-      {
-        setProperty(name: string, value: string): void {
-          seen.push([name, value]);
-        },
-      };
+    (
+      number.element as unknown as { style: { setProperty: (n: string, v: string) => void } }
+    ).style = {
+      setProperty(name: string, value: string): void {
+        seen.push([name, value]);
+      },
+    };
     number.write(writer, 9.97);
     (number.element as unknown as { style: unknown }).style = original;
     expect(seen).toEqual([

@@ -167,13 +167,7 @@ export interface IPlanZone {
 
 /** Landmark archetype; selects a bespoke generator in `landmarks.ts`. */
 export type LandmarkKind =
-  | 'heroAssociation'
-  | 'arcade'
-  | 'apartment'
-  | 'park'
-  | 'crater'
-  | 'tower'
-  | 'monument';
+  'heroAssociation' | 'arcade' | 'apartment' | 'park' | 'crater' | 'tower' | 'monument';
 
 /** A hand-placed point of interest that overrides procedural fill. */
 export interface IPlanLandmark {

@@ -41,14 +41,7 @@
  * mechanically enforced by `__tests__/imports.test.ts`.
  */
 
-import type {
-  DistrictType,
-  EntityId,
-  GameEventOf,
-  IEventBus,
-  InputState,
-  Vec3,
-} from '@/types';
+import type { DistrictType, EntityId, GameEventOf, IEventBus, InputState, Vec3 } from '@/types';
 import { clamp01, createRng, lerp, type IRandom } from '@/util';
 import { PunchChain, chainKind, chainPower } from './chain';
 import { BoredomMeter } from './boredom';

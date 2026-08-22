@@ -127,11 +127,21 @@ class GeometryAccumulator {
    * clockwise order when viewed from the side the normal points at.
    */
   addQuad(
-    ax: number, ay: number, az: number,
-    bx: number, by: number, bz: number,
-    cx: number, cy: number, cz: number,
-    dx: number, dy: number, dz: number,
-    nx: number, ny: number, nz: number,
+    ax: number,
+    ay: number,
+    az: number,
+    bx: number,
+    by: number,
+    bz: number,
+    cx: number,
+    cy: number,
+    cz: number,
+    dx: number,
+    dy: number,
+    dz: number,
+    nx: number,
+    ny: number,
+    nz: number,
     colour: number
   ): void {
     this.ensureVertices(4);
@@ -143,10 +153,18 @@ class GeometryAccumulator {
     const normals = this.normals;
     const colors = this.colors;
 
-    positions[p] = ax; positions[p + 1] = ay; positions[p + 2] = az;
-    positions[p + 3] = bx; positions[p + 4] = by; positions[p + 5] = bz;
-    positions[p + 6] = cx; positions[p + 7] = cy; positions[p + 8] = cz;
-    positions[p + 9] = dx; positions[p + 10] = dy; positions[p + 11] = dz;
+    positions[p] = ax;
+    positions[p + 1] = ay;
+    positions[p + 2] = az;
+    positions[p + 3] = bx;
+    positions[p + 4] = by;
+    positions[p + 5] = bz;
+    positions[p + 6] = cx;
+    positions[p + 7] = cy;
+    positions[p + 8] = cz;
+    positions[p + 9] = dx;
+    positions[p + 10] = dy;
+    positions[p + 11] = dz;
 
     for (let i = 0; i < 4; i++) {
       normals[p + i * 3] = nx;
@@ -165,8 +183,12 @@ class GeometryAccumulator {
 
     const indices = this.indices;
     const o = this.indexCount;
-    indices[o] = v; indices[o + 1] = v + 1; indices[o + 2] = v + 2;
-    indices[o + 3] = v; indices[o + 4] = v + 2; indices[o + 5] = v + 3;
+    indices[o] = v;
+    indices[o + 1] = v + 1;
+    indices[o + 2] = v + 2;
+    indices[o + 3] = v;
+    indices[o + 4] = v + 2;
+    indices[o + 5] = v + 3;
 
     this.vertexCount += 4;
     this.indexCount += 6;
@@ -199,30 +221,143 @@ class GeometryAccumulator {
 
   /** Append an axis-aligned box. `skipBottom` drops the face nobody can see. */
   addBox(
-    minX: number, minY: number, minZ: number,
-    maxX: number, maxY: number, maxZ: number,
+    minX: number,
+    minY: number,
+    minZ: number,
+    maxX: number,
+    maxY: number,
+    maxZ: number,
     sideColour: number,
     topColour: number,
     skipBottom: boolean
   ): void {
     // +X
-    this.addQuad(maxX, minY, maxZ, maxX, minY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ, 1, 0, 0, sideColour);
+    this.addQuad(
+      maxX,
+      minY,
+      maxZ,
+      maxX,
+      minY,
+      minZ,
+      maxX,
+      maxY,
+      minZ,
+      maxX,
+      maxY,
+      maxZ,
+      1,
+      0,
+      0,
+      sideColour
+    );
     // -X
-    this.addQuad(minX, minY, minZ, minX, minY, maxZ, minX, maxY, maxZ, minX, maxY, minZ, -1, 0, 0, sideColour);
+    this.addQuad(
+      minX,
+      minY,
+      minZ,
+      minX,
+      minY,
+      maxZ,
+      minX,
+      maxY,
+      maxZ,
+      minX,
+      maxY,
+      minZ,
+      -1,
+      0,
+      0,
+      sideColour
+    );
     // +Z
-    this.addQuad(minX, minY, maxZ, maxX, minY, maxZ, maxX, maxY, maxZ, minX, maxY, maxZ, 0, 0, 1, sideColour);
+    this.addQuad(
+      minX,
+      minY,
+      maxZ,
+      maxX,
+      minY,
+      maxZ,
+      maxX,
+      maxY,
+      maxZ,
+      minX,
+      maxY,
+      maxZ,
+      0,
+      0,
+      1,
+      sideColour
+    );
     // -Z
-    this.addQuad(maxX, minY, minZ, minX, minY, minZ, minX, maxY, minZ, maxX, maxY, minZ, 0, 0, -1, sideColour);
+    this.addQuad(
+      maxX,
+      minY,
+      minZ,
+      minX,
+      minY,
+      minZ,
+      minX,
+      maxY,
+      minZ,
+      maxX,
+      maxY,
+      minZ,
+      0,
+      0,
+      -1,
+      sideColour
+    );
     // +Y
-    this.addQuad(minX, maxY, maxZ, maxX, maxY, maxZ, maxX, maxY, minZ, minX, maxY, minZ, 0, 1, 0, topColour);
+    this.addQuad(
+      minX,
+      maxY,
+      maxZ,
+      maxX,
+      maxY,
+      maxZ,
+      maxX,
+      maxY,
+      minZ,
+      minX,
+      maxY,
+      minZ,
+      0,
+      1,
+      0,
+      topColour
+    );
     if (!skipBottom) {
       // -Y
-      this.addQuad(minX, minY, minZ, maxX, minY, minZ, maxX, minY, maxZ, minX, minY, maxZ, 0, -1, 0, topColour);
+      this.addQuad(
+        minX,
+        minY,
+        minZ,
+        maxX,
+        minY,
+        minZ,
+        maxX,
+        minY,
+        maxZ,
+        minX,
+        minY,
+        maxZ,
+        0,
+        -1,
+        0,
+        topColour
+      );
     }
   }
 
   /** A horizontal quad at height `y`, facing up. */
-  addGroundQuad(minX: number, minZ: number, maxX: number, maxZ: number, y: number, colour: number): void {
+  addGroundQuad(
+    minX: number,
+    minZ: number,
+    maxX: number,
+    maxZ: number,
+    y: number,
+    colour: number
+  ): void {
     this.addQuad(minX, y, maxZ, maxX, y, maxZ, maxX, y, minZ, minX, y, minZ, 0, 1, 0, colour);
   }
 
@@ -371,16 +506,84 @@ function addWindows(
       if (axis === 0) {
         // Wall faces +/-X; the pane spans Z.
         if (sign > 0) {
-          out.addQuad(plane, y0, s1, plane, y0, s0, plane, y1, s0, plane, y1, s1, 1, 0, 0, WINDOW_COLOUR);
+          out.addQuad(
+            plane,
+            y0,
+            s1,
+            plane,
+            y0,
+            s0,
+            plane,
+            y1,
+            s0,
+            plane,
+            y1,
+            s1,
+            1,
+            0,
+            0,
+            WINDOW_COLOUR
+          );
         } else {
-          out.addQuad(plane, y0, s0, plane, y0, s1, plane, y1, s1, plane, y1, s0, -1, 0, 0, WINDOW_COLOUR);
+          out.addQuad(
+            plane,
+            y0,
+            s0,
+            plane,
+            y0,
+            s1,
+            plane,
+            y1,
+            s1,
+            plane,
+            y1,
+            s0,
+            -1,
+            0,
+            0,
+            WINDOW_COLOUR
+          );
         }
       } else {
         // Wall faces +/-Z; the pane spans X.
         if (sign > 0) {
-          out.addQuad(s0, y0, plane, s1, y0, plane, s1, y1, plane, s0, y1, plane, 0, 0, 1, WINDOW_COLOUR);
+          out.addQuad(
+            s0,
+            y0,
+            plane,
+            s1,
+            y0,
+            plane,
+            s1,
+            y1,
+            plane,
+            s0,
+            y1,
+            plane,
+            0,
+            0,
+            1,
+            WINDOW_COLOUR
+          );
         } else {
-          out.addQuad(s1, y0, plane, s0, y0, plane, s0, y1, plane, s1, y1, plane, 0, 0, -1, WINDOW_COLOUR);
+          out.addQuad(
+            s1,
+            y0,
+            plane,
+            s0,
+            y0,
+            plane,
+            s0,
+            y1,
+            plane,
+            s1,
+            y1,
+            plane,
+            0,
+            0,
+            -1,
+            WINDOW_COLOUR
+          );
         }
       }
     }
@@ -412,18 +615,30 @@ function addProps(out: GeometryAccumulator, layout: IChunkLayout): void {
   for (const prop of layout.props) {
     const poleHalf = 0.11;
     out.addBox(
-      prop.x - poleHalf, 0, prop.z - poleHalf,
-      prop.x + poleHalf, prop.height, prop.z + poleHalf,
-      0x3d434c, 0x3d434c, true
+      prop.x - poleHalf,
+      0,
+      prop.z - poleHalf,
+      prop.x + poleHalf,
+      prop.height,
+      prop.z + poleHalf,
+      0x3d434c,
+      0x3d434c,
+      true
     );
     // Head offset by a quarter turn so props are not all identical.
     const reach = 0.7;
     const ox = prop.quarterTurns === 0 ? reach : prop.quarterTurns === 2 ? -reach : 0;
     const oz = prop.quarterTurns === 1 ? reach : prop.quarterTurns === 3 ? -reach : 0;
     out.addBox(
-      prop.x + ox - 0.36, prop.height - 0.24, prop.z + oz - 0.2,
-      prop.x + ox + 0.36, prop.height + 0.06, prop.z + oz + 0.2,
-      prop.colour, prop.colour, false
+      prop.x + ox - 0.36,
+      prop.height - 0.24,
+      prop.z + oz - 0.2,
+      prop.x + ox + 0.36,
+      prop.height + 0.06,
+      prop.z + oz + 0.2,
+      prop.colour,
+      prop.colour,
+      false
     );
   }
 }
@@ -448,7 +663,10 @@ export function buildChunkGeometry(
 ): ChunkBuildOutput {
   const started = now();
   const layout = layoutChunk(seed, cx, cz);
-  const out = new GeometryAccumulator(ring === RING_R0 ? 8192 : 512, ring === RING_R0 ? 12288 : 768);
+  const out = new GeometryAccumulator(
+    ring === RING_R0 ? 8192 : 512,
+    ring === RING_R0 ? 12288 : 768
+  );
 
   addGround(out, layout, ring > RING_R1);
 
@@ -486,8 +704,12 @@ export function buildChunkGeometry(
         // Interior faces kept: a missing neighbour must reveal a wall, not a
         // hole. The bottom face is dropped only where it rests on the ground.
         out.addBox(
-          piece.minX, piece.minY, piece.minZ,
-          piece.maxX, piece.maxY, piece.maxZ,
+          piece.minX,
+          piece.minY,
+          piece.minZ,
+          piece.maxX,
+          piece.maxY,
+          piece.maxZ,
           building.colour,
           piece.maxY >= aliveHeight - 1e-4 ? building.roofColour : building.colour,
           piece.band === 0
@@ -508,9 +730,15 @@ export function buildChunkGeometry(
       }
       // Parapet on the surviving roof.
       out.addBox(
-        building.minX - 0.25, aliveHeight, building.minZ - 0.25,
-        building.maxX + 0.25, aliveHeight + 0.55, building.maxZ + 0.25,
-        building.roofColour, building.roofColour, true
+        building.minX - 0.25,
+        aliveHeight,
+        building.minZ - 0.25,
+        building.maxX + 0.25,
+        aliveHeight + 0.55,
+        building.maxZ + 0.25,
+        building.roofColour,
+        building.roofColour,
+        true
       );
       colliders.push({
         centerX: (building.minX + building.maxX) * 0.5,
@@ -523,22 +751,40 @@ export function buildChunkGeometry(
       });
     } else if (ring === RING_R1) {
       out.addBox(
-        building.minX, 0, building.minZ,
-        building.maxX, aliveHeight, building.maxZ,
-        building.colour, building.roofColour, true
+        building.minX,
+        0,
+        building.minZ,
+        building.maxX,
+        aliveHeight,
+        building.maxZ,
+        building.colour,
+        building.roofColour,
+        true
       );
       out.addBox(
-        building.minX + 0.8, aliveHeight, building.minZ + 0.8,
-        building.maxX - 0.8, aliveHeight + 0.7, building.maxZ - 0.8,
-        building.roofColour, building.roofColour, true
+        building.minX + 0.8,
+        aliveHeight,
+        building.minZ + 0.8,
+        building.maxX - 0.8,
+        aliveHeight + 0.7,
+        building.maxZ - 0.8,
+        building.roofColour,
+        building.roofColour,
+        true
       );
     } else {
       // R2: one 5-face box, merged with every other building in the block into
       // this single geometry. No roof detail, no bottom face.
       out.addBox(
-        building.minX, 0, building.minZ,
-        building.maxX, aliveHeight, building.maxZ,
-        building.colour, building.roofColour, true
+        building.minX,
+        0,
+        building.minZ,
+        building.maxX,
+        aliveHeight,
+        building.maxZ,
+        building.colour,
+        building.roofColour,
+        true
       );
     }
   }
@@ -661,9 +907,15 @@ export function buildImpostorGeometry(seed: number): ImpostorBuildOutput {
         const halfX = (building.maxX - building.minX) * 0.5 * IMPOSTOR_SHRINK;
         const halfZ = (building.maxZ - building.minZ) * 0.5 * IMPOSTOR_SHRINK;
         out.addBox(
-          midX - halfX, 0, midZ - halfZ,
-          midX + halfX, building.height * IMPOSTOR_HEIGHT, midZ + halfZ,
-          building.colour, building.roofColour, true
+          midX - halfX,
+          0,
+          midZ - halfZ,
+          midX + halfX,
+          building.height * IMPOSTOR_HEIGHT,
+          midZ + halfZ,
+          building.colour,
+          building.roofColour,
+          true
         );
         buildingCount++;
       }

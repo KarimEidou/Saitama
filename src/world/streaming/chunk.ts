@@ -31,14 +31,7 @@
  */
 
 import * as THREE from 'three';
-import type {
-  ChunkKey,
-  ChunkState,
-  IChunk,
-  IChunkCoord,
-  ICityBlock,
-  IWorldBounds,
-} from '@/types';
+import type { ChunkKey, ChunkState, IChunk, IChunkCoord, ICityBlock, IWorldBounds } from '@/types';
 import { CHUNK_SIZE, chunkIndexToX, chunkIndexToZ } from '@/spatial/constants';
 import { RING_CROWD_MODE, RING_DESTRUCTIBLE, STREAMING_LOD_LEVELS } from './constants';
 import type { CrowdMode } from './constants';

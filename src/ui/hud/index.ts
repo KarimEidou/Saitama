@@ -62,7 +62,13 @@
 
 /* -- composition ----------------------------------------------------------- */
 export { HudManager, type IHudManagerOptions } from './manager';
-export { HudStore, displayRankGainMultiplier, seatDelta, prettyEncounterName, type IHudStoreOptions } from './store';
+export {
+  HudStore,
+  displayRankGainMultiplier,
+  seatDelta,
+  prettyEncounterName,
+  type IHudStoreOptions,
+} from './store';
 
 /* -- model ----------------------------------------------------------------- */
 export {
@@ -169,7 +175,12 @@ export { MarkerLayer, type IMarkerLayerOptions } from './markers';
 
 /* -- screens --------------------------------------------------------------- */
 export { HudScreen, type HudScreenName, type IHudScreen } from './screen';
-export { CombatHudScreen, ARC_LENGTH, pickTrackedQuest, type ICombatHudOptions } from './screens/combat-hud';
+export {
+  CombatHudScreen,
+  ARC_LENGTH,
+  pickTrackedQuest,
+  type ICombatHudOptions,
+} from './screens/combat-hud';
 export { LoadingScreen, LOADING_LINES, type ILoadingOptions } from './screens/loading';
 export { PauseScreen, type IPauseOptions } from './screens/pause';
 export { QuestLogScreen, type IQuestLogOptions } from './screens/quest-log';

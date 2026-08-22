@@ -62,9 +62,7 @@ describe('GroundBVH construction', () => {
   it('indexes every triangle of the merged mesh', () => {
     expect(bvh.triangleCount).toBe(64 * 64 * 2);
     expect(bvh.buildMs).toBeGreaterThanOrEqual(0);
-    console.log(
-      `[bvh] ${bvh.triangleCount} triangles built in ${bvh.buildMs.toFixed(1)} ms`
-    );
+    console.log(`[bvh] ${bvh.triangleCount} triangles built in ${bvh.buildMs.toFixed(1)} ms`);
   });
 
   it('reports the mesh bounds', () => {
@@ -194,10 +192,7 @@ describe('GroundBVH gameplay queries', () => {
   it('answers box and sphere overlap', () => {
     const box = new THREE.Box3(new THREE.Vector3(-5, -20, -5), new THREE.Vector3(5, 20, 5));
     expect(bvh.intersectsBox(box)).toBe(true);
-    const above = new THREE.Box3(
-      new THREE.Vector3(-5, 500, -5),
-      new THREE.Vector3(5, 520, 5)
-    );
+    const above = new THREE.Box3(new THREE.Vector3(-5, 500, -5), new THREE.Vector3(5, 520, 5));
     expect(bvh.intersectsBox(above)).toBe(false);
     expect(bvh.intersectsSphere(new THREE.Sphere(new THREE.Vector3(0, 0, 0), 40))).toBe(true);
   });

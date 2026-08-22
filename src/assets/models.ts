@@ -269,7 +269,14 @@ export async function parseModel(
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     for (const material of materials) {
       const pbr = material as THREE.MeshStandardMaterial;
-      for (const slot of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'] as const) {
+      for (const slot of [
+        'map',
+        'normalMap',
+        'roughnessMap',
+        'metalnessMap',
+        'aoMap',
+        'emissiveMap',
+      ] as const) {
         const texture = pbr[slot];
         if (texture) texture.anisotropy = anisotropy;
       }

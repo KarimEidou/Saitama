@@ -70,9 +70,7 @@ export interface ILoadedEnvironment {
  * `normalised = source * normalisationScale(env)`. Guarded against a zero or
  * absent measurement, which would otherwise divide the world by nothing.
  */
-export function normalisationScale(environment: {
-  readonly meanLuminance: number;
-}): number {
+export function normalisationScale(environment: { readonly meanLuminance: number }): number {
   return 1 / Math.max(1e-6, environment.meanLuminance);
 }
 
@@ -178,8 +176,7 @@ export class EnvironmentLoader {
     const mode: EnvironmentMode = pmrem !== undefined ? 'pmrem' : sh !== undefined ? 'sh' : 'raw';
     if (mode === 'sh') {
       log.info(
-        `environment "${key}" on the SH-9 path: 27 baked coefficients, ` +
-          `no PMREM chain built`
+        `environment "${key}" on the SH-9 path: 27 baked coefficients, ` + `no PMREM chain built`
       );
     }
 

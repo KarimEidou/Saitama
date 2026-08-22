@@ -40,14 +40,30 @@ export function aabbHullPoints(
   maxZ: number,
   out: Float32Array = hullScratch
 ): Float32Array {
-  out[0] = minX;  out[1] = minY;  out[2] = minZ;
-  out[3] = maxX;  out[4] = minY;  out[5] = minZ;
-  out[6] = maxX;  out[7] = maxY;  out[8] = minZ;
-  out[9] = minX;  out[10] = maxY; out[11] = minZ;
-  out[12] = minX; out[13] = minY; out[14] = maxZ;
-  out[15] = maxX; out[16] = minY; out[17] = maxZ;
-  out[18] = maxX; out[19] = maxY; out[20] = maxZ;
-  out[21] = minX; out[22] = maxY; out[23] = maxZ;
+  out[0] = minX;
+  out[1] = minY;
+  out[2] = minZ;
+  out[3] = maxX;
+  out[4] = minY;
+  out[5] = minZ;
+  out[6] = maxX;
+  out[7] = maxY;
+  out[8] = minZ;
+  out[9] = minX;
+  out[10] = maxY;
+  out[11] = minZ;
+  out[12] = minX;
+  out[13] = minY;
+  out[14] = maxZ;
+  out[15] = maxX;
+  out[16] = minY;
+  out[17] = maxZ;
+  out[18] = maxX;
+  out[19] = maxY;
+  out[20] = maxZ;
+  out[21] = minX;
+  out[22] = maxY;
+  out[23] = maxZ;
   return out;
 }
 
@@ -58,7 +74,15 @@ export function aabbHullPoints(
 export function chunkHullPoints(chunk: FractureChunk, out?: Float32Array): Float32Array {
   const { min, max } = chunk.bounds;
   const c = chunk.centroid;
-  return aabbHullPoints(min.x - c.x, min.y - c.y, min.z - c.z, max.x - c.x, max.y - c.y, max.z - c.z, out);
+  return aabbHullPoints(
+    min.x - c.x,
+    min.y - c.y,
+    min.z - c.z,
+    max.x - c.x,
+    max.y - c.y,
+    max.z - c.z,
+    out
+  );
 }
 
 /** Largest AABB edge of a chunk, used for the "too small to simulate" test. */

@@ -75,13 +75,7 @@ import {
   type IImpostorBuildResult,
   type IImpostorStats,
 } from '@/world/streaming';
-import {
-  CHUNK_SIZE,
-  CHUNK_COORD_MIN,
-  CHUNK_COORD_MAX,
-  WORLD_MIN,
-  WORLD_MAX,
-} from '@/spatial';
+import { CHUNK_SIZE, CHUNK_COORD_MIN, CHUNK_COORD_MAX, WORLD_MIN, WORLD_MAX } from '@/spatial';
 import type { SpatialIndex } from '@/spatial';
 import type { DestructionSystem } from '@/gameplay/destruction';
 import type { PhysicsWorld } from '@/physics';
@@ -444,20 +438,38 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
    * per-vertex gradient at no cost. Flat quads pass the same colour twice.
    */
   const quad = (
-    ax: number, ay: number, az: number,
-    bx: number, by: number, bz: number,
-    cx: number, cy: number, cz: number,
-    dx: number, dy: number, dz: number,
-    nx: number, ny: number, nz: number,
+    ax: number,
+    ay: number,
+    az: number,
+    bx: number,
+    by: number,
+    bz: number,
+    cx: number,
+    cy: number,
+    cz: number,
+    dx: number,
+    dy: number,
+    dz: number,
+    nx: number,
+    ny: number,
+    nz: number,
     lower: number,
     upper: number,
     chunk: number
   ): void => {
     const p = v * 3;
-    positions[p] = ax; positions[p + 1] = ay; positions[p + 2] = az;
-    positions[p + 3] = bx; positions[p + 4] = by; positions[p + 5] = bz;
-    positions[p + 6] = cx; positions[p + 7] = cy; positions[p + 8] = cz;
-    positions[p + 9] = dx; positions[p + 10] = dy; positions[p + 11] = dz;
+    positions[p] = ax;
+    positions[p + 1] = ay;
+    positions[p + 2] = az;
+    positions[p + 3] = bx;
+    positions[p + 4] = by;
+    positions[p + 5] = bz;
+    positions[p + 6] = cx;
+    positions[p + 7] = cy;
+    positions[p + 8] = cz;
+    positions[p + 9] = dx;
+    positions[p + 10] = dy;
+    positions[p + 11] = dz;
     for (let k = 0; k < 4; k++) {
       const colour = k < 2 ? lower : upper;
       normals[p + k * 3] = nx;
@@ -468,8 +480,12 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
       colors[p + k * 3 + 2] = colour & 0xff;
       chunkIds[v + k] = chunk;
     }
-    indices[i] = v; indices[i + 1] = v + 1; indices[i + 2] = v + 2;
-    indices[i + 3] = v; indices[i + 4] = v + 2; indices[i + 5] = v + 3;
+    indices[i] = v;
+    indices[i + 1] = v + 1;
+    indices[i + 2] = v + 2;
+    indices[i + 3] = v;
+    indices[i + 4] = v + 2;
+    indices[i + 5] = v + 3;
     v += 4;
     i += 6;
   };
@@ -478,11 +494,21 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
   // chunk's own road always wins the depth test.
   const groundY = -IMPOSTOR_GROUND_DEPTH;
   quad(
-    WORLD_MIN, groundY, WORLD_MAX,
-    WORLD_MAX, groundY, WORLD_MAX,
-    WORLD_MAX, groundY, WORLD_MIN,
-    WORLD_MIN, groundY, WORLD_MIN,
-    0, 1, 0,
+    WORLD_MIN,
+    groundY,
+    WORLD_MAX,
+    WORLD_MAX,
+    groundY,
+    WORLD_MAX,
+    WORLD_MAX,
+    groundY,
+    WORLD_MIN,
+    WORLD_MIN,
+    groundY,
+    WORLD_MIN,
+    0,
+    1,
+    0,
     IMPOSTOR_GROUND_COLOUR,
     IMPOSTOR_GROUND_COLOUR,
     IMPOSTOR_ALWAYS_VISIBLE
@@ -522,7 +548,12 @@ function bakeSkyline(index: ICityPlanIndex): ISkylineBake {
     indices,
     vertexCount,
     indexCount,
-    boundingSphere: [(WORLD_MIN + WORLD_MAX) * 0.5, centreY, (WORLD_MIN + WORLD_MAX) * 0.5, radius] as const,
+    boundingSphere: [
+      (WORLD_MIN + WORLD_MAX) * 0.5,
+      centreY,
+      (WORLD_MIN + WORLD_MAX) * 0.5,
+      radius,
+    ] as const,
   };
 
   return {
@@ -932,8 +963,16 @@ export class CityStreamer {
     this.pending.length = 0;
     const wanted = new Set<number>();
 
-    for (let cz = this.focusChunkZ - this.residentRadius; cz <= this.focusChunkZ + this.residentRadius; cz++) {
-      for (let cx = this.focusChunkX - this.residentRadius; cx <= this.focusChunkX + this.residentRadius; cx++) {
+    for (
+      let cz = this.focusChunkZ - this.residentRadius;
+      cz <= this.focusChunkZ + this.residentRadius;
+      cz++
+    ) {
+      for (
+        let cx = this.focusChunkX - this.residentRadius;
+        cx <= this.focusChunkX + this.residentRadius;
+        cx++
+      ) {
         if (!inWorld(cx, cz)) continue;
         const index = chunkIndex(cx, cz);
         wanted.add(index);
@@ -1070,9 +1109,7 @@ export class CityStreamer {
           if (handle !== undefined) bodyHandles.push(handle);
         }
         if (this.spatial !== undefined) {
-          staticHandles.push(
-            this.spatial.insertStatic(minX, minY, minZ, maxX, maxY, maxZ, id)
-          );
+          staticHandles.push(this.spatial.insertStatic(minX, minY, minZ, maxX, maxY, maxZ, id));
         }
       }
     }

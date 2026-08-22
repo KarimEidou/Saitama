@@ -26,11 +26,7 @@
 
 import type { IHeroRank } from '@/types';
 import { createLogger } from '@/util';
-import {
-  RIVAL_CREDIT_MULTIPLIER,
-  RIVAL_OFFSCREEN_POINTS_PER_DAY,
-  type RivalId,
-} from './constants';
+import { RIVAL_CREDIT_MULTIPLIER, RIVAL_OFFSCREEN_POINTS_PER_DAY, type RivalId } from './constants';
 import { indexForRank, pointsForIndex, rankFromPoints, rankGap } from './rank-ladder';
 
 const log = createLogger('gameplay.rivals');
@@ -189,8 +185,14 @@ export class RivalTracker {
   }
 
   /** Serialise for the save file. */
-  serialise(): Record<string, { points: number; shared: number; offscreen: number; joint: number }> {
-    const out: Record<string, { points: number; shared: number; offscreen: number; joint: number }> = {};
+  serialise(): Record<
+    string,
+    { points: number; shared: number; offscreen: number; joint: number }
+  > {
+    const out: Record<
+      string,
+      { points: number; shared: number; offscreen: number; joint: number }
+    > = {};
     for (const rival of this.rivals.values()) {
       out[rival.id] = {
         points: rival.points,
@@ -203,7 +205,13 @@ export class RivalTracker {
   }
 
   /** Restore from a save. Unknown ids are ignored, missing ones keep defaults. */
-  restore(data: Readonly<Record<string, { points?: number; shared?: number; offscreen?: number; joint?: number }>> | undefined): void {
+  restore(
+    data:
+      | Readonly<
+          Record<string, { points?: number; shared?: number; offscreen?: number; joint?: number }>
+        >
+      | undefined
+  ): void {
     if (!data) return;
     for (const [id, entry] of Object.entries(data)) {
       const rival = this.rivals.get(id as RivalId);

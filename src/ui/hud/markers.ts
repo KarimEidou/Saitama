@@ -171,11 +171,7 @@ export class MarkerLayer {
       vars: {
         '--hud-marker-color': marker.tier ? TIER_COLOR[marker.tier] : KIND_COLOR[marker.kind],
       },
-      children: [
-        el(this.doc, 'span', { className: 'hud-marker__pip' }),
-        label,
-        distance,
-      ],
+      children: [el(this.doc, 'span', { className: 'hud-marker__pip' }), label, distance],
     });
     const object = new CSS2DObject(root);
     object.name = `marker:${marker.id}`;

@@ -96,9 +96,10 @@ export function parseEnvironmentMeasurements(manifest: unknown): EnvironmentMeas
   for (const key of Object.keys(SKY_ASSET_IDS) as SkyKey[]) {
     const id = SKY_ASSET_IDS[key];
     const raw = block[id];
-    const mean = typeof raw?.meanLuminance === 'number' && raw.meanLuminance > 0
-      ? raw.meanLuminance
-      : FALLBACK_MEAN_LUMINANCE;
+    const mean =
+      typeof raw?.meanLuminance === 'number' && raw.meanLuminance > 0
+        ? raw.meanLuminance
+        : FALLBACK_MEAN_LUMINANCE;
     out[key] = {
       id,
       meanLuminance: mean,
@@ -184,9 +185,7 @@ export function normalisationScale(measurement: IEnvironmentMeasurement): number
 }
 
 /** Human-readable audit of what normalisation is doing. For the harness readout. */
-export function describeNormalisation(
-  measurements: EnvironmentMeasurements
-): readonly {
+export function describeNormalisation(measurements: EnvironmentMeasurements): readonly {
   sky: SkyKey;
   meanLuminance: number;
   maxLuminance: number;

@@ -87,7 +87,11 @@ describe('behaviour tree', () => {
     };
     const tree = new BehaviourTree(
       selector<Ctx>('priority', [
-        guard<Ctx>('emergency', (c) => c.flag, effect<Ctx>('handle', () => {})),
+        guard<Ctx>(
+          'emergency',
+          (c) => c.flag,
+          effect<Ctx>('handle', () => {})
+        ),
         low,
       ])
     );
@@ -100,9 +104,13 @@ describe('behaviour tree', () => {
   it('gates a child behind a cooldown', () => {
     const ctx: Ctx = { count: 0, flag: false };
     const tree = new BehaviourTree(
-      cooldown<Ctx>('fire', 1, effect<Ctx>('shot', (c) => {
-        c.count++;
-      }))
+      cooldown<Ctx>(
+        'fire',
+        1,
+        effect<Ctx>('shot', (c) => {
+          c.count++;
+        })
+      )
     );
     tree.tick(ctx, 0.1);
     tree.tick(ctx, 0.1);
@@ -116,9 +124,13 @@ describe('behaviour tree', () => {
     const ctx: Ctx = { count: 0, flag: false };
     expect(invert(condition<Ctx>('t', () => true)).tick(ctx, 0)).toBe('failure');
     expect(invert(condition<Ctx>('f', () => false)).tick(ctx, 0)).toBe('success');
-    expect(guard<Ctx>('closed', () => false, effect<Ctx>('x', () => {})).tick(ctx, 0)).toBe(
-      'failure'
-    );
+    expect(
+      guard<Ctx>(
+        'closed',
+        () => false,
+        effect<Ctx>('x', () => {})
+      ).tick(ctx, 0)
+    ).toBe('failure');
     expect(always(action<Ctx>('fails', () => 'failure')).tick(ctx, 0)).toBe('success');
   });
 });
@@ -227,7 +239,11 @@ describe('HeroNpc', () => {
     const threats: IThreatSource[] = [
       { id: 'm', position: new THREE.Vector3(6, 0, 0), intensity: 1 },
     ];
-    const tatsumaki = new HeroNpc('tatsumaki', 'tatsumaki', heroWorld(undefined, threats, callouts));
+    const tatsumaki = new HeroNpc(
+      'tatsumaki',
+      'tatsumaki',
+      heroWorld(undefined, threats, callouts)
+    );
     tatsumaki.transform.set(2, 0, 0, 0);
     for (let f = 0; f < 180; f++) tatsumaki.update(1 / 60);
     // Backed off towards her preferred range.

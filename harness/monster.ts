@@ -825,7 +825,16 @@ function buildScene(): IScene {
       const d = rng.range(8, 20);
       const height = rng.range(0.25, 1);
       const levelled = bursts.some((burst) =>
-        pointInCone(x - burst.ox, 0, z - burst.oz, burst.dx, 0, burst.dz, burst.range, burst.halfAngle)
+        pointInCone(
+          x - burst.ox,
+          0,
+          z - burst.oz,
+          burst.dx,
+          0,
+          burst.dz,
+          burst.range,
+          burst.halfAngle
+        )
       );
       buildings.push({ x, z, w, d, height, levelled });
     }
@@ -889,7 +898,14 @@ function draw(scene: IScene): void {
   const toY = (z: number): number => size / 2 + z * scale;
 
   /* ---- ground -------------------------------------------------------- */
-  const ground = ctx.createRadialGradient(size / 2, size * 0.46, 20, size / 2, size * 0.5, size * 0.72);
+  const ground = ctx.createRadialGradient(
+    size / 2,
+    size * 0.46,
+    20,
+    size / 2,
+    size * 0.5,
+    size * 0.72
+  );
   ground.addColorStop(0, '#241624');
   ground.addColorStop(0.45, '#140f1c');
   ground.addColorStop(1, '#07060c');
@@ -1032,7 +1048,10 @@ function draw(scene: IScene): void {
       ctx.strokeStyle = 'rgba(86,184,255,0.34)';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.moveTo(toX(actor.x - Math.sin(actor.flee) * 4.5), toY(actor.z - Math.cos(actor.flee) * 4.5));
+      ctx.moveTo(
+        toX(actor.x - Math.sin(actor.flee) * 4.5),
+        toY(actor.z - Math.cos(actor.flee) * 4.5)
+      );
       ctx.lineTo(toX(actor.x), toY(actor.z));
       ctx.stroke();
     }
@@ -1215,7 +1234,10 @@ function renderPanel(scene: IScene): void {
       ['remaining', `${scene.phase.remaining.toFixed(1)} s`],
       ['hits', `${scene.phase.hits} / ${scene.phase.hitsRequired}`],
       ['bursts fired', String(scene.bursts.length)],
-      ['blocks levelled', `${scene.buildings.filter((b) => b.levelled).length} / ${scene.buildings.length}`],
+      [
+        'blocks levelled',
+        `${scene.buildings.filter((b) => b.levelled).length} / ${scene.buildings.length}`,
+      ],
       ['gate', scene.phase.phaseResolved ? 'OPEN' : 'SEALED'],
     ];
     encounter.innerHTML =

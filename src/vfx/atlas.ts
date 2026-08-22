@@ -160,7 +160,8 @@ function paintPuff(options: IPuffOptions): TilePainter {
 
     // Silhouette: radius pushed around the circle by two low-frequency lobes.
     const lobe =
-      valueNoise(Math.cos(angle) * 2 + 2, Math.sin(angle) * 2 + 2, 8, seed + 31) - 0.5 +
+      valueNoise(Math.cos(angle) * 2 + 2, Math.sin(angle) * 2 + 2, 8, seed + 31) -
+      0.5 +
       (valueNoise(Math.cos(angle) * 5 + 5, Math.sin(angle) * 5 + 5, 16, seed + 97) - 0.5) * 0.5;
     const edge = radius * (1 + lobe * lumpiness);
 
@@ -290,9 +291,8 @@ function paintRing(seed: number): TilePainter {
     // Radial spokes through the band. A clean hoop reads as a portal hanging in
     // the street; broken up it reads as air being shoved outward.
     const spoke =
-      0.55 +
-      0.45 * valueNoise(Math.cos(angle) * 11 + 11, Math.sin(angle) * 11 + 11, 26, seed + 5);
-    const a = Math.pow(clamp01(1 - band / 0.30), 2.0) * spoke;
+      0.55 + 0.45 * valueNoise(Math.cos(angle) * 11 + 11, Math.sin(angle) * 11 + 11, 26, seed + 5);
+    const a = Math.pow(clamp01(1 - band / 0.3), 2.0) * spoke;
     out[0] = a;
     out[1] = 1;
     out[2] = a;
@@ -354,7 +354,10 @@ function paintSwirl(seed: number): TilePainter {
  * @param size Edge length in texels. 512 on MEDIUM/HIGH, 256 on LOW.
  * @param seed Deterministic generator seed.
  */
-export function createParticleAtlas(size = 512, seed: number | string = 'vfx.particles'): THREE.DataTexture {
+export function createParticleAtlas(
+  size = 512,
+  seed: number | string = 'vfx.particles'
+): THREE.DataTexture {
   const rng = createRng(seed);
   const base = rng.nextUint32();
   const data = new Uint8Array(size * size * 4);
@@ -568,7 +571,10 @@ function paintCrackTile(
  * @param size Edge length in texels.
  * @param seed Deterministic generator seed.
  */
-export function createCrackAtlas(size = 512, seed: number | string = 'vfx.cracks'): THREE.DataTexture {
+export function createCrackAtlas(
+  size = 512,
+  seed: number | string = 'vfx.cracks'
+): THREE.DataTexture {
   const rng = createRng(seed);
   const data = new Uint8Array(size * size * 4);
 

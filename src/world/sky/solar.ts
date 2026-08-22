@@ -98,11 +98,7 @@ export function solarDeclination(dayOfYear: number): {
  * @param declination Radians.
  * @param latitude    Radians.
  */
-function horizonFrom(
-  hourAngle: number,
-  declination: number,
-  latitude: number
-): ICelestialPosition {
+function horizonFrom(hourAngle: number, declination: number, latitude: number): ICelestialPosition {
   const sinLat = Math.sin(latitude);
   const cosLat = Math.cos(latitude);
   const sinDec = Math.sin(declination);

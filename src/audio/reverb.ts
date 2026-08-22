@@ -72,13 +72,7 @@ const LINE_PAN: readonly number[] = [-0.85, 0.8, -0.4, 0.45];
 
 /** Named acoustic environments. */
 export type ReverbPreset =
-  | 'none'
-  | 'openStreet'
-  | 'arcade'
-  | 'alley'
-  | 'indoor'
-  | 'crater'
-  | 'openField';
+  'none' | 'openStreet' | 'arcade' | 'alley' | 'indoor' | 'crater' | 'openField';
 
 /** What an environment sounds like. */
 export interface IReverbSettings {

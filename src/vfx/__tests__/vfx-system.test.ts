@@ -74,9 +74,10 @@ describe('VFXSystem', () => {
     const { vfx, bus } = makeSystem();
     fireShockwave(bus, { angle: 0.384 });
     vfx.update(1 / 60);
-    const axis = (
-      vfx.meshes[1]!.geometry.getAttribute('iOrigin').array as Float32Array
-    ).slice(0, 4);
+    const axis = (vfx.meshes[1]!.geometry.getAttribute('iOrigin').array as Float32Array).slice(
+      0,
+      4
+    );
     expect(axis[3]).toBeCloseTo(0.384, 5);
     vfx.dispose();
   });
@@ -311,9 +312,7 @@ describe('VFXSystem', () => {
       fireShockwave(bus, { power: 1e6, intent: 'full' });
       vfx.update(1 / 60);
       expect(vfx.diagnostics().sprites).toBeLessThanOrEqual(vfx.diagnostics().spriteCapacity);
-      expect(vfx.diagnostics().shockwaves).toBeLessThanOrEqual(
-        vfx.diagnostics().shockwaveCapacity
-      );
+      expect(vfx.diagnostics().shockwaves).toBeLessThanOrEqual(vfx.diagnostics().shockwaveCapacity);
     }
     vfx.dispose();
   });
@@ -324,8 +323,7 @@ describe('VFXSystem', () => {
     const { vfx, bus } = makeSystem();
     fireShockwave(bus);
     vfx.update(1 / 60);
-    const radius = () =>
-      (vfx.meshes[1]!.geometry.getAttribute('iAxis').array as Float32Array)[3]!;
+    const radius = () => (vfx.meshes[1]!.geometry.getAttribute('iAxis').array as Float32Array)[3]!;
     const before = radius();
     // 90 ms of real time at timeScale 0.04.
     for (let i = 0; i < 6; i++) vfx.update((0.09 / 6) * 0.04);

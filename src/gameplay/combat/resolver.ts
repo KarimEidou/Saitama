@@ -231,7 +231,8 @@ export class HitResolver {
     // Deterministic ordering, independent of how the broad phase enumerated.
     this.scratch.sort(
       (a, b) =>
-        a.distance - b.distance || (a.target.id < b.target.id ? -1 : a.target.id > b.target.id ? 1 : 0)
+        a.distance - b.distance ||
+        (a.target.id < b.target.id ? -1 : a.target.id > b.target.id ? 1 : 0)
     );
 
     const limit = punch.maxTargets ?? Number.MAX_SAFE_INTEGER;

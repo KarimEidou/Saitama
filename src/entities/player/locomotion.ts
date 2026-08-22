@@ -46,14 +46,7 @@ import type { IPlayerLocomotionTuning } from './tuning';
  * projects onto the shared vocabulary for the animator.
  */
 export type PlayerLocoState =
-  | 'idle'
-  | 'walk'
-  | 'run'
-  | 'dash'
-  | 'jumpLaunch'
-  | 'fall'
-  | 'land'
-  | 'hardLand';
+  'idle' | 'walk' | 'run' | 'dash' | 'jumpLaunch' | 'fall' | 'land' | 'hardLand';
 
 /** Every state, in the order a debug HUD should list them. */
 export const PLAYER_LOCO_STATES: readonly PlayerLocoState[] = Object.freeze([

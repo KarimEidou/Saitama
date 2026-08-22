@@ -138,9 +138,9 @@ describe('CrowdSystem physical constraints', () => {
       if (f % 25 !== 0) continue;
       for (let i = 0; i < system.agents.extent; i++) {
         if (system.agents.active[i] === 0) continue;
-        expect(
-          system.obstacles.isWalkable(system.agents.posX[i]!, system.agents.posZ[i]!)
-        ).toBe(true);
+        expect(system.obstacles.isWalkable(system.agents.posX[i]!, system.agents.posZ[i]!)).toBe(
+          true
+        );
       }
     }
     system.dispose();
@@ -255,7 +255,9 @@ describe('CrowdSystem accounting', () => {
   it('kills civilians with a player shockwave and blames the player', () => {
     const bus = new EventBus();
     const lost: { byPlayer: boolean; delta: number }[] = [];
-    bus.on('CivilianLost', (e) => lost.push({ byPlayer: e.causedByPlayer, delta: e.reputationDelta }));
+    bus.on('CivilianLost', (e) =>
+      lost.push({ byPlayer: e.causedByPlayer, delta: e.reputationDelta })
+    );
     const system = makeSystem(bus);
     run(system, 5);
 
@@ -302,9 +304,7 @@ describe('CrowdSystem accounting', () => {
   it('credits saves once the danger has passed, and marks the witnessed ones', () => {
     const bus = new EventBus();
     const saves: { byPlayer: boolean; delta: number }[] = [];
-    bus.on('CivilianSaved', (e) =>
-      saves.push({ byPlayer: e.byPlayer, delta: e.reputationDelta })
-    );
+    bus.on('CivilianSaved', (e) => saves.push({ byPlayer: e.byPlayer, delta: e.reputationDelta }));
     const system = makeSystem(bus);
     run(system, 3);
     const threat = new THREE.Vector3(30, 0, 0);
@@ -521,7 +521,7 @@ describe('CrowdSystem allies', () => {
     system.dispose();
   });
 
-  it('does not let the player\'s own shockwave hurt an ally', () => {
+  it("does not let the player's own shockwave hurt an ally", () => {
     const bus = new EventBus();
     const system = makeSystem(bus);
     const genos = system.addHero('genos', 3, 0);

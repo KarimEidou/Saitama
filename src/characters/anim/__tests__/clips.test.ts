@@ -24,8 +24,23 @@ import { REFERENCE_LEG } from '../rig';
 import { heroFixture, showcaseFixtures } from './support';
 
 const ALL_SLOTS: readonly ClipName[] = [
-  'idle', 'walk', 'run', 'sprint', 'jump', 'fall', 'land', 'attack',
-  'heavyAttack', 'block', 'dodge', 'hit', 'stagger', 'death', 'flee', 'taunt', 'special',
+  'idle',
+  'walk',
+  'run',
+  'sprint',
+  'jump',
+  'fall',
+  'land',
+  'attack',
+  'heavyAttack',
+  'block',
+  'dodge',
+  'hit',
+  'stagger',
+  'death',
+  'flee',
+  'taunt',
+  'special',
 ];
 
 describe('coverage', () => {

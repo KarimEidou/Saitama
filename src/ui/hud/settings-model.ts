@@ -117,7 +117,10 @@ export function normaliseSettings(patch: Partial<IHudSettings> | undefined): IHu
     qualityTier: QUALITY_TIERS.includes(patch.qualityTier as IQualityTier)
       ? (patch.qualityTier as IQualityTier)
       : base.qualityTier,
-    resolutionScale: snapToStep(finite(patch.resolutionScale, base.resolutionScale), RESOLUTION_STEPS),
+    resolutionScale: snapToStep(
+      finite(patch.resolutionScale, base.resolutionScale),
+      RESOLUTION_STEPS
+    ),
     stickLayout: patch.stickLayout === 'fixed' ? 'fixed' : 'floating',
     stickHand: patch.stickHand === 'right' ? 'right' : 'left',
     invertLookY: patch.invertLookY === true,

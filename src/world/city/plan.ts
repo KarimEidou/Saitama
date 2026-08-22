@@ -200,7 +200,12 @@ export function validatePlan(plan: ICityPlan): string[] {
       problems.push(`block "${block.id}" is not wound counter-clockwise`);
     }
     const [cx, cz] = block.chunk;
-    if (cx < CHUNK_COORD_MIN || cx > CHUNK_COORD_MAX || cz < CHUNK_COORD_MIN || cz > CHUNK_COORD_MAX) {
+    if (
+      cx < CHUNK_COORD_MIN ||
+      cx > CHUNK_COORD_MAX ||
+      cz < CHUNK_COORD_MIN ||
+      cz > CHUNK_COORD_MAX
+    ) {
       problems.push(`block "${block.id}" chunk (${cx}, ${cz}) is outside the world`);
     }
     if (block.frontage.length !== block.outline.length) {

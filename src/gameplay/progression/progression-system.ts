@@ -353,7 +353,8 @@ export class ProgressionSystem implements IProgressionSystem {
       this.bus.on('EncounterEnded', (event) => {
         const incident = this.incidents.get(event.encounterId);
         this.incidents.delete(event.encounterId);
-        if (incident) this.fileReport(incident, event.outcome, event.collateralCost, event.civiliansLost);
+        if (incident)
+          this.fileReport(incident, event.outcome, event.collateralCost, event.civiliansLost);
       }),
 
       this.bus.on('EntityKilled', (event) => {
@@ -381,12 +382,17 @@ export class ProgressionSystem implements IProgressionSystem {
           : POINTS_PER_UNWITNESSED_SAVE;
         this.addPoints(points, witnessed ? 'witnessedSave' : 'unwitnessedSave');
         this.addReputation(
-          witnessed ? REPUTATION_PER_WITNESSED_SAVE * report.corroboration : event.reputationDelta * 0.1
+          witnessed
+            ? REPUTATION_PER_WITNESSED_SAVE * report.corroboration
+            : event.reputationDelta * 0.1
         );
 
         // A rescue nobody saw was done for its own sake, which is the only
         // kind of heroism that reaches him.
-        this.recordHeroicDeed(witnessed ? 'arrivedInTime' : 'unwitnessedRescue', event.entityId as string);
+        this.recordHeroicDeed(
+          witnessed ? 'arrivedInTime' : 'unwitnessedRescue',
+          event.entityId as string
+        );
       }),
 
       this.bus.on('CivilianLost', (event) => {
@@ -396,7 +402,8 @@ export class ProgressionSystem implements IProgressionSystem {
           incident.civiliansLost++;
           if (event.causedByPlayer) incident.civiliansLostByPlayer++;
         }
-        const penalty = POINTS_PER_CIVILIAN_LOST * (event.causedByPlayer ? PLAYER_FAULT_MULTIPLIER : 1);
+        const penalty =
+          POINTS_PER_CIVILIAN_LOST * (event.causedByPlayer ? PLAYER_FAULT_MULTIPLIER : 1);
         this.addPoints(penalty, 'civilianLost');
         this.addReputation(event.reputationDelta);
       }),
@@ -468,7 +475,8 @@ export class ProgressionSystem implements IProgressionSystem {
         INCIDENT_UNWITNESSED_MULTIPLIER +
         (INCIDENT_WITNESSED_MULTIPLIER - INCIDENT_UNWITNESSED_MULTIPLIER) * witnesses.corroboration;
     }
-    if (incident.dispatched) creditMultiplier = Math.max(creditMultiplier, INCIDENT_DISPATCHED_MULTIPLIER);
+    if (incident.dispatched)
+      creditMultiplier = Math.max(creditMultiplier, INCIDENT_DISPATCHED_MULTIPLIER);
 
     const tierPoints = outcome === 'victory' ? INCIDENT_POINTS_BY_TIER[incident.threatTier] : 0;
     // `significance` is combat's own estimate of the fight; it nudges the
@@ -525,7 +533,9 @@ export class ProgressionSystem implements IProgressionSystem {
         `${witnesses.count} witnesses (corroboration ${witnesses.corroboration.toFixed(2)}), ` +
         `awarded ${awardedPoints.toFixed(1)} pts` +
         (Object.keys(rivalCredit).length > 0
-          ? `; rivals ${Object.entries(rivalCredit).map(([id, v]) => `${id} +${(v ?? 0).toFixed(1)}`).join(', ')}`
+          ? `; rivals ${Object.entries(rivalCredit)
+              .map(([id, v]) => `${id} +${(v ?? 0).toFixed(1)}`)
+              .join(', ')}`
           : '')
     );
   }

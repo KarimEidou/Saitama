@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { emptyRuntimeManifest, materialTextureKeys, outputBytes, parseRuntimeManifest } from '../manifest';
+import {
+  emptyRuntimeManifest,
+  materialTextureKeys,
+  outputBytes,
+  parseRuntimeManifest,
+} from '../manifest';
 import {
   CharacterIndex,
   indexCharacterFiles,
@@ -33,8 +38,8 @@ describe('parseRuntimeManifest', () => {
 
   it('drops a zero or negative meanLuminance rather than dividing by it', () => {
     const raw = testManifest();
-    (raw.environments as Record<string, { meanLuminance: number }>)['hdri.sky.day']!
-      .meanLuminance = 0;
+    (raw.environments as Record<string, { meanLuminance: number }>)['hdri.sky.day']!.meanLuminance =
+      0;
     expect(parseRuntimeManifest(raw).environments['hdri.sky.day']?.meanLuminance).toBeUndefined();
   });
 
@@ -75,9 +80,7 @@ describe('manifest queries', () => {
   });
 
   it('lists the textures a material needs', () => {
-    const entry = manifest.entries.find(
-      (candidate) => candidate.id === 'mat.road.asphalt.worn'
-    );
+    const entry = manifest.entries.find((candidate) => candidate.id === 'mat.road.asphalt.worn');
     expect(materialTextureKeys(entry!)).toEqual([
       'mat.road.asphalt.worn.albedo',
       'mat.road.asphalt.worn.normal',

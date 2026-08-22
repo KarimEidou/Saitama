@@ -248,16 +248,7 @@ describe('Quadtree raycasts vs brute force', () => {
       const maxDistance = rng.range(50, 1200);
 
       const found = tree.raycastFirst(ox, oy, oz, dx, dy, dz, maxDistance, hit);
-      const expected = tree.bruteForceRaycastFirst(
-        ox,
-        oy,
-        oz,
-        dx,
-        dy,
-        dz,
-        maxDistance,
-        reference
-      );
+      const expected = tree.bruteForceRaycastFirst(ox, oy, oz, dx, dy, dz, maxDistance, reference);
       expect(found).toBe(expected);
       expect(hit.handle, `ray ${i} handle`).toBe(reference.handle);
       if (found) {

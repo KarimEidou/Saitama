@@ -168,9 +168,8 @@ export function parseCharacterIndex(raw: unknown): readonly ICharacterRecord[] {
         TIER_ORDER.find((known) => known === rawFile.tier) ?? parseTierToken(rawFile.file);
       if (tier === undefined) continue;
       const role =
-        (typeof rawFile.role === 'string'
-          ? (rawFile.role as CharacterTextureRole)
-          : undefined) ?? parseRoleToken(rawFile.file);
+        (typeof rawFile.role === 'string' ? (rawFile.role as CharacterTextureRole) : undefined) ??
+        parseRoleToken(rawFile.file);
       if (role === undefined) continue;
 
       files.push({

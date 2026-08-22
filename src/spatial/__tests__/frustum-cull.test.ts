@@ -263,8 +263,8 @@ describe('Hierarchical cull speed', () => {
   function report(lens: ILens, result: ReturnType<typeof measure>): void {
     console.log(
       `[cull ${lens.name}] ` +
-        `hierarchical ${(result.fastMs / POSES * 1000).toFixed(2)} us/cull, ` +
-        `brute ${(result.slowMs / POSES * 1000).toFixed(2)} us/cull, ` +
+        `hierarchical ${((result.fastMs / POSES) * 1000).toFixed(2)} us/cull, ` +
+        `brute ${((result.slowMs / POSES) * 1000).toFixed(2)} us/cull, ` +
         `SPEEDUP ${result.speedup.toFixed(1)}x` +
         `${load.contended ? ' (machine contended — informational only)' : ''}, ` +
         `mean visible ${result.meanVisible.toFixed(1)} / ${INSTANCE_COUNT}, ` +

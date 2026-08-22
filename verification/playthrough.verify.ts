@@ -520,7 +520,8 @@ async function main(): Promise<void> {
     say(`  ready in ${(boot as { bootTimeMs: number }).bootTimeMs} ms (wall ${wallMs} ms)`);
     say(`  boot phases ${JSON.stringify((boot as { boot: unknown }).boot)}`);
     say(`  input bridge v${(boot as { bridge: number }).bridge}`);
-    if ((boot as { bridge: number }).bridge < 0) failures.push('window.__INPUT__ was not installed');
+    if ((boot as { bridge: number }).bridge < 0)
+      failures.push('window.__INPUT__ was not installed');
     report.boot = boot;
 
     await page.evaluate(INSTRUMENT);
@@ -688,8 +689,7 @@ async function main(): Promise<void> {
     // that matters is lap 2's end against lap 1's end.
     const heapMb = heap.map((b) => Number((b / 1048576).toFixed(1)));
     const lapEnds = heap.slice(1);
-    const growth =
-      lapEnds.length >= 4 ? (lapEnds[3]! - lapEnds[1]!) / 1048576 : 0;
+    const growth = lapEnds.length >= 4 ? (lapEnds[3]! - lapEnds[1]!) / 1048576 : 0;
     const totalGrowth = heap.length >= 2 ? (heap[heap.length - 1]! - heap[0]!) / 1048576 : 0;
     say(`  heap at each leg end (MB): ${heapMb.join('  ->  ')}`);
     say(
@@ -774,7 +774,9 @@ async function main(): Promise<void> {
 
     const moving = poseA.filter((a, i) => poseB[i] !== undefined && poseB[i]!.sig !== a.sig).length;
     const boneCount = poseA[0]?.bones ?? 0;
-    say(`  near bodies sampled ${poseA.length} (${boneCount} bones each), pose changed on ${moving}`);
+    say(
+      `  near bodies sampled ${poseA.length} (${boneCount} bones each), pose changed on ${moving}`
+    );
     if (poseA.length > 0 && moving === 0) {
       failures.push('every near-tier civilian held an identical bone pose across frames — T-posed');
     }
@@ -786,7 +788,9 @@ async function main(): Promise<void> {
     say(`  crowd ${JSON.stringify(crowdStats.stats).slice(0, 220)}`);
     say(`  instanced ${JSON.stringify(crowdStats.instanced)}`);
     if (crowdStats.instanced !== null && (crowdStats.instanced.distinctOffsets ?? 0) < 20) {
-      failures.push('the instanced crowd shares too few gait offsets — 250 people marching in step');
+      failures.push(
+        'the instanced crowd shares too few gait offsets — 250 people marching in step'
+      );
     }
     // Pixels, not just numbers: the pair above is three frames apart with the
     // camera nailed down, so anything that moved is the crowd.
@@ -1001,7 +1005,8 @@ async function main(): Promise<void> {
       `  held ${charge.seconds.toFixed(3)} s  charge ${(charge.charge * 100).toFixed(0)}%  ` +
         `cone ${charge.range.toFixed(1)} m  forecast ¥${charge.yen}`
     );
-    if (charge.seconds < 0.14) failures.push(`only held ${charge.seconds.toFixed(3)} s, needed 0.14`);
+    if (charge.seconds < 0.14)
+      failures.push(`only held ${charge.seconds.toFixed(3)} s, needed 0.14`);
     if (!charge.charging) failures.push('combat never entered the charging state');
     await shoot('play-05a-charging');
 
@@ -1121,7 +1126,9 @@ async function main(): Promise<void> {
     await shoot('play-07a-ally-threatened');
     const huntingAnAlly = engagement.monsters.filter((m) => m.target.startsWith('hero-')).length;
     const huntingHarmable = engagement.monsters.filter((m) => m.harmable).length;
-    say(`  monsters hunting an ally: ${huntingAnAlly}, hunting anything harmable: ${huntingHarmable}`);
+    say(
+      `  monsters hunting an ally: ${huntingAnAlly}, hunting anything harmable: ${huntingHarmable}`
+    );
     if (huntingHarmable === 0) {
       failures.push('no monster on screen was hunting a harmable target');
     }
@@ -1165,7 +1172,9 @@ async function main(): Promise<void> {
     // The HUD is a DOM overlay and would dominate a whole-frame luminance
     // reading, so it is hidden for this pair and restored immediately after.
     // Both captures are otherwise identical: same camera, same world.
-    await page.evaluate(`(() => { document.getElementById('ui-root').style.visibility = 'hidden'; })()`);
+    await page.evaluate(
+      `(() => { document.getElementById('ui-root').style.visibility = 'hidden'; })()`
+    );
     await page.evaluate(`window.__GAME__.dayNight.setTimeOfDay(0.5)`);
     await frames(page, 8);
     const noonSnap = await snap();
@@ -1259,7 +1268,9 @@ async function main(): Promise<void> {
     say('\n[beat 10] jump apex — the district from the top of a held jump');
     await ensureGrounded('before the jump');
     const beforeJump = await snap();
-    say(`  standing at (${beforeJump.x}, ${beforeJump.y}, ${beforeJump.z}) state '${beforeJump.state}'`);
+    say(
+      `  standing at (${beforeJump.x}, ${beforeJump.y}, ${beforeJump.z}) state '${beforeJump.state}'`
+    );
     if (beforeJump.y < -2) failures.push('could not get the player back onto solid ground to jump');
     await page.evaluate(
       `(() => { const g = window.__GAME__;
@@ -1276,9 +1287,7 @@ async function main(): Promise<void> {
     // cap is comfortably past that so the apex is never clipped by the loop.
     for (let i = 0; i < 48; i++) {
       await frames(page, 1);
-      const y = (await page.evaluate(
-        `window.__GAME_DIAG__.world.playerPosition.y`
-      )) as number;
+      const y = (await page.evaluate(`window.__GAME_DIAG__.world.playerPosition.y`)) as number;
       if (y > peak) {
         peak = y;
         peakFrame = i;
@@ -1323,9 +1332,7 @@ async function main(): Promise<void> {
     // a third while the shadow cascades — which do not care where the camera
     // is — keep the draw calls high.
     await ensureGrounded('before the budget reading');
-    await page.evaluate(
-      `(() => { const g = window.__GAME__; g.player.camera.pitch = -0.05; })()`
-    );
+    await page.evaluate(`(() => { const g = window.__GAME__; g.player.camera.pitch = -0.05; })()`);
     await frames(page, 6);
     const highBudget = await snap();
     say(
@@ -1394,11 +1401,16 @@ async function main(): Promise<void> {
     const rawCalls = (await page.evaluate(
       `window.__GAME__.renderer.raw.info.render.calls`
     )) as number;
-    say(`  frame ${beforeIdle.frame} -> ${finalSnap.frame};  renderer.info.render.calls ${rawCalls}`);
-    if (rawCalls <= 0) failures.push('renderer.info.render.calls is 0 — the last frame drew nothing');
+    say(
+      `  frame ${beforeIdle.frame} -> ${finalSnap.frame};  renderer.info.render.calls ${rawCalls}`
+    );
+    if (rawCalls <= 0)
+      failures.push('renderer.info.render.calls is 0 — the last frame drew nothing');
     if (finalSnap.frame <= beforeIdle.frame) failures.push('the frame counter stopped advancing');
     if (finalSnap.errors.length > 0) {
-      failures.push(`${finalSnap.errors.length} diagnostic errors: ${finalSnap.errors.join(' | ')}`);
+      failures.push(
+        `${finalSnap.errors.length} diagnostic errors: ${finalSnap.errors.join(' | ')}`
+      );
     }
     if (finalSnap.impostorDrift > 0) {
       failures.push(`${finalSnap.impostorDrift} impostor silhouettes disagree with their building`);
@@ -1454,7 +1466,9 @@ async function main(): Promise<void> {
       `  textures    ${(lowBudget.textureBytes / 1048576).toFixed(1)} MB / ` +
         `${BUDGETS.low.textureBytes / 1048576} MB  across ${lowBudget.textureCount} textures`
     );
-    say(`  ${lowBudget.residentChunks} chunks, ${lowBudget.civilians} civilians, ${lowBudget.programs} programs`);
+    say(
+      `  ${lowBudget.residentChunks} chunks, ${lowBudget.civilians} civilians, ${lowBudget.programs} programs`
+    );
     if (lowBudget.tier !== 'low') failures.push(`low page came up at tier '${lowBudget.tier}'`);
     if (lowBudget.drawCalls > BUDGETS.low.drawCalls) {
       failures.push(

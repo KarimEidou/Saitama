@@ -261,11 +261,7 @@ describe('a full encounter through the synthetic input API', () => {
     expect(serious.punch.intent).toBe('full');
     expect(serious.hits.some((h) => h.targetId === 'boss-01')).toBe(true);
     expect(serious.civiliansKilled).toBe(5);
-    expect(serious.destructiblesHit.map((d) => d.id)).toEqual([
-      'block-0',
-      'block-1',
-      'block-2',
-    ]);
+    expect(serious.destructiblesHit.map((d) => d.id)).toEqual(['block-0', 'block-1', 'block-2']);
     // Mumen Rider is behind the shoulder, and behind is safe.
     expect(serious.hits.some((h) => h.targetId === 'mumen-rider')).toBe(false);
   });

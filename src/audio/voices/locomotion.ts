@@ -305,20 +305,20 @@ export class LandingVoice extends SynthVoice {
     const stretch = lerp(0.7, crater ? 1.9 : 1.2, power);
 
     sweep(this.sub.frequency, t, 140 * rate, 40 * rate, 0.12 * stretch, nq);
-    const subEnd = percussive(
-      this.subGain.gain,
-      t,
-      lerp(0.35, 0.8, power),
-      0.0025,
-      0.28 * stretch
-    );
+    const subEnd = percussive(this.subGain.gain, t, lerp(0.35, 0.8, power), 0.0025, 0.28 * stretch);
 
     // The crater octave: only present when the landing actually breaks ground.
     sweep(this.subOctave.frequency, t, 70 * rate, 22 * rate, 0.16 * stretch, nq);
     percussive(this.subOctaveGain.gain, t, crater ? 0.3 * power : 0, 0.006, 0.5 * stretch);
 
     sweep(this.bodyFilter.frequency, t, 900 * rate, 200 * rate, 0.09, nq);
-    const bodyEnd = percussive(this.bodyGain.gain, t, lerp(0.2, 0.42, power), 0.0015, 0.1 * stretch);
+    const bodyEnd = percussive(
+      this.bodyGain.gain,
+      t,
+      lerp(0.2, 0.42, power),
+      0.0015,
+      0.1 * stretch
+    );
 
     // Dust hangs around after the impact: a slow-ish attack and a long, quiet
     // tail is the difference between "landed" and "landed hard".

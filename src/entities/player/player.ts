@@ -26,10 +26,7 @@
 
 import type * as THREE from 'three';
 import type { InputState } from '@/types';
-import {
-  PlayerController,
-  type IPlayerControllerOptions,
-} from './player-controller';
+import { PlayerController, type IPlayerControllerOptions } from './player-controller';
 import {
   ThirdPersonCameraRig,
   type ICameraProbe,

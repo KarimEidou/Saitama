@@ -94,12 +94,18 @@ export class HttpAssetProvider implements IAssetProvider {
     if (!entry) return undefined;
     // Exact tier, then the next best available. A device asking for 'ultra' on
     // a set built only to 'high' should get the sky, not a black screen.
-    const order: QualityTier[] = tier === 'mobile' ? ['mobile', 'high', 'ultra'] : tier === 'high' ? ['high', 'ultra', 'mobile'] : ['ultra', 'high', 'mobile'];
+    const order: QualityTier[] =
+      tier === 'mobile'
+        ? ['mobile', 'high', 'ultra']
+        : tier === 'high'
+          ? ['high', 'ultra', 'mobile']
+          : ['ultra', 'high', 'mobile'];
     for (const candidate of order) {
       const output = entry.outputs.find((o) => o.tier === candidate);
       if (output) {
         const root = this.manifest?.generatedRoot?.replace(/\/+$/, '');
-        const prefix = root && !this.baseUrl.endsWith(root) ? `${this.baseUrl}/${root}` : this.baseUrl;
+        const prefix =
+          root && !this.baseUrl.endsWith(root) ? `${this.baseUrl}/${root}` : this.baseUrl;
         return `${prefix}/${output.file}`;
       }
     }
@@ -311,9 +317,10 @@ export function prepareEnvironment(texture: THREE.Texture): THREE.Texture {
   // Mip levels are present in the KTX2 (11 for 1024x512), so trilinear is
   // available and worth having: PMREM's lower roughness levels sample the
   // source at reduced footprints.
-  texture.minFilter = texture.mipmaps && texture.mipmaps.length > 1
-    ? THREE.LinearMipmapLinearFilter
-    : THREE.LinearFilter;
+  texture.minFilter =
+    texture.mipmaps && texture.mipmaps.length > 1
+      ? THREE.LinearMipmapLinearFilter
+      : THREE.LinearFilter;
   texture.generateMipmaps = false;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;

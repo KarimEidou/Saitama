@@ -36,14 +36,7 @@
  * authoritative on any of those.
  */
 
-import type {
-  DistrictType,
-  EntityId,
-  GameEventOf,
-  IEventBus,
-  ThreatTier,
-  Vec3,
-} from '@/types';
+import type { DistrictType, EntityId, GameEventOf, IEventBus, ThreatTier, Vec3 } from '@/types';
 import { clamp01, createRng, type IRandom } from '@/util';
 import { monsterArchetype } from './archetypes';
 import { BossEncounter, type IEncounterAlly } from './boss-encounter';

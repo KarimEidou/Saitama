@@ -389,7 +389,10 @@ export class CrowdRenderer {
         this.quaternion.setFromEuler(this.euler);
       }
       this.scale.setScalar(1);
-      resource.mesh.setMatrixAt(slot, this.matrix.compose(this.position, this.quaternion, this.scale));
+      resource.mesh.setMatrixAt(
+        slot,
+        this.matrix.compose(this.position, this.quaternion, this.scale)
+      );
       this.offsets.add(Math.round(agents.timeOffset[i]! * 256));
     }
 

@@ -117,12 +117,7 @@ export function missingModel(key: string): THREE.Object3D {
  * surface, and a magenta world is unusable rather than merely obvious.
  */
 export function missingEnvironment(key: string): THREE.DataTexture {
-  const texture = new THREE.DataTexture(
-    new Uint8Array([48, 48, 56, 255]),
-    1,
-    1,
-    THREE.RGBAFormat
-  );
+  const texture = new THREE.DataTexture(new Uint8Array([48, 48, 56, 255]), 1, 1, THREE.RGBAFormat);
   texture.mapping = THREE.EquirectangularReflectionMapping;
   texture.colorSpace = THREE.NoColorSpace;
   texture.name = `MISSING:${key}`;

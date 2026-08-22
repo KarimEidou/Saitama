@@ -178,11 +178,7 @@ describe('the runtime and the bake agree', () => {
         const weight = data.skinWeight[v * 4 + k]!;
         if (weight === 0) continue;
         const bone = data.skinIndex[v * 4 + k]!;
-        source.set(
-          data.position[v * 3]!,
-          data.position[v * 3 + 1]!,
-          data.position[v * 3 + 2]!
-        );
+        source.set(data.position[v * 3]!, data.position[v * 3 + 1]!, data.position[v * 3 + 2]!);
         cpu.addScaledVector(scratch.copy(source).applyMatrix4(skin[bone]!), weight);
         sampleVatMatrix(bake, 0, frameTime, bone, matrix);
         gpu.addScaledVector(scratch.copy(source).applyMatrix4(matrix), weight);

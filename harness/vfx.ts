@@ -415,11 +415,7 @@ function main(): void {
       const side = random.bool() ? 1 : -1;
       const z = 8 - random.next() * 430;
       const height = 1.2 + random.next() * 3.4;
-      position.set(
-        side * (streetHalfWidth - 1.5 - random.next() * 4),
-        height * 0.5,
-        z
-      );
+      position.set(side * (streetHalfWidth - 1.5 - random.next() * 4), height * 0.5, z);
       euler.set(0, random.next() * Math.PI * 2, 0);
       quaternion.setFromEuler(euler);
       scale.set(0.7 + random.next() * 1.6, height, 0.7 + random.next() * 1.6);

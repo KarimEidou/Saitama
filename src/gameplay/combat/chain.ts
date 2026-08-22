@@ -70,9 +70,7 @@ export class PunchChain {
 
   state(time: number): IChainState {
     const remaining =
-      this.length === 0
-        ? 0
-        : Math.max(0, this.tuning.chainWindowSeconds - (time - this.lastTime));
+      this.length === 0 ? 0 : Math.max(0, this.tuning.chainWindowSeconds - (time - this.lastTime));
     return { length: this.length, windowRemaining: remaining, longest: this.longest };
   }
 

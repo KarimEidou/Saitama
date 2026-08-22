@@ -89,12 +89,7 @@ export {
   type ITranscodeSupport,
 } from './ktx2';
 
-export {
-  estimateGpuBytes,
-  TextureMemory,
-  type IEvictable,
-  type IEvictionReport,
-} from './memory';
+export { estimateGpuBytes, TextureMemory, type IEvictable, type IEvictionReport } from './memory';
 
 export {
   ManagedTextureHandle,
@@ -144,11 +139,7 @@ export {
   MISSING_ASSET_FLAG,
 } from './fallback';
 
-export {
-  HttpAssetProvider,
-  type IHttpAssetProviderOptions,
-  type IFetchResult,
-} from './provider';
+export { HttpAssetProvider, type IHttpAssetProviderOptions, type IFetchResult } from './provider';
 
 export {
   AssetRegistry,

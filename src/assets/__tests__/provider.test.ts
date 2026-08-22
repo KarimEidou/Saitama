@@ -141,7 +141,8 @@ describe('HttpAssetProvider', () => {
   });
 
   it('survives a manifest that cannot be fetched at all', async () => {
-    const failing = (async () => ({ ok: false, status: 500 }) as unknown as Response) as typeof fetch;
+    const failing = (async () =>
+      ({ ok: false, status: 500 }) as unknown as Response) as typeof fetch;
     const provider = new HttpAssetProvider({ baseUrl: '/assets', fetchImpl: failing });
     const manifest = await provider.loadManifest();
     expect(manifest.entries).toEqual([]);
@@ -190,7 +191,8 @@ describe('HttpAssetProvider', () => {
       entry.outputs.some((output) => output.tier === 'high')
     ).length;
     const mobileOnly = entries.filter(
-      (entry) => entry.outputs.length > 0 && entry.outputs.every((output) => output.tier === 'mobile')
+      (entry) =>
+        entry.outputs.length > 0 && entry.outputs.every((output) => output.tier === 'mobile')
     ).length;
     expect(declaredHigh).toBeGreaterThan(0);
     expect(mobileOnly).toBeGreaterThan(0);

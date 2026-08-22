@@ -463,7 +463,9 @@ function assertTranscode(stats: HarnessStats): void {
     `albedo maps are sRGB, data maps are linear`
   );
   check(
-    stats.textures.filter((row) => row.key.endsWith('.normal')).every((row) => row.colorSpace === 'linear'),
+    stats.textures
+      .filter((row) => row.key.endsWith('.normal'))
+      .every((row) => row.colorSpace === 'linear'),
     `normal maps are linear`
   );
 }
@@ -556,7 +558,8 @@ function assertEnvironments(
     `maxLuminance surfaced (${peaks.map((peak) => peak.toFixed(0)).join(', ')})`
   );
 
-  const expected = stats.tier === 'mobile' ? 'sh' : options.expectPmremWhenNotMobile ? 'pmrem' : 'sh';
+  const expected =
+    stats.tier === 'mobile' ? 'sh' : options.expectPmremWhenNotMobile ? 'pmrem' : 'sh';
   check(
     stats.environments.every((row) => row.mode === expected),
     `tier '${stats.tier}' uses the ${expected.toUpperCase()} irradiance path`
@@ -636,7 +639,10 @@ function assertBudget(stats: HarnessStats): void {
     failures.push('budget: the page published no LRU report');
     return;
   }
-  check(budget.evicted.length > 0, `LRU evicted ${budget.evicted.length} texture(s) under pressure`);
+  check(
+    budget.evicted.length > 0,
+    `LRU evicted ${budget.evicted.length} texture(s) under pressure`
+  );
   check(
     budget.retainedStillResident,
     `every referenced texture survived (${budget.retainedKeys.length} pinned by live materials)`
@@ -667,10 +673,7 @@ async function assertFrame(name: string, screenshot: Buffer): Promise<void> {
     `${name}: real content (${frame.distinctColors} distinct colours)`
   );
   check(frame.stdDev > 10, `${name}: not a flat fill (stdDev ${frame.stdDev.toFixed(1)})`);
-  check(
-    frame.meanLuma > 12,
-    `${name}: not a black frame (mean luma ${frame.meanLuma.toFixed(1)})`
-  );
+  check(frame.meanLuma > 12, `${name}: not a black frame (mean luma ${frame.meanLuma.toFixed(1)})`);
   check(
     frame.magentaPixels < 400,
     `${name}: no missing-texture checker on screen (${frame.magentaPixels} magenta px)`

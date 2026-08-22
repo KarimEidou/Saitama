@@ -379,15 +379,52 @@ const ORIGIN_PATTERNS: Readonly<Record<number, readonly number[]>> = {
   1: [0.5, 0.5],
   5: [0.5, 0.5, EDGE, EDGE, 1 - EDGE, EDGE, EDGE, 1 - EDGE, 1 - EDGE, 1 - EDGE],
   9: [
-    EDGE, EDGE, 0.5, EDGE, 1 - EDGE, EDGE,
-    EDGE, 0.5, 0.5, 0.5, 1 - EDGE, 0.5,
-    EDGE, 1 - EDGE, 0.5, 1 - EDGE, 1 - EDGE, 1 - EDGE,
+    EDGE,
+    EDGE,
+    0.5,
+    EDGE,
+    1 - EDGE,
+    EDGE,
+    EDGE,
+    0.5,
+    0.5,
+    0.5,
+    1 - EDGE,
+    0.5,
+    EDGE,
+    1 - EDGE,
+    0.5,
+    1 - EDGE,
+    1 - EDGE,
+    1 - EDGE,
   ],
   13: [
-    EDGE, EDGE, 0.5, EDGE, 1 - EDGE, EDGE,
-    EDGE, 0.5, 0.5, 0.5, 1 - EDGE, 0.5,
-    EDGE, 1 - EDGE, 0.5, 1 - EDGE, 1 - EDGE, 1 - EDGE,
-    0.25, 0.25, 0.75, 0.25, 0.25, 0.75, 0.75, 0.75,
+    EDGE,
+    EDGE,
+    0.5,
+    EDGE,
+    1 - EDGE,
+    EDGE,
+    EDGE,
+    0.5,
+    0.5,
+    0.5,
+    1 - EDGE,
+    0.5,
+    EDGE,
+    1 - EDGE,
+    0.5,
+    1 - EDGE,
+    1 - EDGE,
+    1 - EDGE,
+    0.25,
+    0.25,
+    0.75,
+    0.25,
+    0.25,
+    0.75,
+    0.75,
+    0.75,
   ],
 };
 
@@ -509,7 +546,17 @@ function castFan(
   const phase = jitter * step;
   for (let i = 0; i < rayCount; i++) {
     const angle = phase + i * step;
-    marchRay(table, grid, fromChunk, ox, oz, Math.cos(angle), Math.sin(angle), maxDistance, ignoreEnclosing);
+    marchRay(
+      table,
+      grid,
+      fromChunk,
+      ox,
+      oz,
+      Math.cos(angle),
+      Math.sin(angle),
+      maxDistance,
+      ignoreEnclosing
+    );
   }
 }
 
@@ -547,17 +594,9 @@ function marchRay(
   const cellMinX = WORLD_MIN + gx * CHUNK_SIZE;
   const cellMinZ = WORLD_MIN + gz * CHUNK_SIZE;
   let tMaxX =
-    dx > 0
-      ? (cellMinX + CHUNK_SIZE - ox) * invAbsX
-      : dx < 0
-        ? (ox - cellMinX) * invAbsX
-        : Infinity;
+    dx > 0 ? (cellMinX + CHUNK_SIZE - ox) * invAbsX : dx < 0 ? (ox - cellMinX) * invAbsX : Infinity;
   let tMaxZ =
-    dz > 0
-      ? (cellMinZ + CHUNK_SIZE - oz) * invAbsZ
-      : dz < 0
-        ? (oz - cellMinZ) * invAbsZ
-        : Infinity;
+    dz > 0 ? (cellMinZ + CHUNK_SIZE - oz) * invAbsZ : dz < 0 ? (oz - cellMinZ) * invAbsZ : Infinity;
 
   let tEnter = 0;
   for (;;) {
@@ -648,8 +687,7 @@ export function groundTruthVisible(
   // which in a grid city is the roadway — leave it out and the reference
   // declares half the streets invisible.
   const span = samplesPerAxis > 1 ? (1 - 2 * GROUND_TRUTH_EDGE) / (samplesPerAxis - 1) : 0;
-  const at = (i: number): number =>
-    samplesPerAxis > 1 ? GROUND_TRUTH_EDGE + i * span : 0.5;
+  const at = (i: number): number => (samplesPerAxis > 1 ? GROUND_TRUTH_EDGE + i * span : 0.5);
 
   for (let az = 0; az < samplesPerAxis; az++) {
     for (let ax = 0; ax < samplesPerAxis; ax++) {

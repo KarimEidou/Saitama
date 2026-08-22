@@ -167,7 +167,8 @@ function summarise(samples: readonly number[]): TimingSummary {
   if (samples.length === 0) return { samples: 0, avgMs: 0, p50Ms: 0, p95Ms: 0, maxMs: 0 };
   const sorted = [...samples].sort((a, b) => a - b);
   const total = sorted.reduce((sum, v) => sum + v, 0);
-  const at = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!;
+  const at = (q: number): number =>
+    sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!;
   return {
     samples: sorted.length,
     avgMs: round(total / sorted.length),
@@ -432,7 +433,11 @@ function runRagdollScenario(): RagdollScene {
     if (ragdoll.isDisposed) continue;
     for (const segment of ragdoll.segments) {
       segment.body.getTransform(position, rotation);
-      if (!Number.isFinite(position.x) || !Number.isFinite(position.y) || !Number.isFinite(position.z)) {
+      if (
+        !Number.isFinite(position.x) ||
+        !Number.isFinite(position.y) ||
+        !Number.isFinite(position.z)
+      ) {
         anyNonFinite = true;
         continue;
       }
@@ -739,12 +744,7 @@ async function main(): Promise<void> {
   renderer.toneMappingExposure = 1.15;
 
   const scene = buildScene(debrisContainer, ragdoll.group);
-  const camera = new THREE.PerspectiveCamera(
-    46,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    200
-  );
+  const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 200);
   camera.position.set(12.5, 8.5, 17.5);
   camera.lookAt(0.6, 0.6, 3.6);
 

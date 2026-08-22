@@ -55,7 +55,13 @@ import type {
 import { clamp01 } from '@/util';
 import type { ProceduralAnimator } from '@/characters/anim';
 import type { CharacterParts } from '@/characters/mesh';
-import { ActorStateMachine, ActorTransform, PROCEDURAL_ANIMATIONS, angleTo, yawFromDirection } from './actor-support';
+import {
+  ActorStateMachine,
+  ActorTransform,
+  PROCEDURAL_ANIMATIONS,
+  angleTo,
+  yawFromDirection,
+} from './actor-support';
 import {
   GENOS_CALLOUT_HEALTH,
   GENOS_HEALTH,
@@ -515,14 +521,17 @@ export class HeroNpc implements IActor {
 
   private integrate(dt: number): void {
     const p = this.transform.position;
-    this.transform.set(p.x + this.velocity.x * dt, p.y, p.z + this.velocity.z * dt, this.transform.yaw);
+    this.transform.set(
+      p.x + this.velocity.x * dt,
+      p.y,
+      p.z + this.velocity.z * dt,
+      this.transform.yaw
+    );
   }
 
   private present(dt: number): void {
     if (this.animator === undefined) return;
-    const speed = Math.sqrt(
-      this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z
-    );
+    const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
     this.animator.setLocomotion({ speed, grounded: true });
     this.animator.setRoot(this.transform.position, this.transform.yaw);
     if (this.clipRequest === 'death') {
@@ -704,10 +713,7 @@ function mumenTree(): BtNode<HeroContext> {
           'declare',
           14,
           action<HeroContext>('declaration', (c) => {
-            c.self.say(
-              'I am Mumen Rider, C-Class Rank 1! And I am not running!',
-              'mumen.declare'
-            );
+            c.self.say('I am Mumen Rider, C-Class Rank 1! And I am not running!', 'mumen.declare');
             return 'success';
           })
         ),
@@ -749,7 +755,10 @@ function tatsumakiTree(): BtNode<HeroContext> {
           return dx * dx + dz * dz < 30 * 30;
         },
         action<HeroContext>('insult', (c) => {
-          c.self.say(TATSUMAKI_LINES[c.self.reEngagements % TATSUMAKI_LINES.length]!, 'tatsumaki.contempt');
+          c.self.say(
+            TATSUMAKI_LINES[c.self.reEngagements % TATSUMAKI_LINES.length]!,
+            'tatsumaki.contempt'
+          );
           return 'failure';
         })
       )

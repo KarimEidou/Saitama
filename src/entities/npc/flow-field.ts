@@ -296,7 +296,7 @@ export class FlowField {
   private buildPenalty(obstacles: ObstacleField): void {
     for (let i = 0; i < FIELD_COUNT; i++) {
       const clear = obstacles.clearance[i]!;
-      this.penalty[i] = clear >= 2 ? 0 : clear === 1 ? (WALL_HUG_PENALTY >> 1) : WALL_HUG_PENALTY;
+      this.penalty[i] = clear >= 2 ? 0 : clear === 1 ? WALL_HUG_PENALTY >> 1 : WALL_HUG_PENALTY;
     }
   }
 
@@ -344,7 +344,11 @@ export class FlowField {
    * lanes. Weighting all eight neighbours by their cost difference produces a
    * continuous direction and the lanes disappear.
    */
-  private deriveDirections(field: IDirectionField, obstacles: ObstacleField, ascend: boolean): void {
+  private deriveDirections(
+    field: IDirectionField,
+    obstacles: ObstacleField,
+    ascend: boolean
+  ): void {
     const { cost, dirX, dirZ } = field;
     const sign = ascend ? -1 : 1;
     for (let gz = 0; gz < FIELD_DIM; gz++) {

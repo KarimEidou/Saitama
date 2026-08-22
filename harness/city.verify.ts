@@ -293,16 +293,22 @@ async function main(): Promise<void> {
 
       /* -------------------------- assertions -------------------------- */
       if (stats.drawCallsPerBlockWorst > 3) {
-        failures.push(`${view.name}: a block cost ${stats.drawCallsPerBlockWorst} draw calls (max 3)`);
+        failures.push(
+          `${view.name}: a block cost ${stats.drawCallsPerBlockWorst} draw calls (max 3)`
+        );
       }
       if (stats.residentReport.worstBlockCalls > 3) {
-        failures.push(`${view.name}: resident report worst block ${stats.residentReport.worstBlockCalls}`);
+        failures.push(
+          `${view.name}: resident report worst block ${stats.residentReport.worstBlockCalls}`
+        );
       }
       if (stats.triangles < 20_000) {
         failures.push(`${view.name}: only ${stats.triangles} triangles drawn`);
       }
-      if (pixels.stdDev < 8) failures.push(`${view.name}: image looks flat (stdDev ${pixels.stdDev.toFixed(1)})`);
-      if (pixels.colours < 200) failures.push(`${view.name}: only ${pixels.colours} distinct colours`);
+      if (pixels.stdDev < 8)
+        failures.push(`${view.name}: image looks flat (stdDev ${pixels.stdDev.toFixed(1)})`);
+      if (pixels.colours < 200)
+        failures.push(`${view.name}: only ${pixels.colours} distinct colours`);
       if (pixels.edgeDensity < 0.05) {
         failures.push(
           `${view.name}: almost no edges (${(pixels.edgeDensity * 100).toFixed(1)}%) — the ` +
@@ -310,7 +316,8 @@ async function main(): Promise<void> {
         );
       }
       if (view.name === 'street') {
-        if (stats.buildings < 60) failures.push(`street: only ${stats.buildings} buildings in view`);
+        if (stats.buildings < 60)
+          failures.push(`street: only ${stats.buildings} buildings in view`);
         const models = stats.realModels + stats.propsResolved;
         if (models < 8) failures.push(`street: only ${models} prop models resolved`);
       }

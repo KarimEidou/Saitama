@@ -41,7 +41,12 @@ function rect(w: number, d: number): Polygon {
   ];
 }
 
-function makeBuilding(floors: number, detail: BuildingDetail, seed: number, footprint = rect(19, 14)) {
+function makeBuilding(
+  floors: number,
+  detail: BuildingDetail,
+  seed: number,
+  footprint = rect(19, 14)
+) {
   return generateBuilding({
     id: `test-${floors}-${detail}-${seed}`,
     footprint,

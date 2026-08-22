@@ -13,7 +13,10 @@ import { QuestSystem } from '../quest-system';
 import { QUEST_DEFS, type IQuestDef } from '../quest-defs';
 import { makeHarness, ORIGIN, at } from './support';
 
-function questSystem(defs: readonly IQuestDef[], overrides: Partial<{ heroClass: () => 'C' | 'B' | 'A' | 'S'; boredom: () => number }> = {}) {
+function questSystem(
+  defs: readonly IQuestDef[],
+  overrides: Partial<{ heroClass: () => 'C' | 'B' | 'A' | 'S'; boredom: () => number }> = {}
+) {
   const bus = new EventBus();
   const system = new QuestSystem({
     bus,
@@ -41,7 +44,16 @@ describe('catalogue', () => {
     expect(QUEST_DEFS.length).toBeGreaterThanOrEqual(8);
 
     const kinds = new Set(QUEST_DEFS.flatMap((d) => d.objectives.map((o) => o.kind)));
-    for (const required of ['defeat', 'defeatTier', 'reach', 'rescue', 'survive', 'protect', 'destroy', 'talk']) {
+    for (const required of [
+      'defeat',
+      'defeatTier',
+      'reach',
+      'rescue',
+      'survive',
+      'protect',
+      'destroy',
+      'talk',
+    ]) {
       expect(kinds).toContain(required);
     }
 
@@ -173,7 +185,9 @@ describe('state machine', () => {
 
   it('gates on hero class', () => {
     let heroClass: 'C' | 'B' | 'A' | 'S' = 'C';
-    const { system } = questSystem([{ ...SIMPLE, requiredClass: 'A' }], { heroClass: () => heroClass });
+    const { system } = questSystem([{ ...SIMPLE, requiredClass: 'A' }], {
+      heroClass: () => heroClass,
+    });
     expect(system.quests.get('test.simple')!.state).toBe('locked');
 
     heroClass = 'A';
@@ -187,7 +201,14 @@ describe('state machine', () => {
       ...SIMPLE,
       objectives: [
         { id: 'visible', kind: 'defeat', description: '', required: 1, targetId: 'monster.x' },
-        { id: 'secret', kind: 'defeat', description: '', required: 1, targetId: 'monster.secret', hidden: true },
+        {
+          id: 'secret',
+          kind: 'defeat',
+          description: '',
+          required: 1,
+          targetId: 'monster.secret',
+          hidden: true,
+        },
       ],
     };
     const { system } = questSystem([def]);
@@ -241,7 +262,14 @@ describe('timers', () => {
     const def: IQuestDef = {
       ...SIMPLE,
       objectives: [
-        { id: 'arrive', kind: 'reach', description: '', required: 1, location: [100, 0, 0], radius: 10 },
+        {
+          id: 'arrive',
+          kind: 'reach',
+          description: '',
+          required: 1,
+          location: [100, 0, 0],
+          radius: 10,
+        },
         { id: 'hold', kind: 'survive', description: '', required: 5 },
       ],
     };
@@ -270,9 +298,19 @@ describe('failure branches', () => {
     });
     system.accept('test.simple');
 
-    bus.emit('CivilianLost', { entityId: 'a', position: ORIGIN, causedByPlayer: false, reputationDelta: -2 });
+    bus.emit('CivilianLost', {
+      entityId: 'a',
+      position: ORIGIN,
+      causedByPlayer: false,
+      reputationDelta: -2,
+    });
     expect(system.quests.get('test.simple')!.state).toBe('active');
-    bus.emit('CivilianLost', { entityId: 'b', position: ORIGIN, causedByPlayer: false, reputationDelta: -2 });
+    bus.emit('CivilianLost', {
+      entityId: 'b',
+      position: ORIGIN,
+      causedByPlayer: false,
+      reputationDelta: -2,
+    });
     expect(system.quests.get('test.simple')!.state).toBe('failed');
     system.dispose();
   });
@@ -287,7 +325,11 @@ describe('failure branches', () => {
 
     bus.emit('AllyDowned', { entityId: 'ally.someone', displayName: 'Someone', position: ORIGIN });
     expect(system.quests.get('test.simple')!.state).toBe('active');
-    bus.emit('AllyDowned', { entityId: 'ally.mumen', displayName: 'Mumen Rider', position: ORIGIN });
+    bus.emit('AllyDowned', {
+      entityId: 'ally.mumen',
+      displayName: 'Mumen Rider',
+      position: ORIGIN,
+    });
     expect(system.quests.get('test.simple')!.state).toBe('failed');
     system.dispose();
   });
@@ -323,7 +365,9 @@ describe('failure branches', () => {
       {
         ...SIMPLE,
         id: 'test.monster',
-        objectives: [{ id: 'm', kind: 'defeat', description: '', required: 1, targetId: 'monster.m' }],
+        objectives: [
+          { id: 'm', kind: 'defeat', description: '', required: 1, targetId: 'monster.m' },
+        ],
         rules: { conflictsWith: ['test.sale'] },
       },
     ];
@@ -346,9 +390,19 @@ describe('failure branches', () => {
       onResolved: (_q, outcome) => resolutions.push(outcome),
     });
     system.accept('test.simple');
-    bus.emit('CivilianLost', { entityId: 'a', position: ORIGIN, causedByPlayer: false, reputationDelta: -2 });
+    bus.emit('CivilianLost', {
+      entityId: 'a',
+      position: ORIGIN,
+      causedByPlayer: false,
+      reputationDelta: -2,
+    });
     system.update(5);
-    bus.emit('CivilianLost', { entityId: 'b', position: ORIGIN, causedByPlayer: false, reputationDelta: -2 });
+    bus.emit('CivilianLost', {
+      entityId: 'b',
+      position: ORIGIN,
+      causedByPlayer: false,
+      reputationDelta: -2,
+    });
     expect(resolutions).toEqual(['failed']);
     system.dispose();
   });
@@ -367,7 +421,14 @@ describe('encounter triggers', () => {
           ...SIMPLE,
           location: [50, 0, 0],
           objectives: [
-            { id: 'arrive', kind: 'reach', description: '', required: 1, location: [50, 0, 0], radius: 12 },
+            {
+              id: 'arrive',
+              kind: 'reach',
+              description: '',
+              required: 1,
+              location: [50, 0, 0],
+              radius: 12,
+            },
             { id: 'kill', kind: 'defeat', description: '', required: 1, targetId: 'monster.x' },
           ],
           rules: { encounterId: 'encounter.test', isBoss: true, rivals: ['genos'] },
@@ -406,7 +467,9 @@ describe('integration with progression', () => {
   it('counts RESOLVED INCIDENTS towards the duty quota, not kills', () => {
     const harness = makeHarness();
     expect(harness.coordinator.quests.accept('quest.duty.quota')).toBe(true);
-    const quota = harness.coordinator.quests.runtimeQuests.find((q) => q.id === 'quest.duty.quota')!;
+    const quota = harness.coordinator.quests.runtimeQuests.find(
+      (q) => q.id === 'quest.duty.quota'
+    )!;
 
     // A hundred kills in an alley: no incidents filed, no quota progress.
     for (let i = 0; i < 100; i++) harness.killMonster({ position: at(i * 10, 0, 0) });
@@ -431,8 +494,15 @@ describe('integration with progression', () => {
     dispatched.coordinator.quests.accept('quest.subjugation.crablante');
 
     for (const harness of [walkIn, dispatched]) {
-      harness.startEncounter('encounter.crablante', { threatTier: 'tiger', position: at(120, 0, -80) });
-      harness.killMonster({ threatTier: 'tiger', specId: 'monster.crablante', position: at(120, 0, -80) });
+      harness.startEncounter('encounter.crablante', {
+        threatTier: 'tiger',
+        position: at(120, 0, -80),
+      });
+      harness.killMonster({
+        threatTier: 'tiger',
+        specId: 'monster.crablante',
+        position: at(120, 0, -80),
+      });
       harness.endEncounter('encounter.crablante');
       harness.tick(0.2);
     }

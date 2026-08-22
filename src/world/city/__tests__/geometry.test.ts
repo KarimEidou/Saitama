@@ -106,7 +106,10 @@ describe('face orientation', () => {
       // direction from the origin at that height.
       const len = Math.hypot(c[0], c[2]) || 1;
       const dot = (n[0] * c[0] + n[2] * c[2]) / len;
-      expect(dot, `wall triangle at ${c.map((v) => v.toFixed(1)).join(',')} faces inward`).toBeGreaterThan(0.2);
+      expect(
+        dot,
+        `wall triangle at ${c.map((v) => v.toFixed(1)).join(',')} faces inward`
+      ).toBeGreaterThan(0.2);
       walls++;
     }
     expect(walls).toBeGreaterThan(20);

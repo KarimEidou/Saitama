@@ -239,7 +239,14 @@ function drawBackdrop(canvas: HTMLCanvasElement, seedTime: number): void {
   ctx.fillRect(0, 0, width, height);
 
   /* sun */
-  const sun = ctx.createRadialGradient(width * 0.7, height * 0.62, 0, width * 0.7, height * 0.62, height * 0.5);
+  const sun = ctx.createRadialGradient(
+    width * 0.7,
+    height * 0.62,
+    0,
+    width * 0.7,
+    height * 0.62,
+    height * 0.5
+  );
   sun.addColorStop(0, 'rgba(255,190,120,0.55)');
   sun.addColorStop(1, 'rgba(255,190,120,0)');
   ctx.fillStyle = sun;
@@ -261,7 +268,7 @@ function drawBackdrop(canvas: HTMLCanvasElement, seedTime: number): void {
       const h = (40 + rand() * 150) * depth;
       ctx.fillRect(x, horizon - h, w, h + 10);
       /* lit windows */
-      ctx.fillStyle = `rgba(255,214,140,${0.10 + layer * 0.05})`;
+      ctx.fillStyle = `rgba(255,214,140,${0.1 + layer * 0.05})`;
       for (let wy = horizon - h + 8; wy < horizon - 8; wy += 12) {
         for (let wx = x + 5; wx < x + w - 6; wx += 10) {
           if (rand() > 0.62) ctx.fillRect(wx, wy, 4, 6);

@@ -106,7 +106,11 @@ export interface VatOptions extends SampleOptions {
  * One bake serves every character that shares the skeleton and every LOD of
  * their mesh, because the palette is per-skeleton and skinning is per-vertex.
  */
-export function bakeVat(rig: AnimRig, entries: readonly ClipEntry[], options: VatOptions = {}): VatBake {
+export function bakeVat(
+  rig: AnimRig,
+  entries: readonly ClipEntry[],
+  options: VatOptions = {}
+): VatBake {
   const frames = Math.max(2, options.frames ?? 32);
   const halfFloat = options.halfFloat ?? true;
   const boneCount = rig.boneCount;
@@ -224,17 +228,34 @@ function toHalf(source: Float32Array): Uint16Array {
  * the same quantisation — so a round-trip test measures the real storage error
  * rather than the error of a parallel implementation.
  */
-export function readVatMatrix(bake: VatBake, row: number, bone: number, out: THREE.Matrix4): THREE.Matrix4 {
+export function readVatMatrix(
+  bake: VatBake,
+  row: number,
+  bone: number,
+  out: THREE.Matrix4
+): THREE.Matrix4 {
   const o = (row * bake.width + bone * TEXELS_PER_BONE) * 4;
   const v = (i: number): number =>
     bake.halfFloat
       ? THREE.DataUtils.fromHalfFloat((bake.data as Uint16Array)[o + i]!)
       : (bake.data as Float32Array)[o + i]!;
   return out.set(
-    v(0), v(1), v(2), v(3),
-    v(4), v(5), v(6), v(7),
-    v(8), v(9), v(10), v(11),
-    0, 0, 0, 1
+    v(0),
+    v(1),
+    v(2),
+    v(3),
+    v(4),
+    v(5),
+    v(6),
+    v(7),
+    v(8),
+    v(9),
+    v(10),
+    v(11),
+    0,
+    0,
+    0,
+    1
   );
 }
 

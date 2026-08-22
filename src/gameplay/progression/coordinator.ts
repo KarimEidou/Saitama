@@ -120,7 +120,11 @@ export class ProgressionCoordinator {
   /* Saves                                                                  */
   /* ---------------------------------------------------------------------- */
 
-  buildSaveGame(playerPosition = { x: 0, y: 0, z: 0 }, playerYaw = 0, savedAt?: string): IStoredSave {
+  buildSaveGame(
+    playerPosition = { x: 0, y: 0, z: 0 },
+    playerYaw = 0,
+    savedAt?: string
+  ): IStoredSave {
     // Optional fields are OMITTED rather than written as `undefined`: the save
     // validator rejects `undefined` outright, because a key that JSON silently
     // drops is indistinguishable from one the game forgot to write.
@@ -151,12 +155,17 @@ export class ProgressionCoordinator {
       this.quests.restoreState(questId, state as QuestState, save.questProgress[questId]);
     }
     if (this.time && typeof save.timeOfDay === 'number') {
-      (this.time as unknown as { setTimeOfDay?: (t: number) => void }).setTimeOfDay?.(save.timeOfDay);
+      (this.time as unknown as { setTimeOfDay?: (t: number) => void }).setTimeOfDay?.(
+        save.timeOfDay
+      );
     }
     log.info(`loaded save from ${save.savedAt}`);
   }
 
-  async save(playerPosition?: { x: number; y: number; z: number }, playerYaw?: number): Promise<IStoredSave> {
+  async save(
+    playerPosition?: { x: number; y: number; z: number },
+    playerYaw?: number
+  ): Promise<IStoredSave> {
     const payload = this.buildSaveGame(playerPosition, playerYaw);
     await this.saves.save(payload);
     return payload;

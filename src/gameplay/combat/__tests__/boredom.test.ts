@@ -232,9 +232,7 @@ describe('idle rise and baseline decay', () => {
     const events = h.bus.ofType('BoredomChanged').length;
     // One event per 5e-3 of movement, not one per frame.
     expect(events).toBeGreaterThan(0);
-    expect(events).toBeLessThanOrEqual(
-      Math.ceil((expected - 0.3) / TUNING.boredomEmitEpsilon) + 1
-    );
+    expect(events).toBeLessThanOrEqual(Math.ceil((expected - 0.3) / TUNING.boredomEmitEpsilon) + 1);
     expect(events).toBeLessThan(60 * idleSeconds * 0.02);
   });
 

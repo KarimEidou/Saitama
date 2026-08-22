@@ -446,7 +446,18 @@ async function buildWorld(currentSeed: string): Promise<IWorld> {
   const detachLog: GameEventOf<'ChunkDetached'>[] = [];
   bus.on('ChunkDetached', (event) => detachLog.push(event));
 
-  return { bus, physics, debris, ragdolls, damage, destruction, scene, victims, detachLog, frames: 0 };
+  return {
+    bus,
+    physics,
+    debris,
+    ragdolls,
+    damage,
+    destruction,
+    scene,
+    victims,
+    detachLog,
+    frames: 0,
+  };
 }
 
 /** World position of a building, from the block summaries. */

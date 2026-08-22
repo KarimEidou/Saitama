@@ -102,11 +102,7 @@ export function createReferenceRig(
   for (const entry of REFERENCE_SKELETON) {
     const bone = new THREE.Bone();
     bone.name = entry.bone;
-    bone.position.set(
-      entry.offset[0] * scale,
-      entry.offset[1] * scale,
-      entry.offset[2] * scale
-    );
+    bone.position.set(entry.offset[0] * scale, entry.offset[1] * scale, entry.offset[2] * scale);
     const parent = entry.parent === undefined ? root : bones.get(entry.parent);
     (parent ?? root).add(bone);
     bones.set(entry.bone, bone);

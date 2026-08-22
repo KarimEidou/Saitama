@@ -275,7 +275,8 @@ export class ProceduralAnimator implements IAnimator {
   playAdditive(clip: ClipName, options: IClipOptions = {}): void {
     const state = this.makeState(clip, options);
     const region = state.entry.def.region;
-    const mask = region === 'lower' ? this.lowerMask : region === 'full' ? undefined : this.upperMask;
+    const mask =
+      region === 'lower' ? this.lowerMask : region === 'full' ? undefined : this.upperMask;
     const fade = options.fade ?? 0.08;
     const existing = this.overlays.get(clip);
     const level = existing?.level ?? 0;
@@ -502,10 +503,9 @@ export class ProceduralAnimator implements IAnimator {
       overlay.level =
         rate === Infinity
           ? overlay.target
-          : overlay.level + Math.sign(overlay.target - overlay.level) * Math.min(
-              Math.abs(overlay.target - overlay.level),
-              rate * step
-            );
+          : overlay.level +
+            Math.sign(overlay.target - overlay.level) *
+              Math.min(Math.abs(overlay.target - overlay.level), rate * step);
       if (overlay.level <= 0 && overlay.target <= 0) {
         this.overlays.delete(slot);
         continue;
@@ -726,7 +726,7 @@ export class ProceduralAnimator implements IAnimator {
     if (state.loop) {
       t = ((t % 1) + 1) % 1;
       if (state.pingpong) {
-        const cycle = ((state.time / duration / 2) % 1 + 1) % 1;
+        const cycle = (((state.time / duration / 2) % 1) + 1) % 1;
         t = cycle < 0.5 ? cycle * 2 : 2 - cycle * 2;
       }
     } else {

@@ -124,7 +124,10 @@ describe('safe area', () => {
   });
 
   it('never returns a negative rectangle for absurd insets', () => {
-    const rect = safeRect({ width: 100, height: 100 }, { top: 90, right: 90, bottom: 90, left: 90 });
+    const rect = safeRect(
+      { width: 100, height: 100 },
+      { top: 90, right: 90, bottom: 90, left: 90 }
+    );
     expect(rect.width).toBe(0);
     expect(rect.height).toBe(0);
   });

@@ -866,18 +866,48 @@ export class Quadtree {
     // touches no typed array at all. Six planes x (normal, offset, |normal|).
     const pl = frustum.planes;
     const pa = frustum.planesAbs;
-    const q0x = pl[0]!, q0y = pl[1]!, q0z = pl[2]!, q0w = pl[3]!;
-    const q1x = pl[4]!, q1y = pl[5]!, q1z = pl[6]!, q1w = pl[7]!;
-    const q2x = pl[8]!, q2y = pl[9]!, q2z = pl[10]!, q2w = pl[11]!;
-    const q3x = pl[12]!, q3y = pl[13]!, q3z = pl[14]!, q3w = pl[15]!;
-    const q4x = pl[16]!, q4y = pl[17]!, q4z = pl[18]!, q4w = pl[19]!;
-    const q5x = pl[20]!, q5y = pl[21]!, q5z = pl[22]!, q5w = pl[23]!;
-    const a0x = pa[0]!, a0y = pa[1]!, a0z = pa[2]!;
-    const a1x = pa[3]!, a1y = pa[4]!, a1z = pa[5]!;
-    const a2x = pa[6]!, a2y = pa[7]!, a2z = pa[8]!;
-    const a3x = pa[9]!, a3y = pa[10]!, a3z = pa[11]!;
-    const a4x = pa[12]!, a4y = pa[13]!, a4z = pa[14]!;
-    const a5x = pa[15]!, a5y = pa[16]!, a5z = pa[17]!;
+    const q0x = pl[0]!,
+      q0y = pl[1]!,
+      q0z = pl[2]!,
+      q0w = pl[3]!;
+    const q1x = pl[4]!,
+      q1y = pl[5]!,
+      q1z = pl[6]!,
+      q1w = pl[7]!;
+    const q2x = pl[8]!,
+      q2y = pl[9]!,
+      q2z = pl[10]!,
+      q2w = pl[11]!;
+    const q3x = pl[12]!,
+      q3y = pl[13]!,
+      q3z = pl[14]!,
+      q3w = pl[15]!;
+    const q4x = pl[16]!,
+      q4y = pl[17]!,
+      q4z = pl[18]!,
+      q4w = pl[19]!;
+    const q5x = pl[20]!,
+      q5y = pl[21]!,
+      q5z = pl[22]!,
+      q5w = pl[23]!;
+    const a0x = pa[0]!,
+      a0y = pa[1]!,
+      a0z = pa[2]!;
+    const a1x = pa[3]!,
+      a1y = pa[4]!,
+      a1z = pa[5]!;
+    const a2x = pa[6]!,
+      a2y = pa[7]!,
+      a2z = pa[8]!;
+    const a3x = pa[9]!,
+      a3y = pa[10]!,
+      a3z = pa[11]!;
+    const a4x = pa[12]!,
+      a4y = pa[13]!,
+      a4z = pa[14]!;
+    const a5x = pa[15]!,
+      a5y = pa[16]!,
+      a5z = pa[17]!;
 
     // Seeded to 1 for the root, which is classified below rather than in the
     // loop; the loop counts only the children it expands.
@@ -1150,7 +1180,8 @@ export class Quadtree {
       const leafSweep = total <= this.leafThreshold || c0 < 0;
       const sweep = leafSweep ? total : this.nodeOwnCount[node]!;
       for (let i = start; i < start + sweep; i++) {
-        if (packedIntersectsBox(pb, i * 6, minX, minY, minZ, maxX, maxY, maxZ)) out.push(packed[i]!);
+        if (packedIntersectsBox(pb, i * 6, minX, minY, minZ, maxX, maxY, maxZ))
+          out.push(packed[i]!);
       }
       if (leafSweep) continue;
 

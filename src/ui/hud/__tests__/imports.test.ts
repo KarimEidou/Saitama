@@ -43,15 +43,14 @@ const PRODUCTION_ALLOWLIST: ReadonlySet<string> = new Set(['@/types', '@/util'])
 /** Specifiers allowed only in the named file. */
 const FILE_EXEMPTIONS: Readonly<Record<string, readonly string[]>> = {
   'markers.ts': ['three', 'three/examples/jsm/renderers/CSS2DRenderer.js'],
-  'fonts.ts': ['@fontsource/bebas-neue/400.css', '@fontsource/inter/400.css', '@fontsource/inter/600.css'],
+  'fonts.ts': [
+    '@fontsource/bebas-neue/400.css',
+    '@fontsource/inter/400.css',
+    '@fontsource/inter/600.css',
+  ],
 };
 
-const TEST_ALLOWLIST: ReadonlySet<string> = new Set([
-  'vitest',
-  'node:fs',
-  'node:path',
-  'node:url',
-]);
+const TEST_ALLOWLIST: ReadonlySet<string> = new Set(['vitest', 'node:fs', 'node:path', 'node:url']);
 
 /**
  * Never, anywhere in this module — including in a test.

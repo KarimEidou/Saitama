@@ -138,7 +138,11 @@ function authorRoads(): { roads: IPlanRoad[]; axes: IAxisRoad[] } {
     width: ROAD_WIDTH[axis.kind],
     sidewalk: SIDEWALK[axis.kind],
     surface:
-      axis.kind === 'arterial' ? 'asphalt-clean' : axis.kind === 'avenue' ? 'asphalt-worn' : 'asphalt-rough',
+      axis.kind === 'arterial'
+        ? 'asphalt-clean'
+        : axis.kind === 'avenue'
+          ? 'asphalt-worn'
+          : 'asphalt-rough',
     markings: axis.lanes >= 4 ? 'divided' : axis.lanes >= 3 ? 'centre-dashed' : 'centre-dashed',
     points:
       axis.axis === 'x'
@@ -244,7 +248,15 @@ function zone(
   params: Partial<IPlanZoneParams>
 ): IPlanZone {
   const ring = polygonArea(polygon) > 0 ? polygon : polygon.slice().reverse();
-  return { id, name, kind, district, polygon: ring, priority, params: { ...baseParams(), ...params } };
+  return {
+    id,
+    name,
+    kind,
+    district,
+    polygon: ring,
+    priority,
+    params: { ...baseParams(), ...params },
+  };
 }
 
 function authorZones(): IPlanZone[] {
@@ -278,8 +290,7 @@ function authorZones(): IPlanZone[] {
         facadeWeights: [3, 3, 2, 2],
         roofMaterials: [CITY_MATERIALS.roof.tilesGrey, CITY_MATERIALS.roof.corrugatedWorn],
         tints: [
-          0xdad3c4, 0xe6e0d3, 0xc7bfae, 0xcfd2cd, 0xe0d6c6, 0xb9b3a6, 0xa8b0a4, 0xd8bfa0,
-          0xbfa892,
+          0xdad3c4, 0xe6e0d3, 0xc7bfae, 0xcfd2cd, 0xe0d6c6, 0xb9b3a6, 0xa8b0a4, 0xd8bfa0, 0xbfa892,
         ],
         panelWeights: { window: 10, blank: 5, ac_unit: 4, balcony: 4 },
         rooftopClutter: 0.45,
@@ -359,8 +370,8 @@ function authorZones(): IPlanZone[] {
         facadeWeights: [4, 3, 2, 2],
         roofMaterials: [CITY_MATERIALS.roof.bitumen, CITY_MATERIALS.roof.metalPlate],
         tints: [
-          0xdcdcd8, 0xc6cbce, 0xe4e2dc, 0xa8b3ba, 0xd0cec6, 0x9fa8a4, 0xc7bda8, 0xb0a89c,
-          0x8f9aa2, 0xe0d8c8,
+          0xdcdcd8, 0xc6cbce, 0xe4e2dc, 0xa8b3ba, 0xd0cec6, 0x9fa8a4, 0xc7bda8, 0xb0a89c, 0x8f9aa2,
+          0xe0d8c8,
         ],
         panelWeights: { window: 14, blank: 2, ac_unit: 1 },
         groundWeights: { shopfront: 6, door: 2, window: 3 },
@@ -405,8 +416,8 @@ function authorZones(): IPlanZone[] {
         facadeWeights: [3, 3, 2, 2],
         roofMaterials: [CITY_MATERIALS.roof.corrugated, CITY_MATERIALS.roof.tilesGrey],
         tints: [
-          0xe8e2d4, 0xd9cdb8, 0xcf9f86, 0xdcd9d2, 0xc8b9a2, 0xe3d7c0, 0xb8735c, 0x8fa2ad,
-          0xd6c07e, 0xa9b49c,
+          0xe8e2d4, 0xd9cdb8, 0xcf9f86, 0xdcd9d2, 0xc8b9a2, 0xe3d7c0, 0xb8735c, 0x8fa2ad, 0xd6c07e,
+          0xa9b49c,
         ],
         panelWeights: { window: 9, blank: 3, ac_unit: 5, balcony: 3 },
         groundWeights: { shopfront: 12, door: 2 },
@@ -498,27 +509,19 @@ function authorZones(): IPlanZone[] {
     ),
 
     // The park, north-west.
-    zone(
-      'z-park',
-      'Z-City Park',
-      'park',
-      'park',
-      circlePolygon(-432, -432, 168, 14),
-      7,
-      {
-        floorRange: [1, 1],
-        density: 0,
-        propDensity: 3,
-        rooftopClutter: 0,
-        facadeMaterials: [CITY_MATERIALS.ground.grass],
-        facadeWeights: [1],
-        roofMaterials: [CITY_MATERIALS.wall.planks],
-        tints: [0x4a7a38],
-        populationDensity: 1.4,
-        threatDensity: 0.6,
-        lotSurface: 'grass',
-      }
-    ),
+    zone('z-park', 'Z-City Park', 'park', 'park', circlePolygon(-432, -432, 168, 14), 7, {
+      floorRange: [1, 1],
+      density: 0,
+      propDensity: 3,
+      rooftopClutter: 0,
+      facadeMaterials: [CITY_MATERIALS.ground.grass],
+      facadeWeights: [1],
+      roofMaterials: [CITY_MATERIALS.wall.planks],
+      tints: [0x4a7a38],
+      populationDensity: 1.4,
+      threatDensity: 0.6,
+      lotSurface: 'grass',
+    }),
 
     // The ghost town Saitama actually lives in: half-empty, half-derelict.
     zone(
@@ -561,27 +564,19 @@ function authorZones(): IPlanZone[] {
     ),
 
     // The crater: nothing is rebuilt here yet.
-    zone(
-      'old-crater',
-      'The Crater',
-      'crater',
-      'wasteland',
-      circlePolygon(504, 120, 118, 16),
-      9,
-      {
-        floorRange: [1, 2],
-        density: 0,
-        propDensity: 6,
-        rooftopClutter: 0,
-        facadeMaterials: [CITY_MATERIALS.wall.concreteCracked],
-        facadeWeights: [1],
-        roofMaterials: [CITY_MATERIALS.ground.rubble],
-        tints: [0xa89e90],
-        populationDensity: 0,
-        threatDensity: 3,
-        lotSurface: 'dirt',
-      }
-    ),
+    zone('old-crater', 'The Crater', 'crater', 'wasteland', circlePolygon(504, 120, 118, 16), 9, {
+      floorRange: [1, 2],
+      density: 0,
+      propDensity: 6,
+      rooftopClutter: 0,
+      facadeMaterials: [CITY_MATERIALS.wall.concreteCracked],
+      facadeWeights: [1],
+      roofMaterials: [CITY_MATERIALS.ground.rubble],
+      tints: [0xa89e90],
+      populationDensity: 0,
+      threatDensity: 3,
+      lotSurface: 'dirt',
+    }),
   ];
 }
 
@@ -700,7 +695,12 @@ function authorProps(): IPlanProp[] {
     { assetKey: 'model.prop.concrete_road_barrier', position: [396, 120], rotationY: 0, scale: 1 },
     { assetKey: 'model.prop.concrete_road_barrier', position: [396, 126], rotationY: 0, scale: 1 },
     { assetKey: 'model.prop.concrete_road_barrier', position: [612, 120], rotationY: 0, scale: 1 },
-    { assetKey: 'model.prop.concrete_road_barrier_02', position: [612, 126], rotationY: 0, scale: 1 },
+    {
+      assetKey: 'model.prop.concrete_road_barrier_02',
+      position: [612, 126],
+      rotationY: 0,
+      scale: 1,
+    },
   ];
 }
 
@@ -738,7 +738,9 @@ function deriveBlocks(axes: readonly IAxisRoad[], zones: readonly IPlanZone[]): 
       const south = byAxisZ.get(z1);
 
       const inset = (road: IAxisRoad | undefined) =>
-        road ? ROAD_WIDTH[road.kind] / 2 + SIDEWALK[road.kind] : ROAD_WIDTH.street / 2 + SIDEWALK.street;
+        road
+          ? ROAD_WIDTH[road.kind] / 2 + SIDEWALK[road.kind]
+          : ROAD_WIDTH.street / 2 + SIDEWALK.street;
 
       const sidewalk = Math.max(
         west ? SIDEWALK[west.kind] : 0,
@@ -793,12 +795,7 @@ function deriveBlocks(axes: readonly IAxisRoad[], zones: readonly IPlanZone[]): 
         heightBias,
         // Order matches the edge index `block.ts` derives from a lot's facing
         // direction: west, south, east, north.
-        frontage: [
-          isArterial(west),
-          isArterial(south),
-          isArterial(east),
-          isArterial(north),
-        ],
+        frontage: [isArterial(west), isArterial(south), isArterial(east), isArterial(north)],
         sidewalk,
         tags: zone.kind === 'crater' ? ['crater'] : undefined,
       });

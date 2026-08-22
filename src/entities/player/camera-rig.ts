@@ -397,7 +397,11 @@ export class ThirdPersonCameraRig {
 
     const minPitch = cam.minPitchDeg * DEG2RAD;
     const maxPitch = cam.maxPitchDeg * DEG2RAD;
-    this.pitch = clamp(this.pitch, minPitch - this.autoPitchOffset, maxPitch - this.autoPitchOffset);
+    this.pitch = clamp(
+      this.pitch,
+      minPitch - this.autoPitchOffset,
+      maxPitch - this.autoPitchOffset
+    );
   }
 
   /* ------------------------------------------------------------------ */
@@ -517,9 +521,7 @@ export class ThirdPersonCameraRig {
     // Guard against a degenerate arm direction at ±90° pitch.
     if (tmpArmDir.lengthSq() < 1e-8) tmpArmDir.set(0, 1, 0);
     else tmpArmDir.normalize();
-    this.desiredPosition
-      .copy(this.pivot)
-      .addScaledVector(tmpArmDir, this.armActual);
+    this.desiredPosition.copy(this.pivot).addScaledVector(tmpArmDir, this.armActual);
   }
 
   /**

@@ -195,7 +195,10 @@ export class SettingsScreen extends HudScreen {
         this.segRow(
           'HUD scale',
           'Type and control size.',
-          HUD_SCALE_STEPS.map((step) => ({ value: String(step), label: `${Math.round(step * 100)}%` })),
+          HUD_SCALE_STEPS.map((step) => ({
+            value: String(step),
+            label: `${Math.round(step * 100)}%`,
+          })),
           String(settings.hudScale),
           (value) => this.patch({ hudScale: Number(value) }),
           'hud-scale'
@@ -234,10 +237,7 @@ export class SettingsScreen extends HudScreen {
   private section(title: string, rows: readonly HTMLElement[]): HTMLElement {
     return el(this.doc, 'div', {
       className: 'hud-section',
-      children: [
-        el(this.doc, 'div', { className: 'hud-section__title', text: title }),
-        ...rows,
-      ],
+      children: [el(this.doc, 'div', { className: 'hud-section__title', text: title }), ...rows],
     });
   }
 

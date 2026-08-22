@@ -335,7 +335,11 @@ async function main(): Promise<void> {
     /* ================= ENCOUNTER + NORMAL PUNCH ================= */
     say('\n[3] encounter and normal punch');
     const spawned = await page.evaluate(() => {
-      const game = (window as unknown as { __GAME__?: { spawnEncounter(id: string, d?: number): string | undefined } }).__GAME__;
+      const game = (
+        window as unknown as {
+          __GAME__?: { spawnEncounter(id: string, d?: number): string | undefined };
+        }
+      ).__GAME__;
       // A real id from `MONSTER_ARCHETYPES`. `mob.tiger.brute` is 2.35 m tall
       // with a 0.85 m footprint, so the aim-point assertion below has a lift
       // (1.175 m) and a radius (0.987 m) that are visibly different from the
@@ -349,12 +353,24 @@ async function main(): Promise<void> {
     // FIX 2 PROOF: the registered aim point must sit half a body above the
     // monster's feet, and the hit radius must be the torso, not the footprint.
     const aim = await page.evaluate(() => {
-      const game = (window as unknown as {
-        __GAME__?: {
-          monsters: { describeForCombat(): { id: string; position: { y: number }; radius: number }[]; get(id: string): { brain: { position: { y: number } }; archetype: { bodyHeightMetres: number; radiusMetres: number } } | undefined };
-          combat: { targets: { get(id: string): { position: { y: number }; radius: number } | undefined } };
-        };
-      }).__GAME__;
+      const game = (
+        window as unknown as {
+          __GAME__?: {
+            monsters: {
+              describeForCombat(): { id: string; position: { y: number }; radius: number }[];
+              get(id: string):
+                | {
+                    brain: { position: { y: number } };
+                    archetype: { bodyHeightMetres: number; radiusMetres: number };
+                  }
+                | undefined;
+            };
+            combat: {
+              targets: { get(id: string): { position: { y: number }; radius: number } | undefined };
+            };
+          };
+        }
+      ).__GAME__;
       if (!game) return [];
       return game.monsters.describeForCombat().map((d) => {
         const monster = game.monsters.get(d.id)!;
@@ -379,7 +395,9 @@ async function main(): Promise<void> {
         );
       }
       if (Math.abs(entry.radius - wantedRadius) > 1e-3) {
-        failures.push(`FIX 2: ${entry.id} radius ${entry.radius.toFixed(3)} m, wanted ${wantedRadius.toFixed(3)} m`);
+        failures.push(
+          `FIX 2: ${entry.id} radius ${entry.radius.toFixed(3)} m, wanted ${wantedRadius.toFixed(3)} m`
+        );
       }
     }
 
@@ -395,10 +413,18 @@ async function main(): Promise<void> {
     await page.evaluate(() => window.__INPUT__!.tap('punch'));
     await frames(page, 30);
     const punch = await page.evaluate(() => {
-      const game = (window as unknown as {
-        __GAME__?: { combat: { lastPunch?: unknown; diagnostics(): { punches: number } }; monsters: { count: number } };
-      }).__GAME__;
-      return { punches: game?.combat.diagnostics().punches ?? 0, monsters: game?.monsters.count ?? 0 };
+      const game = (
+        window as unknown as {
+          __GAME__?: {
+            combat: { lastPunch?: unknown; diagnostics(): { punches: number } };
+            monsters: { count: number };
+          };
+        }
+      ).__GAME__;
+      return {
+        punches: game?.combat.diagnostics().punches ?? 0,
+        monsters: game?.monsters.count ?? 0,
+      };
     });
     say(`  punches ${punch.punches}, monsters left ${punch.monsters}`);
     if (punch.punches < 1) failures.push('normal punch did not resolve');
@@ -434,35 +460,41 @@ async function main(): Promise<void> {
     /* ================= ALLIES CAN LOSE ================= */
     say('\n[5] can the allies actually be downed');
     const ally = await page.evaluate(async () => {
-      const game = (window as unknown as {
-        __GAME__?: {
-          proveAlliesCanLose(): {
-            genos: { before: number; after: number; dead: boolean };
-            mumen: { before: number; after: number; dead: boolean };
-            downedEvents: number;
-            waves: number;
+      const game = (
+        window as unknown as {
+          __GAME__?: {
+            proveAlliesCanLose(): {
+              genos: { before: number; after: number; dead: boolean };
+              mumen: { before: number; after: number; dead: boolean };
+              downedEvents: number;
+              waves: number;
+            };
           };
-        };
-      }).__GAME__;
+        }
+      ).__GAME__;
       return game?.proveAlliesCanLose() ?? null;
     });
     say(`  ${JSON.stringify(ally)}`);
     if (ally === null) failures.push('FIX 4: ally proof unavailable');
     else {
-      if (!ally.mumen.dead) failures.push('FIX 4: Mumen Rider survived a sustained dragon-tier barrage');
+      if (!ally.mumen.dead)
+        failures.push('FIX 4: Mumen Rider survived a sustained dragon-tier barrage');
       if (!ally.genos.dead) failures.push('FIX 4: Genos survived a sustained dragon-tier barrage');
-      if (ally.downedEvents < 2) failures.push(`FIX 4: only ${ally.downedEvents} AllyDowned events`);
+      if (ally.downedEvents < 2)
+        failures.push(`FIX 4: only ${ally.downedEvents} AllyDowned events`);
     }
 
     /* ================= WITNESSES ================= */
     say('\n[6] crowd civilians are progression witnesses');
     const witness = await page.evaluate(() => {
-      const game = (window as unknown as {
-        __GAME__?: {
-          crowd: { agents: { extent: number; active: Uint8Array; idOf(i: number): string } };
-          progression: { witnesses: { size: number; has(id: string): boolean } };
-        };
-      }).__GAME__;
+      const game = (
+        window as unknown as {
+          __GAME__?: {
+            crowd: { agents: { extent: number; active: Uint8Array; idOf(i: number): string } };
+            progression: { witnesses: { size: number; has(id: string): boolean } };
+          };
+        }
+      ).__GAME__;
       if (!game) return null;
       const agents = game.crowd.agents;
       const ids: string[] = [];
@@ -500,7 +532,14 @@ async function main(): Promise<void> {
       height: 400,
     });
     await page.evaluate(() => {
-      const game = (window as unknown as { __GAME__?: { dayNight: { setTimeOfDay(t: number): void } ; sky?: { update(b: unknown, f: boolean): void } } }).__GAME__;
+      const game = (
+        window as unknown as {
+          __GAME__?: {
+            dayNight: { setTimeOfDay(t: number): void };
+            sky?: { update(b: unknown, f: boolean): void };
+          };
+        }
+      ).__GAME__;
       game?.dayNight.setTimeOfDay(0.92);
     });
     await frames(page, 40);
@@ -513,7 +552,9 @@ async function main(): Promise<void> {
     });
     say(`  sky band day ${dayMean.toFixed(1)} -> night ${nightMean.toFixed(1)}`);
     if (nightMean >= dayMean) {
-      failures.push(`night sky (${nightMean.toFixed(1)}) is not darker than day (${dayMean.toFixed(1)})`);
+      failures.push(
+        `night sky (${nightMean.toFixed(1)}) is not darker than day (${dayMean.toFixed(1)})`
+      );
     }
     const phase = await page.evaluate(
       () => (window.__GAME_DIAG__ as unknown as IDiag).world.dayPhase as string
@@ -524,7 +565,11 @@ async function main(): Promise<void> {
     say('\n[8] HUD screens');
     for (const screen of ['pause', 'quests', 'rank', 'settings'] as const) {
       await page.evaluate((name) => {
-        const game = (window as unknown as { __GAME__?: { hud: { show(n: string): void; update(dt: number): void } } }).__GAME__;
+        const game = (
+          window as unknown as {
+            __GAME__?: { hud: { show(n: string): void; update(dt: number): void } };
+          }
+        ).__GAME__;
         game?.hud.show(name);
       }, screen);
       await frames(page, 12);
@@ -536,7 +581,8 @@ async function main(): Promise<void> {
       await shoot(`integration-08-hud-${screen}`);
     }
     await page.evaluate(() => {
-      const game = (window as unknown as { __GAME__?: { hud: { show(n: string): void } } }).__GAME__;
+      const game = (window as unknown as { __GAME__?: { hud: { show(n: string): void } } })
+        .__GAME__;
       game?.hud.show('hud');
     });
     await frames(page, 10);
@@ -544,9 +590,11 @@ async function main(): Promise<void> {
     /* ================= SAVE / LOAD ================= */
     say('\n[9] save and load through progression');
     const save = await page.evaluate(async () => {
-      const game = (window as unknown as {
-        __GAME__?: { save(): Promise<void>; load(): Promise<boolean> };
-      }).__GAME__;
+      const game = (
+        window as unknown as {
+          __GAME__?: { save(): Promise<void>; load(): Promise<boolean> };
+        }
+      ).__GAME__;
       if (!game) return null;
       await game.save();
       const loaded = await game.load();
@@ -565,7 +613,8 @@ async function main(): Promise<void> {
     say(`systems failed: ${JSON.stringify(final.systems.failed, null, 1)}`);
     say(`diag errors: ${JSON.stringify(final.errors)}`);
 
-    if (final.errors.length > 0) failures.push(`diagnostics recorded ${final.errors.length} errors`);
+    if (final.errors.length > 0)
+      failures.push(`diagnostics recorded ${final.errors.length} errors`);
     if ((final.world.assetsMissing as number) > 0) {
       failures.push(`${String(final.world.assetsMissing)} assets fell back to the missing marker`);
     }
@@ -588,26 +637,42 @@ async function main(): Promise<void> {
     await frames(nativePage, 90);
     const nativeDiag = await diag(nativePage);
     const wrongTier = served.requests.filter((p) => /\.(high|ultra)\.ktx2$/.test(p));
-    say(`  asset tier: ${String(nativeDiag.world.assetTier)} (${String(nativeDiag.world.assetTierReason)})`);
+    say(
+      `  asset tier: ${String(nativeDiag.world.assetTier)} (${String(nativeDiag.world.assetTierReason)})`
+    );
     say(`  requests for a non-packaged tier: ${wrongTier.length}`);
     say(`  404s: ${served.misses.length}`);
     if (nativeDiag.world.assetTier !== 'mobile') {
       failures.push(`FIX 1: native shell selected '${String(nativeDiag.world.assetTier)}'`);
     }
     if (wrongTier.length > 0) {
-      failures.push(`FIX 1: ${wrongTier.length} requests for high/ultra files: ${wrongTier.slice(0, 3).join(', ')}`);
+      failures.push(
+        `FIX 1: ${wrongTier.length} requests for high/ultra files: ${wrongTier.slice(0, 3).join(', ')}`
+      );
     }
     if (served.misses.length > 0) {
       failures.push(`FIX 1: ${served.misses.length} 404s: ${served.misses.slice(0, 3).join(', ')}`);
     }
-    await nativePage.screenshot({ path: path.join(OUT_DIR, 'integration-09-native-mobile-tier.png'), timeout: 180_000 });
-    shots.push(await analyse('integration-09-native-mobile-tier', path.join(OUT_DIR, 'integration-09-native-mobile-tier.png')));
+    await nativePage.screenshot({
+      path: path.join(OUT_DIR, 'integration-09-native-mobile-tier.png'),
+      timeout: 180_000,
+    });
+    shots.push(
+      await analyse(
+        'integration-09-native-mobile-tier',
+        path.join(OUT_DIR, 'integration-09-native-mobile-tier.png')
+      )
+    );
     consoleErrors.push(...nativeErrors);
     await nativePage.close();
 
     await writeFile(
       path.join(OUT_DIR, 'integration-report.json'),
-      JSON.stringify({ boot: final.boot, timings: final.timings, world: final.world, shots, notes }, null, 2)
+      JSON.stringify(
+        { boot: final.boot, timings: final.timings, world: final.world, shots, notes },
+        null,
+        2
+      )
     );
   } finally {
     await browser?.close();
@@ -615,7 +680,9 @@ async function main(): Promise<void> {
   }
 
   if (consoleErrors.length > 0) {
-    failures.push(`${consoleErrors.length} console errors: ${consoleErrors.slice(0, 5).join(' | ')}`);
+    failures.push(
+      `${consoleErrors.length} console errors: ${consoleErrors.slice(0, 5).join(' | ')}`
+    );
   }
 
   say('\n──────── notes ────────');

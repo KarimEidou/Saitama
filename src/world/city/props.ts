@@ -61,7 +61,11 @@ export const PROP_ASSETS = {
     'model.building.modular_metal_gutter',
     'model.building.modular_airduct_circular_01',
   ],
-  rubble: ['model.prop.concrete_road_barrier', 'model.prop.old_tyre', 'model.prop.rusted_wheel_rim_01'],
+  rubble: [
+    'model.prop.concrete_road_barrier',
+    'model.prop.old_tyre',
+    'model.prop.rusted_wheel_rim_01',
+  ],
 } as const;
 
 /** Every prop id the city can place, for preloading. */

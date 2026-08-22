@@ -33,7 +33,7 @@ const DARK: RGB = [0.2, 0.21, 0.22];
 const RED: RGB = [0.66, 0.16, 0.13];
 const GREEN: RGB = [0.2, 0.33, 0.25];
 const CONCRETE: RGB = [0.68, 0.66, 0.62];
-const TARP: RGB = [0.29, 0.30, 0.32];
+const TARP: RGB = [0.29, 0.3, 0.32];
 const GLASSY: RGB = [0.95, 0.92, 0.78];
 const RUST: RGB = [0.45, 0.29, 0.19];
 
@@ -178,12 +178,18 @@ export class ProxyModelLibrary {
 
   /** Asset keys that resolved to a proxy. */
   resolved(): string[] {
-    return [...this.cache.entries()].filter(([, v]) => v).map(([k]) => k).sort();
+    return [...this.cache.entries()]
+      .filter(([, v]) => v)
+      .map(([k]) => k)
+      .sort();
   }
 
   /** Asset keys with no proxy; they render as nothing. */
   missing(): string[] {
-    return [...this.cache.entries()].filter(([, v]) => !v).map(([k]) => k).sort();
+    return [...this.cache.entries()]
+      .filter(([, v]) => !v)
+      .map(([k]) => k)
+      .sort();
   }
 
   get(key: string): IProxyModel | undefined {

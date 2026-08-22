@@ -130,11 +130,7 @@ export function solveGait(speed: number, legLength: number): GaitSolution {
     strideLength = v / cycleFrequency;
   }
 
-  const duty = clamp(
-    u <= 1e-4 ? DUTY_MAX : DUTY_C * Math.pow(u, -DUTY_K),
-    DUTY_MIN,
-    DUTY_MAX
-  );
+  const duty = clamp(u <= 1e-4 ? DUTY_MAX : DUTY_C * Math.pow(u, -DUTY_K), DUTY_MIN, DUTY_MAX);
   const excursion = duty * strideLength;
 
   const gait: GaitName =
@@ -451,8 +447,7 @@ export class LocomotionSolver {
     // the middle of the cycle and leaves the geometry to bind only at heel
     // strike and toe-off, which is where it should. It also happens to be what
     // people do: nobody stands with locked knees.
-    const crouch =
-      m.legLength * (0.032 + lerp(0.018, 0.05, run) * a + 0.03 * slouch);
+    const crouch = m.legLength * (0.032 + lerp(0.018, 0.05, run) * a + 0.03 * slouch);
     const authoredY = m.hipHeight - crouch + (bounceWalk + bounceRun) * bounceAmplitude;
 
     // --- Pelvis lateral sway, toward the stance foot ----------------------
@@ -676,12 +671,7 @@ export class LocomotionSolver {
    * The foot is flat at both handovers, so the ankle path is continuous
    * across them without any blending.
    */
-  private stanceAnkle(
-    foot: FootState,
-    g: GaitSolution,
-    groundY: number,
-    out: THREE.Vector3
-  ): void {
+  private stanceAnkle(foot: FootState, g: GaitSolution, groundY: number, out: THREE.Vector3): void {
     const r = foot.progress;
     const strikePitch = this.strikePitch(g);
     const offPitch = this.toeOffPitch(g);
@@ -733,12 +723,7 @@ export class LocomotionSolver {
    * agree exactly at pitch zero — the foot is flat there — so the handover is
    * continuous without any blending.
    */
-  private ballToAnkle(
-    ball: THREE.Vector3,
-    pitch: number,
-    out: THREE.Vector3,
-    yaw = 0
-  ): void {
+  private ballToAnkle(ball: THREE.Vector3, pitch: number, out: THREE.Vector3, yaw = 0): void {
     const m = this.rig.metrics;
     if (pitch > 0) {
       _pivotLocal.set(0, -m.ankleHeight, m.heelBack);

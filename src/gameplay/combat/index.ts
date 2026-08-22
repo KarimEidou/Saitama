@@ -109,11 +109,7 @@ export {
 } from './boredom';
 
 /* -- encounter scoring ----------------------------------------------------- */
-export {
-  EncounterTracker,
-  type IEncounterStart,
-  type IEncounterTrackerOptions,
-} from './encounter';
+export { EncounterTracker, type IEncounterStart, type IEncounterTrackerOptions } from './encounter';
 
 /* -- geometry (exported so the harness can check it against `src/spatial`) -- */
 export {

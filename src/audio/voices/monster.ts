@@ -178,12 +178,7 @@ const UTTERANCES: Record<MonsterUtterance, UtteranceShape> = {
 };
 
 /** Every utterance kind. */
-export const MONSTER_UTTERANCES: readonly MonsterUtterance[] = [
-  'roar',
-  'screech',
-  'hurt',
-  'death',
-];
+export const MONSTER_UTTERANCES: readonly MonsterUtterance[] = ['roar', 'screech', 'hurt', 'death'];
 
 /** Coerce an arbitrary string to a threat tier, defaulting to the mid tier. */
 export function resolveTier(name: string | undefined): ThreatTier {
@@ -373,7 +368,14 @@ export class MonsterVoice extends SynthVoice {
 
     // Growl roughness: slows down over the utterance, and slows a lot on death.
     const growlEnd = this.utterance === 'death' ? tier.growlHz * 0.35 : tier.growlHz * 0.8;
-    sweep(this.growlLfo.frequency, t, tier.growlHz * lerp(0.9, 1.1, rng.next()), growlEnd, total, nq);
+    sweep(
+      this.growlLfo.frequency,
+      t,
+      tier.growlHz * lerp(0.9, 1.1, rng.next()),
+      growlEnd,
+      total,
+      nq
+    );
     resetParam(this.growlDepth.gain, t, lerp(0.18, 0.4, power));
 
     // Rasp.
@@ -385,7 +387,14 @@ export class MonsterVoice extends SynthVoice {
       total,
       nq
     );
-    asr(this.raspGain.gain, t, shape.raspGain * lerp(0.6, 1.1, power), attack * 0.6, sustain, release);
+    asr(
+      this.raspGain.gain,
+      t,
+      shape.raspGain * lerp(0.6, 1.1, power),
+      attack * 0.6,
+      sustain,
+      release
+    );
 
     // Main envelope.
     const end = asr(

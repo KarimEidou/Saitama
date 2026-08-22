@@ -512,8 +512,7 @@ export class CrowdSteering {
       // No flee direction here means either a dead end or no threat at all.
       // The second case must not be read as "cornered", or a calm city would
       // fill up with people cowering at nothing.
-      const canFlee =
-        this.dirScratch[0] !== 0 || this.dirScratch[1] !== 0 || !flow.hasThreats;
+      const canFlee = this.dirScratch[0] !== 0 || this.dirScratch[1] !== 0 || !flow.hasThreats;
 
       agents.setMood(i, this.chooseMood(agents, i, alarm, threatDistance, canFlee, dt));
       this.preferredVelocity(agents, i, flow, alarm, preferred);

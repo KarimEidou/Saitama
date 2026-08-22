@@ -262,7 +262,14 @@ describe('pacing', () => {
   it('cycles lull → build → peak → cooldown → lull', () => {
     const director = new SpawnDirector({ seed: 'pacing' });
     const live: ILiveMonsterRef[] = [
-      { id: 'x', tier: 'wolf', position: { x: 300, y: 0, z: 0 }, age: 0, engaged: true, scripted: false },
+      {
+        id: 'x',
+        tier: 'wolf',
+        position: { x: 300, y: 0, z: 0 },
+        age: 0,
+        engaged: true,
+        scripted: false,
+      },
     ];
     const seen: SpawnPacingState[] = [director.stats().pacing];
     for (let t = 0; t < 400; t += 0.5) {
@@ -277,7 +284,14 @@ describe('pacing', () => {
     const busy = new SpawnDirector({ seed: 'lull-busy' });
     const empty = new SpawnDirector({ seed: 'lull-empty' });
     const occupied: ILiveMonsterRef[] = [
-      { id: 'x', tier: 'wolf', position: { x: 300, y: 0, z: 0 }, age: 0, engaged: true, scripted: false },
+      {
+        id: 'x',
+        tier: 'wolf',
+        position: { x: 300, y: 0, z: 0 },
+        age: 0,
+        engaged: true,
+        scripted: false,
+      },
     ];
 
     let busySeconds = 0;
@@ -379,7 +393,10 @@ describe('zoning', () => {
 
   it('honours a district whitelist — no god-tier outside the wasteland', () => {
     for (const district of ['downtown', 'residential', 'park'] as DistrictType[]) {
-      const director = new SpawnDirector({ seed: `whitelist-${district}`, districtAt: () => district });
+      const director = new SpawnDirector({
+        seed: `whitelist-${district}`,
+        districtAt: () => district,
+      });
       const { orders } = drive(director, 4000, { dt: 0.25 });
       for (const order of orders) {
         const archetype = monsterArchetype(order.archetypeId);

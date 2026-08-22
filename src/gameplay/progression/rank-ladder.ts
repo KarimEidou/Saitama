@@ -129,7 +129,8 @@ export function rankFromPoints(points: number, heroName: string = START_HERO_NAM
     rank: rankForIndex(index),
     points: clamped,
     // At the very top there is no next rank; report 0 rather than a negative.
-    pointsToNextRank: index >= LADDER_SIZE - 1 ? 0 : Math.max(0, pointsForIndex(nextIndex) - clamped),
+    pointsToNextRank:
+      index >= LADDER_SIZE - 1 ? 0 : Math.max(0, pointsForIndex(nextIndex) - clamped),
     heroName,
   };
 }

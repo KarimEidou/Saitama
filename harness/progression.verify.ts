@@ -358,8 +358,7 @@ async function analyse(file: string): Promise<IPixelStats> {
     meanG,
     meanB,
     coolness: (meanB - meanR) / Math.max(1, meanR + meanB),
-    coolnessShadow:
-      shadowCount === 0 ? 0 : (shadowB - shadowR) / Math.max(1, shadowR + shadowB),
+    coolnessShadow: shadowCount === 0 ? 0 : (shadowB - shadowR) / Math.max(1, shadowR + shadowB),
     warmFraction: warm / pixels,
     brightFraction: bright / pixels,
     skyLuma: 0.2126 * skyR + 0.7152 * skyG + 0.0722 * skyB,
@@ -582,7 +581,9 @@ async function main(): Promise<void> {
 
     // Brightness must be ordered the way a day is.
     const ordered = [midnight, night, dawn, dusk, noon];
-    if (!(midnight.pixels.meanLuma < dawn.pixels.meanLuma && dawn.pixels.meanLuma < noon.pixels.meanLuma)) {
+    if (!(
+      midnight.pixels.meanLuma < dawn.pixels.meanLuma && dawn.pixels.meanLuma < noon.pixels.meanLuma
+    )) {
       fail(
         failures,
         `brightness is not ordered midnight < dawn < noon: ` +
@@ -652,7 +653,10 @@ async function main(): Promise<void> {
     const elevations = shots.map((s) => s.sky.sunElevationDegrees);
     report.sunTravel = { azimuthSpread, elevations };
     if (azimuthSpread < 120) {
-      fail(failures, `the sun barely moves: azimuth spread only ${azimuthSpread.toFixed(0)} degrees`);
+      fail(
+        failures,
+        `the sun barely moves: azimuth spread only ${azimuthSpread.toFixed(0)} degrees`
+      );
     } else {
       pass(`the sun travels ${azimuthSpread.toFixed(0)} degrees of azimuth across the six shots`);
     }
@@ -699,7 +703,10 @@ async function main(): Promise<void> {
     console.log('\n── progression assertions ──────────────────────────────────');
 
     if ((kills.pointsGained as number) !== 0) {
-      fail(failures, `200 unwitnessed kills moved rank by ${kills.pointsGained} points; expected 0`);
+      fail(
+        failures,
+        `200 unwitnessed kills moved rank by ${kills.pointsGained} points; expected 0`
+      );
     } else {
       pass('200 unwitnessed kills moved rank by exactly 0 points');
     }
@@ -790,9 +797,13 @@ async function main(): Promise<void> {
     const mobileShots: { id: string; sky: ISkySnapshot; pixels: IPixelStats }[] = [];
     try {
       await mobilePage.goto(`${url}?ibl=sh9`, { waitUntil: 'load' });
-      await mobilePage.waitForFunction(() => window.__PROGRESSION_HARNESS__?.ready === true, undefined, {
-        timeout: 300_000,
-      });
+      await mobilePage.waitForFunction(
+        () => window.__PROGRESSION_HARNESS__?.ready === true,
+        undefined,
+        {
+          timeout: 300_000,
+        }
+      );
       const mobileSetup = (await mobilePage.evaluate(() =>
         window.__PROGRESSION_HARNESS__!.snapshot()
       )) as IHarnessSnapshot;
@@ -823,7 +834,8 @@ async function main(): Promise<void> {
 
       const mobileMidnight = mobileShots.find((s) => s.id === 'midnight')!;
       const mobileNoon = mobileShots.find((s) => s.id === 'noon')!;
-      const mobileRatio = mobileMidnight.pixels.meanLuma / Math.max(1e-6, mobileNoon.pixels.meanLuma);
+      const mobileRatio =
+        mobileMidnight.pixels.meanLuma / Math.max(1e-6, mobileNoon.pixels.meanLuma);
       report.mobileMidnightNoonRatio = mobileRatio;
 
       if (mobileMidnight.pixels.stdDev <= 10 || mobileMidnight.pixels.colours <= 100) {
@@ -929,7 +941,10 @@ async function main(): Promise<void> {
 
   report.failures = failures;
   report.passed = failures.length === 0;
-  await writeFile(path.join(OUT_DIR, 'progression-report.json'), `${JSON.stringify(report, null, 2)}\n`);
+  await writeFile(
+    path.join(OUT_DIR, 'progression-report.json'),
+    `${JSON.stringify(report, null, 2)}\n`
+  );
 
   console.log('\n────────────────────────────────────────────────────────────');
   if (failures.length > 0) {

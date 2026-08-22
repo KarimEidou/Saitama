@@ -235,13 +235,7 @@ export interface LocomotionReport {
  * civilian, and all three still answer to `play('idle')`.
  */
 export type ClipVariant =
-  | 'default'
-  | 'bored'
-  | 'combat'
-  | 'civilian'
-  | 'panicked'
-  | 'heavy'
-  | 'serious';
+  'default' | 'bored' | 'combat' | 'civilian' | 'panicked' | 'heavy' | 'serious';
 
 /** Named moments inside a clip. Consumers map these onto game systems. */
 export type AnimEventName =

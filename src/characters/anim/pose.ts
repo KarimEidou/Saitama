@@ -314,7 +314,11 @@ export function subtreeMask(rig: AnimRig, root: BoneName, weight = 1): BoneMask 
  * bones the renderer is reading. `rig.parent` is ordered parents-first, so one
  * forward pass is enough.
  */
-export function poseToModelMatrices(pose: Pose, rig: AnimRig, out: THREE.Matrix4[]): THREE.Matrix4[] {
+export function poseToModelMatrices(
+  pose: Pose,
+  rig: AnimRig,
+  out: THREE.Matrix4[]
+): THREE.Matrix4[] {
   const n = rig.boneCount;
   for (let i = 0; i < n; i++) {
     const o4 = i * 4;

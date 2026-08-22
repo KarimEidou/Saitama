@@ -219,7 +219,7 @@ export class EffectEmitters {
       // One puff in five is a tower. Even sizing makes a hedge; the outliers
       // are what give the wall a skyline.
       const tower = rng.next() < 0.2;
-      p.size0 = 2.0 + radius * rng.range(0.05, tower ? 0.30 : 0.15) + power * 6;
+      p.size0 = 2.0 + radius * rng.range(0.05, tower ? 0.3 : 0.15) + power * 6;
       p.size1 = p.size0 * rng.range(1.5, 2.6);
       p.life = rng.range(1.9, 3.8) * (0.6 + power * 0.6);
       p.tile = rng.pick(DUST_TILES);
@@ -231,7 +231,7 @@ export class EffectEmitters {
       p.mode = SpriteMode.Upright;
       p.additive = 0;
       p.lit = 1;
-      p.alpha = rng.range(0.34, 0.60);
+      p.alpha = rng.range(0.34, 0.6);
       p.stretch = 0;
       p.fadeIn = 0.04;
       p.erode = 1.05;
@@ -290,7 +290,7 @@ export class EffectEmitters {
       p.mode = SpriteMode.Upright;
       p.additive = 0;
       p.lit = 1;
-      p.alpha = rng.range(0.32, 0.60);
+      p.alpha = rng.range(0.32, 0.6);
       p.stretch = 0;
       p.fadeIn = 0.05;
       p.erode = 1.05;
@@ -335,7 +335,7 @@ export class EffectEmitters {
     p.vz = 0;
     p.size0 = scale;
     p.size1 = scale * 2.3;
-    p.life = 0.20 + power * 0.12;
+    p.life = 0.2 + power * 0.12;
     p.tile = SpriteTile.FlashStar;
     p.mode = SpriteMode.Billboard;
     p.rot = rng.range(0, Math.PI * 2);

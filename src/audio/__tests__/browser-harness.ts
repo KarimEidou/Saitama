@@ -63,8 +63,7 @@ async function bundleProbe(): Promise<string> {
       },
     },
   })) as unknown as
-    | { output: { type: string; code?: string }[] }[]
-    | { output: { type: string; code?: string }[] };
+    { output: { type: string; code?: string }[] }[] | { output: { type: string; code?: string }[] };
 
   const output = Array.isArray(result) ? result[0]!.output : result.output;
   const chunk = output.find((o) => o.type === 'chunk' && typeof o.code === 'string');

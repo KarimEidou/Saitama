@@ -394,8 +394,8 @@ export class MeshBuilder {
       const z0 = cz + Math.sin(a0) * radius;
       const x1 = cx + Math.cos(a1) * radius;
       const z1 = cz + Math.sin(a1) * radius;
-      const u0 = ((i / segments) * circumference) * uvScale;
-      const u1 = (((i + 1) / segments) * circumference) * uvScale;
+      const u0 = (i / segments) * circumference * uvScale;
+      const u1 = ((i + 1) / segments) * circumference * uvScale;
       // Wound backwards around the ring: with +Z on the "south" side of a Y-up
       // right-handed world, forward winding puts the normals inside the tube.
       this.quad(

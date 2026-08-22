@@ -592,7 +592,11 @@ function capturePose(sim: Sim, name: string, label: string, detail: string): voi
     name,
     label,
     detail,
-    player: [sim.rig.controller.position.x, sim.rig.controller.position.y, sim.rig.controller.position.z],
+    player: [
+      sim.rig.controller.position.x,
+      sim.rig.controller.position.y,
+      sim.rig.controller.position.z,
+    ],
     playerYaw: sim.rig.controller.yaw,
     camera: [c.position.x, c.position.y, c.position.z],
     quaternion: [c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w],
@@ -960,9 +964,8 @@ function measureCamera(): HarnessReport['camera'] {
     impactLagPeakM: round(lagPeak, 4),
     impactLagFrames: lagFrames,
     fovSuspendedFrames: suspended,
-    fovAfterExternalOverride: round(fovDuringOverride - (snapshot - 8), 6) === 0
-      ? round(fovAfter, 3)
-      : Number.NaN,
+    fovAfterExternalOverride:
+      round(fovDuringOverride - (snapshot - 8), 6) === 0 ? round(fovAfter, 3) : Number.NaN,
   };
 }
 
@@ -1038,7 +1041,10 @@ function measureClearance(): HarnessReport['clearance'] {
 
     // Penetration: is anything between the pivot and the camera?
     if (arm > 1e-4) {
-      tmpDir.copy(cameraPos).sub(pivot).multiplyScalar(1 / arm);
+      tmpDir
+        .copy(cameraPos)
+        .sub(pivot)
+        .multiplyScalar(1 / arm);
       const hit = sim.world.raycast({
         origin: pivot,
         direction: tmpDir,
@@ -1412,4 +1418,3 @@ main().catch((error: unknown) => {
   panel.innerHTML = `<h1>Player harness</h1><span class="bad">${String(error)}</span>`;
   console.error(error);
 });
-

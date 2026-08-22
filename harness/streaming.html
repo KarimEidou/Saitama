@@ -178,13 +178,30 @@
         <canvas id="map" width="400" height="400"></canvas>
 
         <h2>Rings</h2>
-        <div class="legend"><span class="sw" style="background: #ffd230"></span> R0 &le;96 m — LOD0, fracture pieces, per-building colliders</div>
-        <div class="legend"><span class="sw" style="background: #ff8f3c"></span> R1 &le;384 m — LOD1, instanced crowd, merged block collider</div>
-        <div class="legend"><span class="sw" style="background: #4d8fe0"></span> R2 &le;768 m — LOD2 merged block mesh</div>
-        <div class="legend"><span class="sw" style="background: #253046"></span> R3 — pre-baked impostor, one draw call</div>
-        <div class="legend"><span class="sw" style="background: #e05fd8"></span> queued for build</div>
-        <div class="legend"><span class="sw" style="background: #38d9c8"></span> building on a worker</div>
-        <div class="legend"><span class="sw" style="background: #ff4d4d"></span> persistent damage</div>
+        <div class="legend">
+          <span class="sw" style="background: #ffd230"></span> R0 &le;96 m — LOD0, fracture pieces,
+          per-building colliders
+        </div>
+        <div class="legend">
+          <span class="sw" style="background: #ff8f3c"></span> R1 &le;384 m — LOD1, instanced crowd,
+          merged block collider
+        </div>
+        <div class="legend">
+          <span class="sw" style="background: #4d8fe0"></span> R2 &le;768 m — LOD2 merged block mesh
+        </div>
+        <div class="legend">
+          <span class="sw" style="background: #253046"></span> R3 — pre-baked impostor, one draw
+          call
+        </div>
+        <div class="legend">
+          <span class="sw" style="background: #e05fd8"></span> queued for build
+        </div>
+        <div class="legend">
+          <span class="sw" style="background: #38d9c8"></span> building on a worker
+        </div>
+        <div class="legend">
+          <span class="sw" style="background: #ff4d4d"></span> persistent damage
+        </div>
 
         <h2>Budget</h2>
         <div id="budget"></div>
@@ -196,10 +213,9 @@
         <div id="workers"></div>
 
         <div class="note">
-          Upload time is main-thread milliseconds measured around wrapping the
-          transferred buffers, attaching the chunk and forcing the driver to
-          take the geometry. Frame rate is not reported: SwiftShader rasterises
-          on the CPU, so it would measure the software renderer.
+          Upload time is main-thread milliseconds measured around wrapping the transferred buffers,
+          attaching the chunk and forcing the driver to take the geometry. Frame rate is not
+          reported: SwiftShader rasterises on the CPU, so it would measure the software renderer.
         </div>
       </div>
     </div>

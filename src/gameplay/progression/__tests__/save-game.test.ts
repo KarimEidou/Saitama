@@ -220,7 +220,11 @@ describe('whole-session round trip', () => {
     first.crowd(ORIGIN, 12);
     first.coordinator.quests.accept('quest.duty.quota');
     for (let i = 0; i < 3; i++) {
-      first.startEncounter(`e${i}`, { threatTier: 'demon', participantIds: ['ally.genos'], position: at(i * 400, 0, 0) });
+      first.startEncounter(`e${i}`, {
+        threatTier: 'demon',
+        participantIds: ['ally.genos'],
+        position: at(i * 400, 0, 0),
+      });
       first.crowd(at(i * 400, 0, 0), 8);
       first.killMonster({ threatTier: 'demon', position: at(i * 400, 0, 0) });
       first.endEncounter(`e${i}`, { collateralCost: 12000 });
@@ -245,13 +249,21 @@ describe('whole-session round trip', () => {
     expect(b.killsByTier).toEqual(a.killsByTier);
     expect(b.completedQuests).toEqual(a.completedQuests);
 
-    expect(second.coordinator.quests.serialiseStates()).toEqual(first.coordinator.quests.serialiseStates());
-    expect(second.coordinator.quests.serialiseProgress()).toEqual(first.coordinator.quests.serialiseProgress());
+    expect(second.coordinator.quests.serialiseStates()).toEqual(
+      first.coordinator.quests.serialiseStates()
+    );
+    expect(second.coordinator.quests.serialiseProgress()).toEqual(
+      first.coordinator.quests.serialiseProgress()
+    );
     expect(second.coordinator.rivals.serialise()).toEqual(first.coordinator.rivals.serialise());
 
     // And the rebuilt save is byte-identical, which is the strongest form of
     // "exact" available without comparing object graphs.
-    const rebuilt = second.coordinator.buildSaveGame({ x: 12.5, y: 0, z: -8.25 }, 1.25, payload.savedAt);
+    const rebuilt = second.coordinator.buildSaveGame(
+      { x: 12.5, y: 0, z: -8.25 },
+      1.25,
+      payload.savedAt
+    );
     expect(JSON.stringify(rebuilt)).toBe(JSON.stringify(payload));
 
     first.dispose();

@@ -55,52 +55,259 @@ const DEFAULT_LOOK: ILook = {
  */
 const LOOKS: Readonly<Record<string, Partial<ILook>>> = {
   // Roads
-  'mat.road.asphalt.worn': { color: '#4a4a4c', accent: '#3a3a3c', pattern: 'speckle', grain: 0.2, roughness: 0.97 },
-  'mat.road.asphalt.rough': { color: '#4f4d4b', accent: '#3c3a38', pattern: 'speckle', grain: 0.26, roughness: 0.98 },
-  'mat.road.asphalt.clean': { color: '#535356', accent: '#434347', pattern: 'speckle', grain: 0.13, roughness: 0.93 },
-  'mat.road.asphalt.damaged': { color: '#46443f', accent: '#2e2c28', pattern: 'speckle', grain: 0.34, roughness: 0.99 },
-  'mat.road.markings': { color: '#e8e6df', accent: '#d6d4cc', pattern: 'plain', grain: 0.05, roughness: 0.7, bump: 0.1 },
+  'mat.road.asphalt.worn': {
+    color: '#4a4a4c',
+    accent: '#3a3a3c',
+    pattern: 'speckle',
+    grain: 0.2,
+    roughness: 0.97,
+  },
+  'mat.road.asphalt.rough': {
+    color: '#4f4d4b',
+    accent: '#3c3a38',
+    pattern: 'speckle',
+    grain: 0.26,
+    roughness: 0.98,
+  },
+  'mat.road.asphalt.clean': {
+    color: '#535356',
+    accent: '#434347',
+    pattern: 'speckle',
+    grain: 0.13,
+    roughness: 0.93,
+  },
+  'mat.road.asphalt.damaged': {
+    color: '#46443f',
+    accent: '#2e2c28',
+    pattern: 'speckle',
+    grain: 0.34,
+    roughness: 0.99,
+  },
+  'mat.road.markings': {
+    color: '#e8e6df',
+    accent: '#d6d4cc',
+    pattern: 'plain',
+    grain: 0.05,
+    roughness: 0.7,
+    bump: 0.1,
+  },
   // Paving
-  'mat.ground.sidewalk.slabs': { color: '#a6a49e', accent: '#8b8983', pattern: 'slab', grain: 0.12, roughness: 0.9 },
-  'mat.ground.sidewalk.concrete': { color: '#adaaa3', accent: '#93908a', pattern: 'slab', grain: 0.13, roughness: 0.92 },
-  'mat.ground.plaza.tiles': { color: '#b4b1a9', accent: '#98958e', pattern: 'tiles', grain: 0.1, roughness: 0.85 },
-  'mat.ground.cobblestone.alley': { color: '#8e8a84', accent: '#6d6a65', pattern: 'tiles', grain: 0.24, roughness: 0.95 },
-  'mat.ground.gravel': { color: '#9c9489', accent: '#7a7469', pattern: 'speckle', grain: 0.35, roughness: 1 },
-  'mat.ground.dirt.dry': { color: '#8d7d67', accent: '#6f6151', pattern: 'noise', grain: 0.26, roughness: 1 },
-  'mat.ground.grass.leafy': { color: '#4d6b34', accent: '#3a5427', pattern: 'noise', grain: 0.3, roughness: 1 },
-  'mat.debris.rubble.wall': { color: '#8f877c', accent: '#6c655c', pattern: 'speckle', grain: 0.4, roughness: 1 },
-  'mat.debris.gravel.stones': { color: '#96907f', accent: '#736e60', pattern: 'speckle', grain: 0.42, roughness: 1 },
+  'mat.ground.sidewalk.slabs': {
+    color: '#a6a49e',
+    accent: '#8b8983',
+    pattern: 'slab',
+    grain: 0.12,
+    roughness: 0.9,
+  },
+  'mat.ground.sidewalk.concrete': {
+    color: '#adaaa3',
+    accent: '#93908a',
+    pattern: 'slab',
+    grain: 0.13,
+    roughness: 0.92,
+  },
+  'mat.ground.plaza.tiles': {
+    color: '#b4b1a9',
+    accent: '#98958e',
+    pattern: 'tiles',
+    grain: 0.1,
+    roughness: 0.85,
+  },
+  'mat.ground.cobblestone.alley': {
+    color: '#8e8a84',
+    accent: '#6d6a65',
+    pattern: 'tiles',
+    grain: 0.24,
+    roughness: 0.95,
+  },
+  'mat.ground.gravel': {
+    color: '#9c9489',
+    accent: '#7a7469',
+    pattern: 'speckle',
+    grain: 0.35,
+    roughness: 1,
+  },
+  'mat.ground.dirt.dry': {
+    color: '#8d7d67',
+    accent: '#6f6151',
+    pattern: 'noise',
+    grain: 0.26,
+    roughness: 1,
+  },
+  'mat.ground.grass.leafy': {
+    color: '#4d6b34',
+    accent: '#3a5427',
+    pattern: 'noise',
+    grain: 0.3,
+    roughness: 1,
+  },
+  'mat.debris.rubble.wall': {
+    color: '#8f877c',
+    accent: '#6c655c',
+    pattern: 'speckle',
+    grain: 0.4,
+    roughness: 1,
+  },
+  'mat.debris.gravel.stones': {
+    color: '#96907f',
+    accent: '#736e60',
+    pattern: 'speckle',
+    grain: 0.42,
+    roughness: 1,
+  },
   // Walls
   'mat.wall.concrete.dirty': { color: '#a8a49b', accent: '#8d8981', pattern: 'noise', grain: 0.2 },
   'mat.wall.concrete.plain': { color: '#b6b3ac', accent: '#9b9891', pattern: 'noise', grain: 0.12 },
-  'mat.wall.concrete.cracked': { color: '#a09a90', accent: '#7d786f', pattern: 'noise', grain: 0.3 },
+  'mat.wall.concrete.cracked': {
+    color: '#a09a90',
+    accent: '#7d786f',
+    pattern: 'noise',
+    grain: 0.3,
+  },
   'mat.wall.concrete.layers': { color: '#b0aca4', accent: '#928e86', pattern: 'ribs', grain: 0.14 },
-  'mat.wall.concrete.painted': { color: '#c3c0b7', accent: '#a7a49b', pattern: 'noise', grain: 0.1 },
-  'mat.wall.brick.red': { color: '#9d5b45', accent: '#c9beae', pattern: 'brick', grain: 0.18, roughness: 0.92 },
-  'mat.wall.brick.weathered': { color: '#8e6551', accent: '#bdb3a6', pattern: 'brick', grain: 0.24, roughness: 0.94 },
-  'mat.wall.brick.broken': { color: '#8a6252', accent: '#a89c8e', pattern: 'brick', grain: 0.32, roughness: 0.96 },
+  'mat.wall.concrete.painted': {
+    color: '#c3c0b7',
+    accent: '#a7a49b',
+    pattern: 'noise',
+    grain: 0.1,
+  },
+  'mat.wall.brick.red': {
+    color: '#9d5b45',
+    accent: '#c9beae',
+    pattern: 'brick',
+    grain: 0.18,
+    roughness: 0.92,
+  },
+  'mat.wall.brick.weathered': {
+    color: '#8e6551',
+    accent: '#bdb3a6',
+    pattern: 'brick',
+    grain: 0.24,
+    roughness: 0.94,
+  },
+  'mat.wall.brick.broken': {
+    color: '#8a6252',
+    accent: '#a89c8e',
+    pattern: 'brick',
+    grain: 0.32,
+    roughness: 0.96,
+  },
   'mat.wall.plaster.beige': { color: '#cfc4ad', accent: '#b4a993', pattern: 'noise', grain: 0.1 },
   'mat.wall.plaster.white': { color: '#d8d5cd', accent: '#bcb9b1', pattern: 'noise', grain: 0.09 },
   'mat.wall.plaster.broken': { color: '#bfb5a4', accent: '#95886f', pattern: 'noise', grain: 0.3 },
   'mat.wall.planks': { color: '#8a7255', accent: '#6c5740', pattern: 'planks', grain: 0.22 },
-  'mat.wood.planks.weathered': { color: '#8a7255', accent: '#6c5740', pattern: 'planks', grain: 0.22 },
+  'mat.wood.planks.weathered': {
+    color: '#8a7255',
+    accent: '#6c5740',
+    pattern: 'planks',
+    grain: 0.22,
+  },
   // Metal
-  'mat.metal.corrugated': { color: '#9aa0a2', accent: '#767c7f', pattern: 'ribs', grain: 0.12, roughness: 0.6, metalness: 0.55 },
-  'mat.metal.corrugated.worn': { color: '#8b8579', accent: '#6a6559', pattern: 'ribs', grain: 0.24, roughness: 0.75, metalness: 0.4 },
-  'mat.metal.panel.factory': { color: '#9a9d99', accent: '#7b7e7a', pattern: 'ribs', grain: 0.16, roughness: 0.65, metalness: 0.5 },
-  'mat.metal.container.side': { color: '#7d8a86', accent: '#5e6b67', pattern: 'ribs', grain: 0.2, roughness: 0.7, metalness: 0.5 },
-  'mat.metal.plate.industrial': { color: '#8d9195', accent: '#6d7175', pattern: 'noise', grain: 0.14, roughness: 0.55, metalness: 0.7 },
-  'mat.metal.shutter.painted': { color: '#8b9099', accent: '#6a6f78', pattern: 'ribs', grain: 0.12, roughness: 0.6, metalness: 0.4 },
-  'mat.metal.rust.fine': { color: '#8a6144', accent: '#5f4230', pattern: 'noise', grain: 0.3, roughness: 0.85, metalness: 0.35 },
-  'mat.metal.rust.coarse': { color: '#7f5b3f', accent: '#57402d', pattern: 'speckle', grain: 0.36, roughness: 0.9, metalness: 0.3 },
-  'mat.metal.grate.rusty': { color: '#6b5c4d', accent: '#463c32', pattern: 'tiles', grain: 0.3, roughness: 0.85, metalness: 0.4 },
+  'mat.metal.corrugated': {
+    color: '#9aa0a2',
+    accent: '#767c7f',
+    pattern: 'ribs',
+    grain: 0.12,
+    roughness: 0.6,
+    metalness: 0.55,
+  },
+  'mat.metal.corrugated.worn': {
+    color: '#8b8579',
+    accent: '#6a6559',
+    pattern: 'ribs',
+    grain: 0.24,
+    roughness: 0.75,
+    metalness: 0.4,
+  },
+  'mat.metal.panel.factory': {
+    color: '#9a9d99',
+    accent: '#7b7e7a',
+    pattern: 'ribs',
+    grain: 0.16,
+    roughness: 0.65,
+    metalness: 0.5,
+  },
+  'mat.metal.container.side': {
+    color: '#7d8a86',
+    accent: '#5e6b67',
+    pattern: 'ribs',
+    grain: 0.2,
+    roughness: 0.7,
+    metalness: 0.5,
+  },
+  'mat.metal.plate.industrial': {
+    color: '#8d9195',
+    accent: '#6d7175',
+    pattern: 'noise',
+    grain: 0.14,
+    roughness: 0.55,
+    metalness: 0.7,
+  },
+  'mat.metal.shutter.painted': {
+    color: '#8b9099',
+    accent: '#6a6f78',
+    pattern: 'ribs',
+    grain: 0.12,
+    roughness: 0.6,
+    metalness: 0.4,
+  },
+  'mat.metal.rust.fine': {
+    color: '#8a6144',
+    accent: '#5f4230',
+    pattern: 'noise',
+    grain: 0.3,
+    roughness: 0.85,
+    metalness: 0.35,
+  },
+  'mat.metal.rust.coarse': {
+    color: '#7f5b3f',
+    accent: '#57402d',
+    pattern: 'speckle',
+    grain: 0.36,
+    roughness: 0.9,
+    metalness: 0.3,
+  },
+  'mat.metal.grate.rusty': {
+    color: '#6b5c4d',
+    accent: '#463c32',
+    pattern: 'tiles',
+    grain: 0.3,
+    roughness: 0.85,
+    metalness: 0.4,
+  },
   // Roofs
-  'mat.roof.bitumen.flat': { color: '#4d4b48', accent: '#3b3936', pattern: 'noise', grain: 0.18, roughness: 0.96 },
-  'mat.roof.tiles.grey': { color: '#6f7276', accent: '#575a5e', pattern: 'tiles', grain: 0.16, roughness: 0.88 },
-  'mat.roof.tiles.ceramic': { color: '#8f5f45', accent: '#6d4733', pattern: 'tiles', grain: 0.18, roughness: 0.85 },
+  'mat.roof.bitumen.flat': {
+    color: '#4d4b48',
+    accent: '#3b3936',
+    pattern: 'noise',
+    grain: 0.18,
+    roughness: 0.96,
+  },
+  'mat.roof.tiles.grey': {
+    color: '#6f7276',
+    accent: '#575a5e',
+    pattern: 'tiles',
+    grain: 0.16,
+    roughness: 0.88,
+  },
+  'mat.roof.tiles.ceramic': {
+    color: '#8f5f45',
+    accent: '#6d4733',
+    pattern: 'tiles',
+    grain: 0.18,
+    roughness: 0.85,
+  },
   // Glass: near-white so the per-vertex tint carries the colour of every
   // window and every shop sign.
-  'mat.glass.window': { color: '#eef2f4', accent: '#dfe6ea', pattern: 'plain', grain: 0.03, roughness: 0.12, metalness: 0.05, bump: 0 },
+  'mat.glass.window': {
+    color: '#eef2f4',
+    accent: '#dfe6ea',
+    pattern: 'plain',
+    grain: 0.03,
+    roughness: 0.12,
+    metalness: 0.05,
+    bump: 0,
+  },
 };
 
 /* -------------------------------------------------------------------------- */
@@ -238,10 +445,14 @@ function deriveNormalMap(albedo: HTMLCanvasElement, strength: number): HTMLCanva
   for (let y = 0; y < TEX_SIZE; y++) {
     for (let x = 0; x < TEX_SIZE; x++) {
       const dx =
-        lum(x - 1, y - 1) + 2 * lum(x - 1, y) + lum(x - 1, y + 1) -
+        lum(x - 1, y - 1) +
+        2 * lum(x - 1, y) +
+        lum(x - 1, y + 1) -
         (lum(x + 1, y - 1) + 2 * lum(x + 1, y) + lum(x + 1, y + 1));
       const dy =
-        lum(x - 1, y - 1) + 2 * lum(x, y - 1) + lum(x + 1, y - 1) -
+        lum(x - 1, y - 1) +
+        2 * lum(x, y - 1) +
+        lum(x + 1, y - 1) -
         (lum(x - 1, y + 1) + 2 * lum(x, y + 1) + lum(x + 1, y + 1));
       const nx = dx * strength;
       const ny = dy * strength;
@@ -384,7 +595,14 @@ export function buildProceduralSky(renderer: THREE.WebGLRenderer): {
   ctx.fillRect(0, 0, width, height);
 
   // A soft sun disc so specular highlights have something to come from.
-  const sun = ctx.createRadialGradient(width * 0.68, height * 0.24, 0, width * 0.68, height * 0.24, 70);
+  const sun = ctx.createRadialGradient(
+    width * 0.68,
+    height * 0.24,
+    0,
+    width * 0.68,
+    height * 0.24,
+    70
+  );
   sun.addColorStop(0, 'rgba(255, 250, 235, 0.95)');
   sun.addColorStop(1, 'rgba(255, 250, 235, 0)');
   ctx.fillStyle = sun;

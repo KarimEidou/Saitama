@@ -284,7 +284,10 @@ export class VFXSystem implements IVFXSystem {
     this.sprites = new SpriteLayer(createQuadGeometry(), spriteMaterial, this.profile);
     this.decals = new DecalLayer(createQuadGeometry(), decalMaterial, this.profile);
     this.shockwaves = new ShockwaveLayer(
-      createArcGridGeometry(this.profile.shockwaveArcSegments, this.profile.shockwaveRadialSegments),
+      createArcGridGeometry(
+        this.profile.shockwaveArcSegments,
+        this.profile.shockwaveRadialSegments
+      ),
       shockwaveMaterial,
       this.profile
     );
@@ -294,7 +297,9 @@ export class VFXSystem implements IVFXSystem {
 
     this.root.add(this.decals.mesh, this.shockwaves.mesh, this.sprites.mesh, this.speedlines.mesh);
 
-    const effectCapacity = this.quality ? effectCapacityFor(this.quality) : tierEffectCapacity(tier);
+    const effectCapacity = this.quality
+      ? effectCapacityFor(this.quality)
+      : tierEffectCapacity(tier);
     for (let i = 0; i < effectCapacity; i++) this.slots.push(emptySlot());
     for (let i = 0; i < this.profile.trailCapacity; i++) this.trails.push(emptyTrail());
 
@@ -463,7 +468,8 @@ export class VFXSystem implements IVFXSystem {
     params.size = options.size;
     params.rotation = options.rotation ?? this.rng.range(0, Math.PI * 2);
     params.tile = crackTileFor(options.materialKey);
-    params.aspect = params.tile === CrackTile.BranchA || params.tile === CrackTile.BranchB ? 2.6 : 1;
+    params.aspect =
+      params.tile === CrackTile.BranchA || params.tile === CrackTile.BranchB ? 2.6 : 1;
     params.lifetime = options.lifetime ?? 0;
     params.r = 0.055;
     params.g = 0.052;
@@ -751,8 +757,8 @@ export class VFXSystem implements IVFXSystem {
     this.chunkX += event.position.x;
     this.chunkY += event.position.y;
     this.chunkZ += event.position.z;
-    const speed = Math.hypot(event.impulse.x, event.impulse.y, event.impulse.z) /
-      Math.max(1, event.mass);
+    const speed =
+      Math.hypot(event.impulse.x, event.impulse.y, event.impulse.z) / Math.max(1, event.mass);
     this.chunkPower = Math.max(this.chunkPower, clamp01(speed / 45));
     this.chunkSpread = Math.max(this.chunkSpread, Math.min(28, Math.cbrt(event.mass) * 0.6));
 
@@ -812,11 +818,7 @@ export class VFXSystem implements IVFXSystem {
   private flushCoalesced(): void {
     if (this.chunkCount > 0) {
       const inverse = 1 / this.chunkCount;
-      this.scratchVector.set(
-        this.chunkX * inverse,
-        this.chunkY * inverse,
-        this.chunkZ * inverse
-      );
+      this.scratchVector.set(this.chunkX * inverse, this.chunkY * inverse, this.chunkZ * inverse);
       this.spawnSlot('debrisBurst', {
         position: this.scratchVector,
         intensity: this.chunkPower,
@@ -874,8 +876,28 @@ export class VFXSystem implements IVFXSystem {
       case 'punchImpact':
       case 'monsterDeath': {
         this.emitters.impactFlash(rng, x, y + 0.4, z, power);
-        this.emitters.hitSparks(rng, x, y + 0.4, z, slot.dx, slot.dy, slot.dz, power, 14 + power * 26);
-        this.emitters.debrisChips(rng, x, y + 0.3, z, slot.dx, slot.dy, slot.dz, power, 5 + power * 10);
+        this.emitters.hitSparks(
+          rng,
+          x,
+          y + 0.4,
+          z,
+          slot.dx,
+          slot.dy,
+          slot.dz,
+          power,
+          14 + power * 26
+        );
+        this.emitters.debrisChips(
+          rng,
+          x,
+          y + 0.3,
+          z,
+          slot.dx,
+          slot.dy,
+          slot.dz,
+          power,
+          5 + power * 10
+        );
         this.emitters.dustPlume(rng, x, y + 0.3, z, 1.2 + scale * 0.6, power, 14 + power * 22, 1.3);
         this.speedlines.burst(0.18 + power * 0.24, 3.6);
         if (this.camera) this.speedlines.setFocusWorld(x, y, z, this.camera);
@@ -897,7 +919,18 @@ export class VFXSystem implements IVFXSystem {
       }
 
       case 'crater': {
-        this.emitters.groundCracks(rng, x, y + 0.02, z, 0, 1, 0, 1.6 + scale * 0.6, power, 6 + power * 8);
+        this.emitters.groundCracks(
+          rng,
+          x,
+          y + 0.02,
+          z,
+          0,
+          1,
+          0,
+          1.6 + scale * 0.6,
+          power,
+          6 + power * 8
+        );
         this.emitters.dustPlume(rng, x, y + 0.2, z, 1.5 + scale * 0.7, power, 22 + power * 34, 0.7);
         this.emitters.debrisChips(rng, x, y + 0.2, z, 0, 1, 0, power, 6 + power * 12);
         this.spawnShell(x, y + 0.15, z, 0, 1, 0, Math.PI, 6 + scale * 3.2, power * 0.85, 0, false);
@@ -908,7 +941,16 @@ export class VFXSystem implements IVFXSystem {
       }
 
       case 'landingDust': {
-        this.emitters.dustPlume(rng, x, y + 0.15, z, 1 + scale * 0.5, power * 0.7, 10 + power * 20, 0.55);
+        this.emitters.dustPlume(
+          rng,
+          x,
+          y + 0.15,
+          z,
+          1 + scale * 0.5,
+          power * 0.7,
+          10 + power * 20,
+          0.55
+        );
         this.spawnShell(x, y + 0.1, z, 0, 1, 0, Math.PI, 3 + scale * 1.8, power * 0.55, 0, false);
         this.shake.addAtPosition(0.15 + power * 0.25, this.scratchVectorB.set(x, y, z), 40);
         slot.lifetime = 2 + power;
@@ -928,7 +970,18 @@ export class VFXSystem implements IVFXSystem {
       }
 
       case 'groundCrack':
-        this.emitters.groundCracks(rng, x, y + 0.02, z, slot.dx, slot.dy, slot.dz, 1 + scale, power, 4 + power * 8);
+        this.emitters.groundCracks(
+          rng,
+          x,
+          y + 0.02,
+          z,
+          slot.dx,
+          slot.dy,
+          slot.dz,
+          1 + scale,
+          power,
+          4 + power * 8
+        );
         slot.lifetime = 0.2;
         break;
 
@@ -992,13 +1045,39 @@ export class VFXSystem implements IVFXSystem {
     const life = Math.min(2.2, Math.max(0.34, range / speed));
 
     if (!omnidirectional) {
-      this.spawnShell(x, y + 1.1, z, slot.dx, slot.dy, slot.dz, halfAngle, range, power, 1, false, life);
+      this.spawnShell(
+        x,
+        y + 1.1,
+        z,
+        slot.dx,
+        slot.dy,
+        slot.dz,
+        halfAngle,
+        range,
+        power,
+        1,
+        false,
+        life
+      );
     } else {
       // Straight up: the vertical column of a ground-zero detonation.
-      this.spawnShell(x, y + 0.6, z, 0, 1, 0, 1.15, range * 0.55, power * 0.85, 1, false, life * 1.15);
+      this.spawnShell(
+        x,
+        y + 0.6,
+        z,
+        0,
+        1,
+        0,
+        1.15,
+        range * 0.55,
+        power * 0.85,
+        1,
+        false,
+        life * 1.15
+      );
     }
 
-    const skirtAngle = omnidirectional ? Math.PI : Math.min(Math.PI, halfAngle * 1.5 + 0.30);
+    const skirtAngle = omnidirectional ? Math.PI : Math.min(Math.PI, halfAngle * 1.5 + 0.3);
     const shell = this.spawnShell(
       x,
       y + 0.25,
@@ -1040,7 +1119,16 @@ export class VFXSystem implements IVFXSystem {
 
     this.emitters.impactFlash(rng, x, y + 1.1, z, power);
     this.emitters.dustPlume(rng, x, y + 0.4, z, 3 + power * 6, power, 30 + power * 42, 2.0);
-    this.emitters.dustColumn(rng, x, y, z, 2.5 + power * 4.5, power, 12 + power * 20, 16 + power * 40);
+    this.emitters.dustColumn(
+      rng,
+      x,
+      y,
+      z,
+      2.5 + power * 4.5,
+      power,
+      12 + power * 20,
+      16 + power * 40
+    );
     this.emitters.debrisChips(rng, x, y + 0.5, z, slot.dx, slot.dy, slot.dz, power, 8 + power * 18);
     this.emitters.hitSparks(rng, x, y + 1.1, z, slot.dx, slot.dy, slot.dz, power, 10 + power * 22);
 
@@ -1071,9 +1159,13 @@ export class VFXSystem implements IVFXSystem {
       );
     }
 
-    this.speedlines.burst(0.20 + power * 0.26, 3.0);
+    this.speedlines.burst(0.2 + power * 0.26, 3.0);
     if (this.camera) this.speedlines.setFocusWorld(x, y + 1, z, this.camera);
-    this.shake.addAtPosition(0.45 + power * 0.55, this.scratchVectorB.set(x, y, z), 40 + range * 0.6);
+    this.shake.addAtPosition(
+      0.45 + power * 0.55,
+      this.scratchVectorB.set(x, y, z),
+      40 + range * 0.6
+    );
 
     // CLOUD PARTING. Reserved for a genuine serious punch: it is the one beat
     // in the game that says the sky noticed.
@@ -1114,14 +1206,14 @@ export class VFXSystem implements IVFXSystem {
     params.halfAngle = halfAngle;
     params.range = range;
     params.life = life ?? Math.min(1.6, Math.max(0.3, range / (150 + power * 220)));
-        // The axial cone covers a huge screen area at 180 metres; the ground
+    // The axial cone covers a huge screen area at 180 metres; the ground
     // skirt is the shape the eye should follow. Weighting them equally turns
     // the punch into a white blob.
     params.intensity = (primary ? 0.9 : kind === 1 ? 0.34 : 0.45) + power * 0.4;
     params.kind = kind;
     params.sharpness = 1.05 + power * 0.45;
     params.chroma = this.profile.shaderQuality > 0 ? 0.013 + power * 0.009 : 0;
-    params.loft = kind === 0 ? 0.30 + power * 0.20 : 0;
+    params.loft = kind === 0 ? 0.3 + power * 0.2 : 0;
     params.start = kind === 0 ? 0.1 : 0.14;
     params.seed = this.rng.next();
     _shellColor.setHex(SHOCK_COLOR);
@@ -1148,8 +1240,7 @@ export class VFXSystem implements IVFXSystem {
       }
 
       if (slot.rate > 0 && slot.age < slot.emitUntil) {
-        const alive =
-          slot.shell >= 0 && this.shockwaves.isAlive(slot.shell, slot.shellGeneration);
+        const alive = slot.shell >= 0 && this.shockwaves.isAlive(slot.shell, slot.shellGeneration);
         if (alive) {
           slot.carry += slot.rate * dt;
           const whole = Math.floor(slot.carry);
@@ -1340,8 +1431,10 @@ function defaultPriority(effect: VFXEffectName): number {
 /** Map a decal material key onto a fracture pattern. */
 function crackTileFor(materialKey: string): number {
   const key = materialKey.toLowerCase();
-  if (key.includes('star') || key.includes('impact') || key.includes('crater')) return CrackTile.Star;
-  if (key.includes('scorch') || key.includes('smear') || key.includes('dust')) return CrackTile.Smear;
+  if (key.includes('star') || key.includes('impact') || key.includes('crater'))
+    return CrackTile.Star;
+  if (key.includes('scorch') || key.includes('smear') || key.includes('dust'))
+    return CrackTile.Smear;
   if (key.includes('b')) return CrackTile.BranchB;
   return CrackTile.BranchA;
 }

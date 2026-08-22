@@ -51,7 +51,10 @@ describe('sun position', () => {
     const latitude = 35.6;
     let peak = -Infinity;
     for (let i = 0; i < 1440; i++) {
-      peak = Math.max(peak, sunPosition(i / 1440, { dayOfYear: 172, latitudeDegrees: latitude }).elevation);
+      peak = Math.max(
+        peak,
+        sunPosition(i / 1440, { dayOfYear: 172, latitudeDegrees: latitude }).elevation
+      );
     }
     const expected = 90 - (latitude - 23.44);
     expect(peak * RAD2DEG).toBeGreaterThan(expected - 1);

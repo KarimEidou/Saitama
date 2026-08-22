@@ -43,11 +43,8 @@ const BOX_VERTICES = 24;
  * from outside so back-face culling keeps the outside visible.
  */
 const CORNER_SELECT = new Uint8Array([
-  /* +X */ 0b101, 0b001, 0b011, 0b111,
-  /* -X */ 0b000, 0b100, 0b110, 0b010,
-  /* +Y */ 0b110, 0b111, 0b011, 0b010,
-  /* -Y */ 0b000, 0b001, 0b101, 0b100,
-  /* +Z */ 0b100, 0b101, 0b111, 0b110,
+  /* +X */ 0b101, 0b001, 0b011, 0b111, /* -X */ 0b000, 0b100, 0b110, 0b010, /* +Y */ 0b110, 0b111,
+  0b011, 0b010, /* -Y */ 0b000, 0b001, 0b101, 0b100, /* +Z */ 0b100, 0b101, 0b111, 0b110,
   /* -Z */ 0b001, 0b000, 0b010, 0b011,
 ]);
 

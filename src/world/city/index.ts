@@ -19,18 +19,18 @@ export { generateChunk, transferables } from './chunk';
 export type { ICityChunkBuild, IChunkGenOptions } from './chunk';
 
 export { generateBlock, subdivideBlock } from './block';
-export type {
-  IBlockBuild,
-  IBlockGenOptions,
-  IBlockSpawn,
-  IBuildingSummary,
-  ILot,
-} from './block';
+export type { IBlockBuild, IBlockGenOptions, IBlockSpawn, IBuildingSummary, ILot } from './block';
 
 export { generateBuilding, PANEL_WIDTH } from './building';
 export type { BuildingDetail, IBuildingBuild, IBuildingRecipe } from './building';
 
-export { generateGround, mergeChunkGrounds, GROUND_SLOT_COUNT, KERB_HEIGHT, GroundSlot } from './ground';
+export {
+  generateGround,
+  mergeChunkGrounds,
+  GROUND_SLOT_COUNT,
+  KERB_HEIGHT,
+  GroundSlot,
+} from './ground';
 export type { IGroundBuild, IGroundContext, IGroundMaterials } from './ground';
 
 export { generateLandmark } from './landmarks';
@@ -56,12 +56,7 @@ export type {
   IPartitionReport,
 } from './fracture';
 
-export {
-  MAT_SLOT_COUNT,
-  MatSlot,
-  MeshBuilder,
-  mergeGeometries,
-} from './mesh-builder';
+export { MAT_SLOT_COUNT, MatSlot, MeshBuilder, mergeGeometries } from './mesh-builder';
 export type {
   AABB6,
   IGeometryBuffers,

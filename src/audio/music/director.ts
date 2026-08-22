@@ -74,11 +74,7 @@ export class MusicDirector {
   private stepCounter = 0;
   private notesScheduled = 0;
 
-  constructor(
-    ctx: BaseAudioContext,
-    destination: AudioNode,
-    options: IMusicDirectorOptions = {}
-  ) {
+  constructor(ctx: BaseAudioContext, destination: AudioNode, options: IMusicDirectorOptions = {}) {
     this.ctx = ctx;
     this.instruments = createInstruments(ctx, destination);
     this.rng = createRng(options.seed ?? 0x5a17a3);
