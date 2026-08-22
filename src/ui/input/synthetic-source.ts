@@ -106,7 +106,11 @@ export function createSyntheticSource(): ISyntheticInput {
     const step = script[scriptIndex]!;
     if (!scriptStarted) {
       scriptStarted = true;
-      scriptFramesLeft = Math.max(1, Math.floor(step.frames));
+      // A non-finite `frames` (a duration divided by an undefined dt, say) would
+      // make `scriptFramesLeft` NaN, and `NaN <= 0` is false — the step never
+      // ends, `scriptRunning` stays true forever, and an E2E run waiting on it
+      // hangs until its timeout. `frames: number` type-checks NaN, so guard.
+      scriptFramesLeft = Number.isFinite(step.frames) ? Math.max(1, Math.floor(step.frames)) : 1;
       if (step.patch) applyPatch(step.patch);
       if (step.taps) for (const action of step.taps) pulses.set(action, 1);
     }

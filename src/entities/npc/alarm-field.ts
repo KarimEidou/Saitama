@@ -64,6 +64,10 @@ import type { IAlarmImpulse, IThreatSource } from './types';
 /** Diagonal transfer is weaker by the extra distance travelled. */
 const DIAGONAL_TRANSFER = Math.pow(ALARM_TRANSFER, Math.SQRT2);
 
+/** Eight-neighbourhood offsets for `frontRadius`'s flood fill. */
+const FRONT_DX = [1, -1, 0, 0, 1, 1, -1, -1] as const;
+const FRONT_DZ = [0, 0, 1, -1, 1, -1, 1, -1] as const;
+
 export class AlarmField {
   /**
    * Double-buffered because the step reads every cell's four-neighbourhood: an
@@ -77,6 +81,9 @@ export class AlarmField {
   private readonly seed = new Float32Array(FIELD_COUNT);
 
   private readonly impulses: IAlarmImpulse[] = [];
+  /** Scratch for `frontRadius`'s flood fill. Allocated on first use. */
+  private frontSeen: Uint8Array | undefined;
+  private frontQueue: Int32Array | undefined;
   private accumulator = 0;
   private ticks = 0;
   private lastMs = 0;
@@ -313,25 +320,56 @@ export class AlarmField {
   /* ------------------------------------------------------------------ */
 
   /**
-   * Radius in metres of the outermost cell around `(x, z)` whose alarm is at
-   * or above `threshold`. This is THE measurable definition of "the panic
-   * front", and the harness differentiates it to report metres per second.
+   * Radius in metres of the outermost cell of the alarmed region CONNECTED to
+   * `(x, z)` whose alarm is at or above `threshold`. This is THE measurable
+   * definition of "the panic front", and the harness differentiates it to
+   * report metres per second.
    *
    * Returns 0 when the centre itself is below the threshold.
+   *
+   * A flood fill and not a scan of the whole field, because the whole-field
+   * answer is not a radius of anything: a second threat's halo — an ally's
+   * attack sixty metres away, say — instantly becomes "the front", and the
+   * fitted speed is a mix of the real propagation and a step function. The
+   * fill is eight-connected to match the way the field propagates.
    */
   frontRadius(x: number, z: number, threshold: number): number {
-    let best = -1;
-    for (let gz = 0; gz < FIELD_DIM; gz++) {
-      const row = gz * FIELD_DIM;
+    const startX = cellX(x);
+    const startZ = cellZ(z);
+    const start = startZ * FIELD_DIM + startX;
+    if (this.valueBuffer[start]! < threshold) return 0;
+
+    this.frontSeen ??= new Uint8Array(FIELD_COUNT);
+    this.frontQueue ??= new Int32Array(FIELD_COUNT);
+    const seen = this.frontSeen;
+    const queue = this.frontQueue;
+    seen.fill(0);
+    seen[start] = 1;
+    queue[0] = start;
+    let head = 0;
+    let tail = 1;
+    let best = 0;
+
+    while (head < tail) {
+      const cell = queue[head++]!;
+      const gx = cell % FIELD_DIM;
+      const gz = (cell - gx) / FIELD_DIM;
+      const dx = cellCentreX(gx) - x;
       const dz = cellCentreZ(gz) - z;
-      for (let gx = 0; gx < FIELD_DIM; gx++) {
-        if (this.valueBuffer[row + gx]! < threshold) continue;
-        const dx = cellCentreX(gx) - x;
-        const d = dx * dx + dz * dz;
-        if (d > best) best = d;
+      const d = dx * dx + dz * dz;
+      if (d > best) best = d;
+      for (let n = 0; n < 8; n++) {
+        const nx = gx + FRONT_DX[n]!;
+        const nz = gz + FRONT_DZ[n]!;
+        if (nx < 0 || nz < 0 || nx >= FIELD_DIM || nz >= FIELD_DIM) continue;
+        const next = nz * FIELD_DIM + nx;
+        if (seen[next] === 1) continue;
+        seen[next] = 1;
+        if (this.valueBuffer[next]! < threshold) continue;
+        queue[tail++] = next;
       }
     }
-    return best < 0 ? 0 : Math.sqrt(best);
+    return Math.sqrt(best);
   }
 
   /** Cells at or above a threshold. Cheap proxy for "how much of the city is panicking". */

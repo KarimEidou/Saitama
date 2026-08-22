@@ -44,7 +44,9 @@ import {
   formatRate,
   loadSourceManifests,
   lockFilesDiffer,
+  mergeAssetManifests,
   mergeLockFiles,
+  readAssetManifest,
   readLockFile,
   writeLockFile,
   DEFAULT_CONCURRENCY,
@@ -87,29 +89,40 @@ function parseArgs(argv: readonly string[]): ICliOptions {
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    const name = arg.split('=')[0];
+    /**
+     * The value of a value-taking flag.
+     *
+     * An empty or missing one is an ERROR, never a silently-disabled filter:
+     * `--only` with a shell-eaten argument used to leave `only = []`, which
+     * `selectEntries` reads as "no filter" and turns into a full 1.774 GB
+     * fetch. A value that looks like a flag is the same mistake wearing a
+     * different hat.
+     */
     const value = (): string => {
       const inline = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : undefined;
-      if (inline !== undefined) return inline;
-      i += 1;
-      return argv[i] ?? '';
+      const raw = inline ?? argv[i + 1];
+      if (raw === undefined || raw === '' || (inline === undefined && raw.startsWith('-'))) {
+        throw new Error(`${name} requires a value`);
+      }
+      if (inline === undefined) i += 1;
+      return raw;
     };
-    const name = arg.split('=')[0];
+    /** Split a comma-joined list flag, rejecting one that lists nothing. */
+    const list = (): string[] => {
+      const items = value()
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (items.length === 0) throw new Error(`${name} needs at least one value`);
+      return items;
+    };
     switch (name) {
       case '--only':
-        only.push(
-          ...value()
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean)
-        );
+        only.push(...list());
         break;
       case '--kind':
-        kinds.push(
-          ...(value()
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean) as AssetKind[])
-        );
+        kinds.push(...(list() as AssetKind[]));
         break;
       case '--limit':
         limit = Number.parseInt(value(), 10);
@@ -139,6 +152,13 @@ function parseArgs(argv: readonly string[]): ICliOptions {
         break;
       default:
         if (arg.startsWith('-')) throw new Error(`unknown flag: ${arg}`);
+        // A bare word is always a mistake here, and the natural one is
+        // `--only asphalt fire_hydrant`: dropping the second id silently ran a
+        // subset fetch that reported success while refreshing half of what was
+        // asked for.
+        throw new Error(
+          `unexpected argument '${arg}' — list values must be comma-joined, e.g. --only a,b`
+        );
     }
   }
 
@@ -286,9 +306,18 @@ async function main(): Promise<number> {
     fetched = await fetcher.fetchPlan(plan, progress);
   } finally {
     progress.done();
-    await cache.save();
-    await Fetcher.cleanTemp();
+    // `fetchPlan` does not settle until every transfer has, so the index here
+    // reflects everything that actually landed. A dry run writes nothing, so
+    // it has nothing to save.
+    if (!options.dryRun) await cache.save();
   }
+  // Only a SUCCESSFUL, non-dry run may drop the scratch directory. The `.part`
+  // files in it are exactly what the documented "a re-run after a dropped
+  // connection continues from the byte it stopped at" resumes from — 83 of the
+  // 376 files are resume-eligible and account for ~61% of the fetch — and
+  // wiping them from a `finally` meant that guarantee only ever held for a
+  // SIGKILL. Deleting them is a write, so a dry run does not do it either.
+  if (!options.dryRun) await Fetcher.cleanTemp();
 
   const summary = progress.summary();
   if (options.dryRun) {
@@ -326,14 +355,28 @@ async function main(): Promise<number> {
   }
 
   /* 6 — resolved manifest for the processing stage ----------------------- */
-  const resolvedManifest = buildAssetManifest(fetched, {
+  // Merged on a subset run for the same reason the lockfile is: this file is
+  // the ONLY input `assets:process` reads, so writing just the entries
+  // `--only asphalt` touched would drop the other ~197 out of the build with
+  // nothing anywhere to say so.
+  const builtManifest = buildAssetManifest(fetched, {
     generator: 'tools/fetch-assets.ts',
   });
+  const resolvedManifest = partial
+    ? mergeAssetManifests(await readAssetManifest(RESOLVED_MANIFEST), builtManifest)
+    : builtManifest;
   await writeFile(RESOLVED_MANIFEST, `${JSON.stringify(resolvedManifest, null, 2)}\n`);
   log.ok(
     `wrote ${rel(RESOLVED_MANIFEST)} — ${resolvedManifest.entries.length} IAssetManifest entries ` +
       `(gitignored; outputs[] filled in by assets:process)`
   );
+  if (partial) {
+    log.warn(
+      `subset run: ${rel(RESOLVED_MANIFEST)} carries forward ${resolvedManifest.entries.length - builtManifest.entries.length} ` +
+        `entries from previous runs. Run a full fetch before assets:process if this tree has ` +
+        `never had one.`
+    );
+  }
 
   /* 7 — attribution rollup ---------------------------------------------- */
   const authors = new Set<string>();

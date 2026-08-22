@@ -96,12 +96,21 @@ function addComposableHook(material: THREE.Material, key: string, fn: Composable
       : undefined;
     if (existing) hooks.push({ key: 'adopted', fn: (s, r) => existing.call(material, s, r) });
 
+    // A cache key assigned DIRECTLY onto the material (the city's
+    // `city-destroy-v1`, the roster's `roster:F-D`) describes GLSL the adopted
+    // hook injected and the composed key knows nothing about. Overwriting it
+    // collapses every such material onto one key — and three then hands one of
+    // them the other's compiled program.
+    const priorKey = Object.prototype.hasOwnProperty.call(material, 'customProgramCacheKey')
+      ? material.customProgramCacheKey.bind(material)
+      : undefined;
+
     const list = hooks;
     material.onBeforeCompile = function composedOnBeforeCompile(shader, renderer): void {
       for (let i = 0; i < list.length; i++) list[i]!.fn(shader, renderer);
     };
     material.customProgramCacheKey = function composedCacheKey(): string {
-      let out = 'engine:';
+      let out = priorKey === undefined ? 'engine:' : `engine:${priorKey()}|`;
       for (let i = 0; i < list.length; i++) out += `${list[i]!.key}|`;
       return out;
     };
@@ -193,13 +202,37 @@ export class NightUniforms {
    * Composes with every other system that wants `onBeforeCompile` — see the
    * interop note at the top of this file. Safe to call before OR after the
    * shadow system registers the same material.
+   *
+   * @returns true when this call wired the material, false when it was already
+   *          attached. Callers counting materials must not count the repeats —
+   *          a hundred meshes sharing one material is ONE attachment.
    */
-  attach(material: THREE.Material, mode: NightEmissiveMode): void {
-    if (this.attached.has(material)) return;
+  attach(material: THREE.Material, mode: NightEmissiveMode): boolean {
+    if (this.attached.has(material)) return false;
     this.attached.add(material);
     this.attachedCount++;
 
     addComposableHook(material, `skyNight:${mode}`, (shader) => {
+      // `String.replace` with an absent needle returns the subject unchanged,
+      // so a material whose shader has no emissive stage (MeshBasicMaterial,
+      // MeshLambertMaterial's older chunks, any custom ShaderMaterial) would
+      // report success and stay dark all night. Say so instead.
+      const hasVertexAnchor = shader.vertexShader.includes('#include <fog_vertex>');
+      const hasEmissiveAnchor = shader.fragmentShader.includes('#include <emissivemap_fragment>');
+      if (!hasVertexAnchor || !hasEmissiveAnchor) {
+        const missing = [
+          hasVertexAnchor ? undefined : '<fog_vertex>',
+          hasEmissiveAnchor ? undefined : '<emissivemap_fragment>',
+        ]
+          .filter((chunk): chunk is string => chunk !== undefined)
+          .join(' and ');
+        log.warn(
+          `night uniforms: "${material.name || material.type}" has no ${missing} chunk, ` +
+            `so the ${mode} emissive term was NOT injected — it will stay dark at night. ` +
+            `Use a material with an emissive stage (MeshStandardMaterial).`
+        );
+      }
+
       shader.uniforms.uNightFactor = this.uNightFactor;
       shader.uniforms.uLampColor = this.uLampColor;
       shader.uniforms.uLampIntensity = this.uLampIntensity;
@@ -217,11 +250,28 @@ export class NightUniforms {
       // varying only exists when something else (fog, shadows, envmap) has
       // already asked for it, and a material that happens not to need it would
       // otherwise fail to compile.
+      //
+      // The ladder below mirrors three's own `<worldpos_vertex>` chunk, and
+      // the two `#ifdef`s are the whole point: the lit surfaces this module
+      // exists for are MOSTLY INSTANCED, and every instance in an
+      // `InstancedMesh` shares one `modelMatrix`. Reading `modelMatrix *
+      // transformed` alone gives all 400 panes of a facade the SAME world
+      // position, so they hash to one cell and light or go dark as one block.
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>\nvarying vec3 vSkyWorldPos;`)
         .replace(
           '#include <fog_vertex>',
-          `#include <fog_vertex>\n  vSkyWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+          `#include <fog_vertex>
+  {
+    vec4 skyWorldPos = vec4(transformed, 1.0);
+    #ifdef USE_BATCHING
+      skyWorldPos = batchingMatrix * skyWorldPos;
+    #endif
+    #ifdef USE_INSTANCING
+      skyWorldPos = instanceMatrix * skyWorldPos;
+    #endif
+    vSkyWorldPos = (modelMatrix * skyWorldPos).xyz;
+  }`
         );
 
       shader.fragmentShader = shader.fragmentShader
@@ -266,9 +316,17 @@ ${
 }`
         );
     });
+    return true;
   }
 
-  /** Attach every material found under a subtree whose name matches a mode. */
+  /**
+   * Attach every material found under a subtree whose name matches a mode.
+   *
+   * @returns how many MATERIALS were newly wired — not how many mesh/material
+   *          pairs were visited. A block of 200 lamp meshes sharing one
+   *          material is one attachment, and a caller using this as a wiring
+   *          check must not be told otherwise.
+   */
   attachByName(
     root: THREE.Object3D,
     match: (name: string) => NightEmissiveMode | undefined
@@ -282,8 +340,7 @@ ${
         if (!material) continue;
         const mode = match(material.name || mesh.name);
         if (!mode) continue;
-        this.attach(material, mode);
-        count++;
+        if (this.attach(material, mode)) count++;
       }
     });
     if (count > 0) log.debug(`attached ${count} materials to the shared night uniforms`);

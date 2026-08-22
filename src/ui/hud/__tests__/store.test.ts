@@ -17,9 +17,11 @@ import {
   ALERT_LIMIT,
   RANK_FEED_LIMIT,
   compareQuests,
+  createHudModel,
   questUrgency,
   type IQuestRow,
 } from '../model';
+import { pickTrackedQuest } from '../screens/combat-hud';
 
 function makeStore(): { bus: EventBus; store: HudStore } {
   const bus = new EventBus();
@@ -356,6 +358,40 @@ describe('quests', () => {
     );
   });
 
+  it('tracks the pinned quest, else the one with the least time left', () => {
+    const model = createHudModel();
+    model.quests = [
+      quest({ id: 'dragon', title: 'Subterranean King', tier: 'dragon' }),
+      quest({ id: 'bargain', title: 'Bargain sale', timeRemaining: 300, errand: true }),
+      quest({ id: 'tunnel', title: 'Tunnel collapse', timeRemaining: 30 }),
+      quest({ id: 'old', title: 'Resolved', timeRemaining: 1, state: 'completed' }),
+    ];
+    // Least time remaining wins, and a resolved quest is not a candidate.
+    expect(pickTrackedQuest(model)?.id).toBe('tunnel');
+    model.trackedQuestId = 'bargain';
+    expect(pickTrackedQuest(model)?.id).toBe('bargain');
+    // A pin on something that is not active falls back to the urgent one.
+    model.trackedQuestId = 'old';
+    expect(pickTrackedQuest(model)?.id).toBe('tunnel');
+    model.quests = [];
+    expect(pickTrackedQuest(model)).toBeUndefined();
+  });
+
+  it('keeps the earlier of two equally urgent quests, and allocates nothing', () => {
+    // `frame()` calls this every frame for the tracker clock, so it is an
+    // indexed loop rather than filter+find+reduce. A tie that flipped would
+    // make the tracker swap between two jobs sixty times a second.
+    const model = createHudModel();
+    model.quests = [
+      quest({ id: 'first', title: 'First', timeRemaining: 40 }),
+      quest({ id: 'second', title: 'Second', timeRemaining: 40 }),
+    ];
+    expect(pickTrackedQuest(model)?.id).toBe('first');
+    // No clock at all still beats nothing, and the first one wins.
+    model.quests = [quest({ id: 'a', title: 'A' }), quest({ id: 'b', title: 'B' })];
+    expect(pickTrackedQuest(model)?.id).toBe('a');
+  });
+
   it('drops a tracked id that is no longer in the list', () => {
     const { store } = makeStore();
     store.setQuests([quest({ id: 'a', title: 'A' })], 'a');
@@ -388,6 +424,46 @@ describe('housekeeping', () => {
     expect(bus.listenerCount()).toBeGreaterThan(5);
     store.dispose();
     expect(bus.listenerCount()).toBe(0);
+  });
+
+  it('is idempotent per bus, as the docstring promises', () => {
+    // A second subscription set does not leak, it DOUBLE-COUNTS: two rescues
+    // per civilian, two threat banners per encounter — and with ALERT_LIMIT of
+    // three the duplicate evicts a real alert.
+    const bus = new EventBus();
+    const store = new HudStore({ bus });
+    const subscribed = bus.listenerCount();
+    store.attach(bus);
+    store.attach(bus);
+    expect(bus.listenerCount()).toBe(subscribed);
+
+    bus.emit('EncounterStarted', {
+      encounterId: 'a',
+      threatTier: 'wolf',
+      position: { x: 0, y: 0, z: 0 },
+      radius: 10,
+      participantIds: [],
+      isBoss: false,
+    });
+    bus.emit('CivilianSaved', {
+      entityId: 'c1',
+      position: { x: 0, y: 0, z: 0 },
+      byPlayer: true,
+      reputationDelta: 1,
+    });
+    expect(store.model.encounter?.civiliansSaved).toBe(1);
+    expect(store.model.alerts).toHaveLength(1);
+    store.dispose();
+  });
+
+  it('re-attaches after a dispose, because dispose really did unsubscribe', () => {
+    const bus = new EventBus();
+    const store = new HudStore({ bus });
+    store.dispose();
+    expect(bus.listenerCount()).toBe(0);
+    store.attach(bus);
+    expect(bus.listenerCount()).toBeGreaterThan(5);
+    store.dispose();
   });
 
   it('notifies once per change and clears the dirty flag when consumed', () => {

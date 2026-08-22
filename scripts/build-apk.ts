@@ -70,6 +70,22 @@ const MANIFEST = path.join(GAME_ASSETS, 'assets.runtime.json');
 /** Tier tokens the asset pipeline embeds in filenames, e.g. `albedo.mobile.ktx2`. */
 const TIER_TOKEN = /\.(mobile|high|ultra)\./;
 
+/** The tiers the asset pipeline emits. Anything else prunes the payload to nothing. */
+const TIERS = ['mobile', 'high', 'ultra'] as const;
+type Tier = (typeof TIERS)[number];
+
+/**
+ * Floor for bundled game assets in the finished APK.
+ *
+ * `verifyApk` used to assert only that a manifest, a dex and an index.html were
+ * present — all three of which survive a prune that deleted every texture and
+ * model, which is exactly what an unrecognised `--tier` produced. The APK then
+ * booted into the violet/black missing-asset checker on real hardware, the one
+ * failure this environment cannot see. The current payload bundles ~200 asset
+ * entries; 50 is a floor, not a target.
+ */
+const MIN_ASSET_ENTRIES = 50;
+
 /* ------------------------------------------------------------------- utils */
 
 function log(msg: string): void {
@@ -329,7 +345,7 @@ interface PruneResult {
  * (`model.glb`, `vat.bin`, `*.sh9.json`, `basis/*`) are therefore kept, which is
  * correct: every tier shares them.
  */
-function pruneAssets(tier: string): PruneResult {
+function pruneAssets(tier: Tier, dropOtherTiers = true): PruneResult {
   if (!existsSync(GAME_ASSETS)) {
     fail(`no game assets at ${GAME_ASSETS} — did \`npx cap sync android\` run?`);
   }
@@ -365,6 +381,15 @@ function pruneAssets(tier: string): PruneResult {
     // reported payload honest and the intermediate copy small.
     if (rel.split('/').some((seg) => seg.startsWith('.'))) {
       droppedScratch.push(abs);
+      continue;
+    }
+
+    // `--no-prune` keeps every tier, but scratch above is deleted regardless:
+    // aapt skips dot-prefixed entries anyway, and an "unpruned" copy that still
+    // carries `mdl/.cache` (200 MB of intermediates) is not a diagnostic build,
+    // it is a mistake waiting to be packaged.
+    if (!dropOtherTiers) {
+      kept.push(abs);
       continue;
     }
 
@@ -436,9 +461,27 @@ function findApk(release: boolean): string {
     release ? 'release' : 'debug'
   );
   if (!existsSync(dir)) fail(`no APK output directory at ${dir}`);
-  const apks = readdirSync(dir).filter((f) => f.endsWith('.apk'));
+  // NEWEST, not "whatever readdir yields first". This directory accumulates
+  // artefacts across configurations — an ABI split, an androidTest variant, or
+  // an `app-debug.apk` left by a previous run — and a stale APK passes
+  // `verifyApk` perfectly while every number in the summary describes a file
+  // this build did not produce.
+  const apks = readdirSync(dir)
+    .filter((f) => f.endsWith('.apk'))
+    .map((f) => ({ file: path.join(dir, f), mtime: statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
   if (apks.length === 0) fail(`no .apk produced in ${dir}`);
-  return path.join(dir, apks[0]);
+  if (apks.length > 1) {
+    log(
+      `WARNING: ${apks.length} .apk files in ${dir}; taking the newest ` +
+        `(${path.basename(apks[0]!.file)}). Stale artefacts: ` +
+        `${apks
+          .slice(1)
+          .map((a) => path.basename(a.file))
+          .join(', ')}`
+    );
+  }
+  return apks[0]!.file;
 }
 
 /** Structural proof that the artifact is a real APK, not a renamed zip. */
@@ -450,6 +493,13 @@ function verifyApk(apk: string): void {
     fail(`APK is missing required entries: ${missing.join(', ')}`);
   }
   const assetEntries = listing.split('\n').filter((l) => l.includes('assets/public/assets/'));
+  if (assetEntries.length < MIN_ASSET_ENTRIES) {
+    fail(
+      `APK bundles only ${assetEntries.length} game asset entries (floor ${MIN_ASSET_ENTRIES}) — ` +
+        `the prune deleted the payload. A manifest, a dex and an index.html all survive that, ` +
+        `so this build would install and boot into the missing-asset checker.`
+    );
+  }
   log(`APK verified — manifest + dex present, ${assetEntries.length} bundled game asset entries`);
 }
 
@@ -462,8 +512,15 @@ function main(): void {
   const skipSync = argv.includes('--skip-sync');
   const noPrune = argv.includes('--no-prune');
   const tierIndex = argv.indexOf('--tier');
-  const tier = tierIndex >= 0 ? argv[tierIndex + 1] : 'mobile';
-  if (tierIndex >= 0 && !tier) fail('--tier requires a value (mobile|high|ultra)');
+  const tierArg: string | undefined = tierIndex >= 0 ? argv[tierIndex + 1] : 'mobile';
+  // VALIDATED, because an unrecognised tier is not a no-op here: every
+  // manifest-indexed output lands in `droppedTier` and every `.mobile.`/
+  // `.high.`/`.ultra.` file is dropped too, so `--tier moble` deletes the whole
+  // payload and the build still reports success.
+  if (tierArg !== 'mobile' && tierArg !== 'high' && tierArg !== 'ultra') {
+    fail(`--tier needs one of ${TIERS.join('|')} (got ${JSON.stringify(tierArg)})`);
+  }
+  const tier: Tier = tierArg;
 
   const started = Date.now();
   const sdk = requireSdk();
@@ -503,9 +560,16 @@ function main(): void {
   configureGradle(sdk);
 
   const beforeBytes = sizeOf(walk(WEB_ASSETS));
-  let prune: PruneResult | null = null;
+  let prune: PruneResult;
   if (noPrune) {
     log(`WARNING: --no-prune — bundling every asset tier (${formatBytes(beforeBytes)})`);
+    // Scratch still goes: `--no-prune` selects tiers, it does not package
+    // `mdl/.cache`.
+    prune = pruneAssets(tier, false);
+    log(
+      `  dropped ${String(prune.droppedScratch).padStart(4)} files  ` +
+        `${formatBytes(prune.droppedScratchBytes)}  (pipeline scratch)`
+    );
   } else {
     log(`pruning packaged assets to the "${tier}" tier …`);
     prune = pruneAssets(tier);
@@ -570,7 +634,7 @@ function main(): void {
         webPayloadBytes: webBytes,
         playBaseCapBytes: PLAY_CAP,
         withinPlayCap: bytes <= PLAY_CAP,
-        assetGroups: prune ? Object.fromEntries(prune.byGroup) : null,
+        assetGroups: Object.fromEntries(prune.byGroup),
         builtAt: new Date().toISOString(),
         deviceVerified: false,
       },

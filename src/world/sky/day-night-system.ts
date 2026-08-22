@@ -108,7 +108,10 @@ export class DayNightSystem implements IDayNightSystem {
     this.advanceMoon = options.advanceMoon ?? false;
     this.measurements = options.measurements;
     this.lunarAge = options.lunarAgeDays ?? INITIAL_LUNAR_AGE_DAYS;
-    this.dayNight.dayLengthSeconds = options.dayLengthSeconds ?? DAY_LENGTH_SECONDS;
+    // Through the SETTER, not the backing state: a 0 or negative day length
+    // makes `step` infinite, which wraps the clock to 0 every frame and counts
+    // a day elapsed at 60 Hz. One clamp, both paths.
+    this.dayLengthSeconds = options.dayLengthSeconds ?? DAY_LENGTH_SECONDS;
 
     this.time = wrap01(options.startTimeOfDay ?? 0.5);
     this.shadowTime = this.time;
@@ -175,11 +178,16 @@ export class DayNightSystem implements IDayNightSystem {
       const previousShadow = this.shadowTime;
       this.shadowTime = wrap01(this.shadowTime + step);
 
+      // The day count follows the FREE-RUNNING clock, so it is read here and
+      // not inside the branches: a quest holding the clock across midnight
+      // still elapses a day, exactly as `forceTimeOfDay` promises. Counting it
+      // only in two of the three branches lost a whole in-game day, for good,
+      // every time a scripted beat spanned a wrap.
+      if (this.shadowTime < previousShadow) this.rollOverDay();
+
       if (this.overrideMode === 'none') {
-        if (this.shadowTime < previousShadow) this.rollOverDay();
         this.time = this.shadowTime;
       } else if (this.overrideMode === 'releasing') {
-        if (this.shadowTime < previousShadow) this.rollOverDay();
         this.releaseElapsed += dt;
         const u = Math.min(1, this.releaseElapsed / this.releaseDuration);
         if (u >= 1) {
@@ -249,6 +257,23 @@ export class DayNightSystem implements IDayNightSystem {
   /** Days elapsed. Advances on the free-running clock, not the visible one. */
   get dayCount(): number {
     return this.days;
+  }
+
+  /**
+   * Restore the elapsed-day count, and optionally the lunar age, from a save.
+   *
+   * `ISaveGame` persists `dayCount`, but without this the field is write-only:
+   * the load path can put the time back and nothing else, so a player who
+   * saved on day 5 reloads onto day 0 and the off-screen rival progression
+   * re-runs its accounting from zero. Call it next to `setTimeOfDay(...)`.
+   */
+  setDayCount(days: number, lunarAgeDays?: number): void {
+    this.days = Number.isFinite(days) ? Math.max(0, Math.floor(days)) : 0;
+    if (lunarAgeDays !== undefined && Number.isFinite(lunarAgeDays)) {
+      this.lunarAge =
+        ((lunarAgeDays % SYNODIC_MONTH_DAYS) + SYNODIC_MONTH_DAYS) % SYNODIC_MONTH_DAYS;
+    }
+    this.derivedValue = this.recompute();
   }
 
   /* ---------------------------------------------------------------------- */

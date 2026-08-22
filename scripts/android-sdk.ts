@@ -198,17 +198,35 @@ function download(url: string, dest: string): void {
  * modes and each gets its own check.
  */
 function verifyArchive(zip: string): void {
+  // One variable covers "the pinned artefact moved". A republished archive is a
+  // DIFFERENT archive, and a different archive is virtually never the same byte
+  // count — so an unconditional size check ahead of the digest made the escape
+  // hatch the SHA message advertises unreachable: the operator hits "size
+  // mismatch, delete and re-download", re-downloads the same republished file,
+  // and hits it again. The `unzip -l` structural check below stays a hard gate;
+  // that is the one that separates a command-line-tools archive from something
+  // else.
+  const allowDrift = process.env.ANDROID_SDK_ALLOW_SHA_DRIFT === '1';
   const size = statSync(zip).size;
   if (size !== CMDLINE_TOOLS_BYTES) {
-    fail(
-      `size mismatch for ${zip}: got ${size} bytes, expected ${CMDLINE_TOOLS_BYTES}. ` +
-        `Delete the file and re-run to re-download.`
-    );
+    if (allowDrift) {
+      log(
+        `WARNING: size drift accepted via ANDROID_SDK_ALLOW_SHA_DRIFT=1 ` +
+          `(got ${size} bytes, expected ${CMDLINE_TOOLS_BYTES})`
+      );
+    } else {
+      fail(
+        `size mismatch for ${zip}: got ${size} bytes, expected ${CMDLINE_TOOLS_BYTES}. ` +
+          `Delete the file and re-run to re-download, or — if Google re-published the pinned ` +
+          `build — verify the new archive and update CMDLINE_TOOLS_SHA256/CMDLINE_TOOLS_BYTES ` +
+          `in this file, or set ANDROID_SDK_ALLOW_SHA_DRIFT=1.`
+      );
+    }
   }
 
   const digest = sha256File(zip);
   if (digest !== CMDLINE_TOOLS_SHA256) {
-    if (process.env.ANDROID_SDK_ALLOW_SHA_DRIFT === '1') {
+    if (allowDrift) {
       log(`WARNING: SHA-256 drift accepted via ANDROID_SDK_ALLOW_SHA_DRIFT=1 (got ${digest})`);
     } else {
       fail(

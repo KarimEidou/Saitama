@@ -373,11 +373,19 @@ export function resampleSpline(points: Polygon, spacing: number): Vec2[] {
 
   const out: Vec2[] = [];
   const n = points.length;
+  // Phantom control points at the ends, reflected through the terminal point.
+  // Duplicating the endpoint instead would give the first and last knot a zero
+  // interval, and the centripetal parameterisation divides by it.
+  const before: Vec2 = [2 * points[0][0] - points[1][0], 2 * points[0][1] - points[1][1]];
+  const after: Vec2 = [
+    2 * points[n - 1][0] - points[n - 2][0],
+    2 * points[n - 1][1] - points[n - 2][1],
+  ];
   for (let i = 0; i < n - 1; i++) {
-    const p0 = points[Math.max(0, i - 1)];
+    const p0 = i === 0 ? before : points[i - 1];
     const p1 = points[i];
     const p2 = points[i + 1];
-    const p3 = points[Math.min(n - 1, i + 2)];
+    const p3 = i + 2 <= n - 1 ? points[i + 2] : after;
     const segLen = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
     const steps = Math.max(1, Math.round(segLen / spacing));
     for (let s = 0; s < steps; s++) {
@@ -399,10 +407,38 @@ function resampleLine(a: Vec2, b: Vec2, spacing: number): Vec2[] {
   return out;
 }
 
+/**
+ * One point on the centripetal (alpha = 0.5) Catmull-Rom segment p1 -> p2.
+ *
+ * Barry-Goldman: three nested linear interpolations over knots spaced by the
+ * SQUARE ROOT of the chord length. The uniform basis — the textbook
+ * `0.5 * (2b + (c-a)t + …)` — is what overshoots and self-intersects on
+ * unevenly spaced control points, which is exactly what a hand-authored road
+ * graph produces: on `[0,0] [1,0] [40,0] [41,6]` it swings out to x = -1.9
+ * before coming back, i.e. a loop in the carriageway.
+ */
 function catmullRom(p0: Vec2, p1: Vec2, p2: Vec2, p3: Vec2, t: number): Vec2 {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  const f = (a: number, b: number, c: number, d: number) =>
-    0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-  return [f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])];
+  const k0 = 0;
+  const k1 = k0 + knotSpacing(p0, p1);
+  const k2 = k1 + knotSpacing(p1, p2);
+  const k3 = k2 + knotSpacing(p2, p3);
+  const k = k1 + (k2 - k1) * t;
+
+  const a1 = mix(p0, p1, k0, k1, k);
+  const a2 = mix(p1, p2, k1, k2, k);
+  const a3 = mix(p2, p3, k2, k3, k);
+  const b1 = mix(a1, a2, k0, k2, k);
+  const b2 = mix(a2, a3, k1, k3, k);
+  return mix(b1, b2, k1, k2, k);
+}
+
+/** Knot interval for alpha = 0.5, floored so coincident points cannot divide by zero. */
+function knotSpacing(a: Vec2, b: Vec2): number {
+  return Math.max(1e-6, Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1])));
+}
+
+/** Linear interpolation of two points over a knot interval. */
+function mix(a: Vec2, b: Vec2, ka: number, kb: number, k: number): Vec2 {
+  const w = (k - ka) / (kb - ka);
+  return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w];
 }

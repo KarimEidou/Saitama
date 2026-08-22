@@ -13,7 +13,7 @@
  *   normal.<tier>.png   tangent-space normal
  *   emissive.<tier>.png only for characters that actually glow
  *   face.<tier>.png     four expression tiles, stacked, straight alpha
- *   <name>.glb          LOD0 + LOD1, skinned, textures embedded
+ *   model.glb           LOD0 + LOD1, skinned, textures embedded
  *   vat.bin / vat.json  animation texture for the instanced crowd
  *
  * and, into the committed `tools/manifest/characters.json`, a DETERMINISTIC
@@ -21,7 +21,10 @@
  * triangle counts, threat tiers, and the licence of every CC0 texture the bake
  * consumed. No timestamps and no build hashes go in the committed file — it
  * describes the roster, not one particular run, so re-running the baker
- * produces no diff unless the roster actually changed.
+ * produces no diff unless the roster actually changed. Any flag that changes
+ * what a run produces (`--only`, `--size`, `--no-glb`, `--no-vat`) therefore
+ * suppresses that write entirely rather than baking a run-specific fact — or
+ * an outright lie about files this run did not write — into a tracked file.
  *
  * ── WHERE THE PIXELS COME FROM ────────────────────────────────────────────
  * Two sources, and the split is deliberate:
@@ -130,6 +133,25 @@ interface Options {
   readonly manifest: boolean;
 }
 
+/** Smallest and largest atlas edge `--size` will accept. */
+const MIN_SIZE = 64;
+const MAX_SIZE = 4096;
+
+/**
+ * `Number('1k')` is `NaN`, and `Math.max(8, NaN)` is `NaN` rather than 8 — so an
+ * unvalidated `--size` does not fail here, it fails eight frames deep inside the
+ * face rasteriser with a message about `sharp`. Fail on the argument instead.
+ */
+function parseSize(raw: string | undefined): number {
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < MIN_SIZE || value > MAX_SIZE) {
+    throw new Error(
+      `--size expects an integer between ${MIN_SIZE} and ${MAX_SIZE}, got "${raw ?? ''}"`
+    );
+  }
+  return value;
+}
+
 function parseArgs(argv: readonly string[]): Options {
   let only: string[] = [];
   let size = TIER_SIZE.high!;
@@ -140,7 +162,7 @@ function parseArgs(argv: readonly string[]): Options {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     if (arg === '--only') only = (argv[++i] ?? '').split(',').filter(Boolean);
-    else if (arg === '--size') size = Number(argv[++i] ?? size);
+    else if (arg === '--size') size = parseSize(argv[++i]);
     else if (arg === '--no-ao') ao = false;
     else if (arg === '--no-vat') vat = false;
     else if (arg === '--no-glb') glb = false;
@@ -152,6 +174,27 @@ function parseArgs(argv: readonly string[]): Options {
 function matches(entry: RosterEntry, only: readonly string[]): boolean {
   if (only.length === 0) return true;
   return only.some((filter) => entry.id === filter || entry.id.endsWith(`.${filter}`));
+}
+
+/**
+ * Is this run allowed to rewrite the COMMITTED manifest?
+ *
+ * Only a full run at the roster's own parameters describes the roster. A
+ * partial or reduced run would either bake a run-specific number into a tracked
+ * file (`--size 512` rewrites every high-tier `size` to 512 while `atlas.tiers`
+ * still says 1024) or declare files it never wrote (`--no-glb` still asserting
+ * `model.glb` at two LOD levels, `--no-vat` silently dropping the `vat` block
+ * while `crowdLod.delivery` still reads "vat"). The per-run truth belongs in
+ * the gitignored `characters.runtime.json`, which is always written.
+ */
+function describesRoster(options: Options): { ok: boolean; reason: string } {
+  if (options.only.length > 0) return { ok: false, reason: '--only bakes part of the roster' };
+  if (options.size !== TIER_SIZE.high) {
+    return { ok: false, reason: `--size ${options.size} is not the roster's ${TIER_SIZE.high}` };
+  }
+  if (!options.glb) return { ok: false, reason: '--no-glb writes no model.glb' };
+  if (!options.vat) return { ok: false, reason: '--no-vat writes no vat.bin' };
+  return { ok: true, reason: '' };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -221,13 +264,27 @@ async function loadDetailTile(id: string): Promise<DetailTile | undefined> {
     return undefined;
   }
 
+  // Every consumer below indexes this buffer as tightly packed 8-bit RGB. A
+  // greyscale, CMYK or 16-bit source would come back with a different stride,
+  // and the reads that ran off the end would be `undefined` — the `!` is
+  // compile-time only — which turns `meanRough` into NaN and, downstream, every
+  // texel of the surface class into roughness 0. So ask for sRGB and then check
+  // what actually arrived rather than assume it.
+  const expectedBytes = DETAIL_TILE_SIZE * DETAIL_TILE_SIZE * 3;
   const read = async (relative: string): Promise<Uint8Array> => {
-    const buffer = await sharp(path.join(SOURCE_DIR, relative))
+    const { data, info } = await sharp(path.join(SOURCE_DIR, relative))
       .resize(DETAIL_TILE_SIZE, DETAIL_TILE_SIZE, { fit: 'fill', kernel: 'lanczos3' })
+      .toColourspace('srgb')
       .removeAlpha()
       .raw()
-      .toBuffer();
-    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      .toBuffer({ resolveWithObject: true });
+    if (info.channels !== 3 || data.byteLength !== expectedBytes) {
+      throw new Error(
+        `${relative} decoded to ${info.channels} channels / ${data.byteLength} bytes, ` +
+          `expected 3 / ${expectedBytes}`
+      );
+    }
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   };
 
   let albedo: Uint8Array;
@@ -372,17 +429,33 @@ function makeOcclusion(build: HumanoidBuild): OcclusionSampler {
 /* PNG writing                                                                */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Roles whose texels are sRGB-ENCODED COLOUR rather than linear data.
+ *
+ * The distinction only matters when downsampling: averaging gamma-encoded
+ * texels darkens every high-contrast boundary (the yellow jumpsuit against the
+ * red belt, black cloth against bare alloy), so the sRGB maps have to be
+ * resampled in linear light. ORM, normal and the tint mask carry measurements,
+ * not colour — linearising those would corrupt them.
+ */
+const SRGB_ROLES: ReadonlySet<string> = new Set(['albedo', 'emissive']);
+
 async function writePng(
   file: string,
   data: Uint8Array,
   size: number,
   channels: 1 | 3 | 4,
-  resizeTo?: number
+  resizeTo?: number,
+  srgb = false
 ): Promise<number> {
   let image = sharp(Buffer.from(data.buffer, data.byteOffset, data.byteLength), {
     raw: { width: size, height: size, channels },
   });
   if (resizeTo !== undefined && resizeTo !== size) {
+    // `gamma()` is sharp's gamma-correct resize: it decodes before the resize
+    // and re-encodes after it. Applied only when a resize actually happens —
+    // with no resize in between, the round trip is a pure 8-bit rounding loss.
+    if (srgb) image = image.gamma(2.2);
     image = image.resize(resizeTo, resizeTo, { kernel: 'lanczos3', fit: 'fill' });
   }
   const png = await image.png({ compressionLevel: 9, effort: 8 }).toBuffer();
@@ -594,6 +667,16 @@ interface CharacterReport {
   readonly cc0: readonly string[];
   readonly coverage: number;
   readonly atlasSize: number;
+  /**
+   * Whether an emissive map was ACTUALLY baked and written.
+   *
+   * Not the same question as `entryGlows(entry)`: that reads the raw
+   * `entry.surfaces` override table, while `bakeCharacterAtlas` decides from
+   * the RESOLVED style set, where a class like `glow` carries an emissive
+   * default nobody has to override. The manifest must declare what shipped, so
+   * it declares this and not the predicate.
+   */
+  readonly emissive: boolean;
   readonly faceTile: [number, number];
   readonly files: readonly BuiltFile[];
   readonly gpuBytes: Record<Tier, number>;
@@ -690,7 +773,14 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
       channels: 1 | 3 | 4
     ): Promise<void> => {
       const name = mapFileName(role, tier);
-      const bytes = await writePng(path.join(dir, name), data, maps.size, channels, size);
+      const bytes = await writePng(
+        path.join(dir, name),
+        data,
+        maps.size,
+        channels,
+        size,
+        SRGB_ROLES.has(role)
+      );
       files.push({
         key: mapAssetId(entry, role),
         role,
@@ -701,8 +791,13 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
         width: size,
         height: size,
       });
-      // Uncompressed GPU footprint including the mip chain.
-      gpuBytes[tier] += Math.round(size * size * channels * 1.34);
+      // Uncompressed GPU footprint including the mip chain. Always 4 bytes per
+      // texel, whatever the PNG carried: the loader uploads through
+      // `createImageBitmap` into a default RGBA8 texture, so the channel count
+      // is a file-size fact and never an upload-size one. Budgeting by
+      // `channels` here undercounts the atlas by 25% and the crowd mask by 75%,
+      // and `gpuBytesOf()` in the runtime would then disagree with the baker.
+      gpuBytes[tier] += Math.round(size * size * 4 * 1.34);
     };
     await write('albedo', maps.albedo, 3);
     await write('orm', maps.orm, 3);
@@ -727,16 +822,36 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
     );
     tiles4.push(Buffer.from(patch.rgba.buffer, patch.rgba.byteOffset, patch.rgba.byteLength));
   }
-  const stripHeight = region.tileHeight * EXPRESSIONS.length;
-  const strip = Buffer.concat(tiles4);
   for (const tier of TIERS) {
-    const width = tier === 'high' ? region.tileWidth : Math.round(region.tileWidth / 2);
-    const height = tier === 'high' ? stripHeight : Math.round(stripHeight / 2);
-    let image = sharp(strip, {
-      raw: { width: region.tileWidth, height: stripHeight, channels: 4 },
-    });
-    if (tier !== 'high') image = image.resize(width, height, { kernel: 'lanczos3', fit: 'fill' });
-    const stripPng = await image.png({ compressionLevel: 9, effort: 8 }).toBuffer();
+    const half = tier !== 'high';
+    const width = half ? Math.round(region.tileWidth / 2) : region.tileWidth;
+    const tileHeight = half ? Math.round(region.tileHeight / 2) : region.tileHeight;
+    // Resize each tile SEPARATELY and concatenate afterwards. Concatenating
+    // first would leave the filter blind to the seams at rows H, 2H and 3H:
+    // lanczos3 reaches about three destination pixels, so at a 2:1 downscale
+    // the bottom rows of one expression get a weighted mix of the top of the
+    // next — a ghost brow that only appears on the mobile tier. Rounding the
+    // tile height rather than the strip height also keeps all four tiles
+    // exactly equal, which is what the shader's `faceSelect` indexing assumes.
+    const rows: Buffer[] = [];
+    for (const tile of tiles4) {
+      if (!half) {
+        rows.push(tile);
+        continue;
+      }
+      rows.push(
+        await sharp(tile, {
+          raw: { width: region.tileWidth, height: region.tileHeight, channels: 4 },
+        })
+          .resize(width, tileHeight, { kernel: 'lanczos3', fit: 'fill' })
+          .raw()
+          .toBuffer()
+      );
+    }
+    const height = tileHeight * EXPRESSIONS.length;
+    const stripPng = await sharp(Buffer.concat(rows), { raw: { width, height, channels: 4 } })
+      .png({ compressionLevel: 9, effort: 8 })
+      .toBuffer();
     const name = `face.${tier}.png`;
     await writeFile(path.join(dir, name), stripPng);
     files.push({
@@ -795,7 +910,13 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
         });
       }
     } catch (error) {
-      console.warn(`  ! VAT bake failed for ${entry.id}: ${(error as Error).message}`);
+      // Never a warning. A swallowed VAT failure exits 0 and then writes a
+      // committed manifest whose `vat` block has silently vanished while
+      // `crowdLod.delivery` still claims the crowd LOD ships as a VAT — a
+      // one-line deletion that reads like a deliberate roster change.
+      throw new Error(`VAT bake failed for ${entry.id}: ${(error as Error).message}`, {
+        cause: error,
+      });
     }
   }
 
@@ -814,6 +935,7 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
     cc0,
     coverage: Number(maps.coverage.toFixed(4)),
     atlasSize: maps.size,
+    emissive: maps.emissive !== undefined,
     faceTile: [region.tileWidth, region.tileHeight],
     files,
     gpuBytes,
@@ -835,6 +957,15 @@ interface ManifestAttribution {
   readonly year?: number;
 }
 
+/**
+ * Credit every CC0 texture the bake consumed.
+ *
+ * A missing entry is fatal, not skippable: `entries[].cc0Textures` is written
+ * from the roster and would still name the id, so dropping it here produces a
+ * committed manifest that lists a texture it cannot credit — and
+ * `tools/attribution.ts` audits the credit block, so the gap would read as a
+ * pass. The manifest must never claim a CC0 texture with no author behind it.
+ */
 async function cc0Attribution(
   ids: readonly string[]
 ): Promise<Record<string, ManifestAttribution>> {
@@ -842,7 +973,13 @@ async function cc0Attribution(
   const out: Record<string, ManifestAttribution> = {};
   for (const id of ids) {
     const entry = manifest.get(id);
-    if (entry !== undefined) out[id] = entry.attribution;
+    if (entry === undefined) {
+      throw new Error(
+        `CC0 detail material "${id}" is used by the roster but is not in ` +
+          `tools/manifest/textures.json — it cannot be credited`
+      );
+    }
+    out[id] = entry.attribution;
   }
   return out;
 }
@@ -862,12 +999,16 @@ async function writeSourceManifest(reports: readonly CharacterReport[]): Promise
   const entries = reports.map((report) => {
     const entry = roster.get(report.id)!;
     const spec = materialSpecFor(entry);
-    const glows = entryGlows(entry);
+    // Declared from what the bake WROTE, not from `entryGlows(entry)`. The two
+    // are computed from different data — the predicate reads the raw
+    // `entry.surfaces` overrides, the atlas reads the resolved style set — so a
+    // character can glow without overriding anything, and the manifest would
+    // then under-declare two PNGs that are on disk and in the GLB.
     const roles = [
       'albedo',
       'orm',
       'normal',
-      ...(glows ? ['emissive'] : []),
+      ...(report.emissive ? ['emissive'] : []),
       ...(entry.crowd === true ? ['mask'] : []),
     ];
 
@@ -903,7 +1044,10 @@ async function writeSourceManifest(reports: readonly CharacterReport[]): Promise
         files: TIERS.map((tier) => ({
           tier,
           file: `${characterDir(entry)}/${mapFileName(role as 'albedo', tier)}`,
-          size: Math.min(TIER_SIZE[tier]!, report.atlasSize),
+          // The roster's tier edge, never `report.atlasSize` — that is this
+          // run's `--size`, and writing it here would contradict `atlas.tiers`
+          // below, which is built from the same constant.
+          size: TIER_SIZE[tier]!,
         })),
       })),
       face: {
@@ -989,7 +1133,11 @@ async function main(): Promise<void> {
   }
 
   await writeRuntimeIndex(reports);
-  if (options.manifest && options.only.length === 0) await writeSourceManifest(reports);
+  const describes = describesRoster(options);
+  if (options.manifest && describes.ok) await writeSourceManifest(reports);
+  else if (options.manifest) {
+    console.log(`  · tools/manifest/characters.json not rewritten: ${describes.reason}`);
+  }
 
   const totalHigh = reports.reduce((sum, report) => sum + report.gpuBytes.high, 0);
   const totalMobile = reports.reduce((sum, report) => sum + report.gpuBytes.mobile, 0);

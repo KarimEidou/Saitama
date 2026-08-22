@@ -1277,38 +1277,51 @@ declare global {
   interface Window {
     __MONSTER_HARNESS__?: IMonsterHarness;
     __MONSTER_READY__?: boolean;
+    /** Set instead of the results when the six scenarios never finished. */
+    __MONSTER_ERROR__?: string;
   }
 }
 
-const gateReport = runGateScenario();
-assertGate(gateReport);
+// Six scenarios at module scope. If any of them throws, `__MONSTER_READY__`
+// never arrives and the driver spends its full three-minute timeout to report
+// nothing but "waitForFunction timed out" — so publish the cause and set the
+// flag anyway, the way `crowd.ts` does.
+try {
+  const gateReport = runGateScenario();
+  assertGate(gateReport);
 
-const tierResults = runTierScenario();
-assertTiers(tierResults);
+  const tierResults = runTierScenario();
+  assertTiers(tierResults);
 
-const fastRun = runAllyScenario(8);
-const slowRun = runAllyScenario(26);
-assertAlly(fastRun, slowRun);
+  const fastRun = runAllyScenario(8);
+  const slowRun = runAllyScenario(26);
+  assertAlly(fastRun, slowRun);
 
-const spawnReport = runSpawnScenario();
-assertSpawn(spawnReport);
+  const spawnReport = runSpawnScenario();
+  assertSpawn(spawnReport);
 
-assertFsm();
-assertDeterminism();
+  assertFsm();
+  assertDeterminism();
 
-const scene = buildScene();
-draw(scene);
-renderPanel(scene);
+  const scene = buildScene();
+  draw(scene);
+  renderPanel(scene);
 
-window.__MONSTER_HARNESS__ = {
-  results: () => ({
-    checks,
-    failures: checks.filter((c) => !c.pass).map((c) => `${c.group}: ${c.name} — ${c.detail}`),
-    gate: gateReport,
-    tiers: tierResults,
-    ally: { fast: fastRun, slow: slowRun },
-    spawn: spawnReport,
-    phase: scene.phase,
-  }),
-};
-window.__MONSTER_READY__ = true;
+  window.__MONSTER_HARNESS__ = {
+    results: () => ({
+      checks,
+      failures: checks.filter((c) => !c.pass).map((c) => `${c.group}: ${c.name} — ${c.detail}`),
+      gate: gateReport,
+      tiers: tierResults,
+      ally: { fast: fastRun, slow: slowRun },
+      spawn: spawnReport,
+      phase: scene.phase,
+    }),
+  };
+} catch (error) {
+  window.__MONSTER_ERROR__ =
+    error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+  console.error('[monster-harness] failed', error);
+} finally {
+  window.__MONSTER_READY__ = true;
+}

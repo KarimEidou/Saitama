@@ -304,6 +304,7 @@ interface IMeasurement {
   offending: string[];
   directWrites: string[];
   reads: string[];
+  uninstrumentedReads: string[];
   layoutShift: number;
   layoutShiftObserved: boolean;
   setPropertyCalls: number;
@@ -313,6 +314,7 @@ interface IMeasurement {
 
 interface IPanelRect {
   id: string;
+  kind: 'panel' | 'marker';
   screen: string;
   x: number;
   y: number;
@@ -482,6 +484,13 @@ async function main(): Promise<void> {
             // corridor between the two thumbs, is transient, and is the one
             // element the player is looking at while both thumbs are down.
             if (panel.id === 'charge') return false;
+            // World-space markers are exempt for a different reason: they are
+            // not LAID OUT. A pin's position is a world point projected through
+            // the camera, so the only way to keep one out of a thumb quadrant
+            // is to detach it from the thing it points at. THUMB_RESERVE_PX
+            // scopes its claim to HUD chrome, and this assertion has to scope
+            // itself the same way or it is unsatisfiable by any HUD change.
+            if (panel.kind === 'marker') return false;
             return dRight < geometry.hudReserve || dLeft < geometry.stickReserve;
           });
           check(
@@ -566,10 +575,15 @@ async function main(): Promise<void> {
         );
         check(
           'ZERO forced reflows — no layout property is read during the window',
-          measurement.reads.length === 0,
-          measurement.reads.length === 0
-            ? `${measurement.frames} frames, ${measurement.setPropertyCalls} CSSOM writes, 0 layout reads`
-            : `read: ${measurement.reads.join(', ')}`
+          measurement.reads.length === 0 && measurement.uninstrumentedReads.length === 0,
+          measurement.uninstrumentedReads.length > 0
+            ? // A probe that cannot see an accessor reports zero reads of it,
+              // which is indistinguishable from a pass. Fail loudly instead.
+              `the probe could not instrument ${measurement.uninstrumentedReads.join(', ')} — ` +
+                `a read of those would go unreported`
+            : measurement.reads.length === 0
+              ? `${measurement.frames} frames, ${measurement.setPropertyCalls} CSSOM writes, 0 layout reads, every watched accessor instrumented`
+              : `read: ${measurement.reads.join(', ')}`
         );
         check(
           'zero cumulative layout shift while the meters animate',

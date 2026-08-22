@@ -61,6 +61,24 @@ describe('Synthetic city fixture', () => {
     expect(city.parkChunks.length).toBeLessThan(CHUNK_COUNT * 0.25);
   });
 
+  it('lists every chunk that ended up with no buildings', () => {
+    // `parkChunks` is documented as "chunks with no buildings at all", and the
+    // guard above reads it as the measure of how built up the fixture is. It
+    // used to record only the chunks that rolled the open-plaza branch, so a
+    // thinly filled city still reported itself as dense.
+    const sparse = generateSyntheticCity({ seed: 31, lotFillChance: 0.15 });
+    const built = new Set<number>();
+    for (const instance of sparse.instances) if (instance.occluder) built.add(instance.chunk);
+
+    const parks = new Set(sparse.parkChunks);
+    expect(parks.size).toBe(sparse.parkChunks.length);
+    expect(parks.size).toBe(CHUNK_COUNT - built.size);
+    for (const chunk of parks) expect(built.has(chunk)).toBe(false);
+    // The point of the fixture: this city really is much emptier than the
+    // default one, and the field now says so.
+    expect(parks.size).toBeGreaterThan(city.parkChunks.length);
+  });
+
   it('regenerates identically from the same seed', () => {
     const again = generateSyntheticCity();
     expect(again.instances.length).toBe(city.instances.length);

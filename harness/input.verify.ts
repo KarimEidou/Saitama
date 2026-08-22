@@ -976,15 +976,17 @@ async function main(): Promise<void> {
     close(s.move.y, 1, 0.001, 'window.__INPUT__.setMove drives the move axis exactly');
     check(s.device === 'synthetic', 'device reports synthetic while armed', s.device);
 
+    /* `lastPressed`, not `history(6)`: a `pressed` edge lasts exactly one
+       frame and the round trip that reads it back costs 55-180 ms against
+       SwiftShader, so by the time a six-entry window is evaluated the edge is
+       long out of it. `lastPressed` latches the edge on the page and is
+       therefore immune to transport latency — which is why every other edge
+       assertion in this file uses it. */
+    await h.clearPressed();
     await page.evaluate(() => window.__INPUT__!.tap('punch'));
-    await h.frames(1);
-    const historyAfterTap = (await page.evaluate(() =>
-      window.__INPUT_HARNESS__!.history(6)
-    )) as unknown as Snapshot[];
-    check(
-      historyAfterTap.some((state) => state.buttons.punch.pressed),
-      'window.__INPUT__.tap produces a real pressed edge'
-    );
+    await h.frames(2);
+    const tapEdge = await h.lastPressed('punch');
+    check(tapEdge !== null, 'window.__INPUT__.tap produces a real pressed edge');
 
     /* A real touch must be ignored while the synthetic driver is armed. */
     await touch.down(1, SX, SY);

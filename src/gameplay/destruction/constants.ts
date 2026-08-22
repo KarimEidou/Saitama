@@ -157,6 +157,17 @@ export const DAMAGE_BANDS = 4;
 export const DAMAGE_PLAN_QUARTERS = 4;
 export const DAMAGE_PIECES_PER_BUILDING = DAMAGE_BANDS * DAMAGE_PLAN_QUARTERS;
 
+/**
+ * Buildings addressable inside one streaming chunk's mask.
+ *
+ * MIRRORED from `MAX_BUILDINGS_PER_CHUNK` in `src/world/streaming/constants.ts`
+ * for the same reason as the debris cap: the architectural rule forbids the
+ * import. Used only to REJECT an out-of-range address at registration — a slot
+ * past the mask's 256 bits is silently dropped by `setDestroyed`, so without
+ * the check such a building persists nothing and says nothing.
+ */
+export const DAMAGE_BUILDINGS_PER_CHUNK = 16;
+
 /* -------------------------------------------------------------------------- */
 /* Collateral                                                                 */
 /* -------------------------------------------------------------------------- */

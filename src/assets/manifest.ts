@@ -96,10 +96,23 @@ function readEnvironments(value: unknown): Record<string, IEnvironmentRecord> {
 export function parseRuntimeManifest(raw: unknown): IRuntimeManifest {
   const source = isRecord(raw) ? raw : {};
   const entries = Array.isArray(source.entries)
-    ? source.entries.filter(
-        (entry): entry is AnyAssetEntry =>
-          isRecord(entry) && typeof entry.id === 'string' && typeof entry.kind === 'string'
-      )
+    ? source.entries
+        .filter(
+          (entry): entry is Record<string, unknown> =>
+            isRecord(entry) && typeof entry.id === 'string' && typeof entry.kind === 'string'
+        )
+        // `outputs` is NOT optional downstream: `tier.ts`, `provider.ts` and
+        // `registry.ts` all dereference it, and the first of those runs from
+        // `preloadCore` outside any `try`. One generated row without it would
+        // therefore throw a TypeError through the boot screen — the exact
+        // outcome this parser exists to prevent. Normalised, never dropped.
+        .map(
+          (entry): AnyAssetEntry =>
+            ({
+              ...entry,
+              outputs: Array.isArray(entry.outputs) ? entry.outputs.filter(isRecord) : [],
+            }) as unknown as AnyAssetEntry
+        )
     : [];
 
   // A manifest that names no tiers is treated as mobile-only, which is the
@@ -107,7 +120,7 @@ export function parseRuntimeManifest(raw: unknown): IRuntimeManifest {
   const declared = readTiers(source.tiersBuilt);
   const fromOutputs = new Set<QualityTier>();
   for (const entry of entries) {
-    for (const output of entry.outputs ?? []) {
+    for (const output of entry.outputs) {
       if (TIER_ORDER.includes(output.tier)) fromOutputs.add(output.tier);
     }
   }

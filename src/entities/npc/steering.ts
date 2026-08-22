@@ -87,6 +87,15 @@ const MOOD_DWELL = 0.4;
 /** Metres from a threat at which running is no longer an option. */
 const CORNERED_DISTANCE = 14;
 
+/**
+ * Radius the separation measurement searches, metres.
+ *
+ * Also the value it reports when no pair is inside it: the number means "no
+ * two agents are closer than this", which is the useful reading, and a finite
+ * ceiling is what stops a quiet street reporting `Infinity` as a distance.
+ */
+const SEPARATION_SEARCH = MIN_SEPARATION * 2;
+
 /** A non-civilian body registered in the grid for avoidance purposes. */
 export interface IAvoidBody {
   readonly x: number;
@@ -97,8 +106,15 @@ export interface IAvoidBody {
 
 /** Per-frame steering measurements, for the harness. */
 export interface ISteeringReport {
-  /** Smallest centre-to-centre distance between any two agents this frame. */
+  /**
+   * Smallest centre-to-centre distance between two agents this frame, in
+   * metres, capped at `SEPARATION_SEARCH` — pairs further apart than that are
+   * not measured at all. Always a finite number, so a debug readout or a ratio
+   * built on it cannot come out as `Infinity`.
+   */
   minSeparation: number;
+  /** Pairs actually compared. Zero means `minSeparation` measured nothing. */
+  measuredPairs: number;
   /** Agents that ended the frame inside a building before containment. */
   containmentFixes: number;
   /** Total metres containment had to move agents. */
@@ -122,9 +138,13 @@ export class CrowdSteering {
   private readonly neighbours = new IndexList(64);
   /** Reverse map: grid slot to agent index, or -1 for a non-civilian body. */
   private slotAgent = new Int32Array(1024).fill(-1);
+  /** Grid slots scored by the current `avoid` solve, nearest first. */
+  private readonly avoidSlots = new Int32Array(AVOID_NEIGHBOURS);
+  private readonly avoidDistSq = new Float64Array(AVOID_NEIGHBOURS);
 
   private readonly report: ISteeringReport = {
-    minSeparation: Infinity,
+    minSeparation: SEPARATION_SEARCH,
+    measuredPairs: 0,
     containmentFixes: 0,
     containmentMetres: 0,
     avoidanceAdjustments: 0,
@@ -359,15 +379,17 @@ export class CrowdSteering {
     const radius = agents.radius[i]!;
 
     this.grid.queryRadius(px, 0, pz, AVOID_RADIUS, this.neighbours, AVOID_MASK);
-    if (this.neighbours.length <= 1) {
+    // Nearest few only. Beyond about eight neighbours the extra half-planes
+    // are behind the ones already considered and change nothing — but that
+    // argument only holds for the NEAREST few, and the grid returns its hits
+    // in cell-scan order, so they have to be selected rather than sliced.
+    const count = this.gatherNearest(px, pz, i);
+    if (count === 0) {
       out[0] = preferred[0];
       out[1] = preferred[1];
       return false;
     }
 
-    // Nearest few only. Beyond about eight neighbours the extra half-planes
-    // are behind the ones already considered and change nothing.
-    const count = Math.min(this.neighbours.length, AVOID_NEIGHBOURS + 1);
     const bestScore = this.scoreCandidate(
       preferred[0],
       preferred[1],
@@ -377,8 +399,7 @@ export class CrowdSteering {
       vx,
       vz,
       radius,
-      count,
-      i
+      count
     );
     let chosenX = preferred[0];
     let chosenZ = preferred[1];
@@ -402,7 +423,7 @@ export class CrowdSteering {
       const scale = step > 4 ? 0.55 : 1;
       const cx = Math.cos(angle) * prefLen * scale;
       const cz = Math.sin(angle) * prefLen * scale;
-      const score = this.scoreCandidate(cx, cz, preferred, px, pz, vx, vz, radius, count, i);
+      const score = this.scoreCandidate(cx, cz, preferred, px, pz, vx, vz, radius, count);
       if (score < chosen) {
         chosen = score;
         chosenX = cx;
@@ -415,6 +436,42 @@ export class CrowdSteering {
     return chosenX !== preferred[0] || chosenZ !== preferred[1];
   }
 
+  /**
+   * Keep the nearest `AVOID_NEIGHBOURS` of the current query in `avoidSlots`,
+   * excluding self.
+   *
+   * `DynamicEntityGrid.queryRadius` appends in cell-scan order and never
+   * sorts, so slicing the head of the list drops neighbours that are easily
+   * the closest — an agent one cell row down is scanned after every agent in
+   * the row above it, whatever the distances.
+   *
+   * @returns How many slots were kept.
+   */
+  private gatherNearest(px: number, pz: number, self: number): number {
+    const slots = this.avoidSlots;
+    const distances = this.avoidDistSq;
+    let kept = 0;
+    for (let n = 0; n < this.neighbours.length; n++) {
+      const slot = this.neighbours.at(n);
+      if (this.slotAgent[slot] === self) continue;
+      const dx = this.grid.getX(slot) - px;
+      const dz = this.grid.getZ(slot) - pz;
+      const d = dx * dx + dz * dz;
+      if (kept === AVOID_NEIGHBOURS && d >= distances[kept - 1]!) continue;
+      // Insertion into a sorted run of eight. Strictly-greater comparison, so
+      // ties keep the order the grid produced and the crowd stays reproducible.
+      let at = kept < AVOID_NEIGHBOURS ? kept++ : AVOID_NEIGHBOURS - 1;
+      while (at > 0 && distances[at - 1]! > d) {
+        distances[at] = distances[at - 1]!;
+        slots[at] = slots[at - 1]!;
+        at--;
+      }
+      distances[at] = d;
+      slots[at] = slot;
+    }
+    return kept;
+  }
+
   /** Lower is better: deviation from the preference plus collision risk. */
   private scoreCandidate(
     cx: number,
@@ -425,17 +482,15 @@ export class CrowdSteering {
     vx: number,
     vz: number,
     radius: number,
-    count: number,
-    self: number
+    count: number
   ): number {
     const dx = cx - preferred[0];
     const dz = cz - preferred[1];
     let score = Math.sqrt(dx * dx + dz * dz);
 
     for (let n = 0; n < count; n++) {
-      const slot = this.neighbours.at(n);
+      const slot = this.avoidSlots[n]!;
       const other = this.slotAgent[slot]!;
-      if (other === self) continue;
       const ox = this.grid.getX(slot);
       const oz = this.grid.getZ(slot);
       const orad = this.grid.getRadius(slot);
@@ -445,9 +500,13 @@ export class CrowdSteering {
         ovx = this.agentsVelX(other);
         ovz = this.agentsVelZ(other);
       }
-      // Reciprocal: we each take half the avoidance.
-      const rvx = 2 * cx - vx - ovx;
-      const rvz = 2 * cz - vz - ovz;
+      // Reciprocal: we each take half the avoidance. `timeToCollision` wants
+      // the OTHER disc's motion relative to ours, so the reciprocal term is
+      // negated: `2c - v - vOther` is self-minus-other. With the sign the
+      // wrong way round the test rewards driving straight at a neighbour and
+      // penalises walking away from one.
+      const rvx = vx + ovx - 2 * cx;
+      const rvz = vz + ovz - 2 * cz;
       const ttc = timeToCollision(ox - px, oz - pz, rvx, rvz, radius + orad);
       if (ttc < 0 || ttc > RVO_HORIZON) continue;
       // 1/ttc rather than (horizon - ttc): the penalty has to go to infinity
@@ -489,7 +548,8 @@ export class CrowdSteering {
     this.report.containmentFixes = 0;
     this.report.containmentMetres = 0;
     this.report.avoidanceAdjustments = 0;
-    this.report.minSeparation = Infinity;
+    this.report.minSeparation = SEPARATION_SEARCH;
+    this.report.measuredPairs = 0;
 
     this.buildGrid(agents, bodies);
 
@@ -614,16 +674,25 @@ export class CrowdSteering {
     this.report.minSeparation = this.measureMinSeparation(agents);
   }
 
-  /** Smallest centre distance between any live pair. O(n) via the grid. */
+  /**
+   * Smallest centre distance between any live pair within `SEPARATION_SEARCH`.
+   * O(n) via the grid.
+   *
+   * Pairs further apart than the search radius are never examined, so the
+   * answer is a CAPPED minimum and `SEPARATION_SEARCH` is returned when
+   * nothing is close enough to measure — `measuredPairs` on the report says
+   * which of the two happened.
+   */
   measureMinSeparation(agents: CrowdAgents): number {
-    let min = Infinity;
+    let min = SEPARATION_SEARCH;
+    let pairs = 0;
     for (let i = 0; i < agents.extent; i++) {
       if (agents.active[i] === 0) continue;
       this.grid.queryRadius(
         agents.posX[i]!,
         0,
         agents.posZ[i]!,
-        MIN_SEPARATION * 2,
+        SEPARATION_SEARCH,
         this.neighbours,
         LAYER_CIVILIAN
       );
@@ -633,9 +702,11 @@ export class CrowdSteering {
         const dx = agents.posX[other]! - agents.posX[i]!;
         const dz = agents.posZ[other]! - agents.posZ[i]!;
         const d = Math.sqrt(dx * dx + dz * dz);
+        pairs++;
         if (d < min) min = d;
       }
     }
+    this.report.measuredPairs = pairs;
     return min;
   }
 

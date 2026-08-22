@@ -166,8 +166,17 @@ export interface IDebrisSink {
     worldMatrix: THREE.Matrix4,
     impulse: THREE.Vector3
   ): { readonly id: number } | undefined;
-  /** Look up a live piece; used to reclaim pooled debris geometry. */
-  get?(id: number): unknown;
+  /**
+   * Look up a live piece. `undefined` (or `null`) means the pool has retired
+   * it.
+   *
+   * REQUIRED, and not for symmetry: this is the only way a pooled debris box
+   * comes back to the shape pool's free list. A sink that satisfied the rest of
+   * this port and omitted it used to run normally for exactly `capacity`
+   * detaches and then turn every chunk in the game dust-only, permanently,
+   * with no throw and no log line to say why.
+   */
+  get(id: number): unknown;
 }
 
 /**
@@ -215,9 +224,13 @@ export interface IStructureSpec {
   /**
    * Dense streaming chunk index, for the persistent damage bitmask. Omit to
    * opt this structure out of persistence (props, test fixtures).
+   *
+   * ONE ADDRESS, TWO FIELDS: this is only honoured together with a
+   * `buildingIndex` in range. Supplying it alone opts the structure out of
+   * persistence (with a warning) rather than aliasing building slot 0.
    */
   readonly chunkIndex?: number;
-  /** Building index 0..15 inside that streaming chunk. */
+  /** Building index 0..15 inside that streaming chunk. Required with `chunkIndex`. */
   readonly buildingIndex?: number;
   /** Collateral units per kilogram for `ChunkDetached.collateralCost`. */
   readonly collateralPerKg?: number;

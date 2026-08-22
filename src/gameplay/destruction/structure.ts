@@ -19,10 +19,12 @@
  */
 
 import * as THREE from 'three';
-import { hashString } from '@/util';
+import { createLogger, hashString } from '@/util';
 import type { IStructureLayout, IStructureSpec } from './ports';
-import { DEFAULT_COLLATERAL_PER_KG, DESTROYED_FLAG } from './constants';
+import { DAMAGE_BUILDINGS_PER_CHUNK, DEFAULT_COLLATERAL_PER_KG, DESTROYED_FLAG } from './constants';
 import { localAabbToWorld, localToWorld } from './geometry';
+
+const log = createLogger('destruction');
 
 /** Why a chunk came off. Drives the impulse profile and the audio class. */
 export type DetachCause = 'blast' | 'collapse' | 'external' | 'restore';
@@ -101,8 +103,33 @@ export class RegisteredStructure {
     this.chunkCount = spec.layout.chunks.length;
     this.floorCount = spec.layout.floors.length;
     this.collateralPerKg = spec.collateralPerKg ?? DEFAULT_COLLATERAL_PER_KG;
-    this.damageChunk = spec.chunkIndex ?? -1;
-    this.damageBuilding = spec.buildingIndex ?? 0;
+    // ── THE PERSISTENT ADDRESS IS A PAIR ──────────────────────────────────
+    // `chunkIndex` and `buildingIndex` are one address split across two
+    // independent optionals, and defaulting the building half to 0 is not a
+    // harmless default: ten buildings of one streaming chunk registered
+    // without it all write into — and restore from — slot 0's sixteen bits,
+    // so punching a hole in one reloads as a hole in all ten. An out-of-range
+    // building is quieter still: `damageSlot` lands past the mask's 256 bits
+    // and `setDestroyed` drops it, recording nothing forever. Either way the
+    // structure is opted OUT of persistence, which loses the record honestly
+    // instead of corrupting somebody else's.
+    const chunkIndex = spec.chunkIndex;
+    const buildingIndex = spec.buildingIndex;
+    const addressed =
+      chunkIndex !== undefined &&
+      chunkIndex >= 0 &&
+      buildingIndex !== undefined &&
+      buildingIndex >= 0 &&
+      buildingIndex < DAMAGE_BUILDINGS_PER_CHUNK;
+    if (!addressed && chunkIndex !== undefined) {
+      log.warnOnce(
+        `damage-address:${spec.id}`,
+        `structure "${spec.id}" has chunkIndex ${chunkIndex} but no usable ` +
+          `buildingIndex (${String(buildingIndex)}); its damage will not persist.`
+      );
+    }
+    this.damageChunk = addressed ? chunkIndex : -1;
+    this.damageBuilding = addressed ? buildingIndex : 0;
     this.seedHash = hashString(spec.id);
 
     this.destroyed = new Uint8Array(this.chunkCount);

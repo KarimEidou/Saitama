@@ -70,16 +70,21 @@ export interface IDuckRequest {
   readonly release: number;
 }
 
-/** Ambience parameters an event can move. */
+/**
+ * Ambience parameters an event can move.
+ *
+ * Only what the system actually consumes. `timeOfDay` and `recomputeDensity`
+ * used to live here and were produced by three rules, but nothing ever read
+ * them: `AudioSystem` has no time-of-day sink, and `setNearbyCivilians` — the
+ * one thing a density recompute could have called — has no caller anywhere in
+ * `src/`. A field that is written and never read is worse than no field, because
+ * the rule summaries then describe behaviour the game does not have.
+ */
 export interface IAmbienceRequest {
   /** 0..1 crowd density. */
   readonly crowdDensity?: number;
   /** 0..1 wind level. */
   readonly wind?: number;
-  /** Normalised time of day 0..1, for day/night ambience shaping. */
-  readonly timeOfDay?: number;
-  /** True when the streaming set changed and density must be recomputed. */
-  readonly recomputeDensity?: boolean;
 }
 
 /** Everything an event asks the audio system to do. */
@@ -456,8 +461,9 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
 
   EncounterEnded: {
     type: 'EncounterEnded',
-    summary: 'The fight is over: a victory or dark sting, and the music falls back to exploration.',
-    sounds: ['ui.victory', 'ui.dark', 'crowd.cheer'],
+    summary:
+      'The fight is over: a victory sting on a win, a dark one on a defeat, a neutral tap when the player fled or aborted. The music falls back to exploration either way.',
+    sounds: ['ui.victory', 'ui.dark', 'crowd.cheer', 'ui.tap'],
     effects: ['music'],
     resolve: (e) => {
       if (e.outcome === 'victory') {
@@ -540,17 +546,14 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
     summary:
       'Boredom drives the arrangement thinner. At the top of the range the score collapses to a single sustained tone — the audio half of the global desaturation.',
     sounds: [],
-    effects: ['boredom', 'music'],
-    resolve: (e) => {
-      const value = clamp01(e.value);
-      return {
-        cues: [],
-        boredom: value,
-        // Crossing the collapse threshold is a real state change, not just a
-        // thinner arrangement.
-        music: value >= 0.8 ? 'bored' : undefined,
-      };
-    },
+    effects: ['boredom'],
+    // The boredom VALUE is the whole mechanism, and it is reversible: `partsFor`
+    // already collapses every layer to the drone at `BOREDOM_COLLAPSE` and
+    // restores it as the meter falls. Emitting `music: 'bored'` here as well was
+    // a one-way door — `MusicDirector.setBoredom` never leaves a state, so a
+    // player who got interesting again stayed on the drone at the bored tempo
+    // until an unrelated encounter happened to set a different state.
+    resolve: (e) => ({ cues: [], boredom: clamp01(e.value) }),
   },
 
   /* ---- World ---------------------------------------------------------- */
@@ -558,18 +561,19 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
   ChunkStreamedIn: {
     type: 'ChunkStreamedIn',
     summary:
-      'New geometry is resident, so the population around the listener changed: the crowd bed density is recomputed. No cue — streaming must be silent.',
+      'Geometry became resident. Streaming is silent by design, and residency on its own says nothing about the mix: crowd density follows the civilian count and the time of day, not the chunk set.',
     sounds: [],
-    effects: ['ambience'],
-    resolve: () => ({ cues: [], ambience: { recomputeDensity: true } }),
+    effects: [],
+    resolve: () => ({ cues: [] }),
   },
 
   ChunkStreamedOut: {
     type: 'ChunkStreamedOut',
-    summary: 'Geometry left residency: recompute crowd density. Silent by design.',
+    summary:
+      'Geometry left residency. Silent by design, and — like its counterpart — it moves nothing in the mix on its own.',
     sounds: [],
-    effects: ['ambience'],
-    resolve: () => ({ cues: [], ambience: { recomputeDensity: true } }),
+    effects: [],
+    resolve: () => ({ cues: [] }),
   },
 
   TimeOfDayChanged: {
@@ -600,11 +604,7 @@ export const EVENT_AUDIO_MAP: EventAudioMap = {
       };
       return {
         cues: [],
-        ambience: {
-          crowdDensity: crowd[e.phase] ?? 0.5,
-          wind: wind[e.phase] ?? 0.3,
-          timeOfDay: e.timeOfDay,
-        },
+        ambience: { crowdDensity: crowd[e.phase] ?? 0.5, wind: wind[e.phase] ?? 0.3 },
       };
     },
   },

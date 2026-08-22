@@ -13,8 +13,9 @@
  * fails here rather than only in the browser.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
+import type { IChunk } from '@/types';
 import { EventBus } from '@/util';
 import { CHUNK_SIZE, chunkIndex } from '@/spatial/constants';
 import {
@@ -152,12 +153,32 @@ describe('frame budget', () => {
     system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
     const samples = await advance(system, 400);
 
-    const busted = samples.filter((s) => s.uploadMs > UPLOAD_BUDGET_MS * 4);
     // The first upload of a frame is always admitted (an upload cannot be
-    // split), so a single chunk may exceed the budget on its own. What must
-    // never happen is a frame stacking several oversized uploads.
+    // split), so a single chunk may exceed the budget on its own. Every frame
+    // that CHOSE to start a second upload was an admission-control decision,
+    // and those must hold the declared cap — not four times it. A 4x tolerance
+    // here is exactly the window a mispredicting admission test hides in: two
+    // uploads totalling 10 ms against a 4 ms cap would never even be counted.
+    for (const sample of samples) {
+      if (sample.uploads > 1) expect(sample.uploadMs).toBeLessThanOrEqual(UPLOAD_BUDGET_MS);
+    }
+    const busted = samples.filter((s) => s.uploadMs > UPLOAD_BUDGET_MS * 4);
     for (const sample of busted) expect(sample.uploads).toBe(1);
     expect(system.getDetailedStats().peakUploadMs).toBeLessThan(50);
+  });
+
+  it('predicts admission from the chunk in hand, not from a global average', async () => {
+    // A downtown R0 chunk carries ~100x the payload of a park R2 chunk, so a
+    // single per-chunk average describes nothing in the queue. Feed the pass a
+    // budget that only the smallest chunks fit in and it must still refuse to
+    // stack a second upload behind a large one.
+    const { system } = makeSystem({ uploadBudgetMs: 0.001 });
+    system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+    const samples = await advance(system, 200);
+    // Something uploaded — the first of a frame is always admitted...
+    expect(samples.reduce((sum, s) => sum + s.uploads, 0)).toBeGreaterThan(50);
+    // ...and nothing was ever admitted on top of it.
+    expect(Math.max(...samples.map((s) => s.uploads))).toBe(1);
   });
 
   it('bounds teardown per frame as well as upload', async () => {
@@ -368,6 +389,151 @@ describe('damage persistence', () => {
 
     const chunk = system.chunkAtIndex(chunkIndex(-1, 0))!;
     expect(chunk.destroyedPieces).toBe(16);
+  });
+});
+
+describe('explicit requests', () => {
+  it('loads a chunk beyond the resident radius and holds it until it uploads', async () => {
+    const { system } = makeSystem({ quality: 'low' });
+    system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+    await settle(system);
+
+    // 7.5 chunk units from the focus, against a resident radius of 4.5: the
+    // assignment pass wants this chunk evicted, which is what a fast-travel
+    // destination always looks like. Without a pin it was torn down on the very
+    // next frame and the caller's promise resolved on a disposed chunk.
+    const coord = { x: 7, z: 7 };
+    const index = chunkIndex(coord.x, coord.z);
+    let landed: IChunk | undefined;
+    const pending = system.requestChunk(coord).then((chunk) => {
+      landed = chunk;
+    });
+
+    for (let i = 0; i < 300 && landed === undefined; i++) {
+      system.update(1 / 60);
+      await tick();
+    }
+    await pending;
+
+    expect(landed).toBeDefined();
+    expect(landed!.state).toBe('active');
+    expect(landed!.memoryBytes).toBeGreaterThan(0);
+    expect(system.chunkAtIndex(index)!.builtRing).toBe(RING_R2);
+  });
+
+  it('honours the priority the caller asked for instead of a distance score', async () => {
+    const { system, bus } = makeSystem({ quality: 'low' });
+    const order: number[] = [];
+    bus.on('ChunkStreamedIn', (event) => order.push(chunkIndex(event.coord.x, event.coord.z)));
+    system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+
+    // Requested on the cold start, when ~80 nearer chunks are already queued.
+    // The queue is re-scored before every dispatch, so a score written once at
+    // enqueue time is gone before anything acts on it.
+    const coord = { x: 4, z: 4 };
+    void system.requestChunk(coord).catch(() => undefined);
+    await settle(system);
+
+    expect(order.indexOf(chunkIndex(coord.x, coord.z))).toBe(0);
+  });
+
+  it('rejects a request whose chunk is dropped before the build lands', async () => {
+    const { system } = makeSystem({ quality: 'low' });
+    system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+
+    const coord = { x: 5, z: 5 };
+    const pending = system.requestChunk(coord);
+    system.evictChunk(coord);
+
+    // Resolving here handed the caller a chunk with no mesh, no colliders and
+    // no crowd, with no way to tell that anything had gone wrong.
+    await expect(pending).rejects.toThrow(/unloaded/);
+  });
+});
+
+describe('build failures', () => {
+  it('does not wedge the world when every build fails', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      // The documented generator seam, pointed at an id nobody registered:
+      // every job comes back `{kind:'error'}`.
+      const { system } = makeSystem({ quality: 'low', generator: 'no-such-generator' });
+      system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+      await advance(system, 120);
+
+      const chunk = system.chunkAtIndex(chunkIndex(0, 0))!;
+      // Not 'loading' forever: the failure reaches the chunk that owns the job.
+      expect(chunk.state).toBe('error');
+      expect(chunk.error).toBeDefined();
+      expect(chunk.jobId).toBe(-1);
+      expect(errors).toHaveBeenCalled();
+
+      // And it stops after a bounded number of attempts rather than re-queuing
+      // the whole world every frame for the rest of the session.
+      const stats = system.getDetailedStats();
+      expect(stats.queued).toBe(0);
+      expect(stats.inFlight).toBe(0);
+      expect(stats.activeChunks).toBe(0);
+      // `waitForIdle` may now honestly report that there is nothing left to do.
+      await expect(system.waitForIdle()).resolves.toBeUndefined();
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it('settles an outstanding load() with the failure instead of hanging', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { system } = makeSystem({ quality: 'low', generator: 'no-such-generator' });
+      system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+      const pending = system.requestChunk({ x: 0, z: 0 });
+      const settled = pending.then(
+        () => 'resolved',
+        () => 'rejected'
+      );
+      await advance(system, 20);
+      await expect(settled).resolves.toBe('rejected');
+    } finally {
+      errors.mockRestore();
+    }
+  });
+});
+
+describe('stats', () => {
+  it('reports activeChunks as chunks in the scene, in both snapshots', async () => {
+    const { system, scene } = makeSystem({ quality: 'low' });
+    const impostorChildren = scene.children.length;
+    system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+
+    // Frame one creates the whole neighbourhood and attaches none of it yet.
+    // Reporting every resident chunk here told a HUD or a harness gated on
+    // `activeChunks > 0` that the world was up while the scene was empty.
+    system.update(1 / 60);
+    expect(system.getStats().activeChunks).toBe(scene.children.length - impostorChildren);
+    expect(system.getDetailedStats().residentChunks).toBeGreaterThan(
+      system.getStats().activeChunks
+    );
+
+    await settle(system);
+    const stats = system.getDetailedStats();
+    expect(stats.activeChunks).toBe(scene.children.length - impostorChildren);
+    expect(stats.activeChunks).toBeGreaterThan(0);
+    // And `getDetailedStats` must not redefine an inherited field.
+    expect(system.getStats().activeChunks).toBe(stats.activeChunks);
+  });
+
+  it('publishes a resident radius that follows the quality tier', () => {
+    const { system } = makeSystem({ quality: 'high' });
+    expect(system.config.streamingRadiusChunks).toBe(8.5);
+
+    system.applyQuality('low');
+    // Stale here meant every consumer sizing a working set, a debug overlay or
+    // a spawn radius from `config` over-read by 90% after a thermal downgrade.
+    expect(system.config.streamingRadiusChunks).toBe(4.5);
+    expect(system.config.evictionRadiusChunks).toBeGreaterThan(system.config.streamingRadiusChunks);
+    expect(system.getDetailedStats().residentRadiusChunks).toBe(
+      system.config.streamingRadiusChunks
+    );
   });
 });
 

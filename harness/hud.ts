@@ -38,6 +38,7 @@ import * as THREE from 'three';
 import { createEventBus, type EventBus } from '@/util';
 import type { IEventBus, SafeAreaInsets, ThreatTier } from '@/types';
 import {
+  EDGE_FLOOR_PX,
   HudManager,
   MarkerLayer,
   NOTCHED_PORTRAIT_INSETS,
@@ -112,7 +113,16 @@ const LAYOUT_WRITE_PROPS = [
   'gridTemplateColumns',
 ] as const;
 
-/** Accessors whose READ forces the browser to resolve pending layout. */
+/**
+ * Accessors whose READ forces the browser to resolve pending layout.
+ *
+ * They are NOT all declared on the same interface: per CSSOM View, `offset*`
+ * lives on `HTMLElement` while `client*`/`scroll*` live on `Element` (which is
+ * why an SVG element has no `offsetWidth`). Looking every name up on
+ * `Element.prototype` alone silently instruments six of the ten and leaves the
+ * four most common reflow triggers unwatched, so the lookup below tries
+ * `HTMLElement.prototype` first.
+ */
 const LAYOUT_READ_PROPS = [
   'offsetWidth',
   'offsetHeight',
@@ -125,6 +135,15 @@ const LAYOUT_READ_PROPS = [
   'scrollWidth',
   'scrollHeight',
 ] as const;
+
+/**
+ * Layout accessors the probe could NOT find, and therefore cannot see.
+ *
+ * Reported in `IMeasurement` rather than swallowed: a silent `continue` here is
+ * exactly how "ZERO forced reflows" comes to mean "zero of the reflows we are
+ * still watching for".
+ */
+const uninstrumentedReads: string[] = [];
 
 function installProbe(): void {
   const style = CSSStyleDeclaration.prototype;
@@ -166,10 +185,17 @@ function installProbe(): void {
   } as typeof window.getComputedStyle;
 
   for (const property of LAYOUT_READ_PROPS) {
-    const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, property);
-    if (!descriptor?.get) continue;
+    const target: object =
+      Object.getOwnPropertyDescriptor(HTMLElement.prototype, property) !== undefined
+        ? HTMLElement.prototype
+        : Element.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(target, property);
+    if (!descriptor?.get) {
+      uninstrumentedReads.push(property);
+      continue;
+    }
     const { get } = descriptor;
-    Object.defineProperty(Element.prototype, property, {
+    Object.defineProperty(target, property, {
       configurable: true,
       enumerable: descriptor.enumerable,
       get(this: Element) {
@@ -602,6 +628,11 @@ interface IMeasurement {
   directWrites: string[];
   /** Layout reads during the window. Must be empty. */
   reads: string[];
+  /**
+   * Accessors in `LAYOUT_READ_PROPS` that could not be instrumented at all.
+   * Must be empty, or the read half of the claim has holes in it.
+   */
+  uninstrumentedReads: string[];
   /** Cumulative layout shift accrued during the window. Must be 0. */
   layoutShift: number;
   /** Whether the layout-shift observer is available at all. */
@@ -614,6 +645,16 @@ interface IMeasurement {
 
 interface IPanelRect {
   id: string;
+  /**
+   * What kind of box this is.
+   *
+   * `panel` is laid-out HUD chrome — the HUD decides where it goes, so every
+   * placement claim applies to it. `marker` is a world-space pin whose position
+   * comes from projecting a world point through the camera; it obeys the safe
+   * box (via `.hud-markers`'s clip-path) but nothing can keep it out of a
+   * thumb's quadrant without detaching it from the thing it points at.
+   */
+  kind: 'panel' | 'marker';
   screen: string;
   x: number;
   y: number;
@@ -644,8 +685,14 @@ const banner = document.getElementById('banner') as HTMLElement;
 
 const bus: IEventBus = createEventBus() as EventBus;
 
-/* The touch overlay, mounted FIRST so the HUD's layers stack over it exactly
-   as they do in the shipping page. */
+/* The touch overlay, mounted first, exactly as the shipping page mounts it.
+   Mount ORDER is not what decides the stacking here and the harness must not
+   pretend otherwise: `.opm-input-root` declares `z-index:1` and `.hud-root`
+   declares none, so inside `#ui-root`'s stacking context the controls paint
+   ABOVE every HUD layer, modal sheets included. That is what the shipping page
+   does today and therefore what these screenshots must show; if the intended
+   order is the other way round, the fix belongs in `src/ui/hud/styles.ts` or
+   `src/ui/input/touch-overlay.ts`, not here. */
 const touch = createTouchOverlay(uiRoot, DEFAULT_INPUT_TUNING);
 
 let currentInsets: SafeAreaInsets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -907,12 +954,18 @@ function step(frames: number): void {
     if (scene === 'combat-charging' || scene === 'combat') {
       const t = frameIndex * FIXED_DT;
       hud.store.model.boredom = 0.5 + 0.28 * Math.sin(t * 0.9);
-      hud.store.setCharge(
-        (Math.sin(t * 1.6) * 0.5 + 0.5) * 0.98,
-        true,
-        'serious',
-        1.5e10 * (Math.sin(t * 1.6) * 0.5 + 0.5)
-      );
+      /* The charge arc animates ONLY in `combat-charging`. `combat` is the
+         resting fight — `applyScene` zeroed the charge there deliberately, and
+         driving it here would photograph every `hud-combat-*.png` mid serious
+         punch and leave the most common state in the game unshot. */
+      if (scene === 'combat-charging') {
+        hud.store.setCharge(
+          (Math.sin(t * 1.6) * 0.5 + 0.5) * 0.98,
+          true,
+          'serious',
+          1.5e10 * (Math.sin(t * 1.6) * 0.5 + 0.5)
+        );
+      }
       const encounter = hud.store.model.encounter;
       if (encounter) {
         encounter.collateralYen = 4.3e9 + 2e9 * (Math.sin(t * 0.7) * 0.5 + 0.5);
@@ -928,7 +981,13 @@ function step(frames: number): void {
     }
 
     hud.update(FIXED_DT);
-    if (scene === 'markers') markers.update(hud.store.model, camera);
+    /* Unconditional, as the shipping bootstrap does it: `MarkerLayer.update`
+       is the ONLY thing that reconciles the marker DOM against the model, so
+       gating it on the markers scene left five `CSS2DObject` elements parented
+       in `.hud-markers` for the rest of the run — in every screenshot taken
+       after it, and in every rectangle `panels()` reported. With an empty
+       model it removes what is stale and does nothing else. */
+    markers.update(hud.store.model, camera);
   }
 }
 
@@ -954,7 +1013,10 @@ function resize(): void {
  *   FULL-BLEED CONTAINERS. The CSS2D marker host and the HUD root are
  *   transparent boxes that span the viewport by definition. They paint nothing
  *   and cannot be "under the notch"; what could be under the notch is a MARKER,
- *   and those are clipped to the safe box by `.hud-markers`'s clip-path.
+ *   and those are clipped to the safe box by `.hud-markers`'s clip-path — so
+ *   a marker's rect is INTERSECTED with that clip here before it is reported.
+ *   `getBoundingClientRect()` is blind to an ancestor's `clip-path`, and
+ *   reporting the pre-clip geometry would flag pins the browser never painted.
  *
  *   SCROLLED-OUT ROWS. A settings row below the fold of `.hud-sheet__body`
  *   reports a rect past the bottom of the screen because that is where it is —
@@ -985,14 +1047,36 @@ function panelRects(): IPanelRect[] {
       if (!visible) continue;
     }
 
+    /* A marker is clipped to the safe box by its host's `clip-path`, which
+       `getBoundingClientRect()` does not see. Report what is PAINTED. The
+       inset is `max(env, override, floor)`, exactly as the stylesheet
+       composes it; `env()` is 0 on the harness page. */
+    const markerHost = node.closest<HTMLElement>('.hud-markers');
+    let box = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+    if (markerHost) {
+      const host = markerHost.getBoundingClientRect();
+      const clipLeft = host.left + Math.max(currentInsets.left, EDGE_FLOOR_PX);
+      const clipTop = host.top + Math.max(currentInsets.top, EDGE_FLOOR_PX);
+      const clipRight = host.right - Math.max(currentInsets.right, EDGE_FLOOR_PX);
+      const clipBottom = host.bottom - Math.max(currentInsets.bottom, EDGE_FLOOR_PX);
+      box = {
+        left: Math.max(box.left, clipLeft),
+        top: Math.max(box.top, clipTop),
+        right: Math.min(box.right, clipRight),
+        bottom: Math.min(box.bottom, clipBottom),
+      };
+      if (box.right - box.left < 1 || box.bottom - box.top < 1) continue;
+    }
+
     const screenRoot = node.closest<HTMLElement>('[data-screen]');
     out.push({
       id: node.dataset.hud ?? node.className.split(' ')[0] ?? 'panel',
+      kind: markerHost ? 'marker' : 'panel',
       screen: screenRoot?.dataset.screen ?? hud.active,
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
+      x: box.left,
+      y: box.top,
+      width: box.right - box.left,
+      height: box.bottom - box.top,
       text: (node.textContent ?? '').trim().slice(0, 60),
     });
   }
@@ -1066,6 +1150,7 @@ const api: IHarnessApi = {
       offending: properties.filter((name) => !name.startsWith('--')),
       directWrites: [...new Set(probe.directWrites)],
       reads: [...new Set(probe.reads)],
+      uninstrumentedReads: [...uninstrumentedReads],
       layoutShift: Number.isNaN(cumulativeShift) ? 0 : cumulativeShift - shiftBaseline,
       layoutShiftObserved: !Number.isNaN(cumulativeShift),
       setPropertyCalls: probe.count,

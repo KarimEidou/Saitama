@@ -201,8 +201,13 @@ export class HttpAssetProvider implements IAssetProvider {
   /** Absolute-ish URL for a path relative to the generated root. */
   resolveFile(file: string): string {
     const root = this.manifestValue?.generatedRoot?.replace(/\/+$/, '');
+    // Compared on a PATH BOUNDARY, not as a substring: a CDN root that merely
+    // ends in the root's name (`/game-assets` against `generatedRoot: assets`)
+    // would otherwise drop the `assets/` segment and 404 every single file.
+    const alreadyRooted =
+      root !== undefined && (this.baseUrl === root || this.baseUrl.endsWith(`/${root}`));
     const prefix =
-      root !== undefined && root.length > 0 && !this.baseUrl.endsWith(root)
+      root !== undefined && root.length > 0 && !alreadyRooted
         ? `${this.baseUrl}/${root}`
         : this.baseUrl;
     return `${prefix}/${file.replace(/^\/+/, '')}`;
@@ -256,6 +261,9 @@ export class HttpAssetProvider implements IAssetProvider {
       const url = this.resolveFile(output.file);
       try {
         const bytes = await this.fetchUrl(url, signal);
+        // A tier that just served a file is not a tier that was left out of
+        // the package: this is what keeps the write-off counter consecutive.
+        this.availabilityValue.markServed(attempt);
         return { bytes, url, tier: attempt };
       } catch (error) {
         if (signal?.aborted === true) throw error;
@@ -296,6 +304,30 @@ export class HttpAssetProvider implements IAssetProvider {
   /** Device signals the tier decision was made from. Empty until load. */
   get signals(): ITierSignals | undefined {
     return this.resolvedSignals;
+  }
+
+  /**
+   * Fold in the signals only a live renderer can answer, then re-decide.
+   *
+   * `loadManifest()` runs before any consumer has a `WebGLRenderer` to offer,
+   * so `maxTextureSize` is unknown there — and `selectQualityTier`'s
+   * `bigTextures` test reads an unknown ceiling as zero, which made `ultra`
+   * unreachable through the wiring this module documents no matter how capable
+   * the machine was. `AssetRegistry.open` calls this with the renderer it is
+   * already given. An explicit signal override still wins.
+   */
+  adoptRenderer(renderer: { capabilities?: { maxTextureSize?: number } }): void {
+    const signals = this.resolvedSignals;
+    const manifest = this.manifestValue;
+    if (signals === undefined || manifest === undefined) return;
+    if (this.signalOverrides.maxTextureSize !== undefined) return;
+    const maxTextureSize = renderer.capabilities?.maxTextureSize;
+    if (typeof maxTextureSize !== 'number' || maxTextureSize === signals.maxTextureSize) return;
+    this.resolvedSignals = { ...signals, maxTextureSize };
+    this.decision = selectQualityTier(this.resolvedSignals, {
+      forced: this.forcedTier,
+      builtTiers: manifest.tiersBuilt,
+    });
   }
 
   selectTier(): QualityTier {

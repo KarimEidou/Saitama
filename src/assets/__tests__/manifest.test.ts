@@ -65,6 +65,29 @@ describe('parseRuntimeManifest', () => {
     expect(manifest.entries.map((entry) => entry.id)).toEqual(['ok']);
   });
 
+  it('gives every entry an outputs array, whatever the generator emitted', () => {
+    // Every reader dereferences `outputs` unguarded — `tier.ts` does
+    // `entry.outputs.map(...)` from `estimateBytes`, which `preloadCore` calls
+    // OUTSIDE any try. One row without it killed the boot with a TypeError.
+    const manifest = parseRuntimeManifest({
+      entries: [
+        { id: 'no-outputs', kind: 'texture' },
+        { id: 'junk-outputs', kind: 'texture', outputs: 'nope' },
+        {
+          id: 'junk-rows',
+          kind: 'texture',
+          outputs: [null, 7, { tier: 'mobile', file: 'a.ktx2' }],
+        },
+      ],
+    });
+    expect(manifest.entries.map((entry) => entry.outputs)).toEqual([
+      [],
+      [],
+      [{ tier: 'mobile', file: 'a.ktx2' }],
+    ]);
+    expect(() => manifest.entries.map((entry) => entry.outputs.map((o) => o.tier))).not.toThrow();
+  });
+
   it('exposes an empty manifest for the no-index case', () => {
     expect(emptyRuntimeManifest().entries).toEqual([]);
   });
@@ -131,7 +154,22 @@ describe('parseCharacterIndex', () => {
   it('derives the directory and model path from the listed files', () => {
     expect(records[0]!.dir).toBe('chr/saitama');
     expect(records[0]!.modelFile).toBe('chr/saitama/model.glb');
-    expect(records[0]!.vatMetaFile).toBe('chr/saitama/vat.json');
+  });
+
+  it('advertises the VAT sidecars only when the bake declared one', () => {
+    // `vatFile` is typed optional so a crowd system can do
+    // `if (record.vatFile !== undefined) fetchFile(record.vatFile)`. Naming the
+    // path unconditionally turned "this character has no VAT" into a 404 the
+    // caller could not tell from a file missing out of the package.
+    expect(records[0]!.vatFile).toBeUndefined();
+    expect(records[0]!.vatMetaFile).toBeUndefined();
+
+    const raw = testCharacterIndex();
+    const characters = raw.characters as Record<string, unknown>[];
+    characters[0]!.vat = { bytes: 435456, width: 81, height: 672, clips: 21 };
+    const baked = parseCharacterIndex(raw)[0]!;
+    expect(baked.vatFile).toBe('chr/saitama/vat.bin');
+    expect(baked.vatMetaFile).toBe('chr/saitama/vat.json');
   });
 
   it('returns nothing for junk instead of throwing', () => {
@@ -142,6 +180,27 @@ describe('parseCharacterIndex', () => {
 });
 
 describe('indexCharacterFiles', () => {
+  it('skips a path with no directory rather than inventing a character', () => {
+    // A listing already relative to the character folder. `lastIndexOf('/')`
+    // returns -1 and `slice(0, -1)` drops the last character, which produced
+    // the id `chr.albedo.mobile.pn` and a model URL that could only 404.
+    expect(indexCharacterFiles(['albedo.mobile.png', 'normal.mobile.png'])).toEqual([]);
+  });
+
+  it('names the VAT sidecars only when the listing contains them', () => {
+    // Sorted by id, so civilian (no VAT in the listing) comes first.
+    const [civilian, genos] = indexCharacterFiles([
+      'chr/genos/albedo.mobile.png',
+      'chr/genos/vat.bin',
+      'chr/civilian/albedo.mobile.png',
+    ]);
+    expect(civilian?.id).toBe('chr.civilian');
+    expect(civilian?.vatFile).toBeUndefined();
+    expect(genos?.id).toBe('chr.genos');
+    expect(genos?.vatFile).toBe('chr/genos/vat.bin');
+    expect(genos?.vatMetaFile).toBe('chr/genos/vat.json');
+  });
+
   it('builds an index from bare paths using the tier token alone', () => {
     const records = indexCharacterFiles([
       'chr/mook.wolf/albedo.mobile.png',

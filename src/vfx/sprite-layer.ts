@@ -43,7 +43,13 @@ export interface ISpriteParams {
   life: number;
   /** Index into the bound atlas. */
   tile: number;
-  /** One of `SpriteMode`. */
+  /**
+   * One of `SpriteMode`.
+   *
+   * `SpriteMode.Surface` belongs to the DECAL layer: that mode reads the quad's
+   * normal out of the same instance channel this layer fills with velocity, so
+   * a surface quad emitted here orients itself to its own direction of travel.
+   */
   mode: number;
   r: number;
   g: number;
@@ -72,7 +78,7 @@ export interface ISpriteParams {
   erode: number;
   /** 0 = particle shading, 1 = decal shading. */
   style: number;
-  /** Y-axis multiplier for `SpriteMode.Surface` quads. */
+  /** Y-axis multiplier for `SpriteMode.Surface` quads. See `mode`. */
   aspect: number;
   /** 0..1 phase offset, so identical particles do not wander in lockstep. */
   seed: number;
@@ -273,13 +279,24 @@ export class SpriteLayer {
   /**
    * Add a particle.
    *
-   * @returns false when the buffer is full. A FULL buffer is a normal
-   *          condition during a collapse, not an error — the caller should
-   *          stop emitting rather than grow anything.
+   * @returns false when the buffer is full, or when the position is not
+   *          finite. A FULL buffer is a normal condition during a collapse,
+   *          not an error — the caller should stop emitting rather than grow
+   *          anything.
    */
   emit(p: ISpriteParams): boolean {
     const i = this.count;
     if (i >= this.capacity) {
+      this.droppedCount++;
+      return false;
+    }
+    // A NaN position — an attached trail whose target's matrix went bad — would
+    // survive the depth sort silently: `Math.floor(NaN)` clears both bounds
+    // checks, its bucket count is never recorded, and the placement loop then
+    // overruns the prefix sums and leaves one slot of `order` holding LAST
+    // frame's index. The result is a ghost instance gathered from retired
+    // particle data. It is rejected at the door instead.
+    if (!Number.isFinite(p.x + p.y + p.z)) {
       this.droppedCount++;
       return false;
     }
@@ -411,7 +428,10 @@ export class SpriteLayer {
       // Invert so bucket 0 holds the FARTHEST particles: painter's order.
       const normalized = (this.depth[i]! - minDepth) * scale;
       let bucket = Math.floor(buckets - 1 - normalized);
-      if (bucket < 0) bucket = 0;
+      // `!(bucket >= 0)` and not `bucket < 0`: the negated form also catches
+      // NaN, which would otherwise pass both bounds checks and drop its own
+      // count on the floor.
+      if (!(bucket >= 0)) bucket = 0;
       else if (bucket >= buckets) bucket = buckets - 1;
       this.bucketOf[i] = bucket;
       this.bucketCount[bucket] = this.bucketCount[bucket]! + 1;

@@ -24,22 +24,30 @@ const config: CapacitorConfig = {
   },
 
   android: {
-    // Hardware acceleration + WebGL2 are required by the renderer.
-    webContentsDebuggingEnabled: true,
+    // `webContentsDebuggingEnabled` is deliberately ABSENT, and setting it is a
+    // security bug rather than a rendering setting. It calls
+    // `WebView.setWebContentsDebuggingEnabled(true)` in RELEASE builds too, so
+    // anything that can reach the devtools socket on the device can read the
+    // save data in Preferences and execute JavaScript in the game context —
+    // including the `window.__GAME__` handle `src/main.ts` exposes. Capacitor
+    // already turns debugging on automatically for debug builds, which is the
+    // only place it is wanted. Nothing here affects hardware acceleration or
+    // WebGL2: both are Android WebView defaults, not Capacitor configuration.
+    //
+    // The two below restate WebView defaults so the intent is on the record.
+    // `allowMixedContent: false` refuses http subresources under the https
+    // scheme configured above. `captureInput: false` keeps the standard
+    // keyboard rather than Capacitor's simplified InputConnection.
     allowMixedContent: false,
     captureInput: false,
     // Keep the WebView background opaque black so there is no white flash
-    // before the first rendered frame.
+    // before the first rendered frame. This — plus the generated launch theme —
+    // is the whole boot-flash story. There is deliberately no
+    // `plugins.SplashScreen` block: `@capacitor/splash-screen` is not a
+    // dependency of this project, so `cap sync` would copy those keys into
+    // `android/app/src/main/assets/capacitor.config.json` where nothing reads
+    // them, and anyone tuning the flash would edit dead settings.
     backgroundColor: '#000000',
-  },
-
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 0,
-      backgroundColor: '#000000',
-      androidSplashResourceName: 'splash',
-      showSpinner: false,
-    },
   },
 };
 

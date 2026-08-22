@@ -183,6 +183,7 @@ interface HarnessReport {
   };
   poses: Pose[];
   errors: string[];
+  warnings: string[];
 }
 
 declare global {
@@ -454,7 +455,10 @@ function clearInput(): void {
 const canvas = document.getElementById('gl') as HTMLCanvasElement;
 const panel = document.getElementById('panel') as HTMLElement;
 const caption = document.getElementById('caption') as HTMLElement;
+/** Aborts. Anything in here fails the run. */
 const errors: string[] = [];
+/** Degradations the run survived — printed by the driver, not fatal. */
+const warnings: string[] = [];
 
 let renderer: THREE.WebGLRenderer;
 let scene: THREE.Scene;
@@ -554,7 +558,13 @@ async function buildCharacterVisual(): Promise<void> {
     footOffset = PLAYER_HEIGHT / 2 + minY;
     proceduralCharacter = true;
   } catch (error) {
-    errors.push(`character mesh unavailable, using a capsule proxy: ${String(error)}`);
+    // A WARNING, not an error. The fallback exists precisely so a camera
+    // harness is not lost to a mesh generator moving; filing it under `errors`
+    // would fail the run and discard the locomotion, coyote, buffer, clearance
+    // and determinism results over the visual proxy — which is the outcome the
+    // fallback was written to prevent. `proceduralCharacter: false` in the
+    // report already says the framing shot is of a capsule.
+    warnings.push(`character mesh unavailable, using a capsule proxy: ${String(error)}`);
     const geometry = new THREE.CapsuleGeometry(
       PLAYER_RADIUS,
       PLAYER_HEIGHT - PLAYER_RADIUS * 2,
@@ -1393,6 +1403,7 @@ async function main(): Promise<void> {
     },
     poses,
     errors,
+    warnings,
   };
 
   window.__PLAYER_HARNESS__ = report;
@@ -1413,7 +1424,7 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   errors.push(`harness crashed: ${String(error)}`);
-  window.__PLAYER_HARNESS__ = { errors } as unknown as HarnessReport;
+  window.__PLAYER_HARNESS__ = { errors, warnings } as unknown as HarnessReport;
   window.__PLAYER_READY__ = true;
   panel.innerHTML = `<h1>Player harness</h1><span class="bad">${String(error)}</span>`;
   console.error(error);

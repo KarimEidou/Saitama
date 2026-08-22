@@ -163,6 +163,43 @@ describe('validation', () => {
   it('passes a clean payload', () => {
     expect(validateSave(sampleSave())).toHaveLength(0);
   });
+
+  it('passes a payload built without the optional extras', async () => {
+    // `extras: undefined` is a PRESENT key: `Object.entries` visits it and the
+    // validator rejects it, so the builder used to emit payloads its own
+    // validator refused.
+    const payload = buildSave({
+      worldSeed: 0,
+      progression: sampleSave().progression,
+      playerPosition: ORIGIN,
+      playerYaw: 0,
+      timeOfDay: 0.5,
+      dayCount: 0,
+      questStates: {},
+      questProgress: {},
+    });
+    expect(Object.prototype.hasOwnProperty.call(payload, 'extras')).toBe(false);
+    expect(validateSave(payload)).toHaveLength(0);
+    await expect(
+      new SaveManager({ backend: new MemorySaveBackend() }).save(payload)
+    ).resolves.toBeUndefined();
+  });
+
+  it('copies the quest progress rather than aliasing the caller’s map', () => {
+    const questProgress = { 'quest.duty.quota': { 'quota.incidents': 1 } };
+    const payload = buildSave({
+      worldSeed: 0,
+      progression: sampleSave().progression,
+      playerPosition: ORIGIN,
+      playerYaw: 0,
+      timeOfDay: 0.5,
+      dayCount: 0,
+      questStates: {},
+      questProgress,
+    });
+    questProgress['quest.duty.quota']['quota.incidents'] = 99;
+    expect(payload.questProgress['quest.duty.quota']!['quota.incidents']).toBe(1);
+  });
 });
 
 describe('migration', () => {
@@ -180,6 +217,30 @@ describe('migration', () => {
     }
   });
 
+  it('refuses a payload that would crash the restore half-way through', () => {
+    // Each of these passed the old two-field check and then threw inside
+    // `applySaveGame`, leaving rank and rivals loaded and the quests untouched.
+    const complete = sampleSave();
+    const truncated = [
+      { version: 1, progression: complete.progression },
+      { ...complete, questStates: undefined },
+      { ...complete, questProgress: 'nope' },
+      { ...complete, playerPosition: undefined },
+      { ...complete, playerYaw: undefined },
+      { ...complete, worldSeed: 'zero' },
+      { ...complete, timeOfDay: Number.NaN },
+      { ...complete, dayCount: undefined },
+    ];
+    for (const payload of truncated) expect(migrate(payload)).toBeUndefined();
+  });
+
+  it('refuses a version that is not a whole number at or above 1', () => {
+    const complete = sampleSave();
+    for (const version of [Number.NaN, 0, -1, 1.5, Number.POSITIVE_INFINITY]) {
+      expect(migrate({ ...complete, version })).toBeUndefined();
+    }
+  });
+
   it('ignores a slot containing invalid JSON', async () => {
     const backend = new MemorySaveBackend();
     await backend.set('saitama.save.slot0', '{not json');
@@ -194,6 +255,22 @@ describe('backend selection', () => {
     delete (globalThis as { localStorage?: Storage }).localStorage;
     try {
       expect((await selectSaveBackend()).name).toBe('memory');
+    } finally {
+      if (original) (globalThis as { localStorage?: Storage }).localStorage = original;
+    }
+  });
+
+  it('resolves exactly one backend when two calls race', async () => {
+    // With no explicit backend and no localStorage, each resolution builds its
+    // own memory store: the writer's data would be unreachable from the reader.
+    const original = (globalThis as { localStorage?: Storage }).localStorage;
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    try {
+      const manager = new SaveManager();
+      const payload = sampleSave();
+      await Promise.all([manager.save(payload), manager.load()]);
+      expect(await manager.load()).toEqual(payload);
+      expect(manager.backendName).toBe('memory');
     } finally {
       if (original) (globalThis as { localStorage?: Storage }).localStorage = original;
     }

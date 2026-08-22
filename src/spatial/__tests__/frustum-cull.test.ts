@@ -79,6 +79,41 @@ describe('Frustum primitives', () => {
     expect(classifyCode(tooFar)).toBe(OUTSIDE);
   });
 
+  it('copies the derived vertex selectors along with the planes', () => {
+    // `copy` used to move the plane coefficients only, leaving the p-/n-vertex
+    // selectors and |n| describing whatever the target held before — on a fresh
+    // frustum, all zeros, which makes every packed test read the wrong corner
+    // and every node test treat a box as a point at its centre.
+    const source = new Frustum();
+    const matrix = new Float64Array(16);
+    poseMatrix(matrix, { x: 40, y: 6, z: -120, yaw: 2.1, pitch: -0.2 }, MOBILE_PORTRAIT_LENS);
+    source.setFromViewProjection(matrix);
+
+    const clone = new Frustum().copy(source);
+    expect(Array.from(clone.planes)).toEqual(Array.from(source.planes));
+    expect(Array.from(clone.planesAbs)).toEqual(Array.from(source.planesAbs));
+
+    // The predicates the hot paths actually call must agree exactly.
+    const packed = new Float32Array(6);
+    const centreExtent = new Float32Array(6);
+    for (const b of randomBoxes(500, 'frustum-copy')) {
+      packed.set([b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ]);
+      centreExtent.set([
+        (b.minX + b.maxX) * 0.5,
+        (b.minY + b.maxY) * 0.5,
+        (b.minZ + b.maxZ) * 0.5,
+        (b.maxX - b.minX) * 0.5,
+        (b.maxY - b.minY) * 0.5,
+        (b.maxZ - b.minZ) * 0.5,
+      ]);
+      expect(clone.testPacked(packed, 0)).toBe(source.testPacked(packed, 0));
+      expect(clone.classifyPacked(packed, 0)).toBe(source.classifyPacked(packed, 0));
+      expect(clone.classifyCentreExtent(centreExtent, 0)).toBe(
+        source.classifyCentreExtent(centreExtent, 0)
+      );
+    }
+  });
+
   it('agrees with containsPoint on the frustum interior', () => {
     const frustum = new Frustum();
     const matrix = new Float64Array(16);

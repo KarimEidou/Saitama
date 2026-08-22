@@ -120,6 +120,8 @@ export function estimateSceneMemory(root: THREE.Object3D): ISceneMemoryReport {
   const materials = new Set<THREE.Material>();
   let meshCount = 0;
   let instanceCount = 0;
+  /** `instanceMatrix`/`instanceColor` bytes: they live on the MESH, not the geometry. */
+  let instanceBufferBytes = 0;
 
   const collectMaterial = (material: THREE.Material): void => {
     if (materials.has(material)) return;
@@ -144,7 +146,14 @@ export function estimateSceneMemory(root: THREE.Object3D): ISceneMemoryReport {
     if (mesh.geometry) {
       geometries.add(mesh.geometry);
       meshCount++;
-      if (mesh.isInstancedMesh) instanceCount += mesh.count ?? 0;
+      if (mesh.isInstancedMesh) {
+        instanceCount += mesh.count ?? 0;
+        // 64 bytes per instance for the matrix — easily megabytes for a crowd —
+        // and it hangs off the mesh, so the geometry walk below never sees it.
+        const instanced = mesh as unknown as THREE.InstancedMesh;
+        instanceBufferBytes += instanced.instanceMatrix?.array.byteLength ?? 0;
+        instanceBufferBytes += instanced.instanceColor?.array.byteLength ?? 0;
+      }
     }
     const material = mesh.material;
     if (!material) return;
@@ -167,17 +176,26 @@ export function estimateSceneMemory(root: THREE.Object3D): ISceneMemoryReport {
   let textureBytes = 0;
   for (const texture of textures) textureBytes += estimateTextureBytes(texture);
 
-  let geometryBytes = 0;
+  let geometryBytes = instanceBufferBytes;
   let triangles = 0;
+  // three keys its GPU buffers on the `InterleavedBuffer` when there is one and
+  // on the attribute otherwise, so that is the identity to de-duplicate on:
+  // position/normal/uv views onto ONE interleaved buffer (the standard layout
+  // for glTF-loaded and packed props) are one upload, not three. Without this
+  // set such a geometry reported 3x its true vertex cost and the whole report
+  // stopped being usable for the budget decision it exists to support.
+  const buffers = new Set<object>();
   for (const geometry of geometries) {
     for (const name of Object.keys(geometry.attributes)) {
-      // Interleaved attributes share one buffer; `array` may be absent on the
-      // view, in which case the underlying `data.array` carries the bytes.
       const attribute = geometry.attributes[name] as unknown as {
         array?: ArrayBufferView;
         data?: { array?: ArrayBufferView };
       };
-      const array = attribute?.array ?? attribute?.data?.array;
+      if (!attribute) continue;
+      const buffer: object = attribute.data ?? attribute;
+      if (buffers.has(buffer)) continue;
+      buffers.add(buffer);
+      const array = attribute.array ?? attribute.data?.array;
       if (array) geometryBytes += array.byteLength;
     }
     if (geometry.index) {

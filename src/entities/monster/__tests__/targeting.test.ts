@@ -124,6 +124,27 @@ describe('a monster prefers a target it can actually hurt', () => {
     expect(['pursue', 'attack']).toContain(brain.state);
   });
 
+  it('does not acquire something it could never have noticed while idle', () => {
+    // `loseAggroMetres` is a RETENTION radius — "how far the target it already
+    // has may get before it is finally given up on". Applied to every candidate
+    // it silently became the ACQUISITION radius of any monster that had picked
+    // anything at all: 1.8x the stated aggro by default, so a howler fighting a
+    // civilian in front of it would drop them and walk 90 m to an ally it could
+    // never have seen from a standing start.
+    const { bus } = recordingBus();
+    const brain = makeBrain('mob.demon.howler', bus, { x: 0, y: 0, z: 0 }, 'howler#range');
+    const a = brain.archetype;
+    const far = (a.aggroRadius + a.loseAggroMetres) / 2;
+    expect(far).toBeGreaterThan(a.aggroRadius);
+    expect(far).toBeLessThan(a.loseAggroMetres);
+
+    const civilian = makeTarget('civ-1', 0, 20, { faction: 'civilian', priority: 1 });
+    const ally = makeTarget('hero-genos', 0, far, { faction: 'hero', priority: 6 });
+    tick(brain, world([civilian, ally]), 6);
+
+    expect(brain.currentTargetId).toBe('civ-1');
+  });
+
   it('leaves the ally for the civilian only when the civilian is much closer', () => {
     const { bus } = recordingBus();
     const near = makeBrain('mob.demon.carapace', bus, { x: 0, y: 0, z: 0 }, 'carapace#near');

@@ -24,7 +24,7 @@ import { createLogger } from '@/util';
 import { squareToCircle } from './axis';
 import type { IInputBackend, InputContribution } from './backend';
 import type { IInputTuning } from './config';
-import { ChargeTracker, LookSmoother } from './look';
+import { ChargeTracker, LookSmoother, scaleLookRate } from './look';
 
 const log = createLogger('input.keyboard');
 
@@ -162,6 +162,7 @@ export function createKeyboardSource(
   }
 
   function onMouseMove(event: Event): void {
+    if (!enabled) return;
     if (!options.mouseLook) return;
     if (typeof document !== 'undefined' && document.pointerLockElement === null) return;
     const e = event as MouseEvent;
@@ -231,6 +232,11 @@ export function createKeyboardSource(
           lookKeyY += vector[1];
         }
       }
+      // Whether the MOUSE moved this frame, captured before `update()` eats the
+      // accumulator: a decaying smoother still has a look rate to report, but
+      // it is not the player driving, so it must not claim the frame's device.
+      // Same rule the touch backend applies to a finger that has lifted.
+      const mouseMoved = mouseDx !== 0 || mouseDy !== 0;
       const rate = look.update(mouseDx, mouseDy, dt, activeTuning);
       mouseDx = 0;
       mouseDy = 0;
@@ -240,11 +246,14 @@ export function createKeyboardSource(
           Math.max(-1, Math.min(1, lookKeyX)) * KEY_LOOK_RATE,
           Math.max(-1, Math.min(1, lookKeyY)) * KEY_LOOK_RATE
         );
-        out.setLook(mapped.x, mapped.y);
+        // Look keys are a normalised rate, so `invertLookY`/`lookSensitivity`
+        // are applied here — the smoother above applies them to mouse pixels.
+        const scaled = scaleLookRate(mapped.x, mapped.y, activeTuning);
+        out.setLook(scaled.x, scaled.y);
         out.active = true;
-      } else if (!look.settled) {
+      } else if (mouseMoved || !look.settled) {
         out.setLook(rate.x, rate.y);
-        out.active = true;
+        if (mouseMoved) out.active = true;
       }
 
       /* ---- buttons ---- */
@@ -283,6 +292,9 @@ export function createKeyboardSource(
     keyUp,
 
     mouseMove(dxPx: number, dyPx: number): void {
+      // Guarded like every other ingestion path: a disabled backend that keeps
+      // accumulating flushes the whole disabled period into its first frame back.
+      if (!enabled) return;
       mouseDx += dxPx;
       mouseDy += dyPx;
     },

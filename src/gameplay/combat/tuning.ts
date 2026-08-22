@@ -278,8 +278,18 @@ export interface ICombatTuning {
   /* ---- bosses ---- */
   /**
    * Damage a lethal hit applies to a boss whose scripted phase has not
-   * resolved. The boss visibly loses, but health is floored at 1 — the gate is
-   * NARRATIVE, never HP, so no amount of punching can skip the encounter.
+   * resolved. Health is floored at 1 — the gate is NARRATIVE, never HP, so no
+   * amount of punching can skip the encounter.
+   *
+   * ── WHY IT SHIPS AS 0, AND WHY THE HIT IS STILL REPORTED ────────────────
+   * A chip that actually moved the bar would drain a gated boss to 1 HP and
+   * leave it standing there, which reads as a broken enemy rather than as a
+   * story beat. So the bar does not move — but the CONTACT still has to be
+   * announced: the resolver emits `EntityDamaged{amount: 0}` for every gated
+   * hit, and `MonsterSystem.onEntityDamaged` counts those contacts to drive
+   * the boss's own phase script ("a hit is a hit even when it dealt
+   * nothing"). Suppressing the zero-amount event would soft-lock the fight.
+   * Raise this only alongside that consumer.
    */
   readonly bossPhaseChipDamage: number;
 

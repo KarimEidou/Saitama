@@ -14,7 +14,8 @@ import { basisTranscoderPlugin } from './scripts/stage-basis-transcoder.ts';
  *  - Binary game assets (.glb/.ktx2/.hdr/.bin/...) are registered via
  *    `assetsInclude` so Vite emits them as files rather than trying to parse them.
  *  - `three` is split into its own chunk so the engine payload can be cached
- *    independently of game code.
+ *    independently of game code. It is the ONLY `manualChunks` entry, on
+ *    purpose — see the comment on that function before adding another.
  *  - `basisTranscoderPlugin()` must stay registered. It is the ONLY thing that
  *    puts the Basis transcoder where the runtime looks for it; drop it and the
  *    build still succeeds and still boots, just with every texture unparseable.
@@ -65,9 +66,18 @@ export default defineConfig({
     reportCompressedSize: false,
     rollupOptions: {
       output: {
+        // `three` and nothing else. There is deliberately NO `node_modules`
+        // catch-all: naming a chunk overrides Rollup's automatic splitting, so a
+        // `vendor` bucket merges lazily-imported packages with statically
+        // reachable ones and the whole bucket becomes a static dependency of the
+        // entry. That silently defeated every `await import()` in the tree —
+        // `@dimforge/rapier3d-compat` (2.8 MB of base64-inlined wasm,
+        // src/physics/rapier-init.ts) and the Capacitor plugins
+        // (src/gameplay/progression/save-game.ts, src/ui/input/haptics.ts) were
+        // all being fetched and evaluated before the first frame. Anything not
+        // named here is left to Rollup, which honours dynamic imports.
         manualChunks(id: string): string | undefined {
           if (id.includes('node_modules/three')) return 'three';
-          if (id.includes('node_modules')) return 'vendor';
           return undefined;
         },
         // Stable, predictable asset layout for the Capacitor packager.

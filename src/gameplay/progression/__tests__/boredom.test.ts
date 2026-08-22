@@ -5,6 +5,7 @@ import { BoredomModel } from '../boredom';
 import {
   BOREDOM_FUN_FIGHT_LOCK,
   BOREDOM_ON_MISSED_SALE,
+  BOREDOM_ON_QUEST_FAILED,
   BOREDOM_RANK_FLOOR,
   HEROISM_BOREDOM_RELIEF,
 } from '../constants';
@@ -200,6 +201,43 @@ describe('boredom locks the fun fights', () => {
 });
 
 describe('boredom and the shopping', () => {
+  it('relieves the completed bargain sale exactly once, not once per channel', () => {
+    const harness = makeHarness();
+    harness.bus.emit('BoredomChanged', { value: 0.5, previous: 0, reason: 'trivialVictory' });
+    let changes = 0;
+    harness.bus.on('BoredomChanged', () => changes++);
+
+    // `errand: true` and an authored `boredomOnComplete` both say what
+    // finishing it feels like. Applying both paid the relief twice.
+    const bargain = QUEST_DEFS.find((d) => d.id === 'quest.errand.bargain')!;
+    expect(bargain.rules?.errand).toBe(true);
+    expect(bargain.rules?.boredomOnComplete).toBe(-0.08);
+
+    expect(harness.coordinator.quests.accept('quest.errand.bargain')).toBe(true);
+    harness.coordinator.quests.setPlayerPosition(at(40, 0, 210));
+    harness.coordinator.quests.reportProgress('talk', 'npc.shopkeeper', 4);
+    harness.tick(0.1);
+
+    expect(harness.coordinator.quests.quests.get('quest.errand.bargain')!.state).toBe('completed');
+    expect(harness.coordinator.boredom.boredom).toBeCloseTo(0.42, 9);
+    expect(changes).toBe(1);
+    harness.dispose();
+  });
+
+  it('charges the AUTHORED failure cost, not one picked from the quest id', () => {
+    const harness = makeHarness();
+    expect(harness.coordinator.quests.accept('quest.rescue.tunnel')).toBe(true);
+    const authored = QUEST_DEFS.find((d) => d.id === 'quest.rescue.tunnel')!.rules!
+      .boredomOnFailure!;
+
+    // Let the 150 s evacuation timer run out.
+    harness.tick(160, 160);
+    expect(harness.coordinator.quests.quests.get('quest.rescue.tunnel')!.state).toBe('failed');
+    expect(authored).not.toBe(BOREDOM_ON_QUEST_FAILED);
+    expect(harness.coordinator.boredom.boredom).toBeCloseTo(authored, 9);
+    harness.dispose();
+  });
+
   it('costs MORE to miss the bargain sale than to fail a subjugation', () => {
     const missed = makeHarness();
     missed.bus.emit('QuestStateChanged', {

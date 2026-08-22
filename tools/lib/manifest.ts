@@ -41,6 +41,7 @@ import type {
   IModelAsset,
   ITextureAsset,
   QualityTier,
+  TextureCodec,
   TextureRole,
 } from '@/types';
 import { MANIFEST_DIR } from './paths.ts';
@@ -62,6 +63,17 @@ import type {
 export const MANIFEST_FILES = ['textures.json', 'models.json', 'hdris.json'] as const;
 
 export const QUALITY_TIERS: readonly QualityTier[] = ['mobile', 'high', 'ultra'];
+
+/** Codecs the KTX2 encoder understands. A typo here otherwise only surfaces
+ *  1.7 GB into a cold fetch, inside `assets:process`. */
+const VALID_CODECS: readonly TextureCodec[] = ['etc1s', 'uastc', 'astc', 'bc7', 'none'];
+
+/** Delivery format each kind must declare. */
+const VALID_TARGET_FORMATS: Readonly<Record<string, readonly string[]>> = {
+  material: ['json'],
+  model: ['glb'],
+  hdri: ['hdr', 'exr', 'ktx2'],
+};
 
 const VALID_ROLES: readonly TextureRole[] = [
   'albedo',
@@ -171,6 +183,31 @@ function validateTiers(
     if (typeof target.quality !== 'number' || target.quality < 0 || target.quality > 100) {
       problems.push(`${where}.${tier}: quality must be 0..100, got ${target.quality}`);
     }
+    // `codec` flows straight into `ICompressionProfile.codec` and from there
+    // into the KTX2 encoder, so an unchecked typo costs a whole cold fetch
+    // before it surfaces — exactly what this pass exists to prevent.
+    if (!VALID_CODECS.includes(target.codec)) {
+      problems.push(
+        `${where}.${tier}: codec must be one of ${VALID_CODECS.join(' | ')}, ` +
+          `got ${JSON.stringify(target.codec)}`
+      );
+    }
+    if (
+      target.zstdLevel !== undefined &&
+      (!Number.isInteger(target.zstdLevel) || target.zstdLevel < 1 || target.zstdLevel > 22)
+    ) {
+      problems.push(
+        `${where}.${tier}: zstdLevel must be an integer 1..22, got ${target.zstdLevel}`
+      );
+    }
+    for (const [field, bits] of [
+      ['positionBits', target.positionBits],
+      ['normalBits', target.normalBits],
+    ] as const) {
+      if (bits !== undefined && (!Number.isInteger(bits) || bits < 1 || bits > 16)) {
+        problems.push(`${where}.${tier}: ${field} must be an integer 1..16, got ${bits}`);
+      }
+    }
     if (
       target.simplifyRatio !== undefined &&
       (target.simplifyRatio <= 0 || target.simplifyRatio > 1)
@@ -195,7 +232,20 @@ function validateEntry(entry: AnySourceEntry, expectedKind: string, problems: st
   }
   if (!entry.name) problems.push(`${where}: name is required (it appears in the credits screen)`);
   if (!entry.providerAssetId) problems.push(`${where}: providerAssetId is required`);
-  if (!entry.targetFormat) problems.push(`${where}: targetFormat is required`);
+  if (!entry.targetFormat) {
+    problems.push(`${where}: targetFormat is required`);
+  } else {
+    // Truthy is not enough: `targetFormat` is what the processing stage
+    // dispatches on, so a material declaring 'glb' is a build failure two
+    // stages and 1.7 GB later.
+    const allowed = VALID_TARGET_FORMATS[expectedKind];
+    if (allowed && !allowed.includes(entry.targetFormat)) {
+      problems.push(
+        `${where}: targetFormat '${entry.targetFormat}' is not valid for a ${expectedKind} ` +
+          `entry (expected ${allowed.join(' | ')})`
+      );
+    }
+  }
 
   const attribution = entry.attribution;
   if (!attribution) {
@@ -321,8 +371,23 @@ export async function loadSourceManifests(dir: string = MANIFEST_DIR): Promise<I
   const byFile: Record<string, ISourceManifest> = {};
   const entries: AnySourceEntry[] = [];
   const seenIds = new Map<string, string>();
+  const seenPaths = new Map<string, string>();
   let totalBytes = 0;
   let totalFiles = 0;
+
+  // Every one of them is required. A missing `models.json` — a merge gone
+  // wrong, a sparse checkout — used to load silently as "45 of 84 entries",
+  // and since a full run of 45-of-45 is not a partial run, the next write
+  // REPLACED the committed lockfile with a 45-entry one and dropped ~200
+  // sha256 anchors while reporting success.
+  for (const name of MANIFEST_FILES) {
+    if (!present.has(name)) {
+      problems.push(
+        `${path.join(dir, name)}: required manifest is missing — refusing to fetch against a ` +
+          `partial manifest set (it would silently rewrite the lockfile without these entries)`
+      );
+    }
+  }
 
   for (const name of names) {
     const full = path.join(dir, name);
@@ -353,6 +418,17 @@ export async function loadSourceManifests(dir: string = MANIFEST_DIR): Promise<I
       }
       entries.push(entry);
       for (const file of entry.files ?? []) {
+        // Cross-entry, not just within one entry: two entries materialising to
+        // the same path under `assets/source/` fight over one file — the
+        // second `materialize()` unlinks what the first just linked, and the
+        // lockfile keeps whichever row was written last.
+        const owner = seenPaths.get(file.path);
+        if (owner === undefined) {
+          seenPaths.set(file.path, entry.id);
+        } else if (owner !== entry.id) {
+          // Within one entry this is already reported by `validateEntry`.
+          problems.push(`${entry.id}: file path ${file.path} is already claimed by ${owner}`);
+        }
         totalBytes += file.bytes ?? 0;
         totalFiles += 1;
       }
@@ -473,7 +549,12 @@ export function buildAssetManifest(
 
     if (source.kind === 'material') {
       const material = source as IMaterialSourceEntry;
-      const textureKeys: Partial<Record<TextureRole, string>> = {};
+      // Seeded from what the entry DECLARES, then extended by what it actually
+      // ships. Rebuilding this purely from `files` silently dropped the keys a
+      // procedural material declares — validation explicitly permits a
+      // fileless entry to name its maps — so the compiled material bound no
+      // map at all and nothing anywhere reported it.
+      const textureKeys: Partial<Record<TextureRole, string>> = { ...material.textureKeys };
 
       for (const file of material.files) {
         if (!file.role) continue;
@@ -560,4 +641,67 @@ export function buildAssetManifest(
     entries,
     generatedRoot: options.generatedRoot ?? 'assets/generated',
   };
+}
+
+/**
+ * Read a previously written `IAssetManifest`, or undefined when there is not
+ * one yet.
+ *
+ * Only "no file" is undefined; a file that exists but cannot be understood
+ * throws, because the caller's response to `undefined` is to write a manifest
+ * that carries nothing forward.
+ */
+export async function readAssetManifest(filePath: string): Promise<IAssetManifest | undefined> {
+  let raw: string;
+  try {
+    raw = await readFile(filePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw new Error(`${filePath}: cannot be read — ${(error as Error).message}`, { cause: error });
+  }
+  let parsed: IAssetManifest;
+  try {
+    parsed = JSON.parse(raw) as IAssetManifest;
+  } catch (error) {
+    throw new Error(`${filePath}: is not valid JSON (${(error as Error).message}); delete it`, {
+      cause: error,
+    });
+  }
+  if (parsed?.version !== 1 || !Array.isArray(parsed.entries)) {
+    throw new Error(`${filePath}: unsupported shape; delete it and run a full fetch`);
+  }
+  return parsed;
+}
+
+/**
+ * Carry a previous `IAssetManifest` forward across a SUBSET run.
+ *
+ * The lockfile is already protected this way and this file needs exactly the
+ * same protection for exactly the same reason: `assets:fetch --only asphalt`
+ * compiles only the entries it fetched, and `manifest.resolved.json` is the
+ * single input `assets:process` reads. Writing the subset over it drops the
+ * other 197 entries out of the build with nothing to warn anyone.
+ *
+ * Entries this run rebuilt win; everything else is carried forward.
+ */
+export function mergeAssetManifests(
+  previous: IAssetManifest | undefined,
+  next: IAssetManifest
+): IAssetManifest {
+  if (!previous) return next;
+
+  const rebuilt = new Set(next.entries.map((entry) => entry.id));
+  // A material OWNS its derived `<materialId>.<role>` texture rows, so a
+  // rebuilt material replaces them wholesale — carrying forward the row for a
+  // map it no longer declares would leave a texture nothing binds.
+  const rebuiltMaterials = next.entries
+    .filter((entry) => entry.kind === 'material')
+    .map((entry) => `${entry.id}.`);
+  const carried = previous.entries.filter(
+    (entry) =>
+      !rebuilt.has(entry.id) &&
+      !(entry.kind === 'texture' && rebuiltMaterials.some((prefix) => entry.id.startsWith(prefix)))
+  );
+
+  return { ...next, entries: [...carried, ...next.entries] };
 }

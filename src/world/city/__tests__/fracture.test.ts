@@ -20,6 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateBuilding } from '../building';
+import { mergeBlocks } from '../block';
 import {
   QUADRANTS,
   collapsingFloors,
@@ -140,6 +141,35 @@ describe('fracture chunk layout', () => {
       }
     }
     expect(checked).toBeGreaterThan(5);
+  }, 60_000);
+
+  it('holds after blocks merge into a cross-block batch', () => {
+    // The second rebase is the one that goes wrong: after `generateBlock`, a
+    // layout's ranges point into the BLOCK buffer, so `mergeBlocks` has to
+    // subtract the block's own slot base. Subtracting the building's offset
+    // inside the block instead lands every building after the first on the
+    // first building's triangles — the debris path then copies the wrong wall
+    // and rebases it into negative indices.
+    const generator = makeGenerator('box');
+    const blocks = generator
+      .generateRegion(0, 0, 1, { includeGround: false })
+      .flatMap((chunk) => chunk.blocks)
+      .filter((block) => block.geometry.buffers.vertexCount > 0);
+    const batches = mergeBlocks(blocks).filter((batch) => batch.blockIds.length > 1);
+    expect(batches.length, 'no multi-block batch to check').toBeGreaterThan(0);
+
+    for (const batch of batches) {
+      const report = verifyPartition(
+        combineLayouts(batch.fractures),
+        batch.geometry.buffers.indexCount,
+        batch.geometry.buffers.vertexCount
+      );
+      expect(
+        report.ok,
+        `${batch.blockIds.join('+')}: dup=${report.duplicated} orphan=${report.orphaned} ` +
+          `dupV=${report.duplicatedVertices} orphanV=${report.orphanedVertices}`
+      ).toBe(true);
+    }
   }, 60_000);
 
   it('keeps every chunk vertex range inside its own triangles', () => {

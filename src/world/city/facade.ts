@@ -54,8 +54,14 @@ export type FacadeDetail = 'full' | 'reduced';
 /** A model that should be instanced onto the facade at this point. */
 export interface IFacadeAttachment {
   readonly assetKey: string;
-  /** World-space position, filled in by the building generator. */
+  /**
+   * Position in the building's LOCAL space, relative to the footprint
+   * centroid. `block.ts` transforms it to world space when it places the
+   * building; pushing this straight into a world placement puts every fire
+   * escape in the city within a few metres of the origin.
+   */
   readonly position: readonly [number, number, number];
+  /** Yaw in the building's LOCAL frame, transformed by the caller. */
   readonly rotationY: number;
   readonly scale: number;
 }
@@ -116,7 +122,12 @@ function pt(c: IPanelContext, u: number, v: number, d: number): [number, number,
   ];
 }
 
-/** UV pair for a wall-plane point, in the facade material's tile units. */
+/**
+ * UV rectangle for a wall-plane quad, in the facade material's tile units.
+ *
+ * Corners are given in the order `MeshBuilder.quad` consumes them — `(u0, v0)`
+ * is the FIRST corner's wall distance, which for a `wallQuad` is the far edge.
+ */
 function wallUv(
   c: IPanelContext,
   u0: number,
@@ -142,6 +153,12 @@ function wallUv(
  * wrong does not produce an obvious error, it produces a city you can see
  * straight through from outside, so it is centralised here and in
  * `boxAlongWall` rather than repeated at each call site.
+ *
+ * UVs FOLLOW THE WINDING. `MeshBuilder.quad` maps corner `a` to `(u0, v0)`,
+ * and `a` is the corner at wall distance `u1` — so the U pair is handed over
+ * REVERSED. Passing it in u0..u1 order mirrors the texture about the quad's
+ * midpoint, which breaks `uStart`'s promise of a running coordinate: the brick
+ * bond then jumps at every panel seam and at every sill inside a panel.
  */
 function wallQuad(
   c: IPanelContext,
@@ -161,7 +178,7 @@ function wallQuad(
     pt(c, u0, v0, d),
     pt(c, u0, v1, d),
     pt(c, u1, v1, d),
-    wallUv(c, u0, v0, u1, v1, scale),
+    wallUv(c, u1, v0, u0, v1, scale),
     shadeTint(tint, shade)
   );
 }
@@ -373,7 +390,11 @@ export function emitShopfront(c: IPanelContext): void {
   const riser = 0.34;
   const signTop = c.height - 0.18;
   const signBottom = c.height - 0.95;
-  const glassTop = signBottom - 0.08;
+  // The glazing reaches the fascia exactly. An 8 cm transom band here left the
+  // wall plane unfilled the full width of the bay — a slot you see the skybox
+  // through, since every interior face is backfacing — and the sign body sits
+  // proud of the wall anyway, so the band bought nothing.
+  const glassTop = signBottom;
   const inset = c.detail === 'full' ? 0.3 : 0.05;
   const margin = 0.16;
 
@@ -426,14 +447,17 @@ export function emitShopfront(c: IPanelContext): void {
     signTint
   );
   if (c.detail === 'full') emitFasciaLettering(c, signBottom, signTop, signTint);
-  // Sign body, so it has thickness rather than floating on the wall.
+  // Sign body, so it has thickness rather than floating on the wall. It runs
+  // edge to edge: the wall plane behind the fascia carries no quad of its own,
+  // so a body inset from the bay leaves a 5 cm slot straight through the wall
+  // at each end, and neighbouring bays line theirs up into a 10 cm gap.
   boxAlongWall(
     c,
     MatSlot.Facade,
     c.width * 0.5,
     (signBottom + signTop) * 0.5,
     0.03,
-    c.width * 0.5 - 0.05,
+    c.width * 0.5,
     (signTop - signBottom) * 0.5,
     0.03,
     shadeTint(c.tint, c.shade * 0.7)
@@ -878,6 +902,9 @@ export function emitDoor(c: IPanelContext): void {
 /** Window plus a projecting slab and solid parapet — the danchi balcony. */
 export function emitBalcony(c: IPanelContext): void {
   emitWindow(c);
+  // A balcony parapet immediately under the roof parapet reads as a doubled
+  // coping and is what `isTop` exists to prevent; the bay stays a window.
+  if (c.isTop) return;
   if (c.detail !== 'full') return;
 
   const depth = c.rng.range(0.95, 1.35);

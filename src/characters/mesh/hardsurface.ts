@@ -59,7 +59,14 @@ export function surfaceFrameAt(strand: Strand, v: number, t: number): SurfaceFra
 
   const axisA = strand.frameHint.clone();
   axisA.addScaledVector(axis, -axisA.dot(axis));
-  if (axisA.lengthSq() < 1e-10) axisA.set(axis.y, axis.z, axis.x);
+  if (axisA.lengthSq() < 1e-10) {
+    // Pick the world axis least aligned with the sweep and RE-PROJECT it: a
+    // cyclic permutation of the axis is not perpendicular to it, which would
+    // leave `axisB = axis x axisA` short and skew the whole panel frame.
+    if (Math.abs(axis.y) < 0.9) axisA.set(0, 1, 0);
+    else axisA.set(1, 0, 0);
+    axisA.addScaledVector(axis, -axisA.dot(axis));
+  }
   axisA.normalize();
   const axisB = new THREE.Vector3().crossVectors(axis, axisA);
 
@@ -105,6 +112,11 @@ export interface PanelSpec {
  * Built as a two-ring loft with a very high superellipse exponent, which is a
  * box with rounded micro-corners — it catches a specular edge highlight that a
  * true box misses, for the same triangle count.
+ *
+ * The four ring samples are offset by HALF a segment so they land on the box's
+ * corners. On the axis extremes (the default) every superellipse touches its
+ * bounding box, so the plate would be a rhombus of ~54% of the requested area
+ * and `exponent` would have no effect at all.
  */
 export function buildPanel(ctx: BodyContext, spec: PanelSpec): Strand {
   const frame = surfaceFrameAt(spec.source, spec.v, spec.t);
@@ -135,6 +147,7 @@ export function buildPanel(ctx: BodyContext, spec: PanelSpec): Strand {
 
   return makeStrand(spec.name, rings, {
     radialSegments: 4,
+    radialOffset: 0.5,
     uvRect: UV_REGIONS.panel,
     slot: spec.slot ?? MeshSlot.Metal,
     color: spec.color,

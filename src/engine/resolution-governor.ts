@@ -201,11 +201,19 @@ export class ResolutionGovernor {
 
     if (this.filled < this.sampleCount) return false;
 
-    const now = this.now();
-    if (now - this.lastChangeMs < this.hysteresisMs) return false;
-
+    // Measure as soon as the window is full, and gate only the DECISION on the
+    // dwell timer. `medianFrameMs` is what the debug HUD and the verification
+    // harness read to judge frame cost: computing it behind the hysteresis check
+    // made it report 0 for the first second after every resize — including the
+    // orientation change a mobile session starts with — and then freeze at a
+    // stale value for the whole dwell window after each scale change. A harness
+    // sampling diagnostics there concluded the budget was met with infinite
+    // headroom. The insertion sort over 30 entries costs microseconds.
     const median = this.computeMedian();
     this.lastMedianMs = median;
+
+    const now = this.now();
+    if (now - this.lastChangeMs < this.hysteresisMs) return false;
     if (!this.enabledFlag) return false;
 
     let next = this.currentScale;

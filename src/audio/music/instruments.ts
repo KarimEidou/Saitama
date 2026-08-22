@@ -25,7 +25,7 @@
  * and, at these note densities, indistinguishable.
  */
 
-import { asr, midiToFreq, percussive, resetParam, sweep } from '../dsp';
+import { asr, fadeOut, midiToFreq, percussive, resetParam, sweep, sweep3 } from '../dsp';
 import { createNoiseSource } from '../noise';
 
 /** Every instrument in the palette. */
@@ -45,7 +45,20 @@ export interface IInstrument {
    * @returns the time the note falls silent.
    */
   noteOn(time: number, midi: number, velocity: number, seconds: number): number;
-  /** Stop everything sounding, e.g. when a layer drops out. */
+  /**
+   * Stop everything sounding, e.g. when a layer drops out.
+   *
+   * `time` is usually in the FUTURE — the director applies arrangement changes
+   * on the next bar line, up to a lookahead away — so implementations must not
+   * anchor the fade on `param.value`, which is the value at `ctx.currentTime`.
+   * Reading the wrong instant makes a part that was meant to disappear jump
+   * back up to a stale level at the exact moment it should vanish. Use
+   * `fadeOut`/`holdAt` from `dsp`, which hold the value the envelope really has
+   * at `time`.
+   *
+   * Every implementation honours `fadeSeconds`; the percussive ones simply
+   * default to a very short one.
+   */
   allNotesOff(time: number, fadeSeconds?: number): void;
   dispose(): void;
 }
@@ -141,9 +154,7 @@ export class DroneInstrument implements IInstrument {
   }
 
   allNotesOff(time: number, fadeSeconds = 2): void {
-    this.amp.gain.cancelScheduledValues(time);
-    this.amp.gain.setValueAtTime(this.amp.gain.value, time);
-    this.amp.gain.linearRampToValueAtTime(0, time + fadeSeconds);
+    fadeOut(this.amp.gain, time, fadeSeconds);
   }
 
   dispose(): void {
@@ -222,7 +233,20 @@ export class PadInstrument implements IInstrument {
     const hz = midiToFreq(midi);
     for (const osc of unit.oscs) resetParam(osc.frequency, time, hz);
     // The filter opens with the note and closes as it fades: the pad breathes.
-    sweep(unit.lp.frequency, time, hz * 3, hz * 8, seconds * 0.5, 20000);
+    // `sweep` is strictly two-point, so it could only ever do the opening half
+    // and then HOLD — the pad got brighter as it decayed, the opposite of both
+    // this comment and of what an acoustic pad does. `sweep3` is the helper
+    // that rises and then falls.
+    sweep3(
+      unit.lp.frequency,
+      time,
+      hz * 3,
+      hz * 8,
+      hz * 2.5,
+      seconds * 0.25,
+      seconds * 0.75,
+      20000
+    );
     unit.freeAt = asr(
       unit.amp.gain,
       time,
@@ -236,9 +260,7 @@ export class PadInstrument implements IInstrument {
 
   allNotesOff(time: number, fadeSeconds = 0.8): void {
     for (const u of this.units) {
-      u.amp.gain.cancelScheduledValues(time);
-      u.amp.gain.setValueAtTime(u.amp.gain.value, time);
-      u.amp.gain.linearRampToValueAtTime(0, time + fadeSeconds);
+      fadeOut(u.amp.gain, time, fadeSeconds);
       u.freeAt = time + fadeSeconds;
     }
   }
@@ -319,9 +341,7 @@ export class PluckInstrument implements IInstrument {
 
   allNotesOff(time: number, fadeSeconds = 0.15): void {
     for (const u of this.units) {
-      u.amp.gain.cancelScheduledValues(time);
-      u.amp.gain.setValueAtTime(u.amp.gain.value, time);
-      u.amp.gain.linearRampToValueAtTime(0, time + fadeSeconds);
+      fadeOut(u.amp.gain, time, fadeSeconds);
       u.freeAt = time + fadeSeconds;
     }
   }
@@ -405,9 +425,7 @@ export class BassInstrument implements IInstrument {
 
   allNotesOff(time: number, fadeSeconds = 0.1): void {
     for (const u of this.units) {
-      u.amp.gain.cancelScheduledValues(time);
-      u.amp.gain.setValueAtTime(u.amp.gain.value, time);
-      u.amp.gain.linearRampToValueAtTime(0, time + fadeSeconds);
+      fadeOut(u.amp.gain, time, fadeSeconds);
       u.freeAt = time + fadeSeconds;
     }
   }
@@ -540,13 +558,11 @@ export class DrumInstrument implements IInstrument {
   }
 
   allNotesOff(time: number, fadeSeconds = 0.05): void {
-    for (const amp of this.amps) {
-      amp.gain.cancelScheduledValues(time);
-      amp.gain.setValueAtTime(amp.gain.value, time);
-      amp.gain.linearRampToValueAtTime(0, time + fadeSeconds);
-    }
-    this.noiseGain.gain.cancelScheduledValues(time);
-    this.noiseGain.gain.setValueAtTime(0, time);
+    for (const amp of this.amps) fadeOut(amp.gain, time, fadeSeconds);
+    // The noise transient used to be cut to zero on the spot regardless of the
+    // fade the caller asked for, so `music.stop(now, 1.5)` took the whole rhythm
+    // section out instantly while the harmonic layer rang on for another 1.5 s.
+    fadeOut(this.noiseGain.gain, time, Math.min(fadeSeconds, 0.03));
   }
 
   dispose(): void {
@@ -582,15 +598,19 @@ export class HatInstrument implements IInstrument {
   }
 
   noteOn(time: number, midi: number, velocity: number, seconds: number): number {
-    // MIDI selects openness: higher note, longer hat.
-    const decay = Math.min(0.02 + (midi - 60) * 0.01, seconds);
+    // Openness comes from the GATE, which is what the pattern language actually
+    // controls. It used to come from `midi` — but every hat part in the tables
+    // plays the layer root (MIDI 45 for `alert`, 33 for `combat`/`boss`), and
+    // `0.02 + (midi - 60) * 0.01` is negative for all of them, so the decay was
+    // pinned to the 12 ms floor in all three layers, `seconds` was inert, and no
+    // pattern could author an open hat at all. `midi` is deliberately unused.
+    const decay = Math.min(seconds * 0.12, 0.25);
     resetParam(this.hp.frequency, time, 6000 + velocity * 3000);
     return percussive(this.amp.gain, time, 0.1 * velocity, 0.0004, Math.max(decay, 0.012));
   }
 
-  allNotesOff(time: number): void {
-    this.amp.gain.cancelScheduledValues(time);
-    this.amp.gain.setValueAtTime(0, time);
+  allNotesOff(time: number, fadeSeconds = 0.02): void {
+    fadeOut(this.amp.gain, time, fadeSeconds);
   }
 
   dispose(): void {
@@ -650,11 +670,9 @@ export class SnareInstrument implements IInstrument {
     return Math.max(bodyEnd, noiseEnd);
   }
 
-  allNotesOff(time: number): void {
-    this.noiseAmp.gain.cancelScheduledValues(time);
-    this.noiseAmp.gain.setValueAtTime(0, time);
-    this.bodyAmp.gain.cancelScheduledValues(time);
-    this.bodyAmp.gain.setValueAtTime(0, time);
+  allNotesOff(time: number, fadeSeconds = 0.02): void {
+    fadeOut(this.noiseAmp.gain, time, fadeSeconds);
+    fadeOut(this.bodyAmp.gain, time, fadeSeconds);
   }
 
   dispose(): void {
@@ -726,9 +744,7 @@ export class StabInstrument implements IInstrument {
 
   allNotesOff(time: number, fadeSeconds = 0.08): void {
     for (const u of this.units) {
-      u.amp.gain.cancelScheduledValues(time);
-      u.amp.gain.setValueAtTime(u.amp.gain.value, time);
-      u.amp.gain.linearRampToValueAtTime(0, time + fadeSeconds);
+      fadeOut(u.amp.gain, time, fadeSeconds);
       u.freeAt = time + fadeSeconds;
     }
   }
@@ -789,9 +805,7 @@ export class LeadInstrument implements IInstrument {
   }
 
   allNotesOff(time: number, fadeSeconds = 0.1): void {
-    this.amp.gain.cancelScheduledValues(time);
-    this.amp.gain.setValueAtTime(this.amp.gain.value, time);
-    this.amp.gain.linearRampToValueAtTime(0, time + fadeSeconds);
+    fadeOut(this.amp.gain, time, fadeSeconds);
   }
 
   dispose(): void {

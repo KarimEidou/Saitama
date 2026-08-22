@@ -44,6 +44,17 @@ let globalLevel: LogLevel = import.meta.env?.PROD ? 'warn' : 'debug';
 /** Namespaces explicitly silenced. */
 const mutedNamespaces = new Set<string>();
 
+/**
+ * Upper bound on the rate-limiting memory below.
+ *
+ * Both collections are keyed by a caller-supplied string, and the natural next
+ * use is a per-entity or per-chunk key. Over a multi-hour session that would
+ * grow without bound in the one module whose job is to stop diagnostics from
+ * becoming the problem, so the memory is dropped wholesale when it gets large.
+ * Warnings may then repeat once — the alternative is a permanent leak.
+ */
+const MAX_RATE_LIMIT_KEYS = 1024;
+
 /** Keys already emitted via `warnOnce`. */
 const onceKeys = new Set<string>();
 
@@ -116,17 +127,27 @@ class Logger implements ILogger {
   }
 
   warnOnce(key: string, message: string, ...args: unknown[]): void {
+    // Filter FIRST. Burning the key on a message that `enabled()` then drops
+    // spends the one-shot on nothing: `onceKeys` is never cleared, so the
+    // warning could never be emitted again — a harness that quiets startup
+    // noise would permanently swallow the first real diagnostic.
+    if (!this.enabled('warn')) return;
     const fullKey = `${this.namespace}:${key}`;
     if (onceKeys.has(fullKey)) return;
+    if (onceKeys.size >= MAX_RATE_LIMIT_KEYS) onceKeys.clear();
     onceKeys.add(fullKey);
     this.warn(message, ...args);
   }
 
   throttle(key: string, intervalMs: number, message: string, ...args: unknown[]): void {
+    // Same reason as `warnOnce`: starting the interval on a call that printed
+    // nothing delays the first visible message by up to `intervalMs`.
+    if (!this.enabled('warn')) return;
     const fullKey = `${this.namespace}:${key}`;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const last = throttleTimes.get(fullKey);
     if (last !== undefined && now - last < intervalMs) return;
+    if (throttleTimes.size >= MAX_RATE_LIMIT_KEYS) throttleTimes.clear();
     throttleTimes.set(fullKey, now);
     this.warn(message, ...args);
   }

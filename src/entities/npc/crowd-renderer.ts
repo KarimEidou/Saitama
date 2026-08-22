@@ -118,8 +118,9 @@ interface ArchetypeResources {
   readonly crowdParams: THREE.InstancedBufferAttribute;
   readonly clipRows: Float32Array;
   readonly clipFrames: Float32Array;
+  /** Per-clip playback rate, relative to the material's single `vatFps`. */
+  readonly clipRate: Float32Array;
   readonly vatTime: { value: number };
-  readonly vatFps: { value: number };
   count: number;
 }
 
@@ -264,12 +265,25 @@ export class CrowdRenderer {
 
       const clipRows = new Float32Array(clips.length);
       const clipFrames = new Float32Array(clips.length);
+      const clipRate = new Float32Array(clips.length);
       for (let c = 0; c < CLIP_KEYS.length; c++) {
         const index = bake.index.get(CLIP_KEYS[c]!) ?? 0;
         const range = bake.clips[index]!;
         clipRows[c] = range.row;
         clipFrames[c] = range.frames;
+        clipRate[c] = vatClipFps(range);
       }
+      // `vatFps` is ONE uniform for the whole material, and `bakeVat` gives
+      // every clip the same frame count — so `vatParams.y` carries no duration
+      // information at all and cannot recover the differing clip lengths. Left
+      // to the uniform alone, all six clips would complete a cycle in the
+      // reference clip's time: gawk (4.6 s) at 4.6x, cower (2.4 s) at 2.4x,
+      // and flee at 0.66x, which is foot sliding on the most populated panic
+      // mood. So the per-clip rate rides in `vatParams.w` instead, as a
+      // multiplier relative to the reference the uniform holds.
+      const referenceFps = clipRate[CROWD_CLIP_WALK]!;
+      vatUniforms.vatFps.value = referenceFps;
+      for (let c = 0; c < clipRate.length; c++) clipRate[c] = clipRate[c]! / referenceFps;
 
       const info: ICrowdArchetype = {
         index: a,
@@ -289,8 +303,8 @@ export class CrowdRenderer {
         crowdParams,
         clipRows,
         clipFrames,
+        clipRate,
         vatTime: vatUniforms.vatTime,
-        vatFps: vatUniforms.vatFps,
         count: 0,
       });
       // NOT `parts.dispose()`: that disposes `build.geometry`, which the
@@ -369,8 +383,10 @@ export class CrowdRenderer {
       resource.vatParams.array[p + 2] = agents.timeOffset[i]!;
       // Rate 0 freezes an instance on the clip's first frame, which is exactly
       // what a body on the pavement needs — and it costs nothing extra, since
-      // the shader already multiplies by this.
-      resource.vatParams.array[p + 3] = mood === MOOD_DOWN ? 0 : agents.rate[i]!;
+      // the shader already multiplies by this. `clipRate` carries the clip's
+      // own playback speed relative to the material's `vatFps`.
+      resource.vatParams.array[p + 3] =
+        mood === MOOD_DOWN ? 0 : agents.rate[i]! * resource.clipRate[clip]!;
 
       const q = slot * 2;
       resource.crowdParams.array[q] = agents.palette[i]!;
@@ -410,10 +426,6 @@ export class CrowdRenderer {
       resource.vatParams.needsUpdate = true;
       resource.crowdParams.needsUpdate = true;
       resource.vatTime.value = this.time;
-      // All six clips are baked at the same frame count, so one FPS serves the
-      // whole atlas: the shader's `mod(t, frames)` handles the differing
-      // durations through the per-clip frame count in `vatParams.y`.
-      resource.vatFps.value = vatClipFps(resource.bake.clips[CROWD_CLIP_WALK]!);
     }
 
     this.stats = {

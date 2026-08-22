@@ -100,6 +100,26 @@ describe('AlarmField', () => {
     expect(field.sample(700, 700)).toBeLessThan(0.01);
   });
 
+  it('measures the front of the wave it was asked about, not the whole field', () => {
+    const field = new AlarmField();
+    const threat = [threatAt(0, 0)];
+    for (let i = 0; i < 30; i++) field.tick(threat);
+    const own = field.frontRadius(0, 0, 0.15);
+    expect(own).toBeGreaterThan(FIELD_CELL);
+
+    // An ally firing on the other side of the city lights the field up around
+    // ITSELF. A whole-field scan would report that halo as this wave's front
+    // and the harness's least-squares fit would be differentiating a step.
+    field.addImpulse(500, 500, 1, 40);
+    field.tick(threat);
+    expect(field.frontRadius(0, 0, 0.15)).toBeLessThan(own + FIELD_CELL * 3);
+    // And the far source measures its own front, not the distance back here.
+    expect(field.frontRadius(500, 500, 0.15)).toBeLessThan(120);
+
+    // Documented contract: nothing at the centre means no front.
+    expect(field.frontRadius(-600, -600, 0.15)).toBe(0);
+  });
+
   it('drains once the threat is gone', () => {
     const field = new AlarmField();
     const threat = [threatAt(0, 0)];

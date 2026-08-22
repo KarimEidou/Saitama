@@ -83,6 +83,40 @@ class ScaledBloomPass extends UnrealBloomPass {
   }
 }
 
+const ANIME_EFFECTS = ['motionBlur', 'chromaticAberration', 'speedLines'] as const;
+type AnimeEffect = (typeof ANIME_EFFECTS)[number];
+
+/**
+ * Everything a caller tuned at runtime that `build()` cannot reproduce.
+ *
+ * `build()` reads the tier profile and nothing else, so a tier change would
+ * otherwise revert every live adjustment — permanently, for the rest of the
+ * session. The composition root deliberately overrides the bloom threshold and
+ * strength at boot (the profile's threshold of 1.0 is measured against a
+ * different light scale and makes every sunlit white surface bloom), and it
+ * does so through the documented `effectComposer` escape hatch, which never
+ * passes through this class. So the state is read back off the LIVE passes
+ * rather than mirrored into fields.
+ *
+ * `undefined` means "the old chain had nothing to say about this" — either the
+ * pass did not exist on that tier, or the profile never enabled it — and the
+ * newly built chain keeps its own default.
+ */
+interface ITunedPostState {
+  bloomEnabled: boolean | undefined;
+  bloomStrength: number | undefined;
+  bloomThreshold: number | undefined;
+  ssaoEnabled: boolean | undefined;
+  ssaoIntensity: number | undefined;
+  aaEnabled: boolean | undefined;
+  vignette: number | undefined;
+  vignetteSoftness: number | undefined;
+  lutIntensity: number | undefined;
+  animeEnabled: Record<AnimeEffect, boolean> | undefined;
+  animeIntensity: Record<AnimeEffect, number> | undefined;
+  focal: THREE.Vector2 | undefined;
+}
+
 export interface IPostProcessingOptions {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
@@ -335,32 +369,47 @@ export class PostProcessing implements IPostProcessing {
     this.composer?.setSize(this.width, this.height);
   }
 
+  /**
+   * One log line when an effect the current tier never built is addressed.
+   *
+   * Six of the eleven `PostEffectName`s resolve to a guarded no-op on the
+   * MEDIUM (phone) tier, and `IPostProcessing` gives callers no way to discover
+   * which are live — so a settings toggle that does nothing is otherwise
+   * indistinguishable from a broken pass. Debug level, not warn: this is a
+   * legitimate tier outcome, unlike the two genuinely unimplemented effects.
+   */
+  private reportNotOnTier(effect: PostEffectName): void {
+    log.debug(`post effect "${effect}" is not built on the "${this.profile.mode}" chain; ignored`);
+  }
+
   setEffectEnabled(effect: PostEffectName, enabled: boolean): void {
     switch (effect) {
       case 'bloom':
         if (this.bloomPass) this.bloomPass.enabled = enabled;
+        else this.reportNotOnTier(effect);
         break;
       case 'ssao':
         if (this.ssaoPass) this.ssaoPass.enabled = enabled;
+        else this.reportNotOnTier(effect);
         break;
       case 'fxaa':
       case 'smaa':
         if (this.aaPass) this.aaPass.enabled = enabled;
+        else this.reportNotOnTier(effect);
         break;
       case 'vignette':
-        this.outputPass?.setVignette(enabled ? 0.32 : 0);
+        if (this.outputPass) this.outputPass.setVignette(enabled ? 0.32 : 0);
+        else this.reportNotOnTier(effect);
         break;
       case 'colorGrading':
-        this.outputPass?.setLut(enabled ? (this.lut ?? null) : null);
+        if (this.outputPass) this.outputPass.setLut(enabled ? (this.lut ?? null) : null);
+        else this.reportNotOnTier(effect);
         break;
       case 'motionBlur':
-        this.animePass?.setEffectEnabled('motionBlur', enabled);
-        break;
       case 'chromaticAberration':
-        this.animePass?.setEffectEnabled('chromaticAberration', enabled);
-        break;
       case 'speedLines':
-        this.animePass?.setEffectEnabled('speedLines', enabled);
+        if (this.animePass) this.animePass.setEffectEnabled(effect, enabled);
+        else this.reportNotOnTier(effect);
         break;
       case 'filmGrain':
       case 'depthOfField':
@@ -377,26 +426,37 @@ export class PostProcessing implements IPostProcessing {
     switch (effect) {
       case 'bloom':
         if (this.bloomPass) this.bloomPass.strength = value;
+        else this.reportNotOnTier(effect);
         break;
       case 'ssao':
-        this.ssaoPass?.setIntensity(value);
+        if (this.ssaoPass) this.ssaoPass.setIntensity(value);
+        else this.reportNotOnTier(effect);
         break;
       case 'vignette':
-        this.outputPass?.setVignette(value);
+        if (this.outputPass) this.outputPass.setVignette(value);
+        else this.reportNotOnTier(effect);
         break;
       case 'colorGrading':
-        this.outputPass?.setLut(this.lut ?? null, value);
+        if (this.outputPass) this.outputPass.setLut(this.lut ?? null, value);
+        else this.reportNotOnTier(effect);
         break;
       case 'motionBlur':
-        this.animePass?.setIntensity('motionBlur', value);
-        break;
       case 'chromaticAberration':
-        this.animePass?.setIntensity('chromaticAberration', value);
-        break;
       case 'speedLines':
-        this.animePass?.setIntensity('speedLines', value);
+        if (this.animePass) this.animePass.setIntensity(effect, value);
+        else this.reportNotOnTier(effect);
         break;
-      default:
+      case 'fxaa':
+      case 'smaa':
+        // Antialiasing has no intensity knob; `setEffectEnabled` is the whole
+        // control surface. Say so rather than swallowing the call.
+        log.debug(`post effect "${effect}" has no intensity; use setEffectEnabled`);
+        break;
+      case 'filmGrain':
+      case 'depthOfField':
+        // Mirrors `setEffectEnabled`: the two methods must not disagree about
+        // which names this renderer honours.
+        log.warn(`post effect "${effect}" is not implemented in this renderer`);
         break;
     }
   }
@@ -409,9 +469,82 @@ export class PostProcessing implements IPostProcessing {
   /** Rebuild from a renderer-private profile. */
   applyProfile(profile: PostTierProfile): void {
     if (this.disposed || profile === this.profile) return;
+    // Carry the runtime-tuned state across the rebuild. Without this round
+    // trip the most ordinary possible action — nudging the quality slider —
+    // silently reverts the composition root's bloom tuning and every effect
+    // toggle the player set, with no way back short of restarting the app.
+    const tuned = this.captureTunedState();
     this.profile = profile;
     this.teardown();
     this.build();
+    this.restoreTunedState(tuned);
+  }
+
+  /** Read the overridable state off the live passes, before they are torn down. */
+  private captureTunedState(): ITunedPostState {
+    const anime = this.animePass;
+    const profile = this.profile;
+    return {
+      bloomEnabled: this.bloomPass?.enabled,
+      bloomStrength: this.bloomPass?.strength,
+      bloomThreshold: this.bloomPass?.threshold,
+      ssaoEnabled: this.ssaoPass?.enabled,
+      ssaoIntensity: this.ssaoPass?.intensity,
+      aaEnabled: this.aaPass?.enabled,
+      // Only meaningful if the outgoing tier actually ran them: a zero read
+      // back off a tier that never had a vignette or a LUT would otherwise
+      // switch them off on the tier being moved TO.
+      vignette: profile.vignette ? this.outputPass?.vignette : undefined,
+      vignetteSoftness: profile.vignette ? this.outputPass?.vignetteSoftness : undefined,
+      lutIntensity: this.lut ? this.outputPass?.lutIntensity : undefined,
+      animeEnabled: anime
+        ? {
+            motionBlur: anime.isEffectEnabled('motionBlur'),
+            chromaticAberration: anime.isEffectEnabled('chromaticAberration'),
+            speedLines: anime.isEffectEnabled('speedLines'),
+          }
+        : undefined,
+      animeIntensity: anime
+        ? {
+            motionBlur: anime.getIntensity('motionBlur'),
+            chromaticAberration: anime.getIntensity('chromaticAberration'),
+            speedLines: anime.getIntensity('speedLines'),
+          }
+        : undefined,
+      focal: anime ? anime.focalPoint.clone() : undefined,
+    };
+  }
+
+  /** Re-apply captured state onto the freshly built chain, skipping what it lacks. */
+  private restoreTunedState(state: ITunedPostState): void {
+    if (this.bloomPass) {
+      if (state.bloomEnabled !== undefined) this.bloomPass.enabled = state.bloomEnabled;
+      if (state.bloomStrength !== undefined) this.bloomPass.strength = state.bloomStrength;
+      if (state.bloomThreshold !== undefined) this.bloomPass.threshold = state.bloomThreshold;
+    }
+    if (this.ssaoPass) {
+      if (state.ssaoEnabled !== undefined) this.ssaoPass.enabled = state.ssaoEnabled;
+      if (state.ssaoIntensity !== undefined) this.ssaoPass.setIntensity(state.ssaoIntensity);
+    }
+    if (this.aaPass && state.aaEnabled !== undefined) this.aaPass.enabled = state.aaEnabled;
+    if (this.outputPass) {
+      if (state.vignette !== undefined) {
+        this.outputPass.setVignette(state.vignette, state.vignetteSoftness);
+      }
+      if (state.lutIntensity !== undefined && this.lut) {
+        this.outputPass.setLut(this.lut, state.lutIntensity);
+      }
+    }
+    const anime = this.animePass;
+    if (!anime) return;
+    for (const effect of ANIME_EFFECTS) {
+      // Order matters: `setEffectEnabled` resets the sustained intensity.
+      const enabled = state.animeEnabled?.[effect];
+      if (enabled !== undefined) anime.setEffectEnabled(effect, enabled);
+      const intensity = state.animeIntensity?.[effect];
+      if (intensity !== undefined) anime.setIntensity(effect, intensity);
+    }
+    if (state.focal) anime.setFocalPoint(state.focal.x, state.focal.y);
   }
 
   /* ---------------------------------------------------------------------- */

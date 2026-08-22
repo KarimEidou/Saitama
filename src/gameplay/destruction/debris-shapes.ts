@@ -38,6 +38,18 @@ import type { IDebrisSink, IStructureChunk } from './ports';
 const BOX_VERTICES = 24;
 
 /**
+ * `debrisId` of a slot nobody is borrowing.
+ *
+ * NOT 0. `IDebrisSink.spawn` returns whatever id the pool assigns, and a pool
+ * that numbers its pieces from zero — array indices as handles, a test double
+ * counting up from 0 — would hand back `id: 0` for its first piece; a `0`
+ * sentinel then reads that slot as free and resizes its box under a piece
+ * still on screen. The shipping `DebrisPool` starts at 1, which is the only
+ * reason that was ever latent.
+ */
+const FREE_SLOT = -1;
+
+/**
  * Corner selector per vertex: bit 0 = use maxX, bit 1 = use maxY,
  * bit 2 = use maxZ. Six faces x four corners, wound counter-clockwise as seen
  * from outside so back-face culling keeps the outside visible.
@@ -108,7 +120,7 @@ interface IShapeSlot {
   readonly positions: Float32Array;
   readonly positionAttribute: THREE.BufferAttribute;
   readonly chunk: IMutableChunk;
-  /** Debris piece id currently borrowing this slot; 0 when free. */
+  /** Debris piece id currently borrowing this slot; `FREE_SLOT` when free. */
   debrisId: number;
 }
 
@@ -159,7 +171,7 @@ export class DebrisShapePool {
           isGrounded: false,
           detached: true,
         },
-        debrisId: 0,
+        debrisId: FREE_SLOT,
       });
       this.freeSlots.push(i);
     }
@@ -199,7 +211,7 @@ export class DebrisShapePool {
     chunk.isGrounded = source.grounded;
     chunk.detached = true;
 
-    slot.debrisId = 0;
+    slot.debrisId = FREE_SLOT;
     this.lent.push(index);
     return chunk as unknown as FractureChunk;
   }
@@ -224,26 +236,31 @@ export class DebrisShapePool {
    * frame; O(live pieces) map lookups, no allocation.
    */
   reclaim(debris: IDebrisSink): void {
-    const get = debris.get;
-    if (get === undefined) return;
     let write = 0;
     for (let read = 0; read < this.lent.length; read++) {
       const index = this.lent[read]!;
       const slot = this.slots[index]!;
-      if (slot.debrisId !== 0 && get.call(debris, slot.debrisId) !== undefined) {
+      // `!= null`, not `!== undefined`: a sink that returns `null` for an id it
+      // has retired means the piece is gone, and reading that as "still live"
+      // strands the slot for the rest of the session.
+      if (slot.debrisId !== FREE_SLOT && debris.get(slot.debrisId) != null) {
         this.lent[write++] = index;
       } else {
-        slot.debrisId = 0;
+        slot.debrisId = FREE_SLOT;
         this.freeSlots.push(index);
       }
     }
     this.lent.length = write;
   }
 
-  /** Return every slot. Used on `clear()` / `dispose()`. */
+  /**
+   * Return every slot, live pieces included. `dispose()` only — see the SLOT
+   * LIFETIME note above: a slot handed back while its piece is still on screen
+   * gets its box rewritten under it.
+   */
   releaseAll(): void {
     for (const index of this.lent) {
-      this.slots[index]!.debrisId = 0;
+      this.slots[index]!.debrisId = FREE_SLOT;
       this.freeSlots.push(index);
     }
     this.lent.length = 0;

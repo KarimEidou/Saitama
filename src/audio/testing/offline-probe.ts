@@ -267,6 +267,31 @@ function measure(
 /* Voice probes                                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Lookahead the frame loop fills, mirroring `LOOKAHEAD` in `audio-system.ts`.
+ */
+const CROWD_LOOKAHEAD = 0.25;
+
+/**
+ * Drive a crowd bed's blip scheduler THE WAY THE FRAME LOOP DOES: one call per
+ * frame with a short lookahead.
+ *
+ * A single `scheduleBlips(seconds)` call for the whole render is a call pattern
+ * the game never makes, and it is the only one under which the scheduler's
+ * cadence handling is not exercised at all — which is exactly why the blip rate
+ * could be wrong by two orders of magnitude at 60 fps while this probe passed.
+ *
+ * @returns how many blips were scheduled across the render.
+ */
+function driveCrowdBlips(crowd: CrowdBedVoice, seconds: number, fps = 60): number {
+  const step = 1 / fps;
+  let scheduled = 0;
+  for (let t = 0; t < seconds; t += step) {
+    scheduled += crowd.scheduleBlips(Math.min(t + step + CROWD_LOOKAHEAD, seconds));
+  }
+  return scheduled;
+}
+
 /** Render length for a sound key: its declared tail plus headroom. */
 function secondsFor(key: SoundKey): number {
   const spec = SOUND_SPECS[key];
@@ -287,14 +312,13 @@ export async function renderVoiceProbe(
   const result = await render(seconds, sampleRate, options, (system) => {
     if (sustained) {
       // Sustained beds are steered, not triggered. Drive them the way the
-      // frame loop does, then fill the scheduler's window for the whole render.
+      // frame loop does, one scheduling call per frame.
       system.playAmbience('ambience.city', 0.2);
       if (spec.voiceClass === 'crowdBed') {
         system.setCrowdDensity(0.85);
         system.wind().stop(0, 0.01);
         const crowd = system.crowd() as CrowdBedVoice;
-        const blips = crowd.scheduleBlips(seconds);
-        return { blipCount: blips, density: 0.85 };
+        return { blipCount: driveCrowdBlips(crowd, seconds), density: 0.85 };
       }
       system.setPlayerSpeed(38);
       system.crowd().stop(0, 0.01);
@@ -403,10 +427,11 @@ export async function renderBoredomProbe(options: IProbeOptions = {}): Promise<I
  * Ducking measurement.
  *
  * The sfx, voice and ui buses are muted so the render contains ONLY the music
- * bus. A serious punch is then fired through the event map at 2 s: its cue is
- * inaudible (muted bus) but its duck request still lands, so any level drop
- * after 2 s is caused by ducking and nothing else. The control render is
- * identical minus the event.
+ * bus. A serious punch is then fired through the event map — an offline context
+ * has no clock, so the cue itself lands at 0 s and is inaudible anyway — and its
+ * duck is re-scheduled at 2 s, which is the shape the game would actually hear.
+ * Any level drop after 2 s is therefore ducking and nothing else, and the
+ * control render is identical minus that duck.
  */
 export async function renderDuckProbe(
   withPunch: boolean,
@@ -434,9 +459,13 @@ export async function renderDuckProbe(
         intent: 'serious',
         punchKind: 'serious',
       });
-      // The duck is scheduled from `ctx.currentTime`, which is 0 in an offline
-      // context before rendering — so re-schedule it at the punch time to
-      // measure the shape the game would actually hear.
+      // `handleEvent` already applied the event map's duck at `ctx.currentTime`,
+      // which is 0 offline. Cancel that one FIRST: leaving it in place puts a
+      // second, un-modelled duck in the ducked render (and only there) running
+      // to 1.07 s, 130 ms short of the `rmsBefore` window — so any tuning of
+      // `IMPACT_DUCK`'s hold or release would silently contaminate the baseline
+      // this probe divides by.
+      system.mixer.unduck('music', 0.001, 0);
       system.mixer.duckFor('music', 0.25, 0.02, 0.35, 0.7, punchAt);
     }
     return { punchAt };
@@ -474,7 +503,7 @@ export async function renderSceneProbe(options: IProbeOptions = {}): Promise<IPr
     system.music.advanceTo(seconds);
     system.playAmbience('ambience.city', 0.1);
     system.setCrowdDensity(0.7);
-    system.crowd().scheduleBlips(seconds);
+    driveCrowdBlips(system.crowd(), seconds);
 
     system.play('shockwave.serious', { intensity: 1, delay: 0.5, pitchVariation: 0 });
     system.play('monster.roar', { variant: 'dragon', intensity: 1, delay: 0.2, pitchVariation: 0 });
@@ -858,8 +887,7 @@ export async function renderCrowdDensityProbe(
     system.playAmbience('ambience.city', 0.15);
     system.wind().stop(0, 0.01);
     system.setCrowdDensity(density);
-    const blips = system.crowd().scheduleBlips(seconds);
-    return { density, blipCount: blips };
+    return { density, blipCount: driveCrowdBlips(system.crowd(), seconds) };
   });
   return measure(
     `ambience.crowd@${density}`,

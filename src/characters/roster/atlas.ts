@@ -50,8 +50,17 @@ import { SURFACE_CLASSES, TINT_MASK_LEVEL } from './types';
 /** Default atlas edge. 1024 gives the face ~305x131 texels; see `face.ts`. */
 export const ATLAS_SIZE = 1024;
 
-/** Texel bleed passes. Enough to survive three mip levels of bilinear taps. */
-const DILATE_PASSES = 6;
+/**
+ * Texel bleed passes; the ring grows by exactly one texel per pass.
+ *
+ * A bilinear tap at mip 3 — roughly a character 55 px tall — averages an 8x8
+ * box either side of the sample, so a sample sitting on an island edge reaches
+ * eight base texels into the gutter. Eight passes is what keeps that tap off
+ * the background. The `mobile` tier halves the ring when the sheet is
+ * downsampled, which is why the uncovered ORM is left neutral rather than
+ * black (see the encode pass).
+ */
+const DILATE_PASSES = 8;
 
 /* -------------------------------------------------------------------------- */
 /* Small deterministic noise                                                  */
@@ -203,7 +212,7 @@ function clampSigned(value: number): number {
 }
 
 /**
- * Cycles each pattern packs into ONE tile.
+ * The HIGHEST spatial frequency each pattern packs into one tile, in cycles.
  *
  * Needed to keep patterns above the Nyquist limit of the atlas. The unwrap's
  * texel density varies by a factor of three across a character — the leg
@@ -211,6 +220,12 @@ function clampSigned(value: number): number {
  * single "tiles per metre" number that looks like fine cotton on the torso is
  * pure moire on the shins. Clamping frequency per region is what turns that
  * shimmer into fabric.
+ *
+ * It has to be the pattern's FINEST term, not its base term: `pores` builds a
+ * 22-cycle fbm but its visible feature is a hard threshold on a 60-cell
+ * lattice, and declaring 22 licensed a pore every 1.8 texels — per-texel noise
+ * that the Sobel in the encode pass turned into a shimmering normal map on
+ * every face and forearm.
  */
 const PATTERN_CYCLES: Readonly<Record<MicroPattern, number>> = {
   none: 1,
@@ -218,7 +233,7 @@ const PATTERN_CYCLES: Readonly<Record<MicroPattern, number>> = {
   twill: 10,
   canvas: 5,
   leather: 6,
-  pores: 22,
+  pores: 60,
   strand: 26,
   brushed: 60,
   hexcell: 8,
@@ -470,7 +485,21 @@ function rasterise(
     // Half a texel, expressed in barycentric units for THIS triangle. Snapping
     // marginally-outside samples onto the edge rather than dropping them is
     // what stops a sliver triangle from leaving an unwritten line down a seam.
-    const slack = 0.5 / Math.max(1, maxX - minX, maxY - minY);
+    //
+    // A barycentric coordinate is `distance from its edge / height from the
+    // opposite vertex`, and that height is `|area| / |edge|` — so half a texel
+    // is `0.5 * |edge| / |area|`, NOT half a texel of bounding box. The two
+    // differ by the triangle's aspect ratio, which is unbounded for exactly the
+    // 40-by-0.3-texel slivers this guard exists to rescue: derived from the
+    // box, the slack came out over a hundred times too small and the sliver
+    // still lit nothing. Clamped, because a near-degenerate triangle would
+    // otherwise claim its whole bounding box.
+    const maxEdge = Math.max(
+      Math.hypot(bx - ax, by - ay),
+      Math.hypot(cx - bx, cy - by),
+      Math.hypot(ax - cx, ay - cy)
+    );
+    const slack = Math.min(0.5, (0.5 * maxEdge) / Math.abs(area));
 
     for (let py = minY; py <= maxY; py++) {
       for (let px = minX; px <= maxX; px++) {
@@ -693,8 +722,21 @@ function compositeFace(
   }
 }
 
-/** Grow covered texels outward so filtering never samples the gutter. */
-function dilate(data: Uint8Array, covered: Uint8Array, size: number, channels: number): void {
+/**
+ * Grow covered texels outward so filtering never samples the gutter.
+ *
+ * `nearest` copies one neighbour's value verbatim instead of averaging the
+ * ring. An INDEX map — the tint mask — must be filled that way: its texels are
+ * class ids, and the average of two ids is a third, perfectly valid-looking id
+ * that the shader's band tests decode as a completely different tint slot.
+ */
+function dilate(
+  data: Uint8Array,
+  covered: Uint8Array,
+  size: number,
+  channels: number,
+  nearest = false
+): void {
   const mask = Uint8Array.from(covered);
   const next = Uint8Array.from(mask);
   const accum = new Float32Array(channels);
@@ -715,6 +757,13 @@ function dilate(data: Uint8Array, covered: Uint8Array, size: number, channels: n
             if (nx < 0 || nx >= size) continue;
             const other = ny * size + nx;
             if (mask[other] === 0) continue;
+            if (nearest) {
+              if (count === 0) {
+                for (let c = 0; c < channels; c++) accum[c] = data[other * channels + c]!;
+                count = 1;
+              }
+              continue;
+            }
             for (let c = 0; c < channels; c++) accum[c]! += data[other * channels + c]!;
             count++;
           }
@@ -985,6 +1034,13 @@ export function bakeCharacterAtlas(
         normalMap[o3] = 128;
         normalMap[o3 + 1] = 128;
         normalMap[o3 + 2] = 255;
+        // Neutral, not zero. Gutter beyond the dilation ring still reaches a
+        // high mip's bilinear tap, and an all-zero ORM means AO 0 (fully
+        // occluded) AND roughness 0 (a mirror) — a dark fringe with a specular
+        // sparkle around every limb. AO 1, roughness 1, metal 0 is inert.
+        orm[o3] = 255;
+        orm[o3 + 1] = 255;
+        orm[o3 + 2] = 0;
         continue;
       }
 
@@ -1033,7 +1089,7 @@ export function bakeCharacterAtlas(
   }
 
   dilate(albedo, raster.covered, size, 3);
-  dilate(mask, raster.covered, size, 1);
+  dilate(mask, raster.covered, size, 1, true);
   dilate(orm, raster.covered, size, 3);
   dilate(normalMap, raster.covered, size, 3);
   if (emissive !== undefined) dilate(emissive, raster.covered, size, 3);

@@ -120,7 +120,13 @@ function withinCone(
   if (lengthSq > range * range) return false;
   if (lengthSq < 1e-8) return true;
   const along = dx * ax + dy * ay + dz * az;
-  if (along <= 0) return false;
+  // The half-space reject is a shortcut, and it is only sound while the cone is
+  // no wider than a hemisphere. Past 90° `cosLimit` goes negative and points
+  // BEHIND the apex plane are legitimately inside the cone — rejecting them
+  // leaves a wall the shockwave clearly engulfed standing while its neighbours
+  // at 80° are gone, which is the false negative this file promises not to
+  // produce. Below 90° the comparison on the next line subsumes it anyway.
+  if (along <= 0 && cosLimit >= 0) return false;
   return along >= cosLimit * Math.sqrt(lengthSq);
 }
 

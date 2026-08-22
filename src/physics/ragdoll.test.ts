@@ -6,12 +6,15 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import {
   FIXED_STEP,
+  type IRagdollRigSource,
   MAX_ACTIVE_RAGDOLLS,
   PhysicsWorld,
   RAGDOLL_BLEND_SECONDS,
   RAGDOLL_BODY_COUNT,
+  RAGDOLL_FADE_SECONDS,
   RAGDOLL_SEGMENTS,
   Ragdoll,
+  type RagdollSegmentName,
   RagdollManager,
   createRagdoll,
   createReferenceRig,
@@ -234,22 +237,107 @@ describe('Ragdoll', () => {
     world.dispose();
   });
 
-  it('seeds limb velocity from the pose motion before activation', () => {
+  it('seeds limb velocity from the pose motion at the rate it was tracked', () => {
+    // 6 m/s of sprint has to come out as 6 m/s whatever the frame rate the pose
+    // was tracked at: `update()` is driven with the RENDER delta, so a hardcoded
+    // 1/60 halves the corpse's momentum on a 120 Hz phone and doubles it at 30.
+    const seeded = (dt: number): number => {
+      const world = new PhysicsWorld();
+      makeGround(world);
+      const rig = rigAt(0);
+      const ragdoll = createRagdoll(world, rig);
+
+      ragdoll.update(dt);
+      rig.root.position.x += 6 * dt;
+      rig.root.updateMatrixWorld(true);
+      ragdoll.activate();
+
+      const v = new THREE.Vector3();
+      ragdoll.segments[0]!.body.getLinearVelocity(v);
+      ragdoll.dispose();
+      world.dispose();
+      return v.x;
+    };
+
+    expect(seeded(FIXED_STEP)).toBeCloseTo(6, 5);
+    expect(seeded(FIXED_STEP / 2)).toBeCloseTo(6, 5);
+    expect(seeded(FIXED_STEP * 2)).toBeCloseTo(6, 5);
+  });
+
+  it('hinges elbows forward and knees backward from any bind pose', () => {
+    /**
+     * How far a segment's tip travels along +Z — the rig's facing — when the
+     * joint rotates 20 degrees the POSITIVE way about its hinge axis, which is
+     * the direction the wide `[-5, +125]` limit runs in.
+     */
+    const flexionZ = (ragdoll: Ragdoll, name: RagdollSegmentName): number => {
+      const position = new THREE.Vector3();
+      const rotation = new THREE.Quaternion();
+      ragdoll.segment(name)!.body.getTransform(position, rotation);
+      // The body's local +X is the hinge axis and its local +Y runs the bone.
+      const axis = new THREE.Vector3(1, 0, 0).applyQuaternion(rotation);
+      const bone = new THREE.Vector3(0, 1, 0).applyQuaternion(rotation);
+      return bone.clone().applyAxisAngle(axis, (20 * Math.PI) / 180).z - bone.z;
+    };
+
+    for (const straight of [true, false]) {
+      const world = new PhysicsWorld();
+      // A T-pose leaves every limb colinear, so the plane the two bones span —
+      // the only thing the axis used to be derived from — does not exist.
+      const rig = createReferenceRig(1.75);
+      if (!straight) poseRigIdle(rig);
+      const ragdoll = createRagdoll(world, rig, { driveSkeleton: false });
+
+      const label = straight ? 'T-pose' : 'idle';
+      expect(flexionZ(ragdoll, 'leftForeArm'), `left elbow, ${label}`).toBeGreaterThan(0.1);
+      expect(flexionZ(ragdoll, 'rightForeArm'), `right elbow, ${label}`).toBeGreaterThan(0.1);
+      expect(flexionZ(ragdoll, 'leftShin'), `left knee, ${label}`).toBeLessThan(-0.1);
+      expect(flexionZ(ragdoll, 'rightShin'), `right knee, ${label}`).toBeLessThan(-0.1);
+
+      ragdoll.dispose();
+      world.dispose();
+    }
+  });
+
+  it('maps its entity to the pelvis rather than the last limb built', () => {
     const world = new PhysicsWorld();
     makeGround(world);
-    const rig = rigAt(0);
-    const ragdoll = createRagdoll(world, rig);
+    const ragdoll = createRagdoll(world, rigAt(0), { entityId: 'monster-7' });
 
-    // Two tracked frames of the character sprinting along +X.
-    ragdoll.update(FIXED_STEP);
-    rig.root.position.x += 6 * FIXED_STEP;
-    rig.root.updateMatrixWorld(true);
-    ragdoll.activate();
+    const mapped = world.getBodyByEntity('monster-7');
+    // Registering all 13 under one id left `byEntity` holding the right foot,
+    // so a bus-routed impulse yanked the corpse by an ankle.
+    expect(mapped).toBe(ragdoll.segment('pelvis')!.body);
+    expect(ragdoll.segment('rightFoot')!.body.entityId).toBeUndefined();
 
-    const v = new THREE.Vector3();
-    ragdoll.segments[0]!.body.getLinearVelocity(v);
-    expect(v.x).toBeGreaterThan(3);
-    expect(v.x).toBeLessThan(9);
+    // And removing any other limb must not orphan the mapping.
+    world.removeBody(ragdoll.segment('rightFoot')!.body.handle);
+    expect(world.getBodyByEntity('monster-7')).toBe(mapped);
+    world.dispose();
+  });
+
+  it('anchors a segment whose start bone is missing on its parent', () => {
+    const world = new PhysicsWorld();
+    makeGround(world);
+    const origin = new THREE.Vector3(20, 0, 0);
+    const full = createReferenceRig(1.75, origin);
+    // A monster GLB missing a mid-chain bone; the module advertises tolerance
+    // of incomplete rigs.
+    const partial: IRagdollRigSource = {
+      root: full.root,
+      getBone: (name) => (name === 'Spine1' ? undefined : full.getBone(name)),
+    };
+    const ragdoll = createRagdoll(world, partial, { driveSkeleton: false });
+
+    const position = new THREE.Vector3();
+    const rotation = new THREE.Quaternion();
+    const chest = new THREE.Vector3(origin.x, 1, origin.z);
+    for (const segment of ragdoll.segments) {
+      segment.body.getTransform(position, rotation);
+      // Nothing may be built at the world origin, 20 m from the character: the
+      // capsule would span the gap and its joint would drag the ragdoll there.
+      expect(position.distanceTo(chest), segment.spec.name).toBeLessThan(3);
+    }
     ragdoll.dispose();
     world.dispose();
   });
@@ -288,6 +376,54 @@ describe('RagdollManager', () => {
       manager.update(FIXED_STEP);
     }
     expect(manager.all.includes(spawned[0]!)).toBe(false);
+    manager.dispose();
+    world.dispose();
+  });
+
+  it('reports frozen limbs as fixed rather than as awake dynamics', () => {
+    const world = new PhysicsWorld();
+    makeGround(world);
+    const manager = new RagdollManager(world);
+    const ragdoll = manager.spawn(rigAt(0), { driveSkeleton: false });
+    const awakeWhileSimulating = world.activeBodyCount;
+    expect(awakeWhileSimulating).toBeGreaterThanOrEqual(RAGDOLL_BODY_COUNT);
+
+    ragdoll.freeze();
+    // Rapier reports a Fixed body as not sleeping, so a stale `type` mirror
+    // makes 13 frozen limbs look permanently awake and lets `applyRadialImpulse`
+    // spend work on bodies the solver ignores.
+    for (const segment of ragdoll.segments) expect(segment.body.type).toBe('fixed');
+    expect(world.activeBodyCount).toBe(awakeWhileSimulating - RAGDOLL_BODY_COUNT);
+
+    manager.dispose();
+    world.dispose();
+  });
+
+  it('fades and reaps a ragdoll frozen while it was never activated', () => {
+    const world = new PhysicsWorld();
+    makeGround(world);
+    const manager = new RagdollManager(world, 1);
+    const idle = createRagdoll(world, rigAt(0), { driveSkeleton: false });
+    manager.adopt(idle);
+
+    // An inactive ragdoll costs the solver nothing, so it must neither consume
+    // budget nor be picked as the freeze victim when the cap is reached.
+    expect(manager.activeCount).toBe(0);
+    manager.spawn(rigAt(3), { driveSkeleton: false });
+    expect(manager.activeCount).toBe(1);
+    expect(idle.frozen).toBe(false);
+
+    // Frozen anyway: the fade has to run, or it never expires and the manager
+    // holds its 13 bodies and 12 joints for the rest of the session.
+    idle.freeze();
+    const steps = Math.ceil(RAGDOLL_FADE_SECONDS / FIXED_STEP) + 5;
+    for (let i = 0; i < steps; i++) {
+      world.step(FIXED_STEP, 1);
+      manager.update(FIXED_STEP);
+    }
+    expect(idle.isDisposed).toBe(true);
+    expect(manager.all.includes(idle)).toBe(false);
+
     manager.dispose();
     world.dispose();
   });

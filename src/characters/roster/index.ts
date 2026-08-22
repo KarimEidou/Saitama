@@ -105,7 +105,14 @@ export {
   type RosterUniforms,
 } from './materials';
 
-export { THREAT_TIERS, mookEntry, monsterRecipe, namedMonsters, tierMooks } from './monsters';
+export {
+  THREAT_TIERS,
+  canonicalMookSeed,
+  mookEntry,
+  monsterRecipe,
+  namedMonsters,
+  tierMooks,
+} from './monsters';
 
 export {
   RosterRuntime,

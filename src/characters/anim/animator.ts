@@ -127,7 +127,6 @@ interface LayerState {
   timeScale: number;
   loop: boolean;
   pingpong: boolean;
-  clampWhenFinished: boolean;
   weight: number;
   finished: boolean;
   /** Normalised time last frame, for marker crossing detection. */
@@ -223,6 +222,15 @@ export class ProceduralAnimator implements IAnimator {
 
     this.request = options.initial ?? 'idle';
     this.base = this.makeState(this.request, {});
+
+    // Seed the velocity reference from the REST pose, not from the freshly
+    // zeroed output buffer: `createPose` zeroes every translation including the
+    // Hips, so an unseeded reference is the whole skeleton collapsed to the
+    // origin. A handoff taken before the first `update` would otherwise read
+    // ~1.6 m of head travel in one 16 ms step and fire the corpse off the map
+    // at 96 m/s.
+    copyPose(this.output, this.rig.rest);
+    this.recordBonePositions();
   }
 
   /* ------------------------------------------------------------------ */
@@ -248,11 +256,18 @@ export class ProceduralAnimator implements IAnimator {
    * contract — otherwise every frame of a state machine that calls
    * `play('walk')` unconditionally would restart the walk cycle and the feet
    * would never leave the first frame of stance.
+   *
+   * A fade toward the same slot counts as "already playing". Requiring the
+   * fade to have FINISHED first is self-defeating: every `play` resets
+   * `this.fade` to zero, so a caller that calls `play('walk')` once per frame
+   * never lets `previous` clear, the guard never fires again, and the base
+   * layer is rebuilt at `time = 0` on every single frame — a permanently
+   * frozen clip and one `LayerState` of garbage per character per frame.
    */
   play(clip: ClipName, options: IClipOptions = {}): void {
     const entry = this.resolve(clip);
     const looping = (options.loop ?? (entry.def.loop ? 'repeat' : 'once')) !== 'once';
-    if (this.request === clip && looping && this.previous === undefined) {
+    if (this.request === clip && looping) {
       if (options.timeScale !== undefined) this.base.timeScale = options.timeScale;
       return;
     }
@@ -383,11 +398,20 @@ export class ProceduralAnimator implements IAnimator {
    */
   animationClip(slot: ClipName, frames = 24): THREE.AnimationClip {
     const entry = this.resolve(slot);
-    const key = `${entry.def.slot}:${entry.def.variant}`;
+    const name = `${entry.def.slot}:${entry.def.variant}`;
+    // The frame count AND the live params are baked into the result, so both
+    // belong in the key. Keying on the slot alone hands a 16-frame preview back
+    // to an exporter that asked for 240, and hands a bake taken at `boredom: 0`
+    // back forever once the Boredom system has driven it to 1 — silently, in
+    // both cases.
+    const p = this.params;
+    const key = `${name}:${frames}:${p.boredom}:${p.alertness}:${p.phaseOffset}:${p.vigour}`;
     const cached = this.bakedClips.get(key);
     if (cached !== undefined) return cached;
     const poses = sampleClip(this.rig, entry, { frames, params: this.params });
-    const clip = toAnimationClip(this.rig, key, poses, clipDuration(entry, this.rig));
+    const clip = toAnimationClip(this.rig, name, poses, clipDuration(entry, this.rig), {
+      loop: entry.def.loop,
+    });
     this.bakedClips.set(key, clip);
     return clip;
   }
@@ -452,6 +476,8 @@ export class ProceduralAnimator implements IAnimator {
 
   private lastDt = 1 / 60;
   private retargetCooldown = 0;
+  /** False until one animated frame exists to measure bone velocities against. */
+  private hasPrevBones = false;
 
   update(dt: number): void {
     if (this.disposed) return;
@@ -461,7 +487,13 @@ export class ProceduralAnimator implements IAnimator {
     // output pose. Recording them afterwards would make every velocity zero,
     // and a ragdoll handed a zero-velocity pose visibly stalls in the air
     // before it starts to fall.
-    this.recordBonePositions();
+    //
+    // Except on the very first frame, where there IS no last frame: `output`
+    // still holds the bind pose, whose arms are in a shallow T, and charging
+    // the bind-to-idle transition as one frame of motion reports ~36 m/s at the
+    // hands. A character killed on its first animated frame gets zero
+    // velocities instead, which is the honest answer.
+    if (this.hasPrevBones) this.recordBonePositions();
 
     if (this.ragdoll !== undefined) {
       // Hand over and stop writing bones: the physics solver owns them from
@@ -521,6 +553,10 @@ export class ProceduralAnimator implements IAnimator {
     }
 
     applyPose(this.output, this.rig);
+    if (!this.hasPrevBones) {
+      this.recordBonePositions();
+      this.hasPrevBones = true;
+    }
     this.emitFootfalls();
     this.mixer.update(step);
   }
@@ -544,7 +580,6 @@ export class ProceduralAnimator implements IAnimator {
       timeScale: options.timeScale ?? 1,
       loop: loopMode !== 'once',
       pingpong: loopMode === 'pingpong',
-      clampWhenFinished: options.clampWhenFinished ?? slot === 'death',
       weight: options.weight ?? 1,
       finished: false,
       lastPhase: 0,
@@ -560,7 +595,11 @@ export class ProceduralAnimator implements IAnimator {
     const after = state.time / duration;
 
     if (!state.loop && after >= 1) {
-      state.time = state.clampWhenFinished ? duration : duration;
+      // Always HOLD the final pose. `IClipOptions.clampWhenFinished` is not
+      // honoured: resetting a finished one-shot to its first frame drops
+      // `block`'s guard and snaps `jump` out of full extension, so the option
+      // has no implementation to switch between and the flag is not stored.
+      state.time = duration;
       state.lastPhase = 1;
       if (!state.finished) {
         state.finished = true;
@@ -721,23 +760,43 @@ export class ProceduralAnimator implements IAnimator {
   /** Evaluate one layer state into `out`. */
   private evaluate(state: LayerState, out: Pose): void {
     const entry = state.entry;
-    const duration = Math.max(1e-4, clipDuration(entry, this.rig));
-    let t = state.time / duration;
-    if (state.loop) {
-      t = ((t % 1) + 1) % 1;
-      if (state.pingpong) {
-        const cycle = (((state.time / duration / 2) % 1) + 1) % 1;
-        t = cycle < 0.5 ? cycle * 2 : 2 - cycle * 2;
-      }
+    let t: number;
+    if (entry.def.locomotive) {
+      // A locomotive style rides the SOLVER's cycle phase, not the layer clock.
+      //
+      // `clipDuration` for a locomotive slot is the cycle period at the clip's
+      // authored REFERENCE speed, while the solver's phase runs at the speed
+      // actually commanded — so a style keyed to normalised clip time (`flee`'s
+      // arm flail is the only one today) runs ~40 % fast at half the reference
+      // speed and slides a full cycle out of phase against the stride every few
+      // seconds. Taking the phase directly is exact at every speed, continuous
+      // across speed changes, and is what `sampleLocomotive` already does when
+      // it bakes the same clip.
+      t = this.solver.phase;
     } else {
-      t = clamp01(t);
+      const duration = Math.max(1e-4, clipDuration(entry, this.rig));
+      t = state.time / duration;
+      if (state.loop) {
+        t = ((t % 1) + 1) % 1;
+        if (state.pingpong) {
+          const cycle = (((state.time / duration / 2) % 1) + 1) % 1;
+          t = cycle < 0.5 ? cycle * 2 : 2 - cycle * 2;
+        }
+      } else {
+        t = clamp01(t);
+      }
     }
 
     // Every layer starts from the solver's output, so a masked clip always has
     // correctly planted legs underneath it even when nothing else is playing.
     copyPose(out, this.locoPose);
     const region = entry.def.region;
-    if (entry.def.locomotive || region === 'full') {
+    // Region alone decides the mask, exactly as `sampleClip` does. Letting
+    // `locomotive` short-circuit it too gave `flee` — the one entry that is
+    // both — an unmasked runtime and a masked bake, so a fleeing civilian
+    // popped its torso by a couple of degrees the moment the VAT crowd promoted
+    // it to a real skeleton.
+    if (region === 'full') {
       entry.evaluate({ rig: this.rig, params: this.params }, t, out);
       return;
     }

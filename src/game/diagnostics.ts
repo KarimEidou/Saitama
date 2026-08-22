@@ -264,13 +264,71 @@ export function createDiagnostics(quality: IQualityTier, build: string): IIntegr
   return diagnostics;
 }
 
-/** Record a non-fatal problem. Always visible to the harness, never thrown. */
+/**
+ * Distinct error strings kept in `diagnostics.errors`.
+ *
+ * Sixty-four is far more than a readable boot report ever holds and far less
+ * than a broken frame loop produces in a second.
+ */
+const MAX_ERROR_ENTRIES = 64;
+
+/** Appended once the cap is reached, so the count is never silently lost. */
+const OVERFLOW_ENTRY = 'diagnostics: further distinct errors suppressed';
+
+/** Matches the `(xN)` repeat counter this file appends to its own entries. */
+const REPEAT_SUFFIX = / \(x(\d+)\)$/;
+
+/**
+ * Record a non-fatal problem. Always visible to the harness, never thrown.
+ *
+ * DE-DUPLICATED AND CAPPED, because one of the call sites is per frame: `tick`
+ * deliberately keeps the loop alive through a throwing frame, so a deterministic
+ * fault appends sixty strings a second forever. `__GAME_DIAG__` is mutated in
+ * place and read by a harness that serialises it, and a multi-megabyte array of
+ * one repeated sentence is worse than useless — it buries the first occurrence,
+ * which is the one worth reading. Repeats become a counter on the entry that is
+ * already there; distinct entries past the cap become one counted line.
+ *
+ * `systems.failed[scope]` is always written, so the LATEST detail for a scope is
+ * never stale even when the array has stopped growing.
+ */
 export function recordError(
   diagnostics: IIntegrationDiagnostics,
   scope: string,
   error: unknown
 ): void {
   const detail = error instanceof Error ? `${error.message}` : String(error);
-  (diagnostics.errors ??= []).push(`${scope}: ${detail}`);
   diagnostics.systems.failed[scope] = detail;
+
+  const errors = (diagnostics.errors ??= []);
+  const entry = `${scope}: ${detail}`;
+  if (bumpRepeat(errors, entry)) return;
+  if (errors.length < MAX_ERROR_ENTRIES) {
+    errors.push(entry);
+    return;
+  }
+  if (!bumpRepeat(errors, OVERFLOW_ENTRY)) errors.push(`${OVERFLOW_ENTRY} (x1)`);
+}
+
+/**
+ * Increment the `(xN)` counter on an entry already in the array.
+ *
+ * Returns false when the entry is new, which is the caller's cue to push it.
+ * Linear over an array bounded by `MAX_ERROR_ENTRIES`, so a per-frame fault
+ * costs a scan of at most sixty-four strings rather than an allocation.
+ */
+function bumpRepeat(errors: string[], entry: string): boolean {
+  for (let i = 0; i < errors.length; i++) {
+    const existing = errors[i]!;
+    if (existing === entry) {
+      errors[i] = `${entry} (x2)`;
+      return true;
+    }
+    const repeat = REPEAT_SUFFIX.exec(existing);
+    if (repeat !== null && existing.slice(0, repeat.index) === entry) {
+      errors[i] = `${entry} (x${Number(repeat[1]) + 1})`;
+      return true;
+    }
+  }
+  return false;
 }

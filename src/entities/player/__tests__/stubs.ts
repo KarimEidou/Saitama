@@ -55,6 +55,14 @@ export interface IStubControllerOptions {
   readonly wallX?: number;
   /** When set, ground only exists for `z <= ledgeZ` — a cliff edge. */
   readonly ledgeZ?: number;
+  /**
+   * Contact state BEFORE the first `move()`. Defaults to `true`.
+   *
+   * The real controller computes contact inside `move()` and reports `false`
+   * until then, whatever the character is standing on — so `false` here is what
+   * a freshly-constructed controller actually looks like.
+   */
+  readonly grounded?: boolean;
 }
 
 /** A flat-world `ICharacterController`, faithful to the real one's semantics. */
@@ -75,7 +83,7 @@ export class StubCharacterController implements ICharacterController {
   private readonly standHeight: number;
   private readonly wallX: number;
   private readonly ledgeZ: number;
-  private grounded = true;
+  private grounded: boolean;
   private apexY: number;
   /** Frames of forged contact loss; see `simulateContactLoss`. */
   private contactLossFrames = 0;
@@ -85,6 +93,7 @@ export class StubCharacterController implements ICharacterController {
     this.standHeight = options.standHeight ?? 0.875;
     this.wallX = options.wallX ?? Number.POSITIVE_INFINITY;
     this.ledgeZ = options.ledgeZ ?? Number.POSITIVE_INFINITY;
+    this.grounded = options.grounded ?? true;
     this.position.copy(options.position ?? new THREE.Vector3(0, this.restY, 0));
     this.apexY = this.position.y;
 

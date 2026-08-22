@@ -182,7 +182,11 @@ export interface DressSpec {
 export function buildDress(ctx: BodyContext, spec: DressSpec): Strand {
   const d = ctx.rig.dims;
   const waist = ringAtV(spec.torso, spec.v0);
-  const hip = ringAtV(spec.torso, Math.min(spec.v0 + 0.12, 0.9));
+  // Torso v increases UPWARD (crotch 0, crown 0.965), so the reference ring a
+  // skirt widens toward is BELOW where it starts. Sampling above it flared the
+  // garment to the ribcage instead of the hips, and a coat to the yoke's
+  // shallower depth — the opposite of how cloth drapes.
+  const hip = ringAtV(spec.torso, Math.max(spec.v0 - 0.12, 0));
   const rows = spec.rows ?? (ctx.lod.level === 0 ? 4 : 3);
   const chain = {
     spans: [{ bone: 'Hips' as const, start: -1e9, end: 1e9 }],
@@ -202,7 +206,11 @@ export function buildDress(ctx: BodyContext, spec: DressSpec): Strand {
         radiusA: (lerp(waist.shape.radiusA, widest, t) + spec.offset) * scale,
         radiusB: (lerp(waist.shape.radiusB, hip.shape.radiusB, t) + spec.offset) * scale,
         exponent: lerp(waist.shape.exponent ?? 2, 2.4, t),
-        offsetB: lerp(waist.shape.offsetB ?? 0, 0, t),
+        // The torso sweeps UP, so its frame's B axis points forward; the dress
+        // sweeps DOWN, so its B axis points backward. The inherited belly push
+        // has to flip sign with the frame or the garment shifts rearward by
+        // exactly as much as the belly it is meant to cover pushes forward.
+        offsetB: lerp(-(waist.shape.offsetB ?? 0), 0, t),
       },
       skin:
         i === 0
@@ -214,7 +222,21 @@ export function buildDress(ctx: BodyContext, spec: DressSpec): Strand {
   }
 
   // Hem fold: back up and inward, ending narrow enough to cap out of sight.
+  //
+  // The fold REVERSES the sweep, and `ringAxes` reads the sweep from a central
+  // difference of ring CENTRES, so the axis flips a full 180 degrees at the
+  // hem. `ringFrames` then transports the frame through that flip, which
+  // mirrors the ring parameter and twists the hem strip into a
+  // self-intersecting bowtie — a 26 cm membrane straight through both thighs.
+  // Pinning the fold rings to the descending direction keeps ONE frame for the
+  // whole strand; the quad winding then comes out correct for a surface that
+  // folds back on itself, because the solid is on the other side of it.
   const hem = rings[rings.length - 1]!;
+  const descent = hem.center.clone().sub(rings[Math.max(0, rings.length - 2)]!.center);
+  if (descent.lengthSq() < 1e-12) descent.set(0, -1, 0);
+  descent.normalize();
+  rings[rings.length - 1] = { ...hem, axis: descent };
+
   const fold = 0.03 * d.unit;
   rings.push({
     center: new THREE.Vector3(hem.center.x, hem.center.y + fold * 0.35, hem.center.z),
@@ -225,6 +247,7 @@ export function buildDress(ctx: BodyContext, spec: DressSpec): Strand {
     },
     skin: hem.skin,
     v: 0.92,
+    axis: descent,
     color: spec.color,
   });
   rings.push({
@@ -236,6 +259,7 @@ export function buildDress(ctx: BodyContext, spec: DressSpec): Strand {
     },
     skin: hem.skin,
     v: 1.0,
+    axis: descent,
     color: spec.color,
   });
 
@@ -337,11 +361,18 @@ export function buildCape(
     const u = i / columns;
     for (let j = 0; j <= rows; j++) {
       const v = j / rows;
+      // Step backwards at the far edges instead of clamping. A clamped step
+      // samples the same point twice, and a zero tangent used to send the
+      // whole trailing column and the whole hem row through the degenerate
+      // fallback below — which pushed the outer shell INSIDE the sheet along
+      // the entire right edge and bottom.
+      const stepU = i < columns ? 1e-3 : -1e-3;
+      const stepV = j < rows ? 1e-3 : -1e-3;
       point(u, v, mid);
-      point(Math.min(1, u + 1e-3), v, a);
-      point(u, Math.min(1, v + 1e-3), b);
-      _tangentI.subVectors(a, mid);
-      _tangentJ.subVectors(b, mid);
+      point(u + stepU, v, a);
+      point(u, v + stepV, b);
+      _tangentI.subVectors(a, mid).divideScalar(stepU);
+      _tangentJ.subVectors(b, mid).divideScalar(stepV);
       _normal.crossVectors(_tangentI, _tangentJ).normalize().negate();
       if (!Number.isFinite(_normal.x) || _normal.lengthSq() < 0.5) _normal.set(0, 0, 1);
 

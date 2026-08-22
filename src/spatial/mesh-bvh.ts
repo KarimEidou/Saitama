@@ -33,7 +33,13 @@ export interface IGroundHit {
   distance: number;
   /** World-space contact point. */
   readonly point: THREE.Vector3;
-  /** World-space face normal, oriented as authored. */
+  /**
+   * World-space SHADING normal — the barycentric blend of the triangle's
+   * vertex normals, flipped when it points along the ray so it always faces
+   * the caster. It is not the geometric face normal, and on a smooth-shaded
+   * mesh it can differ from the triangle's own plane by a few degrees.
+   * Geometry with no `normal` attribute falls back to `(0, 1, 0)`.
+   */
   readonly normal: THREE.Vector3;
   /** Index of the triangle hit, for material / surface-type lookup. */
   faceIndex: number;
@@ -72,10 +78,15 @@ export class GroundBVH {
   private readonly localMatrix = new THREE.Matrix4();
   private readonly worldMatrix = new THREE.Matrix4();
   private readonly normalMatrix = new THREE.Matrix3();
+  /** Per-axis scale of `worldMatrix`; converts world distances to local ones. */
+  private readonly worldScale = new THREE.Vector3(1, 1, 1);
 
   private readonly ray = new THREE.Ray();
   private readonly scratchDir = new THREE.Vector3();
   private readonly scratchBox = new THREE.Box3();
+  private readonly scratchScale = new THREE.Vector3();
+  private readonly scratchPoint = new THREE.Vector3();
+  private readonly scratchSphere = new THREE.Sphere();
   private readonly hitPool: ObjectPool<IGroundHit>;
   /** Reused by `sampleHeight`, which is called every frame for the player. */
   private readonly heightHit: IGroundHit;
@@ -103,6 +114,7 @@ export class GroundBVH {
       this.worldMatrix.copy(options.matrixWorld);
       this.localMatrix.copy(options.matrixWorld).invert();
       this.normalMatrix.getNormalMatrix(this.worldMatrix);
+      this.worldScale.setFromMatrixScale(this.worldMatrix);
     }
 
     this.hitPool = new ObjectPool<IGroundHit>({
@@ -122,6 +134,21 @@ export class GroundBVH {
     this.worldMatrix.copy(matrix);
     this.localMatrix.copy(matrix).invert();
     this.normalMatrix.getNormalMatrix(this.worldMatrix);
+    this.worldScale.setFromMatrixScale(this.worldMatrix);
+  }
+
+  /**
+   * A world-space distance expressed in the BVH's own units.
+   *
+   * `THREE.Ray.applyMatrix4` re-normalises the direction, so once the ray is in
+   * local space one unit of ray parameter is one LOCAL metre — a scaled
+   * `matrixWorld` would otherwise truncate or over-extend every cast. Uses the
+   * ray's current (already transformed) direction, exactly as three-mesh-bvh's
+   * own `raycastObject3D` derives `raycaster.far / scaleFactor`.
+   */
+  private localRayDistance(maxDistance: number): number {
+    const scale = this.scratchScale.copy(this.ray.direction).multiply(this.worldScale).length();
+    return scale > 0 ? maxDistance / scale : maxDistance;
   }
 
   /** World-space AABB of the whole mesh. */
@@ -147,14 +174,18 @@ export class GroundBVH {
   ): boolean {
     this.ray.origin.copy(origin);
     this.ray.direction.copy(direction).normalize();
-    if (this.hasTransform) this.ray.applyMatrix4(this.localMatrix);
+    let limit = maxDistance;
+    if (this.hasTransform) {
+      this.ray.applyMatrix4(this.localMatrix);
+      limit = this.localRayDistance(maxDistance);
+    }
 
-    const hit = this.bvh.raycastFirst(this.ray, this.side, 0, maxDistance);
+    const hit = this.bvh.raycastFirst(this.ray, this.side, 0, limit);
     if (hit === null) return false;
 
     target.distance = hit.distance;
     target.point.copy(hit.point);
-    if (hit.normal !== undefined) target.normal.copy(hit.normal);
+    if (hit.normal !== undefined && hit.normal !== null) target.normal.copy(hit.normal);
     else target.normal.set(0, 1, 0);
     target.faceIndex = hit.faceIndex ?? -1;
 
@@ -182,9 +213,13 @@ export class GroundBVH {
     out.length = 0;
     this.ray.origin.copy(origin);
     this.ray.direction.copy(direction).normalize();
-    if (this.hasTransform) this.ray.applyMatrix4(this.localMatrix);
+    let limit = maxDistance;
+    if (this.hasTransform) {
+      this.ray.applyMatrix4(this.localMatrix);
+      limit = this.localRayDistance(maxDistance);
+    }
 
-    const raw = this.bvh.raycast(this.ray, this.side, 0, maxDistance);
+    const raw = this.bvh.raycast(this.ray, this.side, 0, limit);
     raw.sort((a, b) => a.distance - b.distance);
 
     for (let i = 0; i < raw.length; i++) {
@@ -235,11 +270,27 @@ export class GroundBVH {
     return this.heightHit.point.y;
   }
 
-  /** Surface normal under a world position, written into `target`. */
-  sampleNormal(x: number, z: number, target: THREE.Vector3, fromY = 500): boolean {
+  /**
+   * Surface normal under a world position, written into `target`.
+   *
+   * Takes `maxDistance` for the same reason `sampleHeight` does, and with the
+   * same default: deriving the reach from `fromY` instead would make the pair
+   * probe different volumes for any non-default sample height, so a caller
+   * could get a height back and no normal for the very surface it is standing
+   * on.
+   */
+  sampleNormal(
+    x: number,
+    z: number,
+    target: THREE.Vector3,
+    fromY = 500,
+    maxDistance = 1000
+  ): boolean {
     this.scratchDir.set(0, -1, 0);
     HEIGHT_ORIGIN.set(x, fromY, z);
-    if (!this.raycastFirst(HEIGHT_ORIGIN, this.scratchDir, fromY * 2, this.heightHit)) return false;
+    if (!this.raycastFirst(HEIGHT_ORIGIN, this.scratchDir, maxDistance, this.heightHit)) {
+      return false;
+    }
     target.copy(this.heightHit.normal);
     return true;
   }
@@ -251,20 +302,52 @@ export class GroundBVH {
     return this.bvh.intersectsBox(this.scratchBox, this.localMatrix);
   }
 
-  /** True when any triangle intersects the world-space sphere. */
+  /**
+   * True when any triangle intersects the world-space sphere.
+   *
+   * `MeshBVH.intersectsSphere` takes no transform, so under a `matrixWorld` the
+   * sphere is moved into local space first. Non-uniform scale widens it by the
+   * largest axis, which errs towards reporting an overlap — the safe direction
+   * for a broad-phase answer.
+   */
   intersectsSphere(sphere: THREE.Sphere): boolean {
-    return this.bvh.intersectsSphere(sphere);
+    if (!this.hasTransform) return this.bvh.intersectsSphere(sphere);
+    this.scratchSphere.copy(sphere).applyMatrix4(this.localMatrix);
+    return this.bvh.intersectsSphere(this.scratchSphere);
   }
 
   /**
    * Nearest surface point to a world position. Used to push a character out of
    * a wall it has been shoved into and to snap debris onto the ground.
+   *
+   * `MeshBVH.closestPointToPoint` works in the BVH's own space, so under a
+   * `matrixWorld` the probe goes down into local space and the result comes
+   * back up — `target` and the returned distance are always world-space, as
+   * the push-out this feeds requires.
    */
   closestPoint(point: THREE.Vector3, target: THREE.Vector3, maxDistance = Infinity): number {
-    const info = this.bvh.closestPointToPoint(point, CLOSEST_INFO, 0, maxDistance);
+    if (!this.hasTransform) {
+      const flat = this.bvh.closestPointToPoint(point, CLOSEST_INFO, 0, maxDistance);
+      if (flat === null) return Infinity;
+      target.copy(flat.point);
+      return flat.distance;
+    }
+
+    // The local threshold has to be at least as generous as the world one, so
+    // divide by the SMALLEST axis scale and re-check the true world distance
+    // below rather than risk rejecting a point that was in range.
+    const minScale = Math.min(this.worldScale.x, this.worldScale.y, this.worldScale.z);
+    const limit = maxDistance === Infinity || minScale <= 0 ? maxDistance : maxDistance / minScale;
+
+    this.scratchPoint.copy(point).applyMatrix4(this.localMatrix);
+    const info = this.bvh.closestPointToPoint(this.scratchPoint, CLOSEST_INFO, 0, limit);
     if (info === null) return Infinity;
-    target.copy(info.point);
-    return info.distance;
+
+    this.scratchPoint.copy(info.point).applyMatrix4(this.worldMatrix);
+    const distance = this.scratchPoint.distanceTo(point);
+    if (distance > maxDistance) return Infinity;
+    target.copy(this.scratchPoint);
+    return distance;
   }
 
   /** Serialised BVH for the asset cache, avoiding a rebuild at load. */

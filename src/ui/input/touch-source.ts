@@ -19,7 +19,12 @@
  *  4. A `pointerdown` arriving for an id we already track — we missed an up.
  *     `TouchCore` cancels the stale one first.
  *
- * All four are exercised by `harness/input.verify.ts`.
+ * COVERAGE, accurately: path 1 end-to-end in `harness/input.verify.ts` (§6/§7,
+ * via CDP `touchCancel`); path 4 in `touch-core.test.ts` ("recovers from a
+ * duplicate pointerdown for a live id"). Paths 2 and 3 exist only in this
+ * adapter — CDP has no per-pointer cancel and cannot background the page — so
+ * they have NO automated coverage: re-verify the listener wiring below by hand
+ * whenever it changes.
  */
 
 import type { SafeAreaInsets } from '@/types';
@@ -250,6 +255,26 @@ export function createTouchSource(
 
   const buttonDown = {} as Record<TouchButtonId, boolean>;
 
+  /**
+   * Push the core's current state to the overlay. Called from `sample()` and
+   * from every path that clears the core WITHOUT a following sample — the
+   * overlay holds no state of its own, so a reset that skips this leaves a
+   * deflected knob and pressed buttons painted on screen until input is
+   * re-enabled and polled again.
+   */
+  function syncOverlay(): void {
+    if (!overlay) return;
+    for (const id of TOUCH_BUTTON_IDS) buttonDown[id] = core.isButtonDown(id);
+    overlay.sync({
+      stick: core.stick,
+      chargeRatio: core.chargeRatio,
+      charging: core.chargeHoldTime >= activeTuning.chargeStartSec,
+      buttonDown,
+      dashOn: core.isDashOn,
+      interactAvailable: core.isInteractAvailable,
+    });
+  }
+
   const source: ITouchInputSource = {
     device: 'touch',
     core,
@@ -264,28 +289,20 @@ export function createTouchSource(
       if (!value) {
         core.cancelAll(now());
         core.reset();
+        syncOverlay();
       }
     },
 
     sample(dt: number, time: number, out: InputContribution): void {
       if (!enabled) return;
       core.sample(dt, time, out);
-      if (overlay) {
-        for (const id of TOUCH_BUTTON_IDS) buttonDown[id] = core.isButtonDown(id);
-        overlay.sync({
-          stick: core.stick,
-          chargeRatio: core.chargeRatio,
-          charging: core.chargeHoldTime >= activeTuning.chargeStartSec,
-          buttonDown,
-          dashOn: core.isDashOn,
-          interactAvailable: core.isInteractAvailable,
-        });
-      }
+      syncOverlay();
     },
 
     reset(): void {
       core.cancelAll(now());
       core.reset();
+      syncOverlay();
     },
 
     dispose(): void {

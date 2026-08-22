@@ -52,6 +52,7 @@ import { createReadStream } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { read as readKTX2 } from 'ktx-parse';
 import type {
   AnyAssetEntry,
@@ -150,6 +151,23 @@ export const WORK_ROOT = path.join(PUBLIC_ASSETS_DIR, '.work');
 export const WORK_DIR = path.join(WORK_ROOT, String(process.pid));
 
 /**
+ * Does a process with this pid exist?
+ *
+ * Signal 0 tests for existence without delivering anything. It throws ESRCH
+ * when nothing is there and EPERM when the process EXISTS but belongs to
+ * another user — so anything that is not ESRCH has to be read as "alive", or a
+ * sweeper deletes the scratch of a build running under a different uid.
+ */
+export function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== 'ESRCH';
+  }
+}
+
+/**
  * Delete this run's scratch, plus any left behind by a run that died.
  *
  * The pid namespacing that makes concurrent builds safe also means a build
@@ -160,6 +178,11 @@ export const WORK_DIR = path.join(WORK_ROOT, String(process.pid));
  * `process.kill(pid, 0)` only tests for existence. A recycled pid makes this
  * skip a directory that was in fact abandoned, which is the harmless direction
  * to be wrong in; it can never delete a live run's scratch.
+ *
+ * That last guarantee is why the error CODE is inspected rather than caught
+ * bare: `kill` throws ESRCH for "no such process" but EPERM for "exists, owned
+ * by another uid", which is exactly the shared build machine / rootless
+ * container case. Treating EPERM as death would delete a live run's scratch.
  */
 export async function cleanWorkDirs(): Promise<void> {
   await rm(WORK_DIR, { recursive: true, force: true });
@@ -172,12 +195,8 @@ export async function cleanWorkDirs(): Promise<void> {
   for (const name of siblings) {
     const pid = Number(name);
     if (!Number.isInteger(pid) || pid <= 0) continue;
-    try {
-      process.kill(pid, 0);
-      continue; // still running: leave it alone
-    } catch {
-      await rm(path.join(WORK_ROOT, name), { recursive: true, force: true });
-    }
+    if (isPidAlive(pid)) continue; // still running: leave it alone
+    await rm(path.join(WORK_ROOT, name), { recursive: true, force: true });
   }
   // `rmdir` refuses a non-empty directory, which is exactly the check wanted:
   // the root goes only once no other build is using it.
@@ -333,16 +352,24 @@ export interface IKtx2Expectation {
   /** Require the complete mip chain down to 1×1. */
   readonly fullMipChain?: boolean;
   readonly supercompressionScheme?: number;
+  /**
+   * The `KTXorientation` key the container must carry — `'ru'` for everything
+   * this pipeline publishes (right, up: a bottom-left origin). An empty string
+   * asserts the key is ABSENT, which is what glTF-embedded textures want.
+   */
+  readonly orientation?: string;
 }
 
 /**
  * Assert a built KTX2 is what the encoder was asked for.
  *
- * The three things worth checking are exactly the three that are silently
- * wrong often enough to ship: the format, the transfer function (an albedo
- * tagged linear is washed out, a normal map tagged sRGB is subtly wrong
- * everywhere), and the mip chain (a missing chain shimmers at distance and
- * costs bandwidth that was supposedly already paid).
+ * The four things worth checking are exactly the four that are silently wrong
+ * often enough to ship: the format, the transfer function (an albedo tagged
+ * linear is washed out, a normal map tagged sRGB is subtly wrong everywhere),
+ * the mip chain (a missing chain shimmers at distance and costs bandwidth that
+ * was supposedly already paid), and the orientation — the one thing the
+ * pipeline flips by hand, differently per stage, and which
+ * `assets.runtime.json` republishes as a hard contract the renderer must match.
  */
 export function checkKtx2(facts: IKtx2Facts, expect: IKtx2Expectation): string[] {
   const problems: string[] = [];
@@ -378,6 +405,13 @@ export function checkKtx2(facts: IKtx2Facts, expect: IKtx2Expectation): string[]
     problems.push(
       `${where}: supercompressionScheme ${facts.supercompressionScheme}, ` +
         `expected ${expect.supercompressionScheme}`
+    );
+  }
+  if (expect.orientation !== undefined && (facts.orientation ?? '') !== expect.orientation) {
+    problems.push(
+      `${where}: KTXorientation ${facts.orientation ?? '(absent)'}, expected ` +
+        `${expect.orientation || '(absent)'} — an upside-down texture passes every ` +
+        `other check in this file`
     );
   }
   return problems;
@@ -491,12 +525,34 @@ export class ProcessCache {
     return record;
   }
 
+  /**
+   * Persist, folding in anything another build wrote since `open()`.
+   *
+   * `writeFileAtomic` makes the write atomic but does nothing about the lost
+   * update: two concurrent `assets:process` runs both read N entries and the
+   * slower one's save would drop everything the faster one added, costing the
+   * next run a re-encode of outputs that are perfectly current on disk. Keys
+   * are content-addressed, so a key present on both sides describes the same
+   * bytes and this run's record — freshly stat'd — wins.
+   */
   async save(): Promise<void> {
     if (!this.dirty) return;
+    const merged = new Map<string, IProcessCacheRecord>();
+    try {
+      const onDisk = JSON.parse(await readFile(this.file, 'utf8')) as IProcessCacheFile;
+      if (onDisk.version === 1 && onDisk.toolVersion === TOOL_VERSION) {
+        for (const [key, record] of Object.entries(onDisk.entries ?? {})) merged.set(key, record);
+      }
+    } catch {
+      // Nothing readable there: this run's entries are the whole cache.
+    }
+    for (const [key, record] of this.entries) merged.set(key, record);
+    this.entries = merged;
+
     const payload: IProcessCacheFile = {
       version: 1,
       toolVersion: TOOL_VERSION,
-      entries: Object.fromEntries([...this.entries].sort(([a], [b]) => (a < b ? -1 : 1))),
+      entries: Object.fromEntries([...merged].sort(([a], [b]) => (a < b ? -1 : 1))),
     };
     await writeFileAtomic(this.file, JSON.stringify(payload, null, 2) + '\n');
     this.dirty = false;
@@ -506,10 +562,18 @@ export class ProcessCache {
 /**
  * The key an output is addressed by.
  *
- * Everything that can change the bytes goes in: the source digest, where the
- * file lands, the exact encoder options, this tool's version, and the
- * encoder's own version. Nothing else does — the key must not depend on the
- * clock, the machine, or the order entries happen to be processed in.
+ * Everything that decides WHAT was asked for goes in: the source digest, where
+ * the file lands, the encoder options that shape the result, this tool's
+ * version, and the encoder's own version. It must not depend on the clock or on
+ * the order entries happen to be processed in.
+ *
+ * One deliberate omission: `--threads`. It is derived from `os.cpus()` and
+ * `--concurrency`, `ktx` copies it verbatim into `KTXwriterScParams`, and the
+ * UASTC RDO pass breaks ties differently across thread counts — so equal key
+ * means "the same encode was requested of the same bytes", NOT byte-identical
+ * output across machines. Putting it in the key would buy that stronger promise
+ * at the price of re-encoding the whole set whenever the box or `--concurrency`
+ * changes, which is precisely the cost this cache exists to avoid.
  */
 export function outputKey(parts: {
   srcSha256: string;
@@ -571,7 +635,12 @@ export async function mapPool<T, R>(
 ): Promise<Array<{ ok: true; value: R } | { ok: false; error: Error }>> {
   const results = new Array<{ ok: true; value: R } | { ok: false; error: Error }>(items.length);
   let next = 0;
-  const width = Math.max(1, Math.min(limit, items.length));
+  // A non-finite `limit` (`Number('two')` from an unvalidated CLI flag) would
+  // make `width` NaN, `Array.from({ length: NaN })` empty, and every slot of
+  // `results` a hole that the caller then dereferences. One worker is the
+  // conservative reading of "I could not tell how many you wanted".
+  const requested = Number.isFinite(limit) ? Math.floor(limit) : 1;
+  const width = Math.max(1, Math.min(requested, items.length));
 
   async function worker(): Promise<void> {
     for (;;) {
@@ -689,7 +758,13 @@ export async function writeRuntimeIndex(options: {
   syntheticEntries: readonly AnyAssetEntry[];
   tiers: readonly QualityTier[];
   encoder: string;
-}): Promise<{ file: string; bytes: number; totalBytes: Partial<Record<QualityTier, number>> }> {
+}): Promise<{
+  file: string;
+  bytes: number;
+  totalBytes: Partial<Record<QualityTier, number>>;
+  /** Ids the previous index carried that no longer have a source manifest row. */
+  dropped: readonly string[];
+}> {
   let previous: IRuntimeManifest | undefined;
   try {
     previous = JSON.parse(await readFile(RUNTIME_INDEX, 'utf8')) as IRuntimeManifest;
@@ -768,15 +843,33 @@ export async function writeRuntimeIndex(options: {
       entries.push(attach(entry));
     }
   }
-  // Entries an earlier run synthesised that this one did not regenerate — the
-  // procedural materials' texture rows, when only the HDRI stage ran, or a
-  // `--validate`-only invocation. Without this they would silently vanish from
-  // the index while their files sat perfectly good on disk.
+  /**
+   * Entries an earlier run synthesised that this one did not regenerate — the
+   * procedural materials' texture rows, when only the HDRI stage ran, or a
+   * `--validate`-only invocation. Without this they would silently vanish from
+   * the index while their files sat perfectly good on disk.
+   *
+   * Carried forward only while the SOURCE they were derived from still exists.
+   * "Not produced by this run" on its own conflates a stage that did not run
+   * with an asset the curator deleted from the manifest, and the second one
+   * would then be republished forever: preloaded by the game, credited on the
+   * attribution screen, and 404ing the moment someone tidies up its directory.
+   * Synthetic ids are `<sourceId>.<role>`, so one segment of ancestry is enough.
+   */
+  const sourceIds = new Set(options.sourceManifest.entries.map((e) => e.id));
+  const derivedFromSource = (id: string): boolean => {
+    const cut = id.lastIndexOf('.');
+    return cut > 0 && sourceIds.has(id.slice(0, cut));
+  };
+  const dropped: string[] = [];
   for (const entry of previous?.entries ?? []) {
-    if (!seen.has(entry.id)) {
-      seen.add(entry.id);
-      entries.push(attach(entry));
+    if (seen.has(entry.id)) continue;
+    if (!derivedFromSource(entry.id)) {
+      dropped.push(entry.id);
+      continue;
     }
+    seen.add(entry.id);
+    entries.push(attach(entry));
   }
 
   // Byte totals dedupe by file: a shared output referenced by several tiers
@@ -817,7 +910,7 @@ export async function writeRuntimeIndex(options: {
 
   const json = JSON.stringify(manifest, null, 2) + '\n';
   await writeFileAtomic(RUNTIME_INDEX, json);
-  return { file: RUNTIME_INDEX, bytes: Buffer.byteLength(json), totalBytes };
+  return { file: RUNTIME_INDEX, bytes: Buffer.byteLength(json), totalBytes, dropped };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -884,7 +977,11 @@ export async function validateOutputs(
       continue;
     }
 
-    const expectation: IKtx2Expectation = { fullMipChain: true };
+    // Every KTX2 this pipeline publishes is written bottom-left-origin, either
+    // by converting (textures) or by asserting a buffer that was already
+    // flipped (environments). `pipeline.textureOrigin` in the index promises
+    // exactly this to the renderer.
+    const expectation: IKtx2Expectation = { fullMipChain: true, orientation: 'ru' };
     if (entry.kind === 'hdri') {
       Object.assign(expectation, {
         vkFormat: VK_FORMAT_R16G16B16A16_SFLOAT,
@@ -921,7 +1018,57 @@ export async function validateOutputs(
   }
   log.endStatus();
 
+  problems.push(...(await validateEnvironments(manifest)));
+
   return { checked, problems, bytesByTier };
+}
+
+/**
+ * Check the SH sidecars the index publishes inline.
+ *
+ * `environments[id].sh9` is the mobile tier's entire diffuse lighting path and
+ * it is a COPY of `env/<id>.sh9.json`. Nothing else in this file looks at those
+ * sidecars — `validateOutputs` walks `format === 'ktx2'` rows only — so a
+ * truncated or older-schema sidecar reaches the runtime as a silently absent
+ * probe: `coefficientsFlat` parses as `undefined`, `JSON.stringify` drops the
+ * key, and the game falls back to a flat ambient with no error anywhere.
+ */
+async function validateEnvironments(manifest: IRuntimeManifest): Promise<string[]> {
+  const problems: string[] = [];
+  const isSH9 = (value: unknown): value is number[] =>
+    Array.isArray(value) && value.length === 27 && value.every((v) => Number.isFinite(v));
+
+  for (const [id, env] of Object.entries(manifest.environments ?? {})) {
+    const where = `environments.${id}`;
+    const indexed: unknown = env.sh9;
+    if (!isSH9(indexed)) {
+      problems.push(`${where}: sh9 in the index is not 27 finite numbers`);
+    }
+    if (!env.shFile) {
+      problems.push(`${where}: no shFile recorded`);
+      continue;
+    }
+
+    const file = path.join(PUBLIC_ASSETS_DIR, env.shFile);
+    let sidecar: unknown;
+    try {
+      sidecar = (JSON.parse(await readFile(file, 'utf8')) as { coefficientsFlat?: unknown })
+        .coefficientsFlat;
+    } catch (error) {
+      problems.push(`${where}: ${env.shFile} unreadable — ${(error as Error).message}`);
+      continue;
+    }
+    if (!isSH9(sidecar)) {
+      problems.push(`${where}: ${env.shFile} coefficientsFlat is not 27 finite numbers`);
+      continue;
+    }
+    if (isSH9(indexed) && sidecar.some((v, i) => v !== indexed[i])) {
+      problems.push(
+        `${where}: sh9 in the index disagrees with ${env.shFile} — one of them is stale`
+      );
+    }
+  }
+  return problems;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -931,6 +1078,35 @@ export async function validateOutputs(
 type StageName = 'textures' | 'hdri' | 'models';
 const ALL_STAGES: readonly StageName[] = ['textures', 'hdri', 'models'];
 const ALL_TIERS: readonly QualityTier[] = ['mobile', 'high', 'ultra'];
+
+/**
+ * Validate a `--tier` flag. Shared with the stages' standalone entry points.
+ *
+ * They used to cast the raw string straight to `QualityTier`, so `--tier mobil`
+ * reached `TIER_TARGETS[tier]` as `undefined` and surfaced as `Cannot read
+ * properties of undefined (reading 'albedo')` from inside the planner — a
+ * message that points at the planner rather than at the typo.
+ */
+export function parseTier(raw: string | undefined): QualityTier {
+  if (raw === undefined) return 'mobile';
+  if (!ALL_TIERS.includes(raw as QualityTier)) {
+    throw new Error(`unknown tier '${raw}' (expected ${ALL_TIERS.join(' | ')})`);
+  }
+  return raw as QualityTier;
+}
+
+/**
+ * Validate a `--concurrency` flag. Shared with the stages' standalone entry
+ * points, where `Number('two')` used to reach `mapPool` as NaN.
+ */
+export function parseConcurrency(raw: string | undefined, fallback = 2): number {
+  if (raw === undefined) return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 16) {
+    throw new Error(`--concurrency must be an integer 1..16, got '${raw}'`);
+  }
+  return n;
+}
 
 interface ICliOptions {
   readonly tiers: readonly QualityTier[];
@@ -1017,7 +1193,8 @@ function parseArgs(argv: readonly string[]): ICliOptions {
             '  --skip <stage[,..]>  omit textures | hdri | models',
             '  --force              ignore the content-addressed skip cache',
             '  --validate           run ktx2check over every output',
-            '  --clean              delete public/assets before building',
+            "  --clean              delete this pipeline's outputs (tex/, env/, mdl/,",
+            '                       the runtime index and the skip cache) before building',
           ].join('\n')
         );
         process.exit(0);
@@ -1107,8 +1284,14 @@ async function main(): Promise<void> {
   if (options.force) log.warn('--force: the skip cache is ignored, everything is re-encoded');
 
   if (options.clean) {
-    await rm(PUBLIC_ASSETS_DIR, { recursive: true, force: true });
-    log.info(`cleaned     ${rel(PUBLIC_ASSETS_DIR)}`);
+    // Named subtrees, never `rm -rf public/assets`: WORK_ROOT lives in there,
+    // and wiping it would delete a concurrent build's live scratch mid-encode —
+    // the exact failure the pid namespacing of WORK_DIR exists to prevent.
+    // `.work/` is `cleanWorkDirs`' to own and is left alone here.
+    for (const target of [TEX_DIR, ENV_DIR, MODEL_DIR, RUNTIME_INDEX, PROCESS_CACHE]) {
+      await rm(target, { recursive: true, force: true });
+    }
+    log.info(`cleaned     ${rel(TEX_DIR)}, ${rel(ENV_DIR)}, ${rel(MODEL_DIR)} and the index`);
   }
   await mkdir(PUBLIC_ASSETS_DIR, { recursive: true });
 
@@ -1168,6 +1351,12 @@ async function main(): Promise<void> {
     tiers: options.tiers,
     encoder,
   });
+  if (index.dropped.length > 0) {
+    log.warn(
+      `dropped ${index.dropped.length} index entr(ies) with no source manifest row: ` +
+        index.dropped.join(', ')
+    );
+  }
 
   if (options.validate) {
     log.heading('validate');
@@ -1198,10 +1387,17 @@ async function main(): Promise<void> {
   log.ok('asset processing complete');
 }
 
-/** Only run the CLI when invoked directly, never when imported by a stage. */
+/**
+ * Only run the CLI when invoked directly, never when imported by a stage.
+ *
+ * `fileURLToPath`, never `new URL(import.meta.url).pathname`: a URL pathname is
+ * percent-encoded and `process.argv[1]` is not, so the naive comparison is
+ * false for every checkout whose path contains a space, `#` or a non-ASCII
+ * character — and the CLI then loads, evaluates, runs nothing and exits 0.
+ */
 const invokedDirectly =
   process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (invokedDirectly) {
   main().catch((error: unknown) => {

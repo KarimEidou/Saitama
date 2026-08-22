@@ -130,6 +130,14 @@ const ALL_MODES: readonly Mode[] = [
 /** `npx tsx harness/crowd.verify.ts panic` runs one mode while iterating. */
 const only = process.argv[2];
 const MODES = only === undefined ? ALL_MODES : ALL_MODES.filter((m) => m.name === only);
+if (MODES.length === 0) {
+  // Exiting 0 here would report a green verification of nothing at all: the
+  // loop below is the only thing that asserts, and `failures` starts empty.
+  console.error(
+    `unknown mode "${only}"; expected one of ${ALL_MODES.map((m) => m.name).join(', ')}`
+  );
+  process.exit(2);
+}
 
 /** A page that threw still screenshots — as a flat rectangle. Check pixels. */
 async function analyse(file: string): Promise<{ stdDev: number; colours: number }> {
@@ -383,7 +391,14 @@ function assertCalm(stats: CrowdStats): void {
     stats.moods.commute > stats.agents * 0.9,
     `${stats.moods.commute}/${stats.agents} are simply walking somewhere`
   );
-  check(stats.frontFinal === 0, `no alarm field at all (${stats.frontFinal})`);
+  // Read across every sample, not just the last one: the control's whole job is
+  // to prove no alarm ever stands with no threat registered, and a leak that
+  // seeded the field and decayed again would end the run at zero.
+  const peakFront = stats.frontSamples.reduce((most, s) => Math.max(most, s.radius), 0);
+  check(
+    stats.frontSamples.length > 20 && peakFront === 0 && stats.frontFinal === 0,
+    `no alarm field at all across ${stats.frontSamples.length} samples (peak ${peakFront.toFixed(1)} m)`
+  );
 }
 
 main().catch((error: unknown) => {

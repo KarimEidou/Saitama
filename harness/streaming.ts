@@ -376,7 +376,7 @@ function buildSpatialIndex(): { index: SpatialIndex; pvsBuildMs: number } {
   const pvs = buildPvs(footprints, { rayCount: 96, originSamples: 5 });
   const pvsBuildMs = performance.now() - started;
 
-  const index = new SpatialIndex({ pvs, quadtree: { capacity: footprints.length + 64 } });
+  const index = new SpatialIndex({ pvs, quadtree: { initialCapacity: footprints.length + 64 } });
   for (let i = 0; i < boxes.length; i += 6) {
     index.insertStatic(
       boxes[i]!,
@@ -399,6 +399,10 @@ const { index: spatial, pvsBuildMs } = buildSpatialIndex();
 const bus = new EventBus();
 const colliderSink = new CountingColliderSink();
 const crowdSink = new CountingCrowdSink();
+/* Handed to the StreamingSystem below, NOT merely kept beside it: the system
+   falls back to an instance of its own when `damage` is omitted, and then
+   `destroyBuilding()` mutates that one while the minimap and the determinism
+   rebuild read this one — permanently empty. */
 const damage = new ChunkDamageState();
 
 let streamedIn = 0;
@@ -477,6 +481,7 @@ const streaming = new StreamingSystem({
   quality: 'medium',
   colliderSink,
   crowdSink,
+  damage,
   gpuUpload: forceGpuUpload,
   isChunkPotentiallyVisible: (from, to) => spatial.isChunkPotentiallyVisible(from, to),
 });

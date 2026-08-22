@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import type { ClipName } from '@/types';
+import type { BoneName, ClipName } from '@/types';
 import {
   CLIP_LIBRARY,
   clipDuration,
@@ -18,9 +18,11 @@ import {
   findClip,
   hasClip,
 } from '../clips';
-import { sampleClip } from '../bake';
-import { createPose, poseAngleDelta, poseToModelMatrices } from '../pose';
+import { bakeAnimationClips, maskFor, sampleClip, toAnimationClip } from '../bake';
+import { poseHead, posePelvis, poseSpine } from '../posture';
+import { copyPose, createPose, poseAngleDelta, poseToModelMatrices } from '../pose';
 import { REFERENCE_LEG } from '../rig';
+import type { Pose } from '../types';
 import { heroFixture, showcaseFixtures } from './support';
 
 const ALL_SLOTS: readonly ClipName[] = [
@@ -162,6 +164,127 @@ describe('continuity', () => {
       // The lowest bone is a toe, which sits a little above the sole.
       expect(lowest, `${entry.def.slot}:${entry.def.variant}`).toBeGreaterThan(-0.02);
     }
+  });
+});
+
+describe('the sagittal sign convention', () => {
+  // The one thing a height measurement cannot tell you. A backward arch drops
+  // the head exactly as much as a forward fold does, so every assertion here is
+  // about a model-space DIRECTION: the character faces -Z, so forward is -Z.
+  const { rig } = heroFixture('saitama');
+  const model: THREE.Matrix4[] = [];
+
+  const posed = (build: (pose: Pose) => void): ((bone: BoneName) => THREE.Vector3) => {
+    const pose = createPose(rig.boneCount);
+    copyPose(pose, rig.rest);
+    build(pose);
+    // Its own matrix array: two of these are alive at once in every assertion.
+    const matrices = poseToModelMatrices(pose, rig, []);
+    return (bone) => new THREE.Vector3().setFromMatrixPosition(matrices[rig.index[bone]!]!);
+  };
+
+  const rest = posed(() => {});
+
+  it('folds the chest FORWARD for a positive spine bend', () => {
+    const at = posed((pose) => poseSpine(pose, rig, { bend: 0.6 }));
+    expect(at('Neck').z).toBeLessThan(rest('Neck').z - 0.05);
+  });
+
+  it('drops the chin for a positive head pitch', () => {
+    const at = posed((pose) => poseHead(pose, rig, 0.6));
+    expect(at('HeadTop_End').z).toBeLessThan(rest('HeadTop_End').z - 0.02);
+    expect(at('HeadTop_End').y).toBeLessThan(rest('HeadTop_End').y);
+  });
+
+  it('tips the whole body forward for a positive pelvis pitch', () => {
+    const m = rig.metrics;
+    const at = posed((pose) => posePelvis(pose, rig, 0, m.hipHeight, 0, 0.4));
+    expect(at('Neck').z).toBeLessThan(rest('Neck').z - 0.1);
+  });
+
+  it('leaves Saitama slouched FORWARD at full boredom, not arched back', () => {
+    // The flagship consequence: `idle:bored` promises "rounded thoracic spine,
+    // chin down and slightly forward". Under an inverted sagittal sign it
+    // produces the exact opposite — a 15 degree backward arch with the face
+    // tilted up — and every head-height assertion in this file still passes.
+    const bored = findClip('idle', 'bored');
+    const sample = (boredom: number): { head: THREE.Vector3; hips: THREE.Vector3 } => {
+      const params = { ...defaultClipParams(), boredom };
+      // Frame 1 of 8 is away from the yawn, which reverses the posture.
+      const pose = sampleClip(rig, bored, { frames: 8, params })[1]!;
+      poseToModelMatrices(pose, rig, model);
+      return {
+        head: new THREE.Vector3().setFromMatrixPosition(model[rig.index.Head!]!),
+        hips: new THREE.Vector3().setFromMatrixPosition(model[rig.index.Hips!]!),
+      };
+    };
+    const slouched = sample(1);
+    const engaged = sample(0);
+    // Head carried ahead of the hips, and further ahead the more bored he is.
+    expect(slouched.head.z).toBeLessThan(slouched.hips.z - 0.05);
+    expect(slouched.head.z - slouched.hips.z).toBeLessThan(engaged.head.z - engaged.hips.z);
+  });
+
+  it('keeps the neutral idle upright', () => {
+    // The control: without it every assertion above would pass on any pose that
+    // happened to lean forward for unrelated reasons.
+    const pose = sampleClip(rig, findClip('idle', 'default'), { frames: 8 })[1]!;
+    poseToModelMatrices(pose, rig, model);
+    const head = new THREE.Vector3().setFromMatrixPosition(model[rig.index.Head!]!);
+    const hips = new THREE.Vector3().setFromMatrixPosition(model[rig.index.Hips!]!);
+    expect(Math.abs(head.z - hips.z)).toBeLessThan(0.05);
+  });
+});
+
+describe('three.js interop', () => {
+  const { rig } = heroFixture('saitama');
+
+  it('closes the loop seam on a looping bake', () => {
+    // Without a key at `duration` the mixer holds the last frame for one whole
+    // frame interval and then jumps to frame 0 — a visible hitch once per loop.
+    const entry = findClip('idle');
+    const poses = sampleClip(rig, entry, { frames: 16 });
+    const duration = clipDuration(entry, rig);
+    const clip = toAnimationClip(rig, 'idle', poses, duration, { loop: true });
+    const track = clip.tracks.find((t) => t.name.endsWith('.quaternion'))!;
+    expect(track.times.length).toBe(17);
+    expect(track.times[16]!).toBeCloseTo(duration, 5);
+    // ...and the wrap key repeats frame 0 exactly.
+    for (let i = 0; i < 4; i++) {
+      expect(track.values[16 * 4 + i]!).toBeCloseTo(track.values[i]!, 6);
+    }
+  });
+
+  it('lays a one-shot bake on the closed grid it was sampled on', () => {
+    // `sampleClip` puts pose i of an n-frame one-shot at i/(n-1), so the keys
+    // belong there too; the looping grid i/n compresses the whole performance
+    // into (n-1)/n of the stated duration and slides every marker early.
+    const entry = findClip('attack');
+    const poses = sampleClip(rig, entry, { frames: 24 });
+    const duration = clipDuration(entry, rig);
+    const clip = toAnimationClip(rig, 'attack', poses, duration, { loop: false });
+    const track = clip.tracks.find((t) => t.name.endsWith('.quaternion'))!;
+    expect(track.times.length).toBe(24);
+    expect(track.times[23]!).toBeCloseTo(duration, 5);
+  });
+
+  it('picks the grid from each clip when baking the library', () => {
+    const clips = bakeAnimationClips(rig, [findClip('idle'), findClip('attack')], 12);
+    const keys = (name: string): number => {
+      const clip = clips.get(name)!;
+      return clip.tracks.find((t) => t.name.endsWith('.quaternion'))!.times.length;
+    };
+    expect(keys('idle:default')).toBe(13); // looping: wrap key appended
+    expect(keys('attack:default')).toBe(12); // one-shot: closed grid
+  });
+
+  it('caches the region masks per rig instead of rebuilding them', () => {
+    // The docstring promised a cache and there was none, so a per-frame overlay
+    // blend over a crowd allocated a fresh 27-float array per member per frame.
+    expect(maskFor(rig, 'upper')).toBe(maskFor(rig, 'upper'));
+    expect(maskFor(rig, 'lower')).toBe(maskFor(rig, 'lower'));
+    expect(maskFor(rig, 'upper')).not.toBe(maskFor(rig, 'lower'));
+    expect(maskFor(rig, 'full')).toBeUndefined();
   });
 });
 

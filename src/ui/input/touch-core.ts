@@ -130,10 +130,23 @@ interface CompletedTap {
 }
 
 interface ButtonRuntime {
-  /** Pointer currently holding this button, or -1. */
-  pointerId: number;
+  /**
+   * Every pointer currently on this button, in the order they landed. A button
+   * is held while this is non-empty: a second finger brushing a held button
+   * must not restart the charge, flip the dash toggle again, or release the
+   * button when it lifts before the finger that actually pressed it.
+   */
+  readonly pointerIds: number[];
   down: boolean;
 }
+
+/**
+ * Upper bound on pointers waiting to be reported as `up`. Only `sample()`
+ * drains `ending`, and nothing guarantees anyone is sampling — the manager can
+ * be disabled, or the synthetic driver can own the frame — while the DOM keeps
+ * delivering events. Bounded for the same reason `recentTaps` is.
+ */
+const MAX_PENDING_ENDED = 32;
 
 /* -------------------------------------------------------------------------- */
 /* Core                                                                       */
@@ -199,7 +212,7 @@ export class TouchCore {
   constructor(tuning: IInputTuning, callbacks: ITouchCoreCallbacks = {}) {
     this.tuning = tuning;
     this.callbacks = callbacks;
-    for (const id of TOUCH_BUTTON_IDS) this.buttons.set(id, { pointerId: -1, down: false });
+    for (const id of TOUCH_BUTTON_IDS) this.buttons.set(id, { pointerIds: [], down: false });
   }
 
   /* ---------------------------------------------------------------------- */
@@ -404,6 +417,9 @@ export class TouchCore {
     p.ended = true;
     this.pointers.delete(event.id);
     this.ending.push(p);
+    if (this.ending.length > MAX_PENDING_ENDED) {
+      this.ending.splice(0, this.ending.length - MAX_PENDING_ENDED);
+    }
 
     switch (p.role) {
       case 'stick':
@@ -514,12 +530,13 @@ export class TouchCore {
     if (span && this.baseDistance > 0) {
       const change = span.distance - this.baseDistance;
       if (Math.abs(change) >= this.tuning.pinchMinDeltaPx) {
-        const ratio = clamp(
-          span.distance / this.baseDistance,
-          1 / this.tuning.pinchMaxRatioPerFrame,
-          this.tuning.pinchMaxRatioPerFrame
-        );
-        this.pinchAccum *= ratio;
+        // RAW ratio here; the clamp is per FRAME and is applied once, in
+        // `sample()`. Clamping here would clamp per EVENT, and the coalesced
+        // path deliberately feeds many events per frame — four events each
+        // clamped to 1.5 multiply to 5.06, which is precisely the camera
+        // teleport `pinchMaxRatioPerFrame` exists to prevent. The jitter gate
+        // above stays per-event, where it belongs.
+        this.pinchAccum *= span.distance / this.baseDistance;
         this.baseDistance = span.distance;
       }
       let twist = span.angle - this.baseAngle;
@@ -540,7 +557,12 @@ export class TouchCore {
   private pressButton(id: TouchButtonId, pointerId: number, _time: number): void {
     const runtime = this.buttons.get(id);
     if (!runtime) return;
-    runtime.pointerId = pointerId;
+    if (runtime.pointerIds.includes(pointerId)) return;
+    runtime.pointerIds.push(pointerId);
+    // A second finger landing on a button that is ALREADY held is not a new
+    // press: it must not restart the punch charge (the ring would snap back to
+    // empty mid-hold) and it must not flip the dash toggle a second time.
+    if (runtime.down) return;
     runtime.down = true;
 
     if (id === 'punch') {
@@ -559,8 +581,14 @@ export class TouchCore {
     suppressed: boolean
   ): void {
     const runtime = this.buttons.get(id);
-    if (!runtime || runtime.pointerId !== pointerId) return;
-    runtime.pointerId = -1;
+    if (!runtime) return;
+    const index = runtime.pointerIds.indexOf(pointerId);
+    if (index === -1) return;
+    runtime.pointerIds.splice(index, 1);
+    // Another finger is still on the button: it stays held, and a punch keeps
+    // charging, until the LAST holder lifts.
+    if (runtime.pointerIds.length > 0) return;
+    if (!runtime.down) return;
     runtime.down = false;
 
     if (id === 'punch') {
@@ -578,11 +606,12 @@ export class TouchCore {
   private forceReleaseButton(id: TouchButtonId): void {
     const runtime = this.buttons.get(id);
     if (!runtime || !runtime.down) return;
-    const pointerId = runtime.pointerId;
     runtime.down = false;
-    runtime.pointerId = -1;
-    const p = this.pointers.get(pointerId);
-    if (p) p.role = 'ignored';
+    for (const pointerId of runtime.pointerIds) {
+      const p = this.pointers.get(pointerId);
+      if (p) p.role = 'ignored';
+    }
+    runtime.pointerIds.length = 0;
     if (id === 'punch') this.charge.cancel();
   }
 
@@ -618,7 +647,7 @@ export class TouchCore {
     const runtime = this.buttons.get('punch');
     if (runtime) {
       runtime.down = false;
-      runtime.pointerId = -1;
+      runtime.pointerIds.length = 0;
     }
     this.emitGesture('swipeUpUppercut', p.x, p.y, time);
   }
@@ -710,7 +739,12 @@ export class TouchCore {
 
     /* ---- pinch / twist ---- */
     if (this.pinchAccum !== 1) {
-      out.pinchDelta = this.pinchAccum;
+      // The per-frame clamp, applied to the frame TOTAL exactly once.
+      out.pinchDelta = clamp(
+        this.pinchAccum,
+        1 / this.tuning.pinchMaxRatioPerFrame,
+        this.tuning.pinchMaxRatioPerFrame
+      );
       out.active = true;
     }
     if (this.twistAccum !== 0) {
@@ -766,6 +800,12 @@ export class TouchCore {
     // Pointers that ended during this frame are reported exactly once, so a
     // tap that starts and finishes between two polls is never invisible.
     for (const p of this.ending) {
+      // ...but never alongside a LIVE pointer with the same id. The duplicate
+      // `down` recovery in `onDown()` retires the stale pointer and registers a
+      // fresh one under that id in the same frame; reporting both would tell a
+      // consumer keyed on `PointerSample.id` that a finger which is physically
+      // down has lifted.
+      if (this.pointers.has(p.id)) continue;
       const nx = clamp01(p.x * invW);
       const ny = clamp01(p.y * invH);
       samples.push({
@@ -810,8 +850,14 @@ export class TouchCore {
     for (const id of TOUCH_BUTTON_IDS) {
       const runtime = this.buttons.get(id)!;
       runtime.down = false;
-      runtime.pointerId = -1;
+      runtime.pointerIds.length = 0;
     }
+    // The dash LATCH is state too. Leaving it set is what returns a
+    // backgrounded app to a character sprinting into a wall, and it is the one
+    // way `sprint` could survive a reset that Shift and L3 cannot. Set
+    // directly rather than through `setDashToggle`, whose callback buzzes the
+    // haptics — a blur is not a player action.
+    this.dashOn = false;
     this.charge.reset();
     this.recentTaps.length = 0;
     this.pendingPulses.clear();

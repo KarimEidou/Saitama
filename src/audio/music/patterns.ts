@@ -63,8 +63,14 @@ export interface IPart {
   /** Note length in steps. */
   readonly gate: number;
   /**
-   * How resistant this part is to boredom thinning. The score is eaten from
-   * the lowest value upward, so the drone (100) is always the last survivor.
+   * How resistant this part is to boredom thinning.
+   *
+   * Ranking happens WITHIN a layer, so the last survivor of the thinning phase
+   * is that layer's own most essential part — the kick for `combat` and `boss`,
+   * the bass for `alert`, the pad for `calm`. The drone (100) is not in the
+   * running: it is the only part of `LAYERS.bored`, which `partsFor`
+   * short-circuits to at `BOREDOM_COLLAPSE`. So the shape is "thin to one part,
+   * then switch to the drone", not "converge on the drone".
    */
   readonly essential: number;
 }

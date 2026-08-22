@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { InputState } from '@/types';
-import { DEFAULT_INPUT_TUNING } from './config';
+import { DEFAULT_INPUT_TUNING, type IInputTuning } from './config';
 import type { GamepadLike } from './gamepad-source';
 import { createInputManager, type IInputManager } from './input-manager';
 import { diffInputStates } from './state';
@@ -34,32 +34,35 @@ function makePad(): PadState {
   };
 }
 
-function touchManager(): IInputManager {
+function touchManager(tuning?: Partial<IInputTuning>): IInputManager {
   const manager = createInputManager({
     headless: true,
     keyboard: false,
     gamepad: false,
     exposeTestBridge: false,
+    tuning,
   });
   manager.touch!.core.setViewport(W, H);
   return manager;
 }
 
-function keyboardManager(): IInputManager {
+function keyboardManager(tuning?: Partial<IInputTuning>): IInputManager {
   return createInputManager({
     headless: true,
     touch: false,
     gamepad: false,
     exposeTestBridge: false,
+    tuning,
   });
 }
 
-function gamepadManager(pad: PadState): IInputManager {
+function gamepadManager(pad: PadState, tuning?: Partial<IInputTuning>): IInputManager {
   return createInputManager({
     headless: true,
     touch: false,
     keyboard: false,
     exposeTestBridge: false,
+    tuning,
     getGamepads: () => [pad as unknown as GamepadLike],
   });
 }
@@ -364,6 +367,50 @@ describe('look axis parity', () => {
     const expectedDegPerSec = (3 * T.cameraDegPerPx) / DT;
     const expectedNormalised = expectedDegPerSec / T.lookFullRateDegPerSec;
     expect(state.look.x).toBeCloseTo(expectedNormalised, 2);
+  });
+});
+
+/* ========================================================================== */
+
+describe('look tuning parity', () => {
+  it('invertLookY flips look Y on EVERY backend, not just touch and gamepad', () => {
+    const inverted: Partial<IInputTuning> = { invertLookY: true };
+    const touch = touchManager(inverted);
+    const keys = keyboardManager(inverted);
+    const pad = makePad();
+    const gamepad = gamepadManager(pad, inverted);
+
+    // All three mean "look up": thumb dragged up, KeyI, right stick up.
+    touch.touch!.core.handle({ id: 1, x: 700, y: 400, phase: 'down', time: 0 });
+    touch.touch!.core.handle({ id: 1, x: 700, y: 340, phase: 'move', time: DT });
+    keys.keyboard!.keyDown('KeyI');
+    pad.axes[3] = -1;
+
+    const a = run(touch, 3);
+    const b = run(keys, 3);
+    const c = run(gamepad, 3);
+
+    // Inverted, so "up" must look DOWN on all three.
+    expect(a.look.y).toBeLessThan(0);
+    expect(b.look.y).toBeCloseTo(-1, 5);
+    expect(c.look.y).toBeCloseTo(-1, 5);
+    expectSame(b, c, 'keyboard vs gamepad');
+  });
+
+  it('lookSensitivity scales the look rate on keyboard and gamepad too', () => {
+    const halved: Partial<IInputTuning> = { lookSensitivity: 0.5 };
+    const keys = keyboardManager(halved);
+    const pad = makePad();
+    const gamepad = gamepadManager(pad, halved);
+
+    keys.keyboard!.keyDown('Period'); // look right
+    pad.axes[2] = 1; // right stick right
+
+    const b = run(keys, 3);
+    const c = run(gamepad, 3);
+    expect(b.look.x).toBeCloseTo(0.5, 5);
+    expect(c.look.x).toBeCloseTo(0.5, 5);
+    expectSame(b, c, 'keyboard vs gamepad');
   });
 });
 

@@ -205,6 +205,22 @@ export const SUN_PEAK_INTENSITY = 3.1;
 export const MOON_PEAK_INTENSITY = 0.085;
 
 /**
+ * Width of the sun/moon key-light handover, in normalised intensity balance
+ * `(moon - sun) / (moon + sun)`.
+ *
+ * `ILightingState` carries one directional light, so twice a cycle the two
+ * bodies swap it — and at that moment they are on OPPOSITE sides of the sky (a
+ * full moon is opposite the sun by definition). Choosing the brighter one with
+ * a bare `>` therefore rotates the light ~174° and snaps its colour from
+ * sunset orange to moon blue between two consecutive frames, re-fitting every
+ * shadow cascade in the city on that frame, while the intensity itself moves
+ * by less than 0.2%. 0.5 spans the swap from "sun three times the moon" to
+ * "moon three times the sun" — about fifteen seconds of real time at the
+ * shipped day length, all of it at moonlight intensity.
+ */
+export const KEY_LIGHT_CROSSFADE = 0.5;
+
+/**
  * Sun elevation (radians) at which direct sunlight is fully extinguished.
  * Slightly below the horizon: the disc is still refracted into view at 0, and
  * the last of the direct light survives a little past geometric sunset.
@@ -302,14 +318,20 @@ export const SCOTOPIC_BLEND = 0.55;
 export const MAX_BLEND_RADIANCE = 50000;
 
 /**
- * Rebuild the pre-filtered radiance map when the blend parameters have moved
- * this far (0..1 over the whole cycle).
+ * Rebuild the pre-filtered radiance map when the blend SIGNATURE has moved
+ * this far.
  *
  * PMREM convolution is tens of milliseconds; doing it per frame for a
  * continuously moving cycle would be absurd. The visible sky and the ambient
- * SH both update EVERY frame — only the specular pre-filter steps, and at
- * 1/64 of a 24-minute cycle that is one rebuild every 22 seconds, on a signal
- * that is by construction low frequency.
+ * SH both update EVERY frame — only the specular pre-filter steps.
+ *
+ * READ THE UNITS. The signature is `skyIndex + alpha`, NOT the time of day, so
+ * 1/64 is 1/64 of a CROSS-FADE and not of the cycle: a stretch that sits on
+ * one sky costs nothing at all, and each of the four cross-fades pays 64
+ * rebuilds however long or short it is — about one every 0.7 s through the
+ * 43-second dusk→night fade. That is affordable only because
+ * `SkyEnvironment.rebuildRadiance()` reuses one render target; before it did,
+ * each of those rebuilds also allocated and freed a whole cube mip chain.
  */
 export const ENVIRONMENT_REBUILD_THRESHOLD = 1 / 64;
 

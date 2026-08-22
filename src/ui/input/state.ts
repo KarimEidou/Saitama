@@ -281,9 +281,7 @@ export function diffInputStates(
       : buttonsEqual(ba, bb, epsilon);
     if (!same) diffs.push(`buttons.${action} ${fmtButton(ba)} != ${fmtButton(bb)}`);
   }
-  if (!ignorePointers && a.pointers.length !== b.pointers.length) {
-    diffs.push(`pointers ${a.pointers.length} != ${b.pointers.length}`);
-  }
+  if (!ignorePointers) diffs.push(...diffPointers(a.pointers, b.pointers, epsilon));
   if (Math.abs(a.pinchDelta - b.pinchDelta) > epsilon) {
     diffs.push(`pinchDelta ${a.pinchDelta} != ${b.pinchDelta}`);
   }
@@ -301,6 +299,47 @@ export function inputStatesEqual(
   options?: IStateCompareOptions
 ): boolean {
   return diffInputStates(a, b, options).length === 0;
+}
+
+/**
+ * Field-by-field pointer comparison, matched by `id`.
+ *
+ * Comparing only the LENGTH would let a replay whose every coordinate is wrong
+ * — a flipped y, a dropped `pressure`, a lost `down` edge — pass a round-trip
+ * assertion, which is the one thing the JSON/CDP boundary needs checked. Both
+ * lists are sorted by id first so ordering is never mistaken for a difference.
+ */
+function diffPointers(
+  a: readonly PointerSample[],
+  b: readonly PointerSample[],
+  epsilon: number
+): string[] {
+  if (a.length !== b.length) return [`pointers ${a.length} != ${b.length}`];
+  const diffs: string[] = [];
+  const sa = [...a].sort((p, q) => p.id - q.id);
+  const sb = [...b].sort((p, q) => p.id - q.id);
+  for (let i = 0; i < sa.length; i++) {
+    const pa = sa[i]!;
+    const pb = sb[i]!;
+    const same =
+      pa.id === pb.id &&
+      Math.abs(pa.x - pb.x) <= epsilon &&
+      Math.abs(pa.y - pb.y) <= epsilon &&
+      Math.abs(pa.dx - pb.dx) <= epsilon &&
+      Math.abs(pa.dy - pb.dy) <= epsilon &&
+      Math.abs(pa.pressure - pb.pressure) <= epsilon &&
+      pa.down === pb.down &&
+      pa.up === pb.up;
+    if (!same) diffs.push(`pointers[${i}] ${fmtPointer(pa)} != ${fmtPointer(pb)}`);
+  }
+  return diffs;
+}
+
+function fmtPointer(p: PointerSample): string {
+  return (
+    `#${p.id}(${p.x.toFixed(3)},${p.y.toFixed(3)}|d${p.dx.toFixed(3)},${p.dy.toFixed(3)}` +
+    `|p${p.pressure.toFixed(2)}${p.down ? 'D' : '.'}${p.up ? 'U' : '.'})`
+  );
 }
 
 function fmtAxis(a: AxisState): string {

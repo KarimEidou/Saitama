@@ -82,6 +82,8 @@ export class DecalLayer {
   private head = 0;
   private dirty = true;
   private timedCount = 0;
+  /** Decals evicted by the ring buffer since construction. */
+  private recycledCount = 0;
 
   private readonly px: Float32Array;
   private readonly py: Float32Array;
@@ -173,12 +175,24 @@ export class DecalLayer {
   }
 
   /**
+   * Decals overwritten by the ring buffer since construction.
+   *
+   * `emit` cannot report an eviction through its return value without lying
+   * about having placed the decal, and `activeCount` saturates at capacity and
+   * then stops moving — so this is the only way a caller can see that the city
+   * has started forgetting its oldest damage.
+   */
+  get recycled(): number {
+    return this.recycledCount;
+  }
+
+  /**
    * Place a decal.
    *
    * @returns false only when the layer has zero capacity. A full buffer
    *          RECYCLES its oldest entry and still returns true — losing the
    *          oldest crack is the correct behaviour, refusing to draw the
-   *          newest one is not.
+   *          newest one is not. Watch `recycled` to see that happening.
    */
   emit(p: IDecalParams): boolean {
     if (this.capacity === 0) return false;
@@ -188,6 +202,7 @@ export class DecalLayer {
     } else {
       i = this.head;
       this.head = (this.head + 1) % this.capacity;
+      this.recycledCount++;
       if (this.lifetime[i]! > 0) this.timedCount--;
     }
 

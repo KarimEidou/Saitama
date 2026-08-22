@@ -93,6 +93,11 @@ export class ShadowSystem implements IDisposable {
 
   private readonly sunTarget = new THREE.Vector3();
 
+  /** Drops a material from `registered` as soon as it is disposed. */
+  private readonly onMaterialDisposed = (event: { target: THREE.Material }): void => {
+    this.unregisterMaterial(event.target);
+  };
+
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, options: IShadowSystemOptions) {
     this.scene = scene;
     this.camera = camera;
@@ -137,8 +142,33 @@ export class ShadowSystem implements IDisposable {
   registerMaterial(material: THREE.Material): void {
     if (this.disposed || this.registered.has(material)) return;
     this.registered.add(material);
+    // `registered` and `CSM.shaders` are STRONG references, and the composition
+    // root re-registers the whole scene once a second to catch debris and
+    // ragdoll materials. Without this listener every streamed chunk material
+    // that ever existed stays pinned — together with its maps and its hook
+    // closures — for the lifetime of the process.
+    material.addEventListener('dispose', this.onMaterialDisposed);
     if (!this.csm) return;
     this.attachCsm(material);
+  }
+
+  /**
+   * Forget a material: detach the cascade hook and drop every reference to it.
+   *
+   * Called automatically when the material is disposed. Also public so a system
+   * that evicts content (streamed chunks, fracture debris) can release its
+   * materials at eviction time rather than waiting for `dispose()`.
+   */
+  unregisterMaterial(material: THREE.Material): void {
+    if (!this.registered.delete(material)) return;
+    material.removeEventListener('dispose', this.onMaterialDisposed);
+    if (!this.csm) return;
+    this.detachCsm(material);
+    // `CSM.setupMaterial()` does `shaders.set( material, … )` and nothing ever
+    // takes the entry out. The value is the whole program-parameters object —
+    // every uniform, texture references included — so leaving it behind pins
+    // the material and its GPU resources just as firmly as `registered` did.
+    this.csm.shaders.delete(material);
   }
 
   /** Register every material reachable from an object graph. */
@@ -219,6 +249,13 @@ export class ShadowSystem implements IDisposable {
       lightFar: Math.max(400, profile.maxDistance * 3),
     });
     this.csm.fade = profile.fade;
+    // `fade` is NOT a constructor option: `CSM` initialises it to false and the
+    // constructor has already run `updateFrustums()`, so the shadow-camera
+    // extents were fitted WITHOUT the fade margin. `CSM.update()` only
+    // repositions the lights and never refits them, so without this the blend
+    // band between cascade n and n+1 falls outside n+1's shadow map for the
+    // whole life of the process — the exact cascade seam `fade` exists to hide.
+    if (profile.fade) this.csm.updateFrustums();
     this.hookKey = `csm${profile.cascades}${profile.fade ? 'f' : ''}`;
 
     for (const material of this.registered) this.attachCsm(material);
@@ -231,6 +268,13 @@ export class ShadowSystem implements IDisposable {
   private teardown(): void {
     for (const material of this.registered) this.detachCsm(material);
     if (this.csm) {
+      // `CSM.remove()` is a scene-graph detach and `CSM.dispose()` only cleans
+      // up material defines — NEITHER frees the per-cascade shadow map. Dropping
+      // the CSM reference makes those `WebGLRenderTarget`s unreachable from JS
+      // while their `WebGLTexture`/`WebGLFramebuffer` stay live, so a handful of
+      // quality-tier changes leaks tens of MB of VRAM. `DirectionalLight.dispose()`
+      // is the only path that reaches `light.shadow.map.dispose()`.
+      for (const light of this.csm.lights) light.dispose();
       // Deliberately NOT `csm.dispose()`: it does `delete
       // material.onBeforeCompile`, which would take the MaterialLib injections
       // with it. `detachCsm` above already removed the CSM hook and defines.
@@ -320,6 +364,9 @@ export class ShadowSystem implements IDisposable {
     if (this.disposed) return;
     this.disposed = true;
     this.teardown();
+    for (const material of this.registered) {
+      material.removeEventListener('dispose', this.onMaterialDisposed);
+    }
     this.registered.clear();
     this.blobShadows.dispose();
     // Put the stock lighting chunks back so a renderer created afterwards

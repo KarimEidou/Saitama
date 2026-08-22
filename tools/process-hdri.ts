@@ -53,6 +53,7 @@
 
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { IAssetManifest, IHDRIAsset, QualityTier } from '@/types';
 import { Logger, formatBytes } from './lib/index.ts';
 import {
@@ -72,6 +73,8 @@ import {
   matchesOnly,
   outputKey,
   outputRelPath,
+  parseConcurrency,
+  parseTier,
   sha256File,
   sourceFilePath,
   type IEnvironmentRuntime,
@@ -205,9 +208,15 @@ function decodeRadianceHdr(file: string, bytes: Buffer): IHdrImage {
     const rle = r === 2 && g === 2 && ((b << 8) | e) === width && width >= 8 && width < 0x8000;
 
     if (!rle) {
-      // Flat RGBE, possibly with (1,1,1,shift) run markers.
+      // Flat RGBE, possibly with (1,1,1,count) run markers.
       let x = 0;
       let prev = [0, 0, 0, 0];
+      // Consecutive markers accumulate: the Nth in a row contributes
+      // `count << (8 * N)`, which is how the old format expresses a run longer
+      // than 255. Treating each marker as a plain 8-bit count truncates the run
+      // and shifts every remaining pixel on the scanline left, smearing a band
+      // across the sky (and into the baked SH) with no error raised.
+      let shift = 0;
       while (x < width) {
         if (pos + 4 > bytes.length) throw new HdrParseError(file, `truncated at row ${row}`);
         const p0 = bytes[pos]!;
@@ -216,7 +225,8 @@ function decodeRadianceHdr(file: string, bytes: Buffer): IHdrImage {
         const p3 = bytes[pos + 3]!;
         pos += 4;
         if (p0 === 1 && p1 === 1 && p2 === 1) {
-          const count = p3;
+          const count = p3 << shift;
+          shift += 8;
           for (let i = 0; i < count && x < width; i++, x++) {
             scanline[x] = prev[0]!;
             scanline[x + width] = prev[1]!;
@@ -225,6 +235,7 @@ function decodeRadianceHdr(file: string, bytes: Buffer): IHdrImage {
           }
           continue;
         }
+        shift = 0;
         scanline[x] = p0;
         scanline[x + width] = p1;
         scanline[x + width * 2] = p2;
@@ -245,14 +256,21 @@ function decodeRadianceHdr(file: string, bytes: Buffer): IHdrImage {
       while (x < width) {
         if (pos >= bytes.length) throw new HdrParseError(file, `truncated at row ${row}`);
         const count = bytes[pos++]!;
+        // Bound the PAYLOAD, not just the count byte. Past the end
+        // `bytes[pos++]` is `undefined`, the `!` silences the type error, and
+        // assigning it into a Uint8Array stores 0 — so a file truncated inside
+        // a scanline decodes as black to the bottom edge and the build reports
+        // success with a darkened sky and a darkened SH probe.
         if (count > 128) {
           const run = count - 128;
+          if (pos >= bytes.length) throw new HdrParseError(file, `truncated at row ${row}`);
           const value = bytes[pos++]!;
           if (x + run > width) throw new HdrParseError(file, `run overflow at row ${row}`);
           for (let i = 0; i < run; i++) scanline[base + x++] = value;
         } else {
           if (count === 0) throw new HdrParseError(file, `zero-length run at row ${row}`);
           if (x + count > width) throw new HdrParseError(file, `literal overflow at row ${row}`);
+          if (pos + count > bytes.length) throw new HdrParseError(file, `truncated at row ${row}`);
           for (let i = 0; i < count; i++) scanline[base + x++] = bytes[pos++]!;
         }
       }
@@ -538,7 +556,10 @@ async function encodeEnvKtx2(
   workDir: string,
   id: string
 ): Promise<void> {
-  const levels = fullMipLevels(target.width, target.height);
+  // Measured off `base`, never off `target`: the base may have been clamped
+  // down to a source smaller than the tier asked for, and `--width`/`--height`
+  // must describe the bytes actually being handed to `ktx`.
+  const levels = fullMipLevels(base.width, base.height);
   const inputs: string[] = [];
   let level: IHdrImage = base;
 
@@ -556,9 +577,9 @@ async function encodeEnvKtx2(
       '--format',
       'R16G16B16A16_SFLOAT',
       '--width',
-      String(target.width),
+      String(base.width),
       '--height',
-      String(target.height),
+      String(base.height),
       '--levels',
       String(levels),
       '--assign-tf',
@@ -663,7 +684,16 @@ async function processOne(
   // Flip ONCE, then derive everything from the flipped buffer. This is what
   // keeps the baked lighting and the visible sky in agreement.
   const oriented = flipVertical(decoded);
-  const base = boxDownsample(oriented, target.width, target.height);
+  // Never upscale: a 2K source asked for at 2K stays 2K, and a 1K source asked
+  // for at 2K stays 1K rather than dying inside `boxDownsample` on a fractional
+  // ratio — a message that reads as an arithmetic bug rather than "your source
+  // is smaller than the tier asked for", and that would ship the tier with no
+  // sky at all because `mapPool` turns the throw into one logged line.
+  const base = boxDownsample(
+    oriented,
+    Math.min(target.width, oriented.width),
+    Math.min(target.height, oriented.height)
+  );
 
   await encodeEnvKtx2(base, target, outFile, workDir, entry.id);
 
@@ -671,10 +701,13 @@ async function processOne(
   const problems = checkKtx2(facts, {
     vkFormat: VK_FORMAT_R16G16B16A16_SFLOAT,
     transferFunction: KHR_DF_TRANSFER_LINEAR,
-    width: target.width,
-    height: target.height,
+    width: base.width,
+    height: base.height,
     fullMipChain: true,
     supercompressionScheme: 2, // Zstandard
+    // The buffer was flipped before encoding and `--assign-texcoord-origin
+    // bottom-left` records that; assert the container agrees.
+    orientation: 'ru',
   });
   if (problems.length > 0) throw new Error(problems.join('; '));
 
@@ -804,11 +837,11 @@ async function main(): Promise<void> {
     const i = argv.indexOf(name);
     return i >= 0 ? argv[i + 1] : undefined;
   };
-  const tier = (flag('--tier') ?? 'mobile') as QualityTier;
+  const tier = parseTier(flag('--tier'));
   const result = await processHdri({
     tier,
     only: flag('--only')?.split(','),
-    concurrency: Number(flag('--concurrency') ?? 2),
+    concurrency: parseConcurrency(flag('--concurrency')),
     force: argv.includes('--force'),
   });
   console.log(
@@ -830,9 +863,15 @@ async function main(): Promise<void> {
   if (result.errors.length > 0) process.exit(1);
 }
 
+/**
+ * `fileURLToPath`, never `new URL(import.meta.url).pathname`: a URL pathname is
+ * percent-encoded and `process.argv[1]` is not, so the naive comparison fails
+ * for any checkout path containing a space or a non-ASCII character, and the
+ * CLI then silently does nothing and exits 0.
+ */
 const invokedDirectly =
   process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (invokedDirectly) {
   main().catch((error: unknown) => {

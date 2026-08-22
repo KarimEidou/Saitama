@@ -127,6 +127,8 @@ interface IRawCharacter {
   readonly triangles?: unknown;
   readonly files?: unknown;
   readonly gpuBytes?: unknown;
+  /** Present only when the bake produced a vertex-animation texture. */
+  readonly vat?: unknown;
 }
 
 function num(value: unknown, fallback = 0): number {
@@ -146,6 +148,28 @@ function directoryOf(files: readonly ICharacterFile[], id: string): string {
     return first.slice(0, first.lastIndexOf('/'));
   }
   return `chr/${id.replace(/^chr\./, '')}`;
+}
+
+/**
+ * VAT sidecar paths for a character, or nothing when the bake made none.
+ *
+ * The index either omits `vat` entirely (`--no-vat`, or a mesh the baker could
+ * not bake) or carries a block describing it; the block's `file` is honoured
+ * when present because a future bake may move it.
+ */
+function sidecarsFor(
+  vat: unknown,
+  dir: string
+): { readonly vatFile?: string; readonly vatMetaFile?: string } {
+  if (typeof vat !== 'object' || vat === null) return {};
+  const declared = (vat as { file?: unknown }).file;
+  const file = typeof declared === 'string' && declared.length > 0 ? declared : `${dir}/vat.bin`;
+  return {
+    vatFile: file,
+    vatMetaFile: file.endsWith('.bin')
+      ? `${file.slice(0, -'.bin'.length)}.json`
+      : `${dir}/vat.json`,
+  };
 }
 
 /** Parse `chr/characters.runtime.json`. Tolerant: bad rows are skipped. */
@@ -185,6 +209,12 @@ export function parseCharacterIndex(raw: unknown): readonly ICharacterRecord[] {
 
     const dir = directoryOf(files, candidate.id);
     const gpu = (candidate.gpuBytes ?? {}) as Partial<Record<QualityTier, unknown>>;
+    // The sidecars are advertised ONLY when the index says the bake made them:
+    // `vatFile` is typed optional precisely so a caller can do
+    // `if (record.vatFile !== undefined) fetch(...)`, and `fetchFile` rejects
+    // rather than falling back, so a hard-coded path turns "no VAT baked" into
+    // a 404 the caller cannot tell from a missing file.
+    const vat = sidecarsFor(candidate.vat, dir);
 
     out.push({
       id: candidate.id,
@@ -193,8 +223,7 @@ export function parseCharacterIndex(raw: unknown): readonly ICharacterRecord[] {
       height: num(candidate.height, 1.75),
       dir,
       modelFile: `${dir}/model.glb`,
-      vatFile: `${dir}/vat.bin`,
-      vatMetaFile: `${dir}/vat.json`,
+      ...vat,
       triangles: (candidate.triangles ?? {}) as Record<string, number>,
       files,
       gpuBytes: {
@@ -216,11 +245,24 @@ export function parseCharacterIndex(raw: unknown): readonly ICharacterRecord[] {
  */
 export function indexCharacterFiles(paths: readonly string[]): readonly ICharacterRecord[] {
   const byDir = new Map<string, ICharacterFile[]>();
+  // The listing is the only evidence there is, so a sidecar is advertised only
+  // when the listing actually contains it.
+  const withVat = new Set(
+    paths
+      .filter((path) => path.endsWith('/vat.bin'))
+      .map((path) => path.slice(0, -'/vat.bin'.length))
+  );
   for (const path of paths) {
     const tier = parseTierToken(path);
     const role = parseRoleToken(path);
     if (tier === undefined || role === undefined) continue;
-    const dir = path.slice(0, path.lastIndexOf('/'));
+    // The character name comes from the DIRECTORY, so a bare filename names no
+    // character. `lastIndexOf` returning -1 and `slice(0, -1)` dropping the
+    // last character turned `albedo.mobile.png` into a record with the id
+    // `chr.albedo.mobile.pn` and a model URL that could only 404.
+    const slash = path.lastIndexOf('/');
+    if (slash < 0) continue;
+    const dir = path.slice(0, slash);
     const id = `chr.${dir.slice(dir.lastIndexOf('/') + 1)}`;
     const list = byDir.get(dir) ?? [];
     list.push({ key: `${id}.${role}`, role, tier, file: path, bytes: 0, width: 0, height: 0 });
@@ -237,8 +279,7 @@ export function indexCharacterFiles(paths: readonly string[]): readonly ICharact
       height: 1.75,
       dir,
       modelFile: `${dir}/model.glb`,
-      vatFile: `${dir}/vat.bin`,
-      vatMetaFile: `${dir}/vat.json`,
+      ...(withVat.has(dir) ? { vatFile: `${dir}/vat.bin`, vatMetaFile: `${dir}/vat.json` } : {}),
       triangles: {},
       files,
       gpuBytes: {},

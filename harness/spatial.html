@@ -130,15 +130,23 @@
         <div class="legend">
           <span class="sw" style="background: #ffd230"></span> visible instance
         </div>
+        <!--
+          Swatches carry the EXACT rgba the canvas fills with, alpha included,
+          over the same near-black the map is drawn on. A legend in brighter
+          approximations of the real fills is a legend for a picture that was
+          never drawn.
+        -->
         <div class="legend">
-          <span class="sw" style="background: rgba(88, 128, 200, 0.5)"></span> chunk kept by frustum
-        </div>
-        <div class="legend">
-          <span class="sw" style="background: rgba(60, 220, 160, 0.55)"></span> chunk kept by
+          <span class="sw" style="background: rgba(60, 220, 160, 0.22)"></span> chunk kept by
           frustum + PVS
         </div>
         <div class="legend">
-          <span class="sw" style="background: rgba(255, 90, 90, 0.5)"></span> removed by PVS
+          <span class="sw" style="background: rgba(255, 90, 90, 0.28)"></span> in frustum, removed
+          by PVS
+        </div>
+        <div class="legend">
+          <span class="sw" style="background: rgba(120, 90, 220, 0.16)"></span> PVS mask of the
+          camera's chunk
         </div>
         <div class="legend">
           <span class="sw" style="background: #ff6b6b"></span> camera frustum

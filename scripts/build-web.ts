@@ -16,12 +16,23 @@
  * mobile data is not a thing anyone should do, and the high/ultra maps are never
  * requested once the runtime pins a tier.
  *
- * ── THE FILTER NEEDS TWO RULES, NOT ONE ────────────────────────────────────
- * `assets.runtime.json` only indexes the outputs the texture/model pipeline
- * produced. Character assets come from a separate pipeline (tools/build-characters)
- * and are absent from it. So: keep anything the index declares for this tier, and
- * fall back to the `.tier.` filename token for everything else. Dropping that
- * second rule silently deletes every character.
+ * ── THE FILTER IS THE FILENAME TOKEN, AND ONLY THAT ────────────────────────
+ * `assets.runtime.json` indexes the texture/model pipeline's outputs and
+ * records a `tier` per file, but nothing here reads it: character assets come
+ * from a separate pipeline (tools/build-characters) and are absent from the
+ * index, so a manifest-only rule would silently delete every character. The
+ * `.tier.` token covers both pipelines, and on the current payload the token
+ * and the manifest agree on all 192 tiered outputs.
+ *
+ * `scripts/build-apk.ts` DOES consult the manifest first — see its header. The
+ * difference is insurance against a pipeline that emits a tiered file with no
+ * token in its name; it is not a live difference today.
+ *
+ * ── SCRATCH IS NOT PART OF THE TIER FILTER ─────────────────────────────────
+ * `--no-prune` selects every tier. It does NOT keep `.work/` and `.cache/`:
+ * `public/assets/mdl/.cache` alone is 200 MB of content-addressed
+ * intermediates, and vite copies dot-directories out of `public/` verbatim, so
+ * serving an "unpruned" dist would publish the pipeline's scratch store.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -66,9 +77,18 @@ function run(cmd: string, args: readonly string[]): void {
 
 function main(): void {
   const argv = process.argv.slice(2);
-  const tierArg = argv[argv.indexOf('--tier') + 1];
-  const tier: Tier =
-    tierArg === 'high' || tierArg === 'ultra' || tierArg === 'mobile' ? tierArg : 'mobile';
+  // `indexOf` returns -1 when the flag is absent, and `argv[-1 + 1]` is
+  // `argv[0]` — so `build-web.ts ultra --no-prune` used to silently build the
+  // ultra tier while the operator believed they had asked for the default.
+  const tierIndex = argv.indexOf('--tier');
+  const tierArg: string | undefined = tierIndex >= 0 ? argv[tierIndex + 1] : 'mobile';
+  if (tierArg !== 'high' && tierArg !== 'ultra' && tierArg !== 'mobile') {
+    process.stderr.write(
+      `\nFAILED: --tier needs one of mobile|high|ultra (got ${JSON.stringify(tierArg)}).\n`
+    );
+    process.exit(1);
+  }
+  const tier: Tier = tierArg;
   const prune = !argv.includes('--no-prune');
 
   log(`building web bundle  tier=${tier}  prune=${prune}`);
@@ -94,27 +114,36 @@ function main(): void {
     process.exit(1);
   }
 
-  if (!prune) {
-    log(`\n  dist ${mb(sizeOf(walk(DIST)))} (unpruned)`);
-    return;
-  }
-
   const all = walk(DIST);
   const before = sizeOf(all);
 
-  const doomed = all.filter((f) => {
-    const rel = path.relative(DIST, f).split(path.sep).join('/');
-    if (SCRATCH.test(rel)) return true;
-    const match = TIER_TOKEN.exec(rel);
-    // Untiered files (code, index, manifest, icons, the runtime index) always stay.
-    return match !== null && match[1] !== tier;
-  });
+  const scratch = all.filter((f) => SCRATCH.test(path.relative(DIST, f).split(path.sep).join('/')));
+  // Scratch goes in every mode; only the tier filter answers to `--no-prune`.
+  const doomed = prune
+    ? all.filter((f) => {
+        const rel = path.relative(DIST, f).split(path.sep).join('/');
+        if (SCRATCH.test(rel)) return true;
+        // BASENAME, not the whole path: `RegExp.exec` returns the FIRST match,
+        // so a directory carrying a token (`chr/saitama.high.bake/…`) would
+        // otherwise decide the fate of every file beneath it — and delete the
+        // correct `atlas.mobile.ktx2` inside it. `build-apk.ts` matches the
+        // basename; these two must agree.
+        const match = TIER_TOKEN.exec(path.basename(rel));
+        // Untiered files (code, index, manifest, icons, the runtime index) always stay.
+        return match !== null && match[1] !== tier;
+      })
+    : scratch;
 
   const freed = sizeOf(doomed);
   for (const f of doomed) rmSync(f, { force: true });
 
   const after = sizeOf(walk(DIST));
-  log(`\n  removed ${doomed.length} files, freed ${mb(freed)}`);
+  if (!prune) {
+    log(`\n  removed ${scratch.length} pipeline scratch files, freed ${mb(freed)}`);
+    log(`  dist    ${mb(before)} -> ${mb(after)} (every tier)`);
+    return;
+  }
+  log(`\n  removed ${doomed.length} files, freed ${mb(freed)} (${scratch.length} scratch)`);
   log(`  dist    ${mb(before)} -> ${mb(after)}`);
   log(`\nserve it:  npx serve dist`);
   log('on iOS:    open the URL in Safari, then Share -> Add to Home Screen');

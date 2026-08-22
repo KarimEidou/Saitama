@@ -45,6 +45,19 @@ export function priorityValue(priority: PriorityName | number | undefined): numb
 }
 
 /**
+ * A usable slot count.
+ *
+ * Zero, a negative or `NaN` would make `pump()`'s `active < concurrency` guard
+ * false forever, i.e. nothing ever starts and every `load()` hangs with no
+ * error. A config slider or `Number(param)` reaching here is a plausible
+ * accident, so it is clamped rather than trusted.
+ */
+function clampSlots(slots: number): number {
+  if (!Number.isFinite(slots)) return DEFAULT_CONCURRENCY;
+  return Math.max(1, Math.floor(slots));
+}
+
+/**
  * Concurrency-limited, priority-ordered, de-duplicated task runner.
  *
  * Not asset-aware on purpose: it schedules opaque thunks keyed by a string, so
@@ -56,18 +69,23 @@ export class LoadScheduler {
   private readonly inFlight = new Map<string, Promise<unknown>>();
   private sequence = 0;
   private active = 0;
+  /** Tasks still running with their slot handed back. See `withSlotReleased`. */
+  private yielded = 0;
   private idleWaiters: Array<() => void> = [];
+  private concurrency: number;
 
-  constructor(private concurrency: number = DEFAULT_CONCURRENCY) {}
+  constructor(concurrency: number = DEFAULT_CONCURRENCY) {
+    this.concurrency = clampSlots(concurrency);
+  }
 
   /** Tasks waiting for a slot. */
   get queued(): number {
     return this.pendingQueue.length;
   }
 
-  /** Tasks currently running. */
+  /** Tasks currently running, whether or not they hold a slot. */
   get running(): number {
-    return this.active;
+    return this.active + this.yielded;
   }
 
   get slots(): number {
@@ -75,7 +93,7 @@ export class LoadScheduler {
   }
 
   setConcurrency(slots: number): void {
-    this.concurrency = Math.max(1, Math.floor(slots));
+    this.concurrency = clampSlots(slots);
     this.pump();
   }
 
@@ -138,9 +156,58 @@ export class LoadScheduler {
     return this.inFlight.has(key);
   }
 
+  /**
+   * Run `body` with the calling task's slot handed back to the queue.
+   *
+   * A task that awaits OTHER tasks on this same scheduler would otherwise hold
+   * a slot while the work it is waiting for sits in the queue behind it. With
+   * `concurrency: 1` that is an immediate, permanent deadlock; with any
+   * concurrency it deadlocks as soon as every slot is held by such a parent,
+   * which is exactly what `loadMaterial` awaiting its textures does on the
+   * `preloadCore` path — parents at `critical` (weight 0) outrank their own
+   * children at `high` (weight 10), so `pump()` fills every freed slot with
+   * another parent.
+   *
+   * The slot goes back for the duration of the wait and is re-taken
+   * afterwards, so `concurrency` can be momentarily exceeded by the number of
+   * waiting parents. That is deliberate: the parent's remaining work is CPU
+   * only (it already has its bytes), and a transient overshoot is a far better
+   * failure mode than a boot screen that never finishes. `idle()` still counts
+   * these tasks as running.
+   */
+  async withSlotReleased<T>(body: () => Promise<T>): Promise<T> {
+    // Called outside a running task: there is no slot to give back.
+    if (this.active === 0) return body();
+    this.active--;
+    this.yielded++;
+    this.pump();
+    try {
+      return await body();
+    } finally {
+      this.yielded--;
+      this.active++;
+    }
+  }
+
+  /**
+   * Drop everything still queued, resolving its callers with no result.
+   *
+   * Teardown only. Rejecting instead would surface as an unhandled rejection
+   * in every fire-and-forget `prefetch()`; a caller that asked for an asset
+   * during shutdown wants a no-op, not an error.
+   */
+  cancelAll(): void {
+    const dropped = this.pendingQueue.splice(0, this.pendingQueue.length);
+    for (const task of dropped) {
+      this.inFlight.delete(task.key);
+      task.resolve(undefined);
+    }
+    this.pump();
+  }
+
   /** Resolves when nothing is queued or running. */
   async idle(): Promise<void> {
-    if (this.active === 0 && this.pendingQueue.length === 0) return;
+    if (this.running === 0 && this.pendingQueue.length === 0) return;
     await new Promise<void>((resolve) => this.idleWaiters.push(resolve));
   }
 
@@ -161,7 +228,7 @@ export class LoadScheduler {
       this.active++;
       void this.execute(task);
     }
-    if (this.active === 0 && this.pendingQueue.length === 0 && this.idleWaiters.length > 0) {
+    if (this.running === 0 && this.pendingQueue.length === 0 && this.idleWaiters.length > 0) {
       const waiters = this.idleWaiters;
       this.idleWaiters = [];
       for (const waiter of waiters) waiter();

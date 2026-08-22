@@ -68,6 +68,27 @@ import { WitnessField, mergeReports, type IWitnessReport } from './witness';
 
 const log = createLogger('gameplay.progression');
 
+/**
+ * Seconds an incident may stay open without an `EncounterEnded`.
+ *
+ * The producers do not guarantee a 1:1 pairing — combat tracks one encounter at
+ * a time and ignores the rest, while the monster system announces one per
+ * spawned wave — so without an upper bound the map grows for the whole session
+ * and every kill within 200 m of a long-dead encounter is credited to a report
+ * that will never be filed. Generous enough that no real fight is evicted mid-way.
+ */
+const INCIDENT_MAX_AGE_SECONDS = 600;
+
+/** Cap on the session incident log, so a long session cannot grow unbounded. */
+const REPORT_LOG_LIMIT = 128;
+
+/** `value` when it is a usable number, otherwise `fallback` (loudly). */
+function finiteOr(value: number, fallback: number, field: string): number {
+  if (Number.isFinite(value)) return value;
+  log.warn(`save field ${field} was ${String(value)}; using ${fallback}`);
+  return fallback;
+}
+
 /** An incident being accumulated between `EncounterStarted` and `Ended`. */
 export interface IIncidentRecord {
   readonly encounterId: string;
@@ -79,7 +100,11 @@ export interface IIncidentRecord {
   /** True when the player accepted an Association request for this incident. */
   dispatched: boolean;
   kills: number;
-  /** Sum of `EntityKilled.rewardPoints`, used only as a significance weight. */
+  /**
+   * Sum of `EntityKilled.rewardPoints`. REPORT-ONLY: it says how newsworthy the
+   * fight looked and is deliberately absent from the award, because a sum of
+   * per-kill rewards is a kill counter by another name.
+   */
   significance: number;
   collateral: number;
   civiliansSaved: number;
@@ -159,8 +184,12 @@ export class ProgressionSystem implements IProgressionSystem {
   private readonly options: IProgressionOptions;
   private readonly incidents = new Map<string, IIncidentRecord>();
   private readonly reports: IIncidentReport[] = [];
-  /** Quest ids currently accepted, so an incident can be marked dispatched. */
+  /** Encounter ids of currently accepted requests, so an incident can be marked dispatched. */
   private readonly dispatchedEncounters = new Set<string>();
+  /** Authored failure boredom, registered by the coordinator just before the event. */
+  private readonly questFailureBoredom = new Map<string, number>();
+  /** True when this system created its own boredom model and must dispose it. */
+  private readonly ownsBoredom: boolean;
 
   private pointsValue = START_POINTS;
   private elapsed = 0;
@@ -172,6 +201,7 @@ export class ProgressionSystem implements IProgressionSystem {
     this.heroName = options.heroName ?? START_HERO_NAME;
     this.stateValue = new MutableProgressionState(this.heroName);
     this.witnesses = options.witnesses ?? new WitnessField();
+    this.ownsBoredom = options.boredom === undefined;
     this.boredomModel = options.boredom ?? new BoredomModel({ bus: options.bus });
     this.rivals = options.rivals ?? new RivalTracker();
     this.subscribe();
@@ -240,6 +270,23 @@ export class ProgressionSystem implements IProgressionSystem {
     this.stateValue.playTimeSeconds += dt;
     this.boredomModel.update(dt);
     this.stateValue.boredom = this.boredomModel.boredom;
+    this.evictStaleIncidents();
+  }
+
+  /**
+   * Drop incidents whose `EncounterEnded` never arrived.
+   *
+   * They are not scored — an encounter nobody closed produced no outcome — but
+   * leaving them open silently swallows the credit and the blame of everything
+   * that happens within 200 m of them for the rest of the session.
+   */
+  private evictStaleIncidents(): void {
+    if (this.incidents.size === 0) return;
+    for (const [id, incident] of this.incidents) {
+      if (this.elapsed - incident.startedAt <= INCIDENT_MAX_AGE_SECONDS) continue;
+      this.incidents.delete(id);
+      log.debug(`incident ${id} expired without an EncounterEnded; dropping it`);
+    }
   }
 
   /**
@@ -268,6 +315,40 @@ export class ProgressionSystem implements IProgressionSystem {
   }
 
   /**
+   * The request is no longer accepted: a future encounter with this id is a
+   * fight the Association never sent anyone to.
+   *
+   * Only FUTURE encounters are affected. An incident already open keeps the
+   * flag it was opened with, because the dispatch was real when it started.
+   */
+  clearDispatched(encounterId: string): void {
+    this.dispatchedEncounters.delete(encounterId);
+  }
+
+  /**
+   * Register the boredom a specific quest's failure costs, overriding the
+   * default. Consumed by the very next `QuestStateChanged: failed` for that id.
+   *
+   * The catalogue authors `rules.boredomOnFailure`, but this system never
+   * imports the catalogue — the coordinator reads it off the quest and hands it
+   * here from `onResolved`, which runs before the state change is published.
+   */
+  setQuestFailureBoredom(questId: string, boredom: number): void {
+    this.questFailureBoredom.set(questId, boredom);
+  }
+
+  /**
+   * Adopt the calendar from a save.
+   *
+   * Without it `lastDayCount` stays 0 after a load and the next `onDayElapsed`
+   * pays every rival for days they already banked in the save file.
+   */
+  syncDayCount(dayCount: number): void {
+    if (!Number.isFinite(dayCount)) return;
+    this.lastDayCount = Math.max(0, dayCount);
+  }
+
+  /**
    * Record an act of heroism. THE only thing that lowers boredom.
    *
    * Public because two of the deeds — catching debris and body-blocking for an
@@ -281,21 +362,51 @@ export class ProgressionSystem implements IProgressionSystem {
     return applied;
   }
 
-  /** Restore from a save. Does not emit `RankChanged`. */
+  /**
+   * Restore from a save. Does not emit `RankChanged`.
+   *
+   * EVERY number is sanitised on the way in. A save that lost a field — a
+   * truncated write, a hand-edit, a schema change without a migration — would
+   * otherwise fold `undefined` into `NaN`, freeze the ladder at the bottom for
+   * the rest of the session, and then make every future save throw on the
+   * validator's non-finite check. A replaced field is loud; a poisoned one is
+   * silent and permanent.
+   */
   restore(state: IProgressionState): void {
-    this.pointsValue = Math.max(0, state.rank.points);
-    this.stateValue.rank = rankFromPoints(this.pointsValue, state.rank.heroName || this.heroName);
+    this.pointsValue = Math.max(0, finiteOr(state.rank?.points, START_POINTS, 'rank.points'));
+    this.stateValue.rank = rankFromPoints(this.pointsValue, state.rank?.heroName || this.heroName);
     for (const tier of Object.keys(this.stateValue.killsByTier) as ThreatTier[]) {
-      this.stateValue.killsByTier[tier] = state.killsByTier[tier] ?? 0;
+      const kills = state.killsByTier?.[tier] ?? 0;
+      this.stateValue.killsByTier[tier] = Math.max(0, finiteOr(kills, 0, `killsByTier.${tier}`));
     }
-    this.stateValue.civiliansSaved = state.civiliansSaved;
-    this.stateValue.civiliansLost = state.civiliansLost;
-    this.stateValue.propertyDamage = state.propertyDamage;
-    this.stateValue.reputation = state.reputation;
-    this.stateValue.completedQuests = [...state.completedQuests];
-    this.stateValue.playTimeSeconds = state.playTimeSeconds;
-    this.boredomModel.restore(state.boredom);
+    this.stateValue.civiliansSaved = Math.max(
+      0,
+      finiteOr(state.civiliansSaved, 0, 'civiliansSaved')
+    );
+    this.stateValue.civiliansLost = Math.max(0, finiteOr(state.civiliansLost, 0, 'civiliansLost'));
+    this.stateValue.propertyDamage = Math.max(
+      0,
+      finiteOr(state.propertyDamage, 0, 'propertyDamage')
+    );
+    this.stateValue.reputation = clamp(
+      finiteOr(state.reputation, START_REPUTATION, 'reputation'),
+      REPUTATION_MIN,
+      REPUTATION_MAX
+    );
+    this.stateValue.completedQuests = [...(state.completedQuests ?? [])];
+    this.stateValue.playTimeSeconds = Math.max(
+      0,
+      finiteOr(state.playTimeSeconds, 0, 'playTimeSeconds')
+    );
+    this.boredomModel.restore(finiteOr(state.boredom, 0, 'boredom'));
     this.stateValue.boredom = this.boredomModel.boredom;
+
+    // A restored session is a different session: nothing that was open before
+    // the load is open now, and last session's log is not this session's.
+    this.incidents.clear();
+    this.reports.length = 0;
+    this.dispatchedEncounters.clear();
+    this.questFailureBoredom.clear();
   }
 
   /** A plain, JSON-safe copy for the save file. */
@@ -316,6 +427,13 @@ export class ProgressionSystem implements IProgressionSystem {
   dispose(): void {
     for (const off of this.unsubscribers) off();
     this.unsubscribers.length = 0;
+    // A model handed in belongs to the caller, who disposes it. One created
+    // here holds a `BoredomChanged` subscription nobody else can drop.
+    if (this.ownsBoredom) this.boredomModel.dispose();
+    this.incidents.clear();
+    this.reports.length = 0;
+    this.dispatchedEncounters.clear();
+    this.questFailureBoredom.clear();
   }
 
   /* ---------------------------------------------------------------------- */
@@ -370,10 +488,13 @@ export class ProgressionSystem implements IProgressionSystem {
       }),
 
       this.bus.on('CivilianSaved', (event) => {
-        this.stateValue.civiliansSaved++;
+        // The incident's tally is about the INCIDENT, so it counts everyone who
+        // got out. The player's own counter is about the PLAYER, and a rescue
+        // the game itself attributed to Genos is not his.
         const incident = this.nearestIncident(event.position);
         if (incident) incident.civiliansSaved++;
         if (!event.byPlayer) return;
+        this.stateValue.civiliansSaved++;
 
         const report = this.witnesses.report(event.position);
         const witnessed = report.corroboration > 0;
@@ -479,10 +600,12 @@ export class ProgressionSystem implements IProgressionSystem {
       creditMultiplier = Math.max(creditMultiplier, INCIDENT_DISPATCHED_MULTIPLIER);
 
     const tierPoints = outcome === 'victory' ? INCIDENT_POINTS_BY_TIER[incident.threatTier] : 0;
-    // `significance` is combat's own estimate of the fight; it nudges the
-    // headline size, it does not pay out on its own.
-    const significanceBonus = Math.min(tierPoints * 0.5, incident.significance * 0.05);
-    const basePoints = (tierPoints + significanceBonus) * creditMultiplier;
+    // `incident.significance` — the sum of combat's per-kill `rewardPoints` —
+    // is NOT in this expression, and must never be: it rises with the number of
+    // things killed inside the encounter radius, so paying it out would make
+    // rank move on kills through the back door. It stays on the record as a
+    // report-only measure of how newsworthy the fight looked.
+    const basePoints = tierPoints * creditMultiplier;
 
     // BLAME: reported at 0.55 even with nobody watching.
     const collateralReported = collateralGross * witnesses.collateralReportRate;
@@ -526,6 +649,7 @@ export class ProgressionSystem implements IProgressionSystem {
       rivalCredit,
     };
     this.reports.push(report);
+    if (this.reports.length > REPORT_LOG_LIMIT) this.reports.shift();
     this.options.onIncidentReported?.(report);
 
     log.info(
@@ -550,7 +674,13 @@ export class ProgressionSystem implements IProgressionSystem {
   }
 
   private onQuestFailed(questId: string): void {
-    const boredom = questId.includes('errand') ? BOREDOM_ON_MISSED_SALE : BOREDOM_ON_QUEST_FAILED;
+    // The catalogue's authored `boredomOnFailure` wins when the coordinator
+    // registered it. The id sniff is the standalone fallback: this system does
+    // not import the catalogue and cannot read the rule itself.
+    const authored = this.questFailureBoredom.get(questId);
+    this.questFailureBoredom.delete(questId);
+    const boredom =
+      authored ?? (questId.includes('errand') ? BOREDOM_ON_MISSED_SALE : BOREDOM_ON_QUEST_FAILED);
     this.addBoredom(boredom, `questFailed:${questId}`);
   }
 

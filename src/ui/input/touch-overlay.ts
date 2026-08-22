@@ -186,12 +186,16 @@ export function createTouchOverlay(
   const doc = parent.ownerDocument;
   if (!doc) return null;
 
-  if (!doc.getElementById(STYLE_ID)) {
-    const style = doc.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = css(tuning);
-    doc.head.appendChild(style);
-  }
+  // The stylesheet is shared by id and outlives any single overlay (`dispose()`
+  // only removes `root`). Always REGENERATE it: the stick ring and dead-zone
+  // circle are baked in from the tuning, so a second overlay created with a
+  // different tuning would otherwise draw the first one's ring while `sync()`
+  // clamps the knob to the new radius — a knob visibly outside its own ring.
+  const existingStyle = doc.getElementById(STYLE_ID);
+  const style = existingStyle ?? doc.createElement('style');
+  style.id = STYLE_ID;
+  style.textContent = css(tuning);
+  if (!existingStyle) doc.head.appendChild(style);
 
   const root = doc.createElement('div');
   root.className = 'opm-input-root';

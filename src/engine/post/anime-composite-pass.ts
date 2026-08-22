@@ -112,12 +112,19 @@ const FRAGMENT_SHADER = /* glsl */ `
 			line *= step( 0.55, pick );
 
 			// Lines start away from the centre and animate outwards, so the
-			// focal point stays readable during an impact.
+			// focal point stays readable during an impact. BOTH ends advance
+			// together — the spoke translates at constant length — and a
+			// half-sine envelope puts the fract() wrap at zero opacity.
+			// Ramping only the outer end snapped every spoke back to half
+			// length once per 0.625 s, which is roughly one wrap per cell
+			// inside a typical burst: the fan shattered instead of streaming.
 			float inner = 0.18 + hash11( cell * 3.71 ) * 0.22;
 			float travel = fract( uTime * 1.6 + hash11( cell * 11.9 ) );
-			float reach = mix( 0.55, 1.05, travel );
-			float radialMask = smoothstep( inner, inner + 0.16, radius ) *
-				smoothstep( reach + 0.20, reach - 0.05, radius );
+			float start = inner + travel * 0.45;
+			float reach = start + 0.35;
+			float radialMask = smoothstep( start, start + 0.16, radius ) *
+				smoothstep( reach + 0.20, reach - 0.05, radius ) *
+				sin( travel * 3.1415927 );
 
 			color = mix( color, uSpeedLineColor, clamp( line * radialMask * uSpeedLines, 0.0, 1.0 ) );
 		}
@@ -148,6 +155,18 @@ export class AnimeCompositePass extends Pass {
   private targetMotionBlur = 0;
   private targetChromatic = 0;
   private targetSpeedLines = 0;
+  /**
+   * Sustained floors the decay eases TOWARDS rather than through.
+   *
+   * `setIntensity` writes these. Without them the decay in `update()` pulls
+   * every directly-set intensity to zero within about 0.8 s at 60 fps, so a
+   * settings slider wired to `IPostProcessing.setEffectIntensity` — documented
+   * as a plain "scalar intensity in 0..1" — would silently undo itself.
+   * `trigger()` still spikes above the floor and relaxes back down to it.
+   */
+  private sustainMotionBlur = 0;
+  private sustainChromatic = 0;
+  private sustainSpeedLines = 0;
   /** Seconds remaining on a triggered burst before it starts decaying. */
   private burstHold = 0;
 
@@ -176,7 +195,8 @@ export class AnimeCompositePass extends Pass {
       depthWrite: false,
     });
     this.fsQuad = new FullScreenQuad(this.material);
-    this.targetChromatic = this.chromaticEnabled ? REST_CHROMATIC : 0;
+    this.sustainChromatic = this.chromaticEnabled ? REST_CHROMATIC : 0;
+    this.targetChromatic = this.sustainChromatic;
   }
 
   /**
@@ -215,15 +235,23 @@ export class AnimeCompositePass extends Pass {
       return;
     }
 
-    const restChromatic = this.chromaticEnabled ? REST_CHROMATIC : 0;
-    // Exponential decay, frame-rate independent.
+    // Exponential decay, frame-rate independent. Everything relaxes towards its
+    // sustained floor, which is 0 unless a caller set one through
+    // `setIntensity` (and `REST_CHROMATIC` for chromatic aberration).
     const decay = Math.pow(0.0008, dt);
-    this.targetMotionBlur *= decay;
-    this.targetSpeedLines *= decay;
-    this.targetChromatic = restChromatic + (this.targetChromatic - restChromatic) * decay;
+    this.targetMotionBlur =
+      this.sustainMotionBlur + (this.targetMotionBlur - this.sustainMotionBlur) * decay;
+    this.targetSpeedLines =
+      this.sustainSpeedLines + (this.targetSpeedLines - this.sustainSpeedLines) * decay;
+    this.targetChromatic =
+      this.sustainChromatic + (this.targetChromatic - this.sustainChromatic) * decay;
 
-    if (this.targetMotionBlur < 0.002) this.targetMotionBlur = 0;
-    if (this.targetSpeedLines < 0.002) this.targetSpeedLines = 0;
+    if (this.targetMotionBlur - this.sustainMotionBlur < 0.002) {
+      this.targetMotionBlur = this.sustainMotionBlur;
+    }
+    if (this.targetSpeedLines - this.sustainSpeedLines < 0.002) {
+      this.targetSpeedLines = this.sustainSpeedLines;
+    }
 
     this.material.uniforms.uMotionBlur!.value = this.targetMotionBlur;
     this.material.uniforms.uSpeedLines!.value = this.targetSpeedLines;
@@ -238,18 +266,21 @@ export class AnimeCompositePass extends Pass {
       case 'motionBlur':
         this.motionBlurEnabled = enabled;
         if (!enabled) {
+          this.sustainMotionBlur = 0;
           this.targetMotionBlur = 0;
           this.material.uniforms.uMotionBlur!.value = 0;
         }
         break;
       case 'chromaticAberration':
         this.chromaticEnabled = enabled;
-        this.targetChromatic = enabled ? REST_CHROMATIC : 0;
+        this.sustainChromatic = enabled ? REST_CHROMATIC : 0;
+        this.targetChromatic = this.sustainChromatic;
         this.material.uniforms.uChromatic!.value = this.targetChromatic;
         break;
       case 'speedLines':
         this.speedLinesEnabled = enabled;
         if (!enabled) {
+          this.sustainSpeedLines = 0;
           this.targetSpeedLines = 0;
           this.material.uniforms.uSpeedLines!.value = 0;
         }
@@ -257,23 +288,62 @@ export class AnimeCompositePass extends Pass {
     }
   }
 
-  /** Directly set an intensity, bypassing the burst envelope. */
+  /**
+   * Directly set a SUSTAINED intensity, bypassing the burst envelope.
+   *
+   * The value becomes the floor `update()`'s decay relaxes towards, so it
+   * survives for as long as the caller leaves it set — a settings slider stays
+   * where the player put it. A later `trigger()` still spikes above it and
+   * falls back to it.
+   */
   setIntensity(effect: 'motionBlur' | 'chromaticAberration' | 'speedLines', value: number): void {
     const clamped = Math.min(1, Math.max(0, value));
     switch (effect) {
       case 'motionBlur':
-        this.targetMotionBlur = this.motionBlurEnabled ? clamped : 0;
+        this.sustainMotionBlur = this.motionBlurEnabled ? clamped : 0;
+        this.targetMotionBlur = this.sustainMotionBlur;
         this.material.uniforms.uMotionBlur!.value = this.targetMotionBlur;
         break;
       case 'chromaticAberration':
-        this.targetChromatic = this.chromaticEnabled ? clamped : 0;
+        this.sustainChromatic = this.chromaticEnabled ? clamped : 0;
+        this.targetChromatic = this.sustainChromatic;
         this.material.uniforms.uChromatic!.value = this.targetChromatic;
         break;
       case 'speedLines':
-        this.targetSpeedLines = this.speedLinesEnabled ? clamped : 0;
+        this.sustainSpeedLines = this.speedLinesEnabled ? clamped : 0;
+        this.targetSpeedLines = this.sustainSpeedLines;
         this.material.uniforms.uSpeedLines!.value = this.targetSpeedLines;
         break;
     }
+  }
+
+  /** Live sustained intensity for one effect. Survives a tier rebuild via `PostProcessing`. */
+  getIntensity(effect: 'motionBlur' | 'chromaticAberration' | 'speedLines'): number {
+    switch (effect) {
+      case 'motionBlur':
+        return this.sustainMotionBlur;
+      case 'chromaticAberration':
+        return this.sustainChromatic;
+      case 'speedLines':
+        return this.sustainSpeedLines;
+    }
+  }
+
+  /** Whether an effect is currently allowed to run at all. */
+  isEffectEnabled(effect: 'motionBlur' | 'chromaticAberration' | 'speedLines'): boolean {
+    switch (effect) {
+      case 'motionBlur':
+        return this.motionBlurEnabled;
+      case 'chromaticAberration':
+        return this.chromaticEnabled;
+      case 'speedLines':
+        return this.speedLinesEnabled;
+    }
+  }
+
+  /** Where the radial effects currently converge, in 0..1 screen space. */
+  get focalPoint(): THREE.Vector2 {
+    return this.material.uniforms.uFocal!.value as THREE.Vector2;
   }
 
   /** Where the radial effects converge, in 0..1 screen space. */

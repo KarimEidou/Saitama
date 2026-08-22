@@ -641,7 +641,15 @@ const MOOKS: readonly IMonsterArchetype[] = Object.freeze([
       attack({
         id: 'bite',
         kind: 'melee',
-        rangeMetres: 1.1,
+        // Reach has to clear the monster's OWN flight envelope, or the row
+        // describes a creature that can never attack anything. Attack legality
+        // is tested against the 3-D distance to the target, and this profile
+        // parks the swarm at `hover ± bob` = 2.3 m to 4.5 m above a target
+        // standing on the pavement — so at 1.1 m every candidate check failed,
+        // on every frame, for every mosquito, and the whole summoned archetype
+        // was scenery. 5 m clears the top of the bob with room for the 2.5 m
+        // standoff underneath it.
+        rangeMetres: 5,
         windupSeconds: 0.14,
         activeSeconds: 0.06,
         recoverySeconds: 0.12,

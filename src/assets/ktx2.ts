@@ -52,10 +52,21 @@ export interface ITranscodeSupport {
   readonly etc1: boolean;
   readonly pvrtc: boolean;
   /**
-   * The GPU format `KTX2Loader` will pick for an ordinary opaque UASTC or
-   * ETC1S texture on this device, e.g. 'RGBA_BPTC_Format'.
+   * The GPU format `KTX2Loader` will pick for an ordinary opaque UASTC texture
+   * on this device, e.g. 'RGBA_BPTC_Format'. In this pipeline that is the
+   * normal maps.
    */
   readonly predictedTarget: string;
+  /**
+   * The same for an ordinary opaque ETC1S texture — albedo and ORM, i.e. two
+   * of the three roles and most of the texture memory.
+   *
+   * Reported separately because three ranks the two Basis flavours
+   * DIFFERENTLY: ETC1S prefers ETC2 over BC7 and cannot target ASTC at all, so
+   * quoting one number for both mis-sizes the budget by ~2x on any Android
+   * device (ASTC 4x4 costs 1 B/px against ETC2 RGB's 0.5).
+   */
+  readonly predictedTargetETC1S: string;
   /** Raw extension names, for the diagnostics readout. */
   readonly extensions: readonly string[];
   /**
@@ -70,6 +81,43 @@ export interface ITranscodeSupport {
 
 interface IRendererLike {
   extensions?: { has(name: string): boolean };
+}
+
+/** Compressed-format families a device exposes, as this module reports them. */
+type IFormatSupport = Pick<ITranscodeSupport, 'astc' | 'bptc' | 's3tc' | 'etc2' | 'etc1' | 'pvrtc'>;
+
+/**
+ * The engine format `KTX2Loader` transcodes an ordinary OPAQUE texture to.
+ *
+ * Mirrors the loader's own `FORMAT_OPTIONS` table, which ranks the two Basis
+ * flavours separately: `priorityUASTC` is ASTC, BC7, ETC2, ETC1, DXT, PVRTC,
+ * while `priorityETC1S` is ETC2, ETC1, BC7, DXT, PVRTC — and ASTC is not an
+ * ETC1S option at all (`basisFormat: [ UASTC ]`). Opaque takes
+ * `engineFormat[0]`, which is the RGB variant for ETC2, DXT and PVRTC; a
+ * texture with alpha would land on the RGBA variant beside it.
+ */
+function predictTarget(flavour: 'uastc' | 'etc1s', support: IFormatSupport): string {
+  const ranked: readonly (readonly [boolean, string])[] =
+    flavour === 'uastc'
+      ? [
+          [support.astc, 'RGBA_ASTC_4x4_Format'],
+          [support.bptc, 'RGBA_BPTC_Format'],
+          [support.etc2, 'RGB_ETC2_Format'],
+          [support.etc1, 'RGB_ETC1_Format'],
+          [support.s3tc, 'RGBA_S3TC_DXT1_Format'],
+          [support.pvrtc, 'RGB_PVRTC_4BPPV1_Format'],
+        ]
+      : [
+          [support.etc2, 'RGB_ETC2_Format'],
+          [support.etc1, 'RGB_ETC1_Format'],
+          [support.bptc, 'RGBA_BPTC_Format'],
+          [support.s3tc, 'RGBA_S3TC_DXT1_Format'],
+          [support.pvrtc, 'RGB_PVRTC_4BPPV1_Format'],
+        ];
+  return (
+    ranked.find(([available]) => available)?.[1] ??
+    'RGBAFormat (uncompressed — no GPU codec available)'
+  );
 }
 
 /**
@@ -103,21 +151,9 @@ export function describeTranscodeSupport(renderer: IRendererLike): ITranscodeSup
     suppressed = true;
   }
 
-  // Priority order for UASTC, which is what the loader uses: ASTC, BC7, ETC2,
-  // ETC1, BC1/BC3, PVRTC, then uncompressed RGBA32.
-  const predictedTarget = astc
-    ? 'RGBA_ASTC_4x4_Format'
-    : bptc
-      ? 'RGBA_BPTC_Format'
-      : etc2
-        ? 'RGBA_ETC2_EAC_Format'
-        : etc1
-          ? 'RGB_ETC1_Format'
-          : s3tc
-            ? 'RGBA_S3TC_DXT5_Format'
-            : pvrtc
-              ? 'RGBA_PVRTC_4BPPV1_Format'
-              : 'RGBAFormat (uncompressed — no GPU codec available)';
+  const support: IFormatSupport = { astc, bptc, s3tc, etc2, etc1, pvrtc };
+  const predictedTarget = predictTarget('uastc', support);
+  const predictedTargetETC1S = predictTarget('etc1s', support);
 
   const extensions = [
     astc && 'astc',
@@ -136,6 +172,7 @@ export function describeTranscodeSupport(renderer: IRendererLike): ITranscodeSup
     etc1,
     pvrtc,
     predictedTarget,
+    predictedTargetETC1S,
     extensions,
     emulatedFormatsSuppressed: suppressed,
   };
@@ -160,7 +197,8 @@ export function createKTX2Loader(
   loader.detectSupport(renderer);
   const support = describeTranscodeSupport(renderer);
   log.info(
-    `KTX2 transcode target: ${support.predictedTarget} ` +
+    `KTX2 transcode targets: UASTC ${support.predictedTarget}, ` +
+      `ETC1S ${support.predictedTargetETC1S} ` +
       `(available: ${support.extensions.join(', ') || 'none'})` +
       (support.emulatedFormatsSuppressed ? ' — emulated ASTC/ETC suppressed' : '')
   );

@@ -349,6 +349,15 @@ async function main(): Promise<void> {
     if (street.stats.drawCallsRendered > 260) {
       failures.push(`street frame issued ${street.stats.drawCallsRendered} draw calls`);
     }
+    // A stand-in bound while the readout claims the real Poly Haven set is
+    // worse than no screenshot — so an id the library could not resolve fails
+    // the run. Only on a tree that HAS the processed assets: a fresh clone has
+    // no `public/assets/` and legitimately renders on the synthesised library.
+    if (street.stats.usingRealTextures && street.stats.assetProblems.length > 0) {
+      failures.push(
+        `real asset library could not resolve: ${street.stats.assetProblems.join('; ')}`
+      );
+    }
 
     if (consoleErrors.length > 0) {
       failures.push(`console errors: ${consoleErrors.slice(0, 4).join(' | ')}`);

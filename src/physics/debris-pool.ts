@@ -397,6 +397,7 @@ export class DebrisPool implements IDebrisPool {
     if (slot.collider !== undefined) {
       this.world.raw.removeCollider(slot.collider, false);
       slot.collider = undefined;
+      slot.body.collider = undefined;
     }
     const points = chunkHullPoints(chunk);
     const desc = convexHullDesc(this.world.rapier, points)
@@ -404,7 +405,14 @@ export class DebrisPool implements IDebrisPool {
       .setFriction(0.85)
       .setRestitution(0.05)
       .setCollisionGroups(groupsFor('debris', ['world', 'debris', 'player', 'monster', 'ragdoll']));
+    // The world owns the contact-event policy; the pool builds its own collider
+    // descriptions, so it has to ask rather than assume.
+    this.world.applyContactEvents(desc, 'debris');
     slot.collider = this.world.raw.createCollider(desc, slot.raw);
+    // The wrapper's `collider` is exactly this case — a pooled body that
+    // rebuilds its shape on every spawn. Without it, contact reporting cannot
+    // read a contact point for debris and `colliderHandle` reports -1.
+    slot.body.collider = slot.collider;
     // Mass properties are otherwise only refreshed on the next step, which
     // would leave the piece with the previous occupant's mass for one frame.
     slot.raw.recomputeMassPropertiesFromColliders();
@@ -460,16 +468,24 @@ export class DebrisPool implements IDebrisPool {
     const restY = this.groundY + slot.halfHeight;
     if (slot.position.y <= restY) {
       slot.position.y = restY;
-      if (slot.bounced) {
-        slot.velocity.set(0, 0, 0);
-        slot.spin.set(0, 0, 0);
-        slot.settled = true;
-      } else {
-        slot.bounced = true;
-        slot.velocity.y = Math.abs(slot.velocity.y) * BALLISTIC_RESTITUTION;
-        slot.velocity.x *= BALLISTIC_GROUND_FRICTION;
-        slot.velocity.z *= BALLISTIC_GROUND_FRICTION;
-        slot.spin.multiplyScalar(BALLISTIC_GROUND_FRICTION);
+      // Only a piece that ARRIVED from above has bounced. Gravel shattered off
+      // the base of a wall spawns at street level, already at or below its
+      // resting height: testing the position alone spent its single bounce on
+      // frame one, costing it 65% of its launch speed before it had travelled
+      // anywhere while identical gravel from a first-floor window flew
+      // properly.
+      if (slot.velocity.y < 0) {
+        if (slot.bounced) {
+          slot.velocity.set(0, 0, 0);
+          slot.spin.set(0, 0, 0);
+          slot.settled = true;
+        } else {
+          slot.bounced = true;
+          slot.velocity.y = Math.abs(slot.velocity.y) * BALLISTIC_RESTITUTION;
+          slot.velocity.x *= BALLISTIC_GROUND_FRICTION;
+          slot.velocity.z *= BALLISTIC_GROUND_FRICTION;
+          slot.spin.multiplyScalar(BALLISTIC_GROUND_FRICTION);
+        }
       }
     }
     this.writeMeshTransform(slot, slot.position, slot.mesh.quaternion);
@@ -528,6 +544,7 @@ export class DebrisPool implements IDebrisPool {
       slot.raw.recomputeMassPropertiesFromColliders();
     }
     slot.collider = undefined;
+    slot.body.collider = undefined;
     if (!this.world.isDisposed) {
       slot.body.setEnabled(false);
       slot.raw.setLinvel({ x: 0, y: 0, z: 0 }, false);

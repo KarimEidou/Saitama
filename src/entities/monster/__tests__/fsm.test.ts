@@ -96,7 +96,7 @@ describe('transitions', () => {
     expect(fsm.transition('attack')).toBe(true);
   });
 
-  it('allows re-entry into attack and nowhere else', () => {
+  it('allows re-entry into attack and stagger, and nowhere else', () => {
     const fsm = new MonsterFsm('idle');
     fsm.transition('alerted');
     fsm.transition('pursue');
@@ -107,6 +107,22 @@ describe('transitions', () => {
     expect(fsm.timeInState).toBe(0);
     expect(fsm.transition('pursue')).toBe(true);
     expect(fsm.transition('pursue')).toBe(false);
+    expect(fsm.transition('idle')).toBe(true);
+    expect(fsm.transition('idle')).toBe(false);
+  });
+
+  it('lets a second interrupting hit restart the stagger clock', () => {
+    // A second heavy blow 0.3 s into a 1.2 s stagger is a second interruption:
+    // it must restart the clock, not be silently refused and leave the monster
+    // recovering 0.9 s early on the first hit's timer.
+    const fsm = new MonsterFsm('idle');
+    fsm.transition('alerted');
+    fsm.transition('stagger');
+    fsm.update(0.3);
+    expect(fsm.timeInState).toBeCloseTo(0.3, 6);
+    expect(fsm.transition('stagger')).toBe(true);
+    expect(fsm.timeInState).toBe(0);
+    expect(fsm.current).toBe('stagger');
   });
 
   it('lets death arrive from any state, because it can', () => {

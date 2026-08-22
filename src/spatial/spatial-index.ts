@@ -22,7 +22,7 @@
  */
 
 import type * as THREE from 'three';
-import { CHUNK_COUNT, chunkIndexAt } from './constants';
+import { CHUNK_COUNT, CHUNK_SIZE, chunkIndexAt, chunkMinX, chunkMinZ } from './constants';
 import { Frustum } from './frustum';
 import { IndexList } from './index-list';
 import { Quadtree, createCullStats, type ICullStats, type IQuadtreeOptions } from './quadtree';
@@ -212,8 +212,27 @@ export class SpatialIndex {
     for (let c = 0; c < CHUNK_COUNT; c++) {
       const node = this.quadtree.chunkNode(c);
       if (node < 0 || this.quadtree.getNodeTotal(node) === 0) continue;
-      if (pvs !== undefined && this.viewChunk >= 0 && !pvs.isVisible(this.viewChunk, c)) continue;
       this.quadtree.getNodeBounds(node, bounds);
+
+      if (pvs !== undefined && this.viewChunk >= 0 && !pvs.isVisible(this.viewChunk, c)) {
+        // The same overhang guard the quadtree walk applies: loose placement
+        // lets a chunk's contents spill past its own cell, and a PVS bit only
+        // speaks for the cell's footprint. Honour the bit ONLY when everything
+        // in the chunk really does live inside it; otherwise let the frustum
+        // decide, so this pass and `visibleInstances` cannot disagree about a
+        // chunk whose props sit on the boundary.
+        const cellMinX = chunkMinX(c);
+        const cellMinZ = chunkMinZ(c);
+        if (
+          bounds[0]! >= cellMinX &&
+          bounds[3]! <= cellMinX + CHUNK_SIZE &&
+          bounds[2]! >= cellMinZ &&
+          bounds[5]! <= cellMinZ + CHUNK_SIZE
+        ) {
+          continue;
+        }
+      }
+
       if (
         this.frustum.testBox(bounds[0]!, bounds[1]!, bounds[2]!, bounds[3]!, bounds[4]!, bounds[5]!)
       ) {

@@ -96,20 +96,35 @@ export function createCharacterParts(
     },
     dispose(): void {
       build.geometry.dispose();
+      // The skeleton is this object's too. three.js allocates its bone texture
+      // lazily on the first render and only `Skeleton.dispose()` releases it,
+      // so leaving it out leaks one GL texture per character built, rendered
+      // and dropped. Materials stay the caller's, as the header says.
+      rig.skeleton.dispose();
     },
   };
 }
 
 /**
- * Names of the material slots present in a build, in `geometry.groups` order.
+ * Slot names for a build's material array, INDEXED BY `MeshSlot`.
  *
- * Lets a caller size a material array correctly without guessing: a bald
- * civilian has no `hair` group and Saitama has no `metal` one.
+ * Lets a caller size a material array correctly without guessing. It has to be
+ * indexed rather than compacted: three.js looks a group's material up as
+ * `material[group.materialIndex]` and silently skips the group when that entry
+ * is missing, so a compacted list would delete every group above its length —
+ * Genos has no `cloth` geometry, and a four-element array built from a
+ * compacted list would drop all of his `metal` plating without a warning.
+ *
+ * The array is therefore dense up to the highest slot the build uses; entries
+ * for slots it does not use are still named, and are simply never drawn.
  */
 export function usedSlots(build: HumanoidBuild): string[] {
-  const seen = new Set<number>();
+  let top = -1;
   for (const group of build.geometry.groups) {
-    if (group.materialIndex !== undefined) seen.add(group.materialIndex);
+    const slot = group.materialIndex;
+    if (slot !== undefined && slot > top) top = slot;
   }
-  return [...seen].sort((a, b) => a - b).map((i) => SLOT_NAMES[i] ?? `slot${i}`);
+  const out: string[] = [];
+  for (let i = 0; i <= top; i++) out.push(SLOT_NAMES[i] ?? `slot${i}`);
+  return out;
 }

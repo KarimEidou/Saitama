@@ -165,6 +165,7 @@ export function generateSyntheticCity(options: ISyntheticCityOptions = {}): ISyn
 
       const subdivisions = rng.int(2, 3);
       const lotSize = (blockSize - alleyWidth * (subdivisions - 1)) / subdivisions;
+      let builtHere = 0;
 
       for (let lz = 0; lz < subdivisions; lz++) {
         for (let lx = 0; lx < subdivisions; lx++) {
@@ -195,8 +196,16 @@ export function generateSyntheticCity(options: ISyntheticCityOptions = {}): ISyn
           });
           footprints.push({ minX, minZ, maxX, maxZ });
           buildingCount++;
+          builtHere++;
         }
       }
+
+      // A chunk that took the block branch can still come out empty: every lot
+      // can fail the fill roll, and a lot can be rejected as too small after
+      // its setbacks. `parkChunks` means "no buildings at all", so those count
+      // too — otherwise a low `lotFillChance` would thin the city out while
+      // the list still reported it as built up.
+      if (builtHere === 0) parkChunks.push(chunk);
     }
   }
 

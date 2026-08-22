@@ -107,6 +107,12 @@ export class DynamicEntityGrid {
 
   /** Discard the previous frame. Cheap: one counter fill. */
   beginFrame(): void {
+    // Release the payloads before the slots are recycled. The slot arrays are
+    // sized to the busiest frame the grid has ever seen, so a crowd that
+    // shrinks would otherwise pin every despawned entity — and its meshes,
+    // materials and skeletons — until an equally large crowd overwrote it.
+    // One pass over the LIVE range only; the tail is already clear.
+    for (let i = 0; i < this.count; i++) this.refs[i] = undefined;
     this.count = 0;
     this.maxRadius = 0;
     this.built = false;
@@ -121,6 +127,12 @@ export class DynamicEntityGrid {
    * @returns The slot, valid until the next `beginFrame`.
    */
   add(ref: unknown, x: number, y: number, z: number, radius = 0, layer = 1): number {
+    // A late add — one after `build()` — would otherwise increment an entry of
+    // the finished prefix sum, which silently shifts every following bucket by
+    // one slot. Put the counters back into histogram form and mark the grid
+    // unbuilt: queries then return nothing until `build()` runs again, instead
+    // of returning last frame's entities from cells that read past their data.
+    if (this.built) this.unbuild();
     if (this.count === this.capacity) this.grow();
 
     const slot = this.count++;
@@ -139,8 +151,15 @@ export class DynamicEntityGrid {
     return slot;
   }
 
-  /** Finish the counting sort. Must run after the last `add`. */
+  /**
+   * Finish the counting sort. Must run after the last `add`.
+   *
+   * Idempotent: a second call with nothing added in between returns at once,
+   * because prefix-summing an array that is already a prefix sum would corrupt
+   * every bucket boundary.
+   */
   build(): void {
+    if (this.built) return;
     const start = this.cellStart;
     for (let c = 0; c < this.cellCount; c++) start[c + 1] = start[c + 1]! + start[c]!;
     this.cellCursor.set(start.subarray(0, this.cellCount));
@@ -155,6 +174,16 @@ export class DynamicEntityGrid {
       this.cellCursor[c] = at + 1;
     }
     this.built = true;
+  }
+
+  /**
+   * Undo `build`'s prefix sum, recovering the per-cell histogram `add` writes
+   * into. Exact: the prefix sum is invertible by differencing from the top.
+   */
+  private unbuild(): void {
+    const start = this.cellStart;
+    for (let c = this.cellCount; c > 0; c--) start[c] = start[c]! - start[c - 1]!;
+    this.built = false;
   }
 
   private grow(): void {

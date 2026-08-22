@@ -569,7 +569,16 @@ export function measureVatRoundTrip(
   }
 
   for (let i = 0; i < dense.length; i++) {
-    const frameTime = i / subSamples;
+    // Dense sample `i` has to be mapped onto the BAKED clip's frame axis, and
+    // the two grids differ for a one-shot: `sampleClip` places sample `i` of an
+    // `n`-frame non-looping clip at `i/(n-1)`, so `i/subSamples` is off by up
+    // to three quarters of a frame at the end of the range and the tail of the
+    // sweep compares against a clamped last frame. That inflates `temporalMax`
+    // with a pure indexing offset for exactly the clips whose poses move
+    // fastest — the numbers the frame-count decision is made from.
+    const frameTime = clip.loop
+      ? i / subSamples
+      : (i * (clip.frames - 1)) / Math.max(1, dense.length - 1);
     measure(dense[i]!, frameTime, (error) => {
       temporalMax = Math.max(temporalMax, error);
       temporalSum += error * error;

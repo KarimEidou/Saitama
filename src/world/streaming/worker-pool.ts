@@ -28,7 +28,7 @@
  * is testing the shipping code path, not a simulation of it.
  */
 
-import { MAX_IN_FLIGHT_JOBS, STREAMING_WORKER_COUNT } from './constants';
+import { JOBS_PER_WORKER, MAX_IN_FLIGHT_JOBS, STREAMING_WORKER_COUNT } from './constants';
 import { handleRequest } from './chunk-worker';
 import type { WorkerRequest, WorkerResponse } from './protocol';
 
@@ -73,7 +73,7 @@ export class ChunkWorkerPool {
   private readonly onResult: (response: WorkerResponse) => void;
   private readonly onError: (error: string) => void;
   private readonly maxInFlight: number;
-  private readonly useInline: boolean;
+  private useInline: boolean;
   private inFlightInline = 0;
   private completed = 0;
   private cancelledCount = 0;
@@ -84,10 +84,17 @@ export class ChunkWorkerPool {
     this.onResult = options.onResult;
     this.onError =
       options.onError ?? ((message) => console.error(`[streaming] worker: ${message}`));
-    this.maxInFlight = options.maxInFlight ?? MAX_IN_FLIGHT_JOBS;
 
     const wanted = options.workerCount ?? STREAMING_WORKER_COUNT;
     this.useInline = options.inline === true || typeof Worker === 'undefined' || wanted <= 0;
+    // Derived from the pool that actually exists, not from the constant: a
+    // caller that asks for six workers and gets a four-job cap pays for four
+    // idle module graphs, and one that asks for a single worker gets four jobs
+    // piled on it — the exact "a worker three jobs deep cannot be redirected"
+    // failure the cap exists to prevent. `capacity` is what `dispatch` gates on.
+    this.maxInFlight =
+      options.maxInFlight ??
+      (this.useInline ? MAX_IN_FLIGHT_JOBS : Math.max(1, wanted) * JOBS_PER_WORKER);
 
     if (!this.useInline) {
       for (let i = 0; i < wanted; i++) {
@@ -119,10 +126,7 @@ export class ChunkWorkerPool {
       };
       worker.onerror = (event: ErrorEvent): void => {
         this.onError(event.message);
-        // Free whatever this worker was holding so the pipeline does not wedge.
-        for (const id of slot.jobs) this.assignment.delete(id);
-        slot.jobs.clear();
-        this.pump();
+        this.retire(slot);
       };
       return slot;
     } catch (error) {
@@ -174,6 +178,15 @@ export class ChunkWorkerPool {
     return this.pending.length;
   }
 
+  /**
+   * Jobs this pool will hold in flight at once. The dispatcher must gate on
+   * this rather than on `MAX_IN_FLIGHT_JOBS`, which is only the default for the
+   * default worker count.
+   */
+  get capacity(): number {
+    return this.maxInFlight;
+  }
+
   /* ------------------------------------------------------------------ */
   /* Dispatch                                                           */
   /* ------------------------------------------------------------------ */
@@ -191,6 +204,43 @@ export class ChunkWorkerPool {
         slot.worker.postMessage(request, transferablesFor(request));
       }
     }
+  }
+
+  /**
+   * Take a failed worker out of the rotation and tell the owners its jobs died.
+   *
+   * Emptying the slot's job set without removing the slot is worse than doing
+   * nothing: an empty slot is by definition the least busy one, so the corpse
+   * would then be handed EVERY subsequent job while the healthy worker idled.
+   *
+   * The jobs it was holding are reported as errors rather than re-posted. Their
+   * damage masks were TRANSFERRED to the dead worker and are detached, so only
+   * the owner can re-queue them — with a fresh clone of the mask.
+   */
+  private retire(slot: IWorkerSlot): void {
+    const at = this.slots.indexOf(slot);
+    if (at !== -1) this.slots.splice(at, 1);
+    slot.worker.onmessage = null;
+    slot.worker.onerror = null;
+    try {
+      slot.worker.terminate();
+    } catch {
+      // Already gone. Terminating a dead worker is not an error worth raising.
+    }
+
+    const lost = [...slot.jobs];
+    slot.jobs.clear();
+    for (const id of lost) this.assignment.delete(id);
+
+    // No live worker left: the documented inline fallback is the only thing
+    // that keeps the pipeline moving, and until now it was only reachable from
+    // a SYNCHRONOUS `new Worker()` throw — never from an async module failure.
+    if (this.slots.length === 0) this.useInline = true;
+
+    for (const id of lost) {
+      this.deliver({ kind: 'error', id, message: `worker died holding job ${id}` });
+    }
+    this.pump();
   }
 
   private leastBusySlot(): IWorkerSlot | undefined {
@@ -228,6 +278,11 @@ export class ChunkWorkerPool {
     if (this.cancelled.delete(response.id)) return;
     if (response.kind === 'error') {
       this.onError(response.message);
+      // And hand it on. A failure that only reaches a log leaves the owning
+      // chunk wedged in 'loading' forever, its `load()` promise unsettled and
+      // its job entry never released — while `idle` cheerfully reports that
+      // there is nothing left to do.
+      this.onResult(response);
       return;
     }
     if (response.kind === 'chunk' || response.kind === 'impostor') {

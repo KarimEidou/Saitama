@@ -383,9 +383,19 @@ export function destroyFractureChunk(
   return chunk;
 }
 
-/** Restore a block to intact, e.g. on chunk reload. */
+/**
+ * Restore a block to intact, e.g. on chunk reload.
+ *
+ * The pending update ranges MUST be cleared, not just the CPU array. Three
+ * uploads only the listed ranges when the list is non-empty, so a repair that
+ * follows an un-uploaded `destroyFractureChunk` would re-send that one chunk's
+ * bytes and leave every earlier chunk's 255s on the GPU — permanently, since
+ * the CPU array now reads 0 and nothing will queue those ranges again. An
+ * empty list makes the next upload a full `bufferSubData`.
+ */
 export function repairBlock(blockMesh: IBlockMesh): void {
   (blockMesh.destroyed.array as Uint8Array).fill(0);
+  blockMesh.destroyed.clearUpdateRanges();
   blockMesh.destroyed.needsUpdate = true;
 }
 
@@ -488,10 +498,18 @@ export function toChunkPayload(
   };
 }
 
-/** World-space AABB of a chunk coordinate, matching the payload bounds. */
-export function chunkBounds(coord: IChunkCoord, maxHeight = 90): THREE.Box3 {
+/**
+ * World-space AABB of a chunk coordinate.
+ *
+ * `maxHeight` has no default on purpose: pass the chunk's own `bounds[4]`.
+ * Downtown caps at 46 storeys of 3.7 m plus a parapet and up to 8.8 m of mast,
+ * so any constant small enough to look reasonable is less than half the real
+ * ceiling, and a culler handed a box that short drops towers while they are on
+ * screen. The floor matches `generateChunk`'s published `-8`.
+ */
+export function chunkBounds(coord: IChunkCoord, maxHeight: number): THREE.Box3 {
   return new THREE.Box3(
-    new THREE.Vector3(coord.x * CHUNK_SIZE, -20, coord.z * CHUNK_SIZE),
+    new THREE.Vector3(coord.x * CHUNK_SIZE, -8, coord.z * CHUNK_SIZE),
     new THREE.Vector3((coord.x + 1) * CHUNK_SIZE, maxHeight, (coord.z + 1) * CHUNK_SIZE)
   );
 }

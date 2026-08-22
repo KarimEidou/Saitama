@@ -48,6 +48,7 @@ import {
   type SoundKey,
   type VoiceClassId,
 } from './voices/registry';
+import { SPATIAL_DEFAULTS, type ISpatialSettings } from './panner';
 import { CrowdBedVoice } from './voices/crowd';
 import { WindVoice } from './voices/locomotion';
 import { MusicDirector } from './music/director';
@@ -75,6 +76,28 @@ const COLLAPSE_WINDOW = 0.8;
 /** Default randomisation seed. Fixed so offline renders are reproducible. */
 const DEFAULT_SEED = 0x5a1741;
 
+/**
+ * NaN-proof read of an optional number.
+ *
+ * `clamp`/`clamp01` are comparison chains, so `clamp01(NaN)` is NaN: every
+ * clamp in the play path is transparent to it. A NaN then reaches an oscillator
+ * or filter frequency, where `AudioParam.setValueAtTime` rejects it with a
+ * `TypeError` — thrown out of `trigger()`, past the slot bookkeeping, and
+ * swallowed by the event bus. Sanitising at this boundary is what keeps a
+ * degenerate physics impulse from quietly retiring a voice pool.
+ */
+function finiteOr(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/** A position is only usable if all three components are real numbers. */
+function finitePosition(position: Vec3 | undefined): Vec3 | undefined {
+  if (!position) return undefined;
+  const ok =
+    Number.isFinite(position.x) && Number.isFinite(position.y) && Number.isFinite(position.z);
+  return ok ? position : undefined;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Options                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -83,6 +106,12 @@ const DEFAULT_SEED = 0x5a1741;
  * Play options, extended with the two knobs a synthesiser needs that a
  * sample player does not. Every added field is optional, so this remains
  * interchangeable with `IPlayOptions` in both directions.
+ *
+ * One inherited field is NOT honoured: `loop`. Looping is a property of the
+ * patch, not of a playback — the beds (`ambience.crowd`, `move.wind`) are
+ * sustained voices that run until they are stopped, and every other key is a
+ * one-shot whose tail is part of its design. A `loop: true` on a one-shot is
+ * reported once and otherwise ignored.
  */
 export interface ISynthPlayOptions extends Omit<IPlayOptions, 'position'> {
   /**
@@ -145,6 +174,8 @@ class SynthSoundHandle implements ISoundHandle {
   private readonly bank: VoiceBank<SynthVoice> | undefined;
   private readonly lease: IVoiceLease | undefined;
   private readonly voice: SynthVoice;
+  /** True for a bed. Beds never end, so they must not consume the budget. */
+  readonly isSustained: boolean;
   private readonly callbacks: (() => void)[] = [];
   private endedFired = false;
   private stopped = false;
@@ -175,6 +206,7 @@ class SynthSoundHandle implements ISoundHandle {
     this.voice = params.voice;
     this.bank = params.bank;
     this.lease = params.lease;
+    this.isSustained = params.voice instanceof SustainedVoice;
   }
 
   /** True while this handle still owns its voice slot. */
@@ -186,6 +218,11 @@ class SynthSoundHandle implements ISoundHandle {
 
   get isPlaying(): boolean {
     if (!this.isCurrent) return false;
+    // A NaN duration is a broken voice, not an endless one. Treating it like
+    // `Infinity` (which `Number.isFinite` alone does) leaves an immortal handle
+    // that `update()` can never retire and that permanently costs a slot of the
+    // global budget.
+    if (Number.isNaN(this.duration)) return false;
     if (!Number.isFinite(this.duration)) return true;
     return this.ctx.currentTime < this.startTime + this.duration;
   }
@@ -199,6 +236,11 @@ class SynthSoundHandle implements ISoundHandle {
     this.stopped = true;
     const now = this.ctx.currentTime;
     if (this.bank && this.lease) this.bank.release(this.lease, now, fadeOut);
+    // A bed has to go through `SustainedVoice.stop`, not `stopAt`: the latter
+    // fades the VCA but leaves `running` set, and a running bed skips its
+    // ramp-in on the next `start()` — so the bed would be silent, at a VCA
+    // pinned to zero, for the rest of the session.
+    else if (this.voice instanceof SustainedVoice) this.voice.stop(now, fadeOut);
     else this.voice.stopAt(now, fadeOut);
     this.fireEnded();
   }
@@ -212,12 +254,19 @@ class SynthSoundHandle implements ISoundHandle {
    * the sustained beds, where there is no envelope to freeze).
    */
   pause(): void {
+    // EVERY mutator checks `isCurrent`. `this.voice` is the pooled instance,
+    // and the bank hands the same instance to the next `acquire` on that slot —
+    // which is exactly what the lease generation exists to detect. Without the
+    // check, a stale handle mutes, re-levels, re-pitches or drags whatever
+    // sound now owns the slot.
+    if (!this.isCurrent) return;
     if (this.pausedVolume !== undefined) return;
     this.pausedVolume = this.volume;
     this.voice.setVolume(0, this.ctx.currentTime, 0.01);
   }
 
   resume(): void {
+    if (!this.isCurrent) return;
     if (this.pausedVolume === undefined) return;
     this.voice.setVolume(this.pausedVolume, this.ctx.currentTime, 0.01);
     this.pausedVolume = undefined;
@@ -229,6 +278,7 @@ class SynthSoundHandle implements ISoundHandle {
       this.pausedVolume = this.volume;
       return;
     }
+    if (!this.isCurrent) return;
     this.voice.setVolume(this.volume, this.ctx.currentTime, fadeSeconds);
   }
 
@@ -241,10 +291,12 @@ class SynthSoundHandle implements ISoundHandle {
    * on the timeline — which a direct frequency write would destroy.
    */
   setRate(rate: number): void {
+    if (!this.isCurrent) return;
     this.voice.setRate(rate, this.ctx.currentTime);
   }
 
   setPosition(position: Vec3): void {
+    if (!this.isCurrent) return;
     this.voice.setPosition(position, this.ctx.currentTime);
   }
 
@@ -305,6 +357,20 @@ export class AudioSystem implements IAudioSystem {
   private readonly sustainedVoices = new Map<VoiceClassId, SustainedVoice>();
   private readonly handles: SynthSoundHandle[] = [];
   private readonly rng: IRandom;
+  /**
+   * One long-lived random stream per sound key.
+   *
+   * `IRandom.derive` is state-INDEPENDENT: `derive(key)` is a pure function of
+   * the parent's construction seed, so calling it per trigger handed every
+   * instance of a key a bit-identical stream, and the per-instance variation
+   * eight voice files promise (grain onsets, vowels, detune, formant scatter,
+   * footstep filter centres) never happened. Deriving ONCE and then continuing
+   * to draw keeps the whole system reproducible for a fixed seed while making
+   * consecutive instances genuinely different.
+   */
+  private readonly keyStreams = new Map<string, IRandom>();
+  /** Handles following a moving object, from `IPlayOptions.attachTo`. */
+  private readonly followed: { handle: SynthSoundHandle; target: { position: Vec3 } }[] = [];
 
   private unlockedValue = false;
   private suspended = false;
@@ -314,8 +380,8 @@ export class AudioSystem implements IAudioSystem {
 
   /** Debris accumulated this frame, keyed by material. */
   private readonly debris = new Map<string, DebrisAccumulator>();
-  /** Rolling chunk count, for the collapse heuristic. */
-  private chunkWindow: { time: number; count: number }[] = [];
+  /** Rolling chunk count and centroid, for the collapse heuristic. */
+  private chunkWindow: { time: number; count: number; x: number; y: number; z: number }[] = [];
   private lastCollapseAt = -Infinity;
 
   private impulseTokens = IMPULSE_RATE_LIMIT;
@@ -366,7 +432,10 @@ export class AudioSystem implements IAudioSystem {
 
   get voiceCount(): number {
     let n = 0;
-    for (const h of this.handles) if (h.isPlaying) n++;
+    // Beds are excluded: their duration is `Infinity`, so counting them would
+    // permanently spend budget slots that no `update()` can ever reclaim — and
+    // make them the first victim of `makeRoom` in every dense frame.
+    for (const h of this.handles) if (!h.isSustained && h.isPlaying) n++;
     return n;
   }
 
@@ -417,6 +486,13 @@ export class AudioSystem implements IAudioSystem {
       return undefined;
     }
     const classSpec = VOICE_CLASSES[spec.voiceClass];
+    if (options.loop && !classSpec.sustained) {
+      const warning = `loop:${key}`;
+      if (!this.warnedKeys.has(warning)) {
+        this.warnedKeys.add(warning);
+        log.warn(`"${key}" is a one-shot patch; the "loop" option does nothing`);
+      }
+    }
     return classSpec.sustained
       ? this.playSustained(spec, options)
       : this.playOneShot(spec, options);
@@ -427,9 +503,9 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private playOneShot(spec: ISoundSpec, options: ISynthPlayOptions): ISoundHandle | undefined {
-    const priority = clamp01(options.priority ?? spec.priority);
+    const priority = clamp01(finiteOr(options.priority, spec.priority));
     const now = this.ctx.currentTime;
-    const time = now + Math.max(options.delay ?? 0, 0);
+    const time = now + Math.max(finiteOr(options.delay, 0), 0);
 
     if (!this.makeRoom(priority, now)) return undefined;
 
@@ -437,27 +513,44 @@ export class AudioSystem implements IAudioSystem {
     const lease = bank.acquire(now, priority);
     if (!lease) return undefined;
 
-    const variation = options.pitchVariation ?? spec.pitchVariation;
+    const variation = clamp01(finiteOr(options.pitchVariation, spec.pitchVariation));
     const rate =
-      (options.rate ?? 1) *
+      finiteOr(options.rate, 1) *
       (variation > 0 ? lerp(1 - variation, 1 + variation, this.rng.next()) : 1);
-    const volume = spec.gain * clamp(options.volume ?? 1, 0, 4);
-    const intensity = clamp01(options.intensity ?? spec.intensity);
+    const volume = spec.gain * clamp(finiteOr(options.volume, 1), 0, 4);
+    const intensity = clamp01(finiteOr(options.intensity, spec.intensity));
+    const fadeIn = Math.max(finiteOr(options.fadeIn, 0), 0);
+    const target = options.attachTo as { position: Vec3 } | undefined;
+    const position = finitePosition(options.position ?? target?.position);
 
-    const duration = lease.voice.trigger({
-      time,
-      gain: volume,
-      rate,
-      intensity,
-      variant: options.variant ?? spec.variant,
-      rng: this.rng.derive(spec.key),
-      position: options.position ?? options.attachTo?.position,
-      spatial: spec.spatial,
-      send: options.send ?? spec.reverbSend,
-    });
+    // A voice that throws mid-schedule must not strand its slot: `checkout`
+    // has already written `freeAt` to `+Infinity`, and `markBusyUntil` is the
+    // only thing that ever brings it back to a real time. Without this, a
+    // handful of bad events retire a whole pool from the idle path.
+    let duration: number;
+    try {
+      duration = lease.voice.trigger({
+        time,
+        gain: volume,
+        rate,
+        intensity,
+        variant: options.variant ?? spec.variant,
+        rng: this.stream(spec.key),
+        position,
+        spatial: this.spatialFor(spec, options),
+        send: finiteOr(options.send, spec.reverbSend),
+        fadeIn,
+        sequence: this.nextHandleId,
+      });
+    } catch (error) {
+      duration = 0;
+      log.error(`sound "${spec.key}" threw while scheduling`, error);
+    }
+    // A non-finite duration is just as damaging: `freeAt[i] <= now` is false
+    // for NaN, so the slot never goes idle again.
+    if (!Number.isFinite(duration)) duration = 0;
 
-    const endTime = time + duration + (options.fadeIn ?? 0);
-    bank.markBusyUntil(lease.slot, endTime);
+    bank.markBusyUntil(lease.slot, time + duration);
 
     const handle = new SynthSoundHandle({
       id: this.nextHandleId++,
@@ -473,15 +566,48 @@ export class AudioSystem implements IAudioSystem {
       lease,
     });
     this.handles.push(handle);
+    if (target && position) this.followed.push({ handle, target });
     return handle;
+  }
+
+  /**
+   * The long-lived random stream for a sound key, created on first use.
+   * See `keyStreams` for why this is not `rng.derive(key)` per trigger.
+   */
+  private stream(key: string): IRandom {
+    let stream = this.keyStreams.get(key);
+    if (!stream) {
+      stream = this.rng.derive(key);
+      this.keyStreams.set(key, stream);
+    }
+    return stream;
+  }
+
+  /** The key's distance profile, with any per-play override applied. */
+  private spatialFor(spec: ISoundSpec, options: ISynthPlayOptions): ISpatialSettings | undefined {
+    const base = spec.spatial;
+    if (options.refDistance === undefined && options.maxDistance === undefined) return base;
+    const from = base ?? SPATIAL_DEFAULTS;
+    return {
+      refDistance: Math.max(finiteOr(options.refDistance, from.refDistance), 0.01),
+      maxDistance: Math.max(finiteOr(options.maxDistance, from.maxDistance), 0.02),
+      rolloffFactor: from.rolloffFactor,
+    };
   }
 
   private playSustained(spec: ISoundSpec, options: ISynthPlayOptions): ISoundHandle | undefined {
     const voice = this.sustained(spec.voiceClass);
     const now = this.ctx.currentTime;
-    const intensity = clamp01(options.intensity ?? spec.intensity);
-    voice.start(now, intensity, options.fadeIn ?? 0.6);
-    voice.setSend(options.send ?? spec.reverbSend, now);
+    const intensity = clamp01(finiteOr(options.intensity, spec.intensity));
+    const fade = Math.max(finiteOr(options.fadeIn, 0.6), 0);
+    const volume = spec.gain * clamp(finiteOr(options.volume, 1), 0, 4);
+    voice.start(now, intensity, fade);
+    // `start` ramps the VCA to a hard 1, so the level the handle records has to
+    // be applied explicitly — otherwise `spec.gain` and the caller's `volume`
+    // are both dead, and the first `pause()`/`resume()` round-trip silently
+    // drops the bed to a level nobody asked for.
+    voice.setVolume(volume, now, fade);
+    voice.setSend(finiteOr(options.send, spec.reverbSend), now);
     const handle = new SynthSoundHandle({
       id: this.nextHandleId++,
       key: spec.key,
@@ -489,7 +615,7 @@ export class AudioSystem implements IAudioSystem {
       priority: spec.priority,
       startTime: now,
       duration: Number.POSITIVE_INFINITY,
-      volume: spec.gain * clamp(options.volume ?? 1, 0, 4),
+      volume,
       ctx: this.ctx,
       voice,
     });
@@ -508,7 +634,7 @@ export class AudioSystem implements IAudioSystem {
     if (this.voiceCount < this.maxVoices) return true;
     let victim: SynthSoundHandle | undefined;
     for (const h of this.handles) {
-      if (!h.isPlaying) continue;
+      if (h.isSustained || !h.isPlaying) continue;
       if (!victim || h.priority < victim.priority) victim = h;
     }
     if (!victim || victim.priority > priority) return false;
@@ -606,6 +732,15 @@ export class AudioSystem implements IAudioSystem {
   setSuspended(suspended: boolean): void {
     if (this.suspended === suspended) return;
     this.suspended = suspended;
+    if (suspended) {
+      // Debris is the one cue type that survives being suspended, because it is
+      // accumulated on the event and only flushed from `update()` — which is
+      // gated on `suspended`. Without this, a tower that keeps fracturing while
+      // the app is backgrounded flushes as ONE frame on resume: stale centroids
+      // and a full-intensity phantom collapse for a building that already fell.
+      this.debris.clear();
+      this.chunkWindow.length = 0;
+    }
     if (!isLiveContext(this.ctx)) return;
     const live = this.ctx as AudioContext;
     if (suspended) void live.suspend().catch(() => undefined);
@@ -689,9 +824,15 @@ export class AudioSystem implements IAudioSystem {
    */
   attach(bus: IEventBus): () => void {
     this.unsubscribe?.();
-    this.unsubscribe = bus.onAny((event) => this.handleEvent(event));
+    const off = bus.onAny((event) => this.handleEvent(event));
+    this.unsubscribe = off;
+    // Compare identity rather than reading the field at call time: a disposer
+    // from a REPLACED subscription must be a no-op. Reading `this.unsubscribe`
+    // instead would let a stale disposer tear down the live subscription and
+    // silently detach the whole audio system from the bus.
     return () => {
-      this.unsubscribe?.();
+      if (this.unsubscribe !== off) return;
+      off();
       this.unsubscribe = undefined;
     };
   }
@@ -701,9 +842,11 @@ export class AudioSystem implements IAudioSystem {
     if (this.disposed) return;
     const response = resolveEventAudio(event);
 
-    // Debris is accumulated rather than played: see the header note.
+    // Debris is accumulated rather than played: see the header note. While
+    // suspended it is DROPPED, matching every other cue type — `play` already
+    // returns undefined then, and only debris has somewhere to pile up.
     if (event.type === 'ChunkDetached') {
-      this.accumulateDebris(response.cues, event.position);
+      if (!this.suspended) this.accumulateDebris(response.cues, event.position);
     } else if (event.type === 'ImpulseApplied') {
       if (this.impulseTokens < 1) return;
       this.impulseTokens -= 1;
@@ -776,8 +919,14 @@ export class AudioSystem implements IAudioSystem {
   private flushDebris(now: number): void {
     if (this.debris.size === 0) return;
     let total = 0;
+    let sumX = 0;
+    let sumY = 0;
+    let sumZ = 0;
     for (const acc of this.debris.values()) {
       total += acc.count;
+      sumX += acc.x;
+      sumY += acc.y;
+      sumZ += acc.z;
       const countDrive = clamp01(Math.log10(1 + acc.count) / Math.log10(1 + 60));
       const intensity = clamp01(countDrive * 0.75 + acc.maxIntensity * 0.35);
       this.play(acc.key, {
@@ -791,16 +940,29 @@ export class AudioSystem implements IAudioSystem {
 
     // Collapse heuristic: sustained heavy fracturing IS a building coming
     // down, and there is no dedicated event for it on the bus.
-    this.chunkWindow.push({ time: now, count: total });
+    this.chunkWindow.push({ time: now, count: total, x: sumX, y: sumY, z: sumZ });
     this.chunkWindow = this.chunkWindow.filter((w) => now - w.time <= COLLAPSE_WINDOW);
     let windowed = 0;
-    for (const w of this.chunkWindow) windowed += w.count;
+    let windowedX = 0;
+    let windowedY = 0;
+    let windowedZ = 0;
+    for (const w of this.chunkWindow) {
+      windowed += w.count;
+      windowedX += w.x;
+      windowedY += w.y;
+      windowedZ += w.z;
+    }
     if (windowed >= COLLAPSE_CHUNK_THRESHOLD && now - this.lastCollapseAt > 4) {
       this.lastCollapseAt = now;
       const scale = clamp01(windowed / (COLLAPSE_CHUNK_THRESHOLD * 3));
       this.play(scale > 0.75 ? 'collapse.tower' : 'collapse.building', {
         intensity: clamp01(0.45 + scale * 0.55),
-        position: { ...this.listenerPosition },
+        // The chunk-weighted centroid of the whole window, NOT the listener.
+        // `collapse.*` carries a `refDistance: 60 / maxDistance: 3000` profile
+        // that is meaningless at distance zero: a tower coming down across the
+        // plaza would otherwise play at full level, dead centre, inside the
+        // player's head — and duck the music for it.
+        position: { x: windowedX / windowed, y: windowedY / windowed, z: windowedZ / windowed },
       });
       this.mixer.duckFor('music', 0.35, 0.2, 1.2, 1.5, now);
     }
@@ -821,6 +983,16 @@ export class AudioSystem implements IAudioSystem {
     );
 
     this.flushDebris(now);
+
+    // `attachTo` follow. A boss roar lasts six seconds and a boss travelling
+    // 20 m/s ends it 120 m from where it is being heard, so a position written
+    // once at trigger time is not enough. Stale entries drop out here rather
+    // than needing a callback.
+    for (let i = this.followed.length - 1; i >= 0; i--) {
+      const f = this.followed[i]!;
+      if (!f.handle.isPlaying) this.followed.splice(i, 1);
+      else f.handle.setPosition(f.target.position);
+    }
 
     // Retire finished handles and fire their callbacks.
     for (let i = this.handles.length - 1; i >= 0; i--) {
@@ -892,6 +1064,8 @@ export class AudioSystem implements IAudioSystem {
     this.unsubscribe = undefined;
     for (const h of this.handles) h.fireEnded();
     this.handles.length = 0;
+    this.followed.length = 0;
+    this.keyStreams.clear();
     for (const bank of this.banks.values()) bank.dispose();
     this.banks.clear();
     for (const voice of this.sustainedVoices.values()) voice.dispose();

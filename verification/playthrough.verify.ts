@@ -55,7 +55,7 @@
 import { chromium, type Browser, type Page } from 'playwright';
 import { createServer, type Server } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 
@@ -87,6 +87,7 @@ const MIME: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
   '.png': 'image/png',
   '.wasm': 'application/wasm',
   '.glb': 'model/gltf-binary',
@@ -105,25 +106,42 @@ interface IServed {
   readonly port: number;
   /** Paths that 404'd. A shipped build must produce none. */
   readonly misses: string[];
+  /** Requests the handler itself threw on. Must be empty. */
+  readonly errors: string[];
 }
 
 function serveDist(): Promise<IServed> {
   const misses: string[] = [];
+  const errors: string[] = [];
   const server = createServer(async (req, res) => {
+    // WRAPPED. Two throws are reachable in this handler: a request that
+    // resolves to a directory rejects `readFile` with EISDIR, and a malformed
+    // escape like `/%` makes `decodeURIComponent` throw synchronously. Either
+    // one leaves an async handler's promise unhandled, and Node's default
+    // `--unhandled-rejections=throw` kills the process from OUTSIDE `main()` —
+    // so the `finally` block that writes the report never runs and a
+    // forty-minute run is lost with no report and no diagnosable failure.
     const url = new URL(req.url ?? '/', 'http://localhost');
-    let file = path.join(DIST, decodeURIComponent(url.pathname));
-    if (url.pathname === '/' || url.pathname === '') file = path.join(DIST, 'index.html');
-    if (!file.startsWith(DIST) || !existsSync(file)) {
-      misses.push(url.pathname);
-      res.writeHead(404).end('not found');
-      return;
+    try {
+      let file = path.join(DIST, decodeURIComponent(url.pathname));
+      if (url.pathname === '/' || url.pathname === '') file = path.join(DIST, 'index.html');
+      // `DIST + path.sep`: a bare prefix test also accepts `<ROOT>/dist-notes`.
+      const contained = file === DIST || file.startsWith(DIST + path.sep);
+      if (!contained || !existsSync(file) || !statSync(file).isFile()) {
+        misses.push(url.pathname);
+        res.writeHead(404).end('not found');
+        return;
+      }
+      const body = await readFile(file);
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+    } catch (error) {
+      errors.push(`${url.pathname}: ${String(error)}`);
+      res.writeHead(500).end(String(error));
     }
-    const body = await readFile(file);
-    res.writeHead(200, {
-      'Content-Type': MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
-      'Cache-Control': 'no-store',
-    });
-    res.end(body);
   });
   return new Promise((resolve, reject) => {
     server.on('error', reject);
@@ -133,7 +151,7 @@ function serveDist(): Promise<IServed> {
         reject(new Error('failed to bind'));
         return;
       }
-      resolve({ server, port: address.port, misses });
+      resolve({ server, port: address.port, misses, errors });
     });
   });
 }
@@ -258,6 +276,11 @@ const INSTRUMENT = `(() => {
   const pt = {
     freezes: [], killed: [], damaged: [], detached: [], allyDowned: [],
     shockwaves: [], civilianLost: [], encounters: [],
+    // Events the caps below refused. A beat that slices forward from a
+    // pre-action length reads [] once its array is full, which looks exactly
+    // like "the game did nothing" — these counters are how the harness can tell
+    // an overflowed instrument from a gameplay failure.
+    dropped: { damaged: 0, detached: 0, shockwaves: 0 },
   };
   window.__PT__ = pt;
 
@@ -283,17 +306,17 @@ const INSTRUMENT = `(() => {
   g.bus.on('EntityDamaged', (e) => { if (pt.damaged.length < 200) pt.damaged.push({
     id: String(e.entityId), amount: Math.round(e.amount), intent: e.intent,
     left: Math.round(e.healthRemaining), attacker: String(e.attackerId || ''),
-  }); });
+  }); else pt.dropped.damaged++; });
   g.bus.on('ChunkDetached', (e) => { if (pt.detached.length < 400) pt.detached.push({
     structure: e.structureId, chunk: e.chunkIndex, mass: Math.round(e.mass),
     frame: window.__GAME_DIAG__.frameCount,
-  }); });
+  }); else pt.dropped.detached++; });
   g.bus.on('AllyDowned', (e) => pt.allyDowned.push({ id: String(e.entityId || e.heroId || '?') }));
   g.bus.on('ShockwaveFired', (e) => { if (pt.shockwaves.length < 200) pt.shockwaves.push({
     intent: e.intent, kind: e.punchKind, power: Math.round(e.power),
     range: Number(e.range.toFixed(1)), source: String(e.sourceId || 'player'),
     frame: window.__GAME_DIAG__.frameCount,
-  }); });
+  }); else pt.dropped.shockwaves++; });
   g.bus.on('CivilianLost', (e) => pt.civilianLost.push({ id: String(e.entityId) }));
   g.bus.on('EncounterStarted', (e) => pt.encounters.push({ id: e.encounterId, tier: e.threatTier }));
   return true;
@@ -459,15 +482,41 @@ async function main(): Promise<void> {
      * go away.
      */
     const outOfWorld: string[] = [];
-    const ensureGrounded = async (label: string): Promise<void> => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const where = (await page.evaluate(
+    /**
+     * The locomotion states that mean "on the ground" (`PlayerLocoState` minus
+     * `jumpLaunch` and `fall`, which `isAirborneState` calls airborne).
+     */
+    const GROUNDED_STATES = new Set(['idle', 'walk', 'run', 'dash', 'land', 'hardLand']);
+    /**
+     * A STANDING capsule's origin is y ≈ +0.9 — the spawn sample reads
+     * `y: 0.9, state: 'idle'`. The old threshold of -2 therefore accepted a
+     * capsule already 2.9 m below its standing height: under the road, in
+     * `fall`, accelerating downward — and returned "grounded". Beat 10 then
+     * pressed jump against `updateJump()`'s `grounded || coyote` guard, the
+     * press expired unused, and the harness reported a NEGATIVE held-jump
+     * height as if it were a measurement.
+     */
+    const GROUND_Y_FLOOR = -0.5;
+    const ensureGrounded = async (label: string): Promise<boolean> => {
+      let where = { x: 0, y: 0, z: 0, state: '?' };
+      for (let attempt = 0; attempt < 6; attempt++) {
+        where = (await page.evaluate(
           `({ x: window.__GAME_DIAG__.world.playerPosition.x,
               y: window.__GAME_DIAG__.world.playerPosition.y,
               z: window.__GAME_DIAG__.world.playerPosition.z,
               state: window.__GAME_DIAG__.world.playerState })`
         )) as { x: number; y: number; z: number; state: string };
-        if (where.y > -2) return;
+        // BOTH conditions. Height alone accepts a fall in progress; the state
+        // alone accepts a capsule standing on a roof three hundred metres up
+        // that the next beat is about to teleport off.
+        if (where.y > GROUND_Y_FLOOR && GROUNDED_STATES.has(where.state)) return true;
+        if (where.y > GROUND_Y_FLOOR) {
+          // Above the road but still settling — the re-placement below drops
+          // the capsule from y=2, so a frame or two of `fall` is expected.
+          // Let it land rather than teleporting it again.
+          await frames(page, 6);
+          continue;
+        }
         say(`  !! ${label}: player at y=${where.y.toFixed(1)} ('${where.state}') — re-placing`);
         outOfWorld.push(`${label}: y=${where.y.toFixed(1)} state=${where.state}`);
         await page.evaluate(
@@ -479,9 +528,29 @@ async function main(): Promise<void> {
         );
         await frames(page, 6);
       }
+      // HARD FAILURE, here and now. Everything after this point is measured
+      // from wherever the capsule ended up, and the `outOfWorld` tally at the
+      // end of the run reports the recoveries — not that the recovery failed.
+      failures.push(
+        `${label}: could not get the player onto solid ground (y=${where.y.toFixed(1)}, ` +
+          `state='${where.state}') — every reading after this point is taken from outside the world`
+      );
+      return false;
     };
 
-    const shoot = async (name: string): Promise<IShot> => {
+    /**
+     * `expectDark` opts a capture out of the whole-frame blank gate.
+     *
+     * The gate and the midnight beat pull in opposite directions: `blank` is
+     * `stdDev <= 8`, and the midnight capture deliberately hides the HUD — the
+     * highest-contrast content in the frame — and then demands the result be
+     * about 10% of noon. The committed run measured stdDev 9.4, i.e. 1.4 above
+     * the line, so a block with fewer lit windows or a slightly darker sky
+     * fails a correct night frame with "nothing was presented". Those captures
+     * are validated instead by `regionMean` and the noon/midnight ratio, which
+     * are assertions about the thing the beat is actually claiming.
+     */
+    const shoot = async (name: string, expectDark = false): Promise<IShot> => {
       const file = path.join(OUT, `${name}.png`);
       const started = Date.now();
       await page.screenshot({ path: file, type: 'png', timeout: 300_000 });
@@ -490,9 +559,16 @@ async function main(): Promise<void> {
       say(
         `    shot ${name}  stdDev ${shot.stdDev.toFixed(1)}  colours ${shot.colors}` +
           `  mean ${shot.mean.toFixed(1)}  (${((Date.now() - started) / 1000).toFixed(0)}s)` +
-          (shot.blank ? '   <-- BLANK' : '')
+          (shot.blank ? (expectDark ? '   <-- dark (expected)' : '   <-- BLANK') : '')
       );
-      if (shot.blank) failures.push(`screenshot "${name}" is blank — nothing was presented`);
+      if (shot.blank && !expectDark) {
+        failures.push(`screenshot "${name}" is blank — nothing was presented`);
+      } else if (shot.blank) {
+        notes.push(
+          `${name} reads blank to the whole-frame gate (stdDev ${shot.stdDev.toFixed(1)}); ` +
+            `it is a deliberately dark capture, checked by its own luminance assertions`
+        );
+      }
       return shot;
     };
 
@@ -594,13 +670,28 @@ async function main(): Promise<void> {
       return now;
     };
 
+    let gcFailures = 0;
     const readHeap = async (label: string): Promise<void> => {
       // A real collection before the reading. Without it the series measures
       // when the collector happened to run, not what the game retained.
-      await cdp.send('HeapProfiler.collectGarbage').catch(() => undefined);
-      const used = (await page.evaluate(
-        `(performance.memory ? performance.memory.usedJSHeapSize : -1)`
-      )) as number;
+      await cdp.send('HeapProfiler.collectGarbage').catch(() => {
+        gcFailures++;
+      });
+      /*
+       * READ OVER CDP, NOT `performance.memory`.
+       *
+       * Chromium deliberately bucketises `usedJSHeapSize` to 100 KB *and*
+       * caches it for a long interval unless the browser is launched with
+       * `--enable-precise-memory-info`, which these launch args do not pass.
+       * The result was five byte-identical readings across two full laps of
+       * city streaming — `lapOverLapGrowthMb: 0` exactly — so `growth > 12`
+       * could never fire and a system retaining an entire scene graph per lap
+       * was still reported leak-free. `Runtime.getHeapUsage` is the raw number.
+       */
+      const used = await cdp
+        .send('Runtime.getHeapUsage')
+        .then((usage) => usage.usedSize)
+        .catch(() => -1);
       heap.push(used);
       const now = await snap();
       say(
@@ -704,10 +795,31 @@ async function main(): Promise<void> {
         `heap grew ${growth.toFixed(1)} MB repeating a lap the game had already streamed — leak`
       );
     }
+    // A DEAD INSTRUMENT MUST REPORT ITSELF rather than report "no leak". A
+    // failed reading (-1) or a series that never moved a single byte across
+    // hundreds of frames of streaming is not a flat heap, it is no measurement.
+    if (heap.some((bytes) => bytes < 0)) {
+      failures.push(
+        'the heap instrument returned no reading — the leak gate measured nothing, ' +
+          'so a leak this run would not have been seen'
+      );
+    } else if (heap.length > 1 && new Set(heap).size === 1) {
+      failures.push(
+        `all ${heap.length} heap readings were byte-identical (${heapMb[0]} MB) — a live V8 ` +
+          `heap does not do that, so the reading is quantised or cached and the leak gate is dead`
+      );
+    }
+    if (gcFailures > 0) {
+      notes.push(
+        `${gcFailures} of ${heap.length} forced collections failed — the heap series is noisier ` +
+          `than it looks`
+      );
+    }
     report.leak = {
       legEndsHeapMb: heapMb,
       lapOverLapGrowthMb: Number(growth.toFixed(2)),
       wholeBeatGrowthMb: Number(totalGrowth.toFixed(2)),
+      gcFailures,
     };
 
     /* ══════════════════ BEAT 3 — CROWD ═════════════════════════════════ */
@@ -747,11 +859,11 @@ async function main(): Promise<void> {
             sum += Math.abs(n.quaternion.x) + Math.abs(n.quaternion.y) +
                    Math.abs(n.quaternion.z) + Math.abs(n.position.y); }
         });
-        out.push({ bones: bones, sig: Number(sum.toFixed(6)) });
+        out.push({ id: String(body.id), bones: bones, sig: Number(sum.toFixed(6)) });
         if (out.length >= 8) break;
       }
       return out;
-    })()`)) as { bones: number; sig: number }[];
+    })()`)) as { id: string; bones: number; sig: number }[];
 
     await shoot('play-03a-crowd');
     await frames(page, 3);
@@ -765,19 +877,37 @@ async function main(): Promise<void> {
             sum += Math.abs(n.quaternion.x) + Math.abs(n.quaternion.y) +
                    Math.abs(n.quaternion.z) + Math.abs(n.position.y); }
         });
-        out.push({ bones: bones, sig: Number(sum.toFixed(6)) });
+        out.push({ id: String(body.id), bones: bones, sig: Number(sum.toFixed(6)) });
         if (out.length >= 8) break;
       }
       return out;
-    })()`)) as { bones: number; sig: number }[];
+    })()`)) as { id: string; bones: number; sig: number }[];
     await shoot('play-03b-crowd-moved');
 
-    const moving = poseA.filter((a, i) => poseB[i] !== undefined && poseB[i]!.sig !== a.sig).length;
+    /*
+     * PAIRED BY BODY ID, NOT BY ARRAY INDEX.
+     *
+     * `nearBodies` is a live Map and a full screenshot sits between the two
+     * samples, during which `CrowdSystem` promotes and demotes bodies between
+     * LOD tiers. Positional comparison then pairs `poseA[3]` with a DIFFERENT
+     * civilian in `poseB`, whose signature naturally differs — so a fully
+     * T-posed crowd reports motion and the assertion passes on the exact
+     * failure it exists to catch.
+     */
+    const laterById = new Map(poseB.map((b) => [b.id, b]));
+    const paired = poseA.filter((a) => laterById.has(a.id));
+    const moving = paired.filter((a) => laterById.get(a.id)!.sig !== a.sig).length;
     const boneCount = poseA[0]?.bones ?? 0;
     say(
-      `  near bodies sampled ${poseA.length} (${boneCount} bones each), pose changed on ${moving}`
+      `  near bodies sampled ${poseA.length} (${boneCount} bones each), ` +
+        `${paired.length} still near-tier three frames later, pose changed on ${moving}`
     );
-    if (poseA.length > 0 && moving === 0) {
+    if (paired.length === 0 && poseA.length > 0) {
+      failures.push(
+        'not one of the sampled near-tier civilians was still near-tier three frames later — ' +
+          'the T-pose check had nothing to compare'
+      );
+    } else if (paired.length > 0 && moving === 0) {
       failures.push('every near-tier civilian held an identical bone pose across frames — T-posed');
     }
     const crowdStats = (await page.evaluate(
@@ -801,6 +931,15 @@ async function main(): Promise<void> {
     );
     say(`  pixels changed in the crowd band across 3 frames: ${(crowdDelta * 100).toFixed(2)}%`);
     notes.push(`crowd band pixel delta over 3 frames: ${(crowdDelta * 100).toFixed(2)}%`);
+    // A floor, not a measurement: the camera is nailed down for this pair, so
+    // a band that is pixel-for-pixel identical means nothing in it moved. The
+    // measured value is around 63%, so 1% cannot be tripped by noise.
+    if (crowdDelta < 0.01) {
+      failures.push(
+        `only ${(crowdDelta * 100).toFixed(2)}% of the crowd band changed across three frames ` +
+          `with the camera fixed — nothing in front of the lens is animating`
+      );
+    }
     report.crowd = { ...crowdStats, posesChanged: moving, bandDelta: crowdDelta };
 
     /* ══════════════════ BEAT 4 — NORMAL PUNCH ══════════════════════════ */
@@ -837,7 +976,13 @@ async function main(): Promise<void> {
       // and the beat then teleports the player across the map to punch it.
       const wantedId = ${JSON.stringify(target)};
       const all = g.monsters.describeForCombat();
-      const nearest = all.find((m) => String(m.id) === wantedId) || all[0];
+      // NO FALLBACK TO all[0]. That fallback reinstated exactly what the
+      // paragraph above forbids: combat's list routinely holds six monsters
+      // scattered across four hundred metres, and punching the first of them
+      // means teleporting the player across the district — the same jump that
+      // has been dropping him through unstreamed city. If the id this beat
+      // spawned is not in the list, the beat has nothing to prove and says so.
+      const nearest = all.find((m) => String(m.id) === wantedId);
       if (!nearest) return null;
       const aim = g.combat.targets.get(nearest.id);
       if (!aim) return null;
@@ -874,8 +1019,12 @@ async function main(): Promise<void> {
       surfaceGap: number;
     } | null;
     say(`  reach check ${JSON.stringify(reach)}`);
-    if (reach === null) failures.push('no monster to punch');
-    else if (reach.surfaceGap > reach.reach) {
+    if (reach === null) {
+      failures.push(
+        `the monster this beat spawned (${target}) is not in describeForCombat() — ` +
+          `nothing to punch, and the beat will not punch a different one`
+      );
+    } else if (reach.surfaceGap > reach.reach) {
       failures.push(
         `the monster is ${reach.surfaceGap} m from the fist but the tap reaches ${reach.reach} m`
       );
@@ -1033,8 +1182,19 @@ async function main(): Promise<void> {
     };
     say(`  shockwaves ${JSON.stringify(serious.waves)}`);
     say(`  vfx ${JSON.stringify(serious.vfx)}`);
-    if (serious.waves.length === 0) failures.push('the released charge fired no shockwave');
-    else if (serious.waves.every((w) => w.intent === 'normal')) {
+    if (serious.waves.length === 0) {
+      // The ledger caps `shockwaves` at 200. Once it saturates, `wavesBefore`
+      // is 200 and `slice(200)` returns [] whatever the release did — a
+      // permanent false failure on a Serious Punch that fired perfectly. Say
+      // which one this is instead of blaming the game for the instrument.
+      const overflowed = (await page.evaluate(`window.__PT__.dropped.shockwaves`)) as number;
+      failures.push(
+        overflowed > 0
+          ? `the shockwave ledger was already full when the charge was released ` +
+              `(${overflowed} events dropped) — instrumentation overflowed, this beat proved nothing`
+          : 'the released charge fired no shockwave'
+      );
+    } else if (serious.waves.every((w) => w.intent === 'normal')) {
       failures.push('the charged release still reported `normal` intent');
     }
     report.seriousPunch = { charge, ...serious };
@@ -1132,6 +1292,17 @@ async function main(): Promise<void> {
     if (huntingHarmable === 0) {
       failures.push('no monster on screen was hunting a harmable target');
     }
+    // The claim in this file's header is "a monster engaging a HARMABLE ALLY",
+    // and `target` is carried across the bridge for exactly this. Without it,
+    // ally targeting can break completely — monsters acquiring only civilians
+    // and the player — while the beat passes on a civilian being harmable and
+    // the screenshot shows a monster ignoring Mumen Rider.
+    if (huntingAnAlly === 0) {
+      failures.push(
+        'no monster was engaging an ally — the beat staged a threat beside Mumen Rider and ' +
+          'nothing acquired him'
+      );
+    }
 
     // The designed proof. Runs the real MonsterBrain -> ShockwaveFired ->
     // CrowdSystem -> HeroNpc.takeDamage -> AllyDowned path in a tight loop and
@@ -1182,7 +1353,7 @@ async function main(): Promise<void> {
     await page.evaluate(`window.__GAME__.dayNight.setTimeOfDay(0.0)`);
     await frames(page, 8);
     const midnightSnap = await snap();
-    const midnightShot = await shoot('play-08b-midnight');
+    const midnightShot = await shoot('play-08b-midnight', true);
     await page.evaluate(`(() => { document.getElementById('ui-root').style.visibility = ''; })()`);
 
     const skyNoon = await regionMean(noonShot.file, {
@@ -1212,6 +1383,15 @@ async function main(): Promise<void> {
     }
     if (midnightShot.mean >= noonShot.mean) {
       failures.push('midnight is not darker than noon');
+    }
+    // The midnight capture is exempt from the whole-frame blank gate, so it
+    // keeps a floor of its own: a night city still has lit windows and a graded
+    // sky. A frame that presented nothing has neither.
+    if (midnightShot.colors <= 16) {
+      failures.push(
+        `the midnight capture holds only ${midnightShot.colors} distinct colours — that is not ` +
+          `a dark city, that is a frame with nothing in it`
+      );
     }
     // The brief is "~10% of noon". Anything under a quarter is a real night;
     // this reports the number and only fails when night is barely a dimming.
@@ -1271,7 +1451,16 @@ async function main(): Promise<void> {
     say(
       `  standing at (${beforeJump.x}, ${beforeJump.y}, ${beforeJump.z}) state '${beforeJump.state}'`
     );
-    if (beforeJump.y < -2) failures.push('could not get the player back onto solid ground to jump');
+    // Same floor and the same state test the grounding guard uses: a capsule in
+    // `fall` fails `updateJump()`'s `grounded || coyote` check, so the press is
+    // buffered, expires unused, and the apex sampler then reports the descent
+    // it was already in as a negative "held jump" height.
+    if (beforeJump.y <= GROUND_Y_FLOOR || !GROUNDED_STATES.has(beforeJump.state)) {
+      failures.push(
+        `could not get the player back onto solid ground to jump ` +
+          `(y=${beforeJump.y}, state='${beforeJump.state}')`
+      );
+    }
     await page.evaluate(
       `(() => { const g = window.__GAME__;
          // Pitch the camera down so the apex frames the district, not the sky.
@@ -1340,6 +1529,20 @@ async function main(): Promise<void> {
         `${highBudget.residentChunks} chunks resident, ${highBudget.civilians} civilians, ` +
         `${highBudget.monsters} monsters, ${highBudget.debrisLive} debris`
     );
+    // THE GUARD RAN SIX FRAMES AGO. That is long enough for a capsule with no
+    // floor under it to be back under the road — the committed run recorded the
+    // whole high-tier budget taken at y=-9.5 in `fall`, six frames after
+    // `ensureGrounded` had logged y=-89.1 and re-placed him. So the position is
+    // re-read at the moment of measurement, and the numbers are called what
+    // they are: a reading from under the world is a lie in the flattering
+    // direction, not a street-level budget.
+    if (highBudget.y <= GROUND_Y_FLOOR) {
+      failures.push(
+        `the high-tier budget was read from (${highBudget.x}, ${highBudget.y}, ${highBudget.z}) ` +
+          `in state '${highBudget.state}' — below the road, where the frustum deletes most of the ` +
+          `district. Every number in this section is untrustworthy`
+      );
+    }
     // Attribution: how much of the per-frame total is the shadow pass? The
     // renderer resets `info` at the top of its own `render()`, so a frame with
     // shadows off and one with them on differ by exactly the shadow cost.
@@ -1420,7 +1623,8 @@ async function main(): Promise<void> {
       const p = window.__PT__;
       return { freezes: p.freezes.length, killed: p.killed.length, detached: p.detached.length,
                shockwaves: p.shockwaves.length, allyDowned: p.allyDowned.length,
-               civilianLost: p.civilianLost.length, encounters: p.encounters };
+               civilianLost: p.civilianLost.length, encounters: p.encounters,
+               dropped: p.dropped };
     })()`);
     say(`  ledger ${JSON.stringify(report.ledger)}`);
     report.outOfWorld = outOfWorld;
@@ -1455,7 +1659,20 @@ async function main(): Promise<void> {
     await frames(lowPage, 10);
     const lowBudget = (await lowPage.evaluate(SNAPSHOT)) as ISnapshot;
     await lowPage.screenshot({ path: path.join(OUT, 'play-11-low-tier.png'), timeout: 300_000 });
-    shots.push(await analyse('play-11-low-tier', path.join(OUT, 'play-11-low-tier.png')));
+    // GATED like every primary-page capture. This one bypassed `shoot()`
+    // because it targets a second page, and lost the only check `analyse()`
+    // exists for: a shader that fails to compile on the low tier boots to a
+    // black frame with `__GAME_READY__` true, and the `"blank": true` went into
+    // the report and was never consulted.
+    const lowShot = await analyse('play-11-low-tier', path.join(OUT, 'play-11-low-tier.png'));
+    shots.push(lowShot);
+    say(
+      `    shot ${lowShot.name}  stdDev ${lowShot.stdDev.toFixed(1)}  colours ${lowShot.colors}` +
+        (lowShot.blank ? '   <-- BLANK' : '')
+    );
+    if (lowShot.blank) {
+      failures.push(`screenshot "${lowShot.name}" is blank — the low tier presented nothing`);
+    }
     say(`  render tier ${lowBudget.tier}, asset tier ${lowBudget.assetTier}`);
     say(`  draw calls  ${lowBudget.drawCalls} / ${BUDGETS.low.drawCalls}`);
     say(
@@ -1464,11 +1681,40 @@ async function main(): Promise<void> {
     );
     say(
       `  textures    ${(lowBudget.textureBytes / 1048576).toFixed(1)} MB / ` +
-        `${BUDGETS.low.textureBytes / 1048576} MB  across ${lowBudget.textureCount} textures`
+        `${BUDGETS.low.textureBytes / 1048576} MB  across ${lowBudget.textureCount} textures` +
+        `  (asset tier '${lowBudget.assetTier}')`
     );
     say(
       `  ${lowBudget.residentChunks} chunks, ${lowBudget.civilians} civilians, ${lowBudget.programs} programs`
     );
+    /*
+     * WHAT THESE TWO BUDGETS ARE, AND WHAT THEY ARE NOT.
+     *
+     * The high reading is taken at the end of the whole session — after 2371
+     * detached chunks and 300 live debris bodies. This one is taken ten frames
+     * after boot on a fresh page, with no crowd grown, nothing broken and zero
+     * debris. They are not comparable, and neither is a per-tier budget in the
+     * sense a reader assumes: the low numbers cannot plausibly breach whatever
+     * regresses, and the high ones breach for reasons that say nothing about
+     * the tier. Worse, `assetTier` here is chosen by the device heuristic, not
+     * by `?tier=low` — so when it comes up 'high', the texture-byte line above
+     * is measuring HIGH-tier textures under a "LOW" label and a low-tier
+     * texture regression is invisible by construction. Reported rather than
+     * asserted: the render-tier pin is the thing `?tier=low` promises, and it
+     * IS asserted below.
+     */
+    notes.push(
+      `low-tier budget sampled ${lowBudget.frame} frames in with ${lowBudget.residentChunks} ` +
+        `chunks / ${lowBudget.civilians} civilians / ${lowBudget.debrisLive} debris, against a ` +
+        `high-tier reading at frame ${highBudget.frame} with ${highBudget.residentChunks} / ` +
+        `${highBudget.civilians} / ${highBudget.debrisLive} — the two are not comparable`
+    );
+    if (lowBudget.assetTier !== 'mobile') {
+      notes.push(
+        `the LOW texture-memory line measures asset tier '${lowBudget.assetTier}', not 'mobile' — ` +
+          `?tier=low pins the RENDER tier only, so this is not a low-tier texture reading`
+      );
+    }
     if (lowBudget.tier !== 'low') failures.push(`low page came up at tier '${lowBudget.tier}'`);
     if (lowBudget.drawCalls > BUDGETS.low.drawCalls) {
       failures.push(
@@ -1521,6 +1767,12 @@ async function main(): Promise<void> {
   if (served.misses.length > 0) {
     failures.push(
       `${served.misses.length} asset 404s, e.g. ${[...new Set(served.misses)].slice(0, 3).join(', ')}`
+    );
+  }
+  if (served.errors.length > 0) {
+    failures.push(
+      `${served.errors.length} requests threw in the harness server: ` +
+        `${served.errors.slice(0, 3).join(' | ')}`
     );
   }
 

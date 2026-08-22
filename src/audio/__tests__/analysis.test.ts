@@ -155,6 +155,21 @@ describe('onset detection', () => {
     expect(onsets[0]!).toBeCloseTo(0.05, 1);
   });
 
+  it('reports onset times in real seconds, all the way through the buffer', () => {
+    // `envelope` rounds its analysis window to whole samples, so at 44.1 kHz a
+    // requested 3 ms window is really 132 samples = 2.9932 ms. Converting frame
+    // indices back with the REQUESTED window skewed every onset by +0.23 %, a
+    // drift that grows with position — invisible in a first-onset check with a
+    // ±0.05 s tolerance, and ~13 ms out by the end of a six-second render.
+    const times = Array.from({ length: 20 }, (_, i) => 0.05 + i * 0.09);
+    const onsets = A.detectOnsets(impulses(times, 2.2), SR, { relativeThreshold: 0.05 });
+    const last = onsets[onsets.length - 1]!;
+    expect(last).toBeGreaterThan(1.5);
+    // The late onset has to land within a couple of analysis frames of truth,
+    // not within a proportion of it.
+    expect(Math.abs(last - times[onsets.length - 1]!)).toBeLessThan(0.01);
+  });
+
   it('scores a regular grid as regular and a clustered train as irregular', () => {
     const regular = Array.from({ length: 20 }, (_, i) => 0.05 + i * 0.09);
     // Deliberately clustered, the way falling rubble arrives.

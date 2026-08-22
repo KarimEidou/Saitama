@@ -16,7 +16,7 @@ import type { ClipName, IAnimator } from '@/types';
 import { ProceduralAnimator, type AnimatorOptions } from '../animator';
 import { createCharacterParts, buildCharacter } from '@/characters/mesh';
 import type { AnimEvent } from '../types';
-import { heroFixture } from './support';
+import { heroFixture, showcaseFixtures } from './support';
 
 function makeAnimator(options: AnimatorOptions = {}): {
   animator: ProceduralAnimator;
@@ -68,6 +68,26 @@ describe('IAnimator conformance', () => {
     animator.dispose();
   });
 
+  it('keeps the base clip advancing when play() is called every single frame', () => {
+    // The assertion above cannot see the failure it is named for: the solver
+    // phase advances once per frame whatever the layers do. The guard has to
+    // survive its OWN crossfade — every `play` resets the fade, so requiring
+    // the fade to have finished first means a caller playing the same slot once
+    // per frame rebuilds the base layer at time zero forever. The clip is then
+    // pinned at t ~= 0: no breathing, no weight shift, and every marker in it
+    // silently never fires.
+    const { animator } = makeAnimator({ variants: { idle: 'bored' } });
+    const events: AnimEvent[] = [];
+    animator.onEvent((event) => events.push(event));
+    // idle:bored is a ~9.4 s loop with its `voice` marker at 65.5 %.
+    for (let i = 0; i < 60 * 12; i++) {
+      animator.play('idle');
+      animator.update(1 / 60);
+    }
+    expect(events.filter((e) => e.name === 'voice').length).toBeGreaterThanOrEqual(1);
+    animator.dispose();
+  });
+
   it('fires onFinished exactly once for a one-shot', () => {
     const { animator } = makeAnimator();
     const seen: ClipName[] = [];
@@ -113,6 +133,26 @@ describe('IAnimator conformance', () => {
     // And it is usable on the mixer the interface exposes.
     const action = animator.mixer.clipAction(clip);
     expect(action).toBeDefined();
+    animator.dispose();
+  });
+
+  it('rebakes when the frame count or the params change', () => {
+    // Both are baked INTO the result, so both belong in the cache key. Keying
+    // on the slot alone hands a 16-frame preview back to an exporter that asked
+    // for 240, and returns a bake taken at `boredom: 0` forever after the
+    // Boredom system has driven it to 1 — silently, in both cases.
+    const { animator } = makeAnimator();
+    const keys = (clip: THREE.AnimationClip): number =>
+      clip.tracks.find((t) => t.name.endsWith('.quaternion'))!.times.length;
+    const coarse = animator.animationClip('walk', 8);
+    const fine = animator.animationClip('walk', 64);
+    expect(fine).not.toBe(coarse);
+    expect(keys(fine)).toBeGreaterThan(keys(coarse));
+    expect(animator.animationClip('walk', 8)).toBe(coarse);
+
+    const engaged = animator.animationClip('idle', 16);
+    animator.params.boredom = 1;
+    expect(animator.animationClip('idle', 16)).not.toBe(engaged);
     animator.dispose();
   });
 });
@@ -204,6 +244,44 @@ describe('layering', () => {
     // Increasing up the stack: 35 %, 70 %, 100 % of the layer's authority.
     expect(delta('Spine')).toBeLessThan(delta('Spine1'));
     expect(delta('Spine1')).toBeLessThan(delta('Spine2'));
+    animator.dispose();
+  });
+
+  it('feathers the flee style onto the spine, exactly as the baker does', () => {
+    // `flee` is the only entry that is both locomotive and upper-region. The
+    // runtime short-circuited the mask for anything locomotive while the baker
+    // applied it on region alone, so the same clip meant two different things:
+    // a fleeing civilian popped its torso the instant the VAT crowd promoted it
+    // to a real skeleton — the exact artefact the promotion path exists to
+    // avoid. 4 m/s resolves to `run`, so the gait retarget leaves both alone.
+    const settled = (slot: ClipName): Float32Array => {
+      const { animator } = makeAnimator({ seed: 3 });
+      animator.play(slot, { fade: 0 });
+      for (let i = 0; i < 200; i++) {
+        animator.setLocomotion({ speed: 4 });
+        animator.update(1 / 120);
+      }
+      const out = new Float32Array(animator.pose.rot);
+      animator.dispose();
+      return out;
+    };
+    const run = settled('run');
+    const flee = settled('flee');
+    const { animator } = makeAnimator({ seed: 3 });
+    const rig = animator.rig;
+    const delta = (name: 'Hips' | 'Spine' | 'Spine1' | 'Spine2' | 'Neck'): number => {
+      const i = rig.index[name]!;
+      return Math.hypot(
+        flee[i * 4]! - run[i * 4]!,
+        flee[i * 4 + 1]! - run[i * 4 + 1]!,
+        flee[i * 4 + 2]! - run[i * 4 + 2]!
+      );
+    };
+    // 35 % / 70 % / 100 % up the stack, and nothing at all below the waist.
+    expect(delta('Hips')).toBeLessThan(1e-6);
+    expect(delta('Spine')).toBeLessThan(delta('Spine1') * 0.6);
+    expect(delta('Spine1')).toBeLessThan(delta('Spine2') * 0.8);
+    expect(delta('Spine2')).toBeGreaterThan(0);
     animator.dispose();
   });
 
@@ -309,6 +387,23 @@ describe('ragdoll handoff', () => {
     // stalls in mid-air before it starts to fall.
     const speeds = Array.from(handoff.velocities).map(Math.abs);
     expect(Math.max(...speeds)).toBeGreaterThan(0.5);
+    // ...and bounded. A ragdoll seeded from a velocity the character never had
+    // is fired off the map, which the lower bound alone cannot catch.
+    expect(Math.max(...speeds)).toBeLessThan(20);
+    animator.dispose();
+  });
+
+  it('reports no velocity at all when killed on its first animated frame', () => {
+    // There is no previous frame to difference against: `output` still holds
+    // the BIND pose, whose arms are in a shallow T, so charging the bind-to-idle
+    // transition as one frame of motion reported ~36 m/s at the hands (and ~96
+    // at the head when the reference was the unwritten all-zero buffer).
+    const { animator } = makeAnimator();
+    animator.update(1 / 60);
+    const handoff = animator.handoffToRagdoll(0.12);
+    const speeds = Array.from(handoff.velocities).map(Math.abs);
+    // Float32 storage in the position snapshot leaves a few microns per second.
+    expect(Math.max(...speeds)).toBeLessThan(1e-3);
     animator.dispose();
   });
 
@@ -447,5 +542,19 @@ describe('attachment to the mesh system', () => {
     expect(fixture.rig.metrics.legLength).toBeLessThan(0.85);
     expect(fixture.rig.identityRest).toBe(true);
     expect(fixture.rig.boneCount).toBe(27);
+  });
+
+  it('measures a real shoulder width rather than a multiple of the hips', () => {
+    // The measurement is taken through shared scratch vectors, and the hip
+    // reads reused them: `shoulderHalfWidth` silently collapsed to its own
+    // `hipHalfWidth * 1.05` floor on EVERY body, so a 2.45 m monster with a
+    // barrel chest and a 1.22 m child reported the same proportion.
+    const ratios = showcaseFixtures().map((fixture) => {
+      const m = fixture.rig.metrics;
+      expect(m.shoulderHalfWidth, fixture.name).toBeGreaterThan(m.hipHalfWidth * 1.4);
+      return m.shoulderHalfWidth / m.hipHalfWidth;
+    });
+    // ...and it is a MEASUREMENT, so it differs from body to body.
+    expect(Math.max(...ratios) - Math.min(...ratios)).toBeGreaterThan(0.5);
   });
 });

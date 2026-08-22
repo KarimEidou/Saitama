@@ -47,6 +47,13 @@ ${LUT_STRIP_GLSL}
 
 	// ACES filmic, Narkowicz's fit. Matches THREE.ACESFilmicToneMapping so the
 	// LOW tier (which tone maps in-material) and the composer tiers agree.
+	//
+	// The 1/0.6 gain is NOT optional decoration: three bakes it into
+	// ACESFilmicToneMapping ("modified to accommodate a brighter viewing
+	// environment", three #19621) and applies it as toneMappingExposure / 0.6.
+	// Without it every composer tier renders ~0.74 EV darker than the direct
+	// tier it claims to match, and the frame jumps in brightness the moment a
+	// player moves the quality slider onto or off LOW.
 	vec3 acesFilmic( vec3 color ) {
 		const mat3 ACESInputMat = mat3(
 			0.59719, 0.07600, 0.02840,
@@ -58,6 +65,7 @@ ${LUT_STRIP_GLSL}
 			-0.53108, 1.10813, -0.07276,
 			-0.07367, -0.00605, 1.07602
 		);
+		color *= 1.0 / 0.6;
 		color = ACESInputMat * color;
 		vec3 a = color * ( color + 0.0245786 ) - 0.000090537;
 		vec3 b = color * ( 0.983729 * color + 0.4329510 ) + 0.238081;
@@ -148,6 +156,20 @@ export class OutputLutPass extends Pass {
   setVignette(strength: number, softness?: number): void {
     this.material.uniforms.uVignette!.value = Math.min(1, Math.max(0, strength));
     if (softness !== undefined) this.material.uniforms.uVignetteSoftness!.value = softness;
+  }
+
+  /** Live vignette strength. Read back when the chain is rebuilt for a new tier. */
+  get vignette(): number {
+    return this.material.uniforms.uVignette!.value as number;
+  }
+
+  get vignetteSoftness(): number {
+    return this.material.uniforms.uVignetteSoftness!.value as number;
+  }
+
+  /** Live grading blend. 0 when no LUT is bound. */
+  get lutIntensity(): number {
+    return this.material.uniforms.uLutIntensity!.value as number;
   }
 
   override render(

@@ -391,7 +391,13 @@ let peakFlee = 0;
 let peakGawk = 0;
 let peakCower = 0;
 
-function sampleFrame(elapsed: number, panicking: boolean): void {
+/**
+ * @param recordFront sample the alarm front on this frame. Always true through
+ *   the middle phase, INCLUDING in calm mode: the control's headline claim is
+ *   that there is no alarm field, and a check on a quantity the calm run never
+ *   measured is a check that cannot fail.
+ */
+function sampleFrame(elapsed: number, recordFront: boolean): void {
   simSamples.push(system.lastStats.simMs);
   const separation = system.steering.lastReport.minSeparation;
   if (separation < minSeparation) minSeparation = separation;
@@ -414,7 +420,7 @@ function sampleFrame(elapsed: number, panicking: boolean): void {
     }
   }
 
-  if (panicking && simSamples.length % 6 === 0) {
+  if (recordFront && simSamples.length % 6 === 0) {
     frontSamples.push({
       t: elapsed,
       radius: system.alarm.frontRadius(monsterPosition.x, monsterPosition.z, 0.15),
@@ -516,7 +522,7 @@ function runScript(
     }
     target.update(DT);
     elapsed += DT;
-    if (sampling) sampleFrame(elapsed, MODE !== 'calm');
+    if (sampling) sampleFrame(elapsed, true);
   }
 
   // The player arrives and ends it. Everyone still frightened nearby is about

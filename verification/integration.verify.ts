@@ -27,7 +27,7 @@
 import { chromium, type Browser, type Page } from 'playwright';
 import { createServer, type Server } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 
@@ -55,6 +55,7 @@ const MIME: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
   '.png': 'image/png',
   '.wasm': 'application/wasm',
   '.glb': 'model/gltf-binary',
@@ -75,27 +76,41 @@ interface IServed {
   readonly requests: string[];
   /** Paths that 404'd. Must be empty. */
   readonly misses: string[];
+  /** Requests the handler itself threw on. Must be empty. */
+  readonly errors: string[];
 }
 
 function serveDist(): Promise<IServed> {
   const requests: string[] = [];
   const misses: string[] = [];
+  const errors: string[] = [];
   const server = createServer(async (req, res) => {
+    // Wrapped, as `verify.ts` has always been: `decodeURIComponent('/%')` throws
+    // synchronously and `readFile` on a directory rejects with EISDIR. Either
+    // one leaves this async handler's promise unhandled, and Node's default
+    // `--unhandled-rejections=throw` then tears the process down mid-run.
     const url = new URL(req.url ?? '/', 'http://localhost');
-    requests.push(url.pathname);
-    let filePath = path.join(DIST, decodeURIComponent(url.pathname));
-    if (url.pathname === '/' || url.pathname === '') filePath = path.join(DIST, 'index.html');
-    if (!filePath.startsWith(DIST) || !existsSync(filePath)) {
-      misses.push(url.pathname);
-      res.writeHead(404).end('not found');
-      return;
+    try {
+      requests.push(url.pathname);
+      let filePath = path.join(DIST, decodeURIComponent(url.pathname));
+      if (url.pathname === '/' || url.pathname === '') filePath = path.join(DIST, 'index.html');
+      // `DIST + path.sep`: a bare prefix test also accepts `<ROOT>/dist-notes`.
+      const contained = filePath === DIST || filePath.startsWith(DIST + path.sep);
+      if (!contained || !existsSync(filePath) || !statSync(filePath).isFile()) {
+        misses.push(url.pathname);
+        res.writeHead(404).end('not found');
+        return;
+      }
+      const body = await readFile(filePath);
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+    } catch (error) {
+      errors.push(`${url.pathname}: ${String(error)}`);
+      res.writeHead(500).end(String(error));
     }
-    const body = await readFile(filePath);
-    res.writeHead(200, {
-      'Content-Type': MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream',
-      'Cache-Control': 'no-store',
-    });
-    res.end(body);
   });
   return new Promise((resolve, reject) => {
     server.on('error', reject);
@@ -105,7 +120,7 @@ function serveDist(): Promise<IServed> {
         reject(new Error('failed to bind'));
         return;
       }
-      resolve({ server, port: address.port, requests, misses });
+      resolve({ server, port: address.port, requests, misses, errors });
     });
   });
 }
@@ -292,6 +307,13 @@ async function main(): Promise<void> {
 
     /* ================= TRAVERSE ================= */
     say('\n[2] traverse City Z');
+    const spawnAt = await page.evaluate(() => {
+      const p = (window.__GAME_DIAG__ as unknown as IDiag).world.playerPosition as {
+        x: number;
+        z: number;
+      };
+      return { x: p.x, z: p.z };
+    });
     await page.evaluate(() => {
       window.__INPUT__!.enable();
       window.__INPUT__!.setMove(0, 1);
@@ -310,7 +332,28 @@ async function main(): Promise<void> {
       };
       return { x: p.x, z: p.z };
     });
-    say(`  player at (${moved.x.toFixed(1)}, ${moved.z.toFixed(1)})`);
+    const travelled = Math.hypot(moved.x - spawnAt.x, moved.z - spawnAt.z);
+    say(
+      `  player at (${moved.x.toFixed(1)}, ${moved.z.toFixed(1)}) — ` +
+        `${travelled.toFixed(1)} m from spawn`
+    );
+    // ASSERTED, because "the screenshot was not blank" is true of a player who
+    // never moved. The clock is capped at MAX_DELTA (1/15 s), so 45 frames is
+    // about three seconds of game time; a 22 m/s dash covers ~66 m and even a
+    // walk covers a dozen. 5 m is a floor for "locomotion is wired", not a
+    // measurement of the dash.
+    const TRAVERSE_FLOOR_M = 5;
+    if (travelled < TRAVERSE_FLOOR_M) {
+      failures.push(
+        `45 frames of sprint moved the player ${travelled.toFixed(1)} m ` +
+          `(floor ${TRAVERSE_FLOOR_M} m) — locomotion is not being driven`
+      );
+    }
+    // The framing baseline, captured BEFORE the turn: the same band on both
+    // shots is the only way to say anything about what the turn did.
+    await shoot('integration-02a-pre-turn');
+    const BAND = { left: 0, top: 200, width: VIEWPORT.width, height: 500 };
+    const upperBefore = await regionMean(path.join(OUT_DIR, 'integration-02a-pre-turn.png'), BAND);
     // Turn to face the block, so the shot frames a street rather than the sky.
     await page.evaluate(() => {
       window.__INPUT__!.setMove(0, 0);
@@ -320,17 +363,24 @@ async function main(): Promise<void> {
     await frames(page, 40);
     await page.evaluate(() => window.__INPUT__!.setLook(0, 0));
     await frames(page, 20);
-    const traverse = await shoot('integration-02-traverse');
+    await shoot('integration-02-traverse');
     // The block is 58 m of facade nine metres to the player's side: after the
-    // turn the upper half of the frame must stop being sky.
-    const upper = await regionMean(path.join(OUT_DIR, 'integration-02-traverse.png'), {
-      left: 0,
-      top: 200,
-      width: VIEWPORT.width,
-      height: 500,
-    });
-    notes.push(`upper-frame mean after turning towards the block: ${upper.toFixed(1)}`);
-    void traverse;
+    // turn the upper half of the frame must stop being what it was. Asserted as
+    // a CHANGE rather than "darker": the avenue ahead is lined with facades
+    // too, so the pre-turn band is not reliably sky — but a camera that ignored
+    // `setLook` leaves this pair identical.
+    const upper = await regionMean(path.join(OUT_DIR, 'integration-02-traverse.png'), BAND);
+    const bandShift = Math.abs(upper - upperBefore);
+    say(`  upper-frame mean ${upperBefore.toFixed(1)} -> ${upper.toFixed(1)} across the turn`);
+    notes.push(
+      `upper-frame mean before the turn ${upperBefore.toFixed(1)}, after ${upper.toFixed(1)}`
+    );
+    if (bandShift < 2) {
+      failures.push(
+        `40 frames of look input changed the upper-frame mean by ${bandShift.toFixed(2)} ` +
+          `(${upperBefore.toFixed(1)} -> ${upper.toFixed(1)}) — the camera did not turn`
+      );
+    }
 
     /* ================= ENCOUNTER + NORMAL PUNCH ================= */
     say('\n[3] encounter and normal punch');
@@ -407,9 +457,9 @@ async function main(): Promise<void> {
       game?.faceNearestMonster();
     });
     await frames(page, 5);
-    const killsBefore = await page.evaluate(
-      () => (window as unknown as { __KILLS__?: number }).__KILLS__ ?? 0
-    );
+    // (No kill counter is read here: `window.__KILLS__` is not installed by any
+    // build in this repository, so the reading was a constant 0 that was then
+    // `void`ed. The kill this beat cares about is proved by `monsters left`.)
     await page.evaluate(() => window.__INPUT__!.tap('punch'));
     await frames(page, 30);
     const punch = await page.evaluate(() => {
@@ -428,7 +478,6 @@ async function main(): Promise<void> {
     });
     say(`  punches ${punch.punches}, monsters left ${punch.monsters}`);
     if (punch.punches < 1) failures.push('normal punch did not resolve');
-    void killsBefore;
     await shoot('integration-03-punch');
 
     /* ================= SERIOUS PUNCH ================= */
@@ -621,7 +670,18 @@ async function main(): Promise<void> {
 
     /* ================= ANDROID TIER PIN (FIX 1) ================= */
     say('\n[10] FIX 1 — native shell pins the mobile asset tier');
+    // BOTH arrays are reset, and the pre-existing misses are reported under
+    // their own label first. `misses` used to survive the reset, so a 404 from
+    // beat 1 — nine beats and ninety seconds earlier, on a different page —
+    // came out as "FIX 1: 1 404s" and sent the reader to `isCapacitorNative()`.
+    if (served.misses.length > 0) {
+      failures.push(
+        `${served.misses.length} asset 404s before the native page opened: ` +
+          `${[...new Set(served.misses)].slice(0, 3).join(', ')}`
+      );
+    }
     served.requests.length = 0;
+    served.misses.length = 0;
     const nativePage = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
     const nativeErrors: string[] = [];
     nativePage.on('console', (m) => {
@@ -636,11 +696,19 @@ async function main(): Promise<void> {
     });
     await frames(nativePage, 90);
     const nativeDiag = await diag(nativePage);
-    const wrongTier = served.requests.filter((p) => /\.(high|ultra)\.ktx2$/.test(p));
+    // The TIER TOKEN, not `.ktx2`. The pipeline tiers models as well as
+    // textures — `public/assets/mdl/` holds 206 `.high.*` files including
+    // `.glb`, `.glb.json` and `.bin` sidecars — and these harnesses serve an
+    // UNPRUNED `dist/`, so a high-tier model request returns 200 and does not
+    // show up as a miss either.
+    const wrongTier = served.requests.filter((p) => /\.(high|ultra)\./.test(p));
+    const mobileTier = served.requests.filter((p) => /\.mobile\./.test(p));
     say(
       `  asset tier: ${String(nativeDiag.world.assetTier)} (${String(nativeDiag.world.assetTierReason)})`
     );
     say(`  requests for a non-packaged tier: ${wrongTier.length}`);
+    say(`  requests carrying the mobile token: ${mobileTier.length}`);
+    notes.push(`native page requested ${mobileTier.length} mobile-tier files`);
     say(`  404s: ${served.misses.length}`);
     if (nativeDiag.world.assetTier !== 'mobile') {
       failures.push(`FIX 1: native shell selected '${String(nativeDiag.world.assetTier)}'`);
@@ -657,12 +725,21 @@ async function main(): Promise<void> {
       path: path.join(OUT_DIR, 'integration-09-native-mobile-tier.png'),
       timeout: 180_000,
     });
-    shots.push(
-      await analyse(
-        'integration-09-native-mobile-tier',
-        path.join(OUT_DIR, 'integration-09-native-mobile-tier.png')
-      )
+    // GATED, like every capture on the primary page. This one bypassed `shoot()`
+    // because it targets a second page, and with it lost the only check
+    // `analyse()` exists for: a native shell that boots to a black frame still
+    // flips `__GAME_READY__`, still reports `assetTier: 'mobile'`, and used to
+    // have its `"blank": true` written into the report and then ignored.
+    const nativeShot = await analyse(
+      'integration-09-native-mobile-tier',
+      path.join(OUT_DIR, 'integration-09-native-mobile-tier.png')
     );
+    shots.push(nativeShot);
+    say(
+      `  shot ${nativeShot.name}: stdDev ${nativeShot.stdDev.toFixed(1)} colors ${nativeShot.colors}` +
+        (nativeShot.blank ? '  <-- BLANK' : '')
+    );
+    if (nativeShot.blank) failures.push(`screenshot "${nativeShot.name}" is blank`);
     consoleErrors.push(...nativeErrors);
     await nativePage.close();
 
@@ -682,6 +759,12 @@ async function main(): Promise<void> {
   if (consoleErrors.length > 0) {
     failures.push(
       `${consoleErrors.length} console errors: ${consoleErrors.slice(0, 5).join(' | ')}`
+    );
+  }
+  if (served.errors.length > 0) {
+    failures.push(
+      `${served.errors.length} requests threw in the harness server: ` +
+        `${served.errors.slice(0, 3).join(' | ')}`
     );
   }
 

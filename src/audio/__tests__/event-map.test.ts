@@ -30,6 +30,15 @@ import {
 import { isSoundKey, SOUND_KEYS } from '../voices/registry';
 import { MUSIC_STATES } from '../music/patterns';
 
+/**
+ * Events that are deliberately inert: no cue, and nothing moved in the mix.
+ *
+ * Chunk residency is bookkeeping. It must never make a sound, and nothing in
+ * the mix follows from it on its own — crowd density comes from the civilian
+ * count and the time of day, not from which geometry happens to be loaded.
+ */
+const SILENT_TYPES: readonly GameEventType[] = ['ChunkStreamedIn', 'ChunkStreamedOut'];
+
 /** Minimal but valid instances of every event, for exercising the rules. */
 const SAMPLES: { [T in GameEventType]: Extract<GameEvent, { type: T }> } = {
   ShockwaveFired: {
@@ -232,10 +241,15 @@ describe('event coverage', () => {
   it('gives every rule either a sound or a declared non-cue effect', () => {
     for (const type of ALL_GAME_EVENT_TYPES) {
       const rule = eventAudioRule(type);
-      expect(
-        rule.sounds.length > 0 || rule.effects.length > 0,
-        `"${type}" reacts to nothing at all`
-      ).toBe(true);
+      const reacts = rule.sounds.length > 0 || rule.effects.length > 0;
+      if (SILENT_TYPES.includes(type)) {
+        // Declaring an effect these rules do not have is the failure mode here:
+        // both of them used to advertise `ambience` and emit a field nothing
+        // consumed, so the summaries described behaviour the game never had.
+        expect(reacts, `"${type}" is documented as inert but declares an effect`).toBe(false);
+      } else {
+        expect(reacts, `"${type}" reacts to nothing at all`).toBe(true);
+      }
       expect(rule.summary.length, `"${type}" has no summary`).toBeGreaterThan(20);
     }
   });
@@ -265,6 +279,60 @@ describe('event coverage', () => {
       if (response.duck) {
         expect(response.duck.to).toBeGreaterThanOrEqual(0);
         expect(response.duck.to).toBeLessThan(1);
+      }
+    }
+  });
+
+  it('declares every key its BRANCHES can emit, not just the sampled one', () => {
+    // One sample per type only ever walks one branch. `EncounterEnded`'s sample
+    // is a victory, so nothing noticed that fleeing or aborting a fight emits
+    // `ui.tap` — a key the rule did not declare, which any consumer trusting
+    // `sounds` as the complete set (the audition harness, a warm-up pass that
+    // preallocates the pools a rule can reach) would have missed.
+    const branches: GameEvent[] = [
+      ...(['victory', 'defeat', 'fled', 'aborted'] as const).map((outcome) => ({
+        ...SAMPLES.EncounterEnded,
+        outcome,
+      })),
+      ...(['locked', 'available', 'active', 'completed', 'failed'] as const).map((state) => ({
+        ...SAMPLES.QuestStateChanged,
+        state,
+      })),
+      ...(
+        [
+          'normal',
+          'consecutive',
+          'heavy',
+          'uppercut',
+          'slam',
+          'serious',
+          'seriousTableflip',
+          'environmental',
+        ] as const
+      ).flatMap((punchKind) => [
+        { ...SAMPLES.ShockwaveFired, punchKind, power: 10 },
+        { ...SAMPLES.ShockwaveFired, punchKind, power: 1e6 },
+      ]),
+      ...(['wolf', 'tiger', 'demon', 'dragon', 'god'] as const).flatMap((threatTier) => [
+        { ...SAMPLES.EncounterStarted, threatTier, isBoss: false },
+        { ...SAMPLES.EncounterStarted, threatTier, isBoss: true },
+        { ...SAMPLES.EntityKilled, threatTier },
+      ]),
+      { ...SAMPLES.EncounterEnded, outcome: 'victory' as const, civiliansLost: 3 },
+      { ...SAMPLES.CivilianSaved, byPlayer: false },
+      { ...SAMPLES.CivilianLost, causedByPlayer: true },
+      { ...SAMPLES.RankChanged, promoted: false },
+      { ...SAMPLES.BossPhaseChanged, isFinalPhase: true },
+      { ...SAMPLES.PlayerLanded, createsCrater: true },
+      { ...SAMPLES.EntityDamaged, entityType: 'prop' as const, faction: 'civilian' as const },
+    ];
+
+    for (const event of branches) {
+      const rule = eventAudioRule(event.type);
+      for (const cue of resolveEventAudio(event).cues) {
+        expect(rule.sounds, `"${event.type}" emitted undeclared key "${cue.key}"`).toContain(
+          cue.key
+        );
       }
     }
   });
@@ -431,10 +499,18 @@ describe('escalation mapping', () => {
     expect(dragon.cues.map((c) => c.key)).toContain('crowd.panic');
   });
 
-  it('collapses the score to the drone at the top of the boredom range', () => {
-    expect(resolveEventAudio({ ...SAMPLES.BoredomChanged, value: 0.5 }).music).toBeUndefined();
-    expect(resolveEventAudio({ ...SAMPLES.BoredomChanged, value: 0.5 }).boredom).toBe(0.5);
-    expect(resolveEventAudio({ ...SAMPLES.BoredomChanged, value: 0.9 }).music).toBe('bored');
+  it('drives the collapse with the boredom value alone, reversibly', () => {
+    // The rule used to ALSO emit `music: 'bored'` above the threshold. That was
+    // a one-way door: `setBoredom` never leaves a state, and `partsFor` pins the
+    // arrangement to the drone for any boredom value once the state is `bored`,
+    // so a player who became interesting again never got the score back.
+    // `boredom` on its own collapses and un-collapses.
+    for (const value of [0, 0.5, 0.85, 1]) {
+      const r = resolveEventAudio({ ...SAMPLES.BoredomChanged, value });
+      expect(r.boredom, `boredom ${value}`).toBe(value);
+      expect(r.music, `boredom ${value} must not change state`).toBeUndefined();
+      expect(r.cues).toHaveLength(0);
+    }
   });
 
   it('empties the street at night and raises the wind', () => {
@@ -445,11 +521,18 @@ describe('escalation mapping', () => {
     expect(midnight.ambience!.wind!).toBeGreaterThan(noon.ambience!.wind!);
   });
 
-  it('keeps chunk streaming silent but still updates the ambience', () => {
+  it('keeps chunk streaming completely inert', () => {
+    // Regression guard. These rules used to return `{ recomputeDensity: true }`,
+    // which no consumer read — the assertion passed on the pure rule while the
+    // end-to-end effect was a no-op, so the test masked the gap rather than
+    // catching it. A field is only worth returning if something acts on it.
     for (const type of ['ChunkStreamedIn', 'ChunkStreamedOut'] as const) {
       const r = resolveEventAudio(SAMPLES[type]);
       expect(r.cues).toHaveLength(0);
-      expect(r.ambience?.recomputeDensity).toBe(true);
+      expect(r.ambience).toBeUndefined();
+      expect(r.music).toBeUndefined();
+      expect(r.duck).toBeUndefined();
+      expect(r.boredom).toBeUndefined();
     }
   });
 

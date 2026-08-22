@@ -27,6 +27,7 @@
 import { createRng, lerp, type IRandom } from '@/util';
 import { createInstruments, type IInstrument, type InstrumentId } from './instruments';
 import {
+  BOREDOM_COLLAPSE,
   degreeToMidi,
   LAYERS,
   MUSIC_STATES,
@@ -34,6 +35,7 @@ import {
   REST,
   secondsPerStep,
   STEPS_PER_BAR,
+  type IMusicLayer,
   type IPart,
   type MusicState,
   type PartId,
@@ -123,9 +125,23 @@ export class MusicDirector {
     return this.activeParts.map((p) => p.id);
   }
 
-  /** Current tempo, which follows the active state. */
+  /** Current tempo, which follows whatever layer is actually sounding. */
   get bpm(): number {
-    return LAYERS[this.currentState].bpm;
+    return this.layer.bpm;
+  }
+
+  /**
+   * The layer that is actually sounding.
+   *
+   * `partsFor` swaps in the BORED layer's parts at the collapse threshold, but
+   * the parts are only half of a layer: root, scale and tempo travel with it.
+   * Resolving them from `currentState` instead played the drone at the combat
+   * root (55 Hz, an octave below the 110 Hz it was voiced for, and close to
+   * inaudible on a phone) with a 1.8 s bar instead of a 4 s one, so it was
+   * re-struck before its 2.5 s attack ever arrived.
+   */
+  private get layer(): IMusicLayer {
+    return this.boredomValue >= BOREDOM_COLLAPSE ? LAYERS.bored : LAYERS[this.currentState];
   }
 
   /**
@@ -145,9 +161,18 @@ export class MusicDirector {
   setStateImmediate(state: MusicState, time = this.ctx.currentTime): void {
     this.queuedState = undefined;
     this.applyState(state, time);
-    // Realign the grid so the new state starts a fresh bar.
+    // Silence EVERY instrument, not just the ones that dropped out. Most
+    // escalations share their whole palette — combat to boss drops nothing — so
+    // `refreshParts` alone leaves the old layer's already-scheduled notes
+    // sounding, at the old root, over the new one: a bitonal smear on a cut the
+    // caller asked to be instantaneous.
+    for (const id of Object.keys(this.instruments) as InstrumentId[]) {
+      this.instruments[id].allNotesOff(time, 0.02);
+    }
+    // Realign the grid so the new state starts a fresh bar AT THE CUT, rather
+    // than wherever the old lookahead window happened to reach.
     this.stepCounter = 0;
-    this.nextStepTime = Math.max(this.nextStepTime, time);
+    this.nextStepTime = Math.max(time, this.ctx.currentTime);
   }
 
   /**
@@ -191,6 +216,7 @@ export class MusicDirector {
    */
   advanceTo(horizon: number): number {
     if (!this.running) return 0;
+    this.resync();
     let scheduled = 0;
     // Hard iteration cap: a bad horizon must never spin the frame.
     let guard = 100000;
@@ -198,10 +224,32 @@ export class MusicDirector {
       const stepInBar = this.stepCounter % STEPS_PER_BAR;
       if (stepInBar === 0) this.applyQueued(this.nextStepTime);
       scheduled += this.scheduleStep(stepInBar, this.nextStepTime);
-      this.nextStepTime += secondsPerStep(LAYERS[this.currentState].bpm);
+      this.nextStepTime += secondsPerStep(this.layer.bpm);
       this.stepCounter++;
     }
     return scheduled;
+  }
+
+  /**
+   * Skip a backlog rather than playing it.
+   *
+   * The frame loop stops calling `update()` whenever the game is modally paused
+   * or the tab is backgrounded, while `ctx.currentTime` keeps running. Without
+   * a floor, the next call schedules every missed step — ten seconds of a
+   * 132 bpm groove is ~160 notes, ALL at times already in the past, which Web
+   * Audio collapses onto the current render quantum: one full-scale cluster into
+   * the limiter, and for a long pause tens of thousands of automation writes in
+   * a single frame. The transport is snapped forward on the step grid instead,
+   * so the groove resumes in phase and nothing is emitted for time that has
+   * already gone by.
+   */
+  private resync(): void {
+    const now = this.ctx.currentTime;
+    const stepSeconds = secondsPerStep(this.layer.bpm);
+    if (!(stepSeconds > 0) || this.nextStepTime >= now - stepSeconds) return;
+    const skipped = Math.ceil((now - this.nextStepTime) / stepSeconds);
+    this.nextStepTime += skipped * stepSeconds;
+    this.stepCounter += skipped;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -242,7 +290,7 @@ export class MusicDirector {
   }
 
   private scheduleStep(stepInBar: number, time: number): number {
-    const layer = LAYERS[this.currentState];
+    const layer = this.layer;
     const stepSeconds = secondsPerStep(layer.bpm);
     // Every fourth bar takes the fill pattern where a part defines one.
     const isFillBar = this.bar % 4 === 3;

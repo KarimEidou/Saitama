@@ -59,6 +59,12 @@ export class SourceCache {
   private index: ICacheIndex = { version: INDEX_VERSION, entries: {} };
   private dirty = false;
   private loaded = false;
+  /**
+   * Whether `link()` works between the CAS and the tree, learned from the
+   * first attempt. `false` means every materialised file is a copy, so the
+   * inode identity check in `materialize()` can never pass again.
+   */
+  private hardlinks: boolean | undefined;
 
   /** Read `index.json`. A missing or unreadable index is not fatal — it is a
    *  pure cache, and the worst case is that everything re-downloads. */
@@ -178,10 +184,20 @@ export class SourceCache {
   async store(tempPath: string, sha256: string): Promise<{ path: string; mtimeMs: number }> {
     const blob = casPath(sha256);
     await mkdir(path.dirname(blob), { recursive: true });
+    const incomingBytes = (await stat(tempPath)).size;
     try {
       const existing = await stat(blob);
-      await rm(tempPath, { force: true });
-      return { path: blob, mtimeMs: existing.mtimeMs };
+      if (existing.size === incomingBytes) {
+        await rm(tempPath, { force: true });
+        return { path: blob, mtimeMs: existing.mtimeMs };
+      }
+      // A blob whose LENGTH disagrees with the bytes that just passed their md5
+      // check cannot be the content its name claims — an interrupted
+      // cross-device copy (ENOSPC, a kill) leaves exactly this. Trusting the
+      // filename here would discard the verified download and hand a truncated
+      // file to the processing stage, so the verified bytes win instead.
+      // The stat is free; it already happened.
+      await rm(blob, { force: true });
     } catch {
       /* not present yet — fall through and install it */
     }
@@ -207,6 +223,15 @@ export class SourceCache {
    * tree file has drifted into a separate copy, it is no longer covered by the
    * blob's integrity check and gets relinked. That keeps exactly one set of
    * bytes per file, so verifying the CAS verifies the tree too.
+   *
+   * ── EXCEPT WHERE THE FILESYSTEM CANNOT LINK ───────────────────────────────
+   * exFAT, some SMB/FUSE mounts and a CAS on a different device than the tree
+   * all fail `link()`, and the copy fallback can never produce the blob's
+   * inode. Applying the inode test there would fail it on every file of every
+   * run, so a no-op re-run would `unlink` and re-copy the whole 1.7 GB tree
+   * forever. Once copy mode is known, length is the strongest cheap check
+   * available — and it is announced, because the "zero extra bytes" and
+   * "verifying the CAS verifies the tree" guarantees stop holding in it.
    */
   async materialize(sha256: string, relativePath: string, expectedBytes: number): Promise<string> {
     const blob = casPath(sha256);
@@ -219,7 +244,8 @@ export class SourceCache {
     }
     try {
       const existing = await stat(dest);
-      if (existing.size === expectedBytes && existing.ino === blobIno) return dest;
+      const sameLength = existing.size === expectedBytes;
+      if (sameLength && (existing.ino === blobIno || this.hardlinks === false)) return dest;
       await unlink(dest);
     } catch {
       /* not there yet */
@@ -227,7 +253,16 @@ export class SourceCache {
     await mkdir(path.dirname(dest), { recursive: true });
     try {
       await link(blob, dest);
+      this.hardlinks = true;
     } catch {
+      if (this.hardlinks !== false) {
+        this.hardlinks = false;
+        console.warn(
+          `  ! ${SOURCE_DIR}: this filesystem will not hardlink, so the materialised tree is a ` +
+            `full COPY of the CAS — expect ~2x the disk usage, and note that --verify only ` +
+            `re-hashes the CAS blobs, not the copies.`
+        );
+      }
       await copyFile(blob, dest, fsConstants.COPYFILE_FICLONE);
     }
     return dest;

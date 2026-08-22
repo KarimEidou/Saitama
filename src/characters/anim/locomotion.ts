@@ -207,6 +207,19 @@ interface FootState {
   plantYaw: number;
   /** World position the lift-off ankle occupied, so swing drift is exact. */
   readonly liftWorld: THREE.Vector3;
+  /**
+   * False until a real toe-off has written `liftWorld`.
+   *
+   * A solver seeded mid-swing — every crowd member with a random phase — has
+   * never toed off, and blending the ankle from an unwritten `(0,0,0)` lerps
+   * it from the WORLD ORIGIN, which is hundreds of metres away for anything
+   * standing in the city. The swing origin is synthesised from the gait
+   * instead until the first genuine lift.
+   */
+  hasLift: boolean;
+  /** Last MODEL-space ankle target solved while grounded, and whether it exists. */
+  readonly lastTarget: THREE.Vector3;
+  hasLastTarget: boolean;
   pitch: number;
   slip: number;
   /** How far `clampTargets` had to pull this foot's target in, metres. */
@@ -255,6 +268,8 @@ export class LocomotionSolver {
   private lastReport: LocomotionReport | undefined;
   private reachDrop = 0;
   private pelvisY = 0;
+  /** Last frame's `grounded`, so the landing edge can refresh the world locks. */
+  private wasGrounded = true;
   /** Set when a foot touched down this frame; drained by the animator. */
   private touchdowns: Array<{ side: 'left' | 'right'; strength: number }> = [];
 
@@ -284,6 +299,9 @@ export class LocomotionSolver {
       plantWorld: new THREE.Vector3(),
       plantYaw: 0,
       liftWorld: new THREE.Vector3(),
+      hasLift: false,
+      lastTarget: new THREE.Vector3(),
+      hasLastTarget: false,
       pitch: 0,
       slip: 0,
       clamped: 0,
@@ -303,12 +321,16 @@ export class LocomotionSolver {
     this.rootPosition.set(0, 0, 0);
     this.rootYaw = 0;
     this.reachDrop = 0;
+    this.wasGrounded = true;
     for (const foot of [this.left, this.right]) {
       foot.phase = 'swing';
       foot.progress = 0;
       foot.plantWorld.set(0, 0, 0);
       foot.plantYaw = 0;
       foot.liftWorld.set(0, 0, 0);
+      foot.hasLift = false;
+      foot.lastTarget.set(0, 0, 0);
+      foot.hasLastTarget = false;
       foot.pitch = 0;
       foot.slip = 0;
       foot.clamped = 0;
@@ -353,6 +375,16 @@ export class LocomotionSolver {
       this.rootPosition.z += forwardZ * input.speed * dt;
     }
 
+    if (grounded && !this.wasGrounded) {
+      // Landing. Every world anchor went stale while the phase was frozen — the
+      // root kept moving and the locks did not — so a foot still in swing would
+      // blend in from wherever it left the ground before the jump, metres back.
+      // Dropping the lift flags makes both swings re-derive their origin from
+      // the gait on this frame; a foot entering stance re-plants anyway.
+      this.left.hasLift = false;
+      this.right.hasLift = false;
+    }
+    this.wasGrounded = grounded;
     if (grounded) this.phase = mod(this.phase + solution.cycleFrequency * dt, 1);
 
     this.authorPelvisAndSpine(pose, solution, input);
@@ -361,8 +393,8 @@ export class LocomotionSolver {
     // Ankle targets first, THEN the pelvis reach correction, THEN the IK:
     // the correction needs to know where the feet are going before it can
     // decide how far the pelvis has to drop to keep them reachable.
-    this.resolveFoot(this.left, solution, input, groundY, grounded);
-    this.resolveFoot(this.right, solution, input, groundY, grounded);
+    this.resolveFoot(this.left, solution, input, groundY, grounded, dt);
+    this.resolveFoot(this.right, solution, input, groundY, grounded, dt);
     this.applyReachLimit(pose);
     this.clampTargets();
 
@@ -403,7 +435,11 @@ export class LocomotionSolver {
       side: foot.side,
       phase: foot.phase,
       progress: foot.progress,
-      plantWorld: foot.plantWorld,
+      // A COPY. `foot.plantWorld` is rewritten in place at every touchdown, so
+      // handing out the live vector makes any consumer that keeps a reference —
+      // a footstep-decal system measuring step length, a test asserting a plant
+      // did not move between two frames — silently compare a value with itself.
+      plantWorld: foot.plantWorld.clone(),
       slip: foot.slip,
       pitch: foot.pitch,
     };
@@ -508,8 +544,10 @@ export class LocomotionSolver {
     }
     const head = rig.index.Head;
     if (head !== undefined) {
-      // Vertical gaze stabilisation: the head cancels most of the pelvis bob,
-      // which is why a real walk cycle's head travels far less than its hips.
+      // Gaze DIRECTION only. Rotating `Head` cannot move the head joint — its
+      // model position is fixed by the chain above it — so this counter-pitch
+      // keeps the line of sight from bobbing with the pelvis; it does not
+      // cancel the pelvis's vertical travel, and nothing here claims to.
       const bob = -(bounceWalk + bounceRun) * 0.35 * a;
       setEulerZYX(pose, head, -lean * 0.3 + bob * 0.15 + slouch * 0.28, -counter * 0.3, 0);
     }
@@ -595,12 +633,28 @@ export class LocomotionSolver {
     g: GaitSolution,
     input: LocomotionInput,
     groundY: number,
-    grounded: boolean
+    grounded: boolean,
+    dt: number
   ): void {
     const m = this.rig.metrics;
     const offset = foot.side === 'right' ? 0 : 0.5;
     const local = mod(this.phase - offset, 1);
     const duty = g.duty;
+
+    if (!grounded && foot.hasLastTarget) {
+      // Airborne: the solver has nothing to say about where a foot goes, and
+      // both ways of pretending otherwise degenerate. The cycle phase is
+      // frozen, so a continued swing drags its world anchor backwards at the
+      // root's speed for the whole flight; and a foot that was in STANCE at
+      // take-off flips to swing with `progress` clamped to zero, i.e. parked at
+      // the toe-off extreme, which is out of the leg's reach and pins the
+      // pelvis at the crouch floor until it lands. Holding the last grounded
+      // target in MODEL space does neither, and keeps `slip`, `reachDrop` and
+      // `pelvisY` meaning what they say while the character is in the air.
+      foot.phase = 'swing';
+      _footTargets[foot.side].copy(foot.lastTarget);
+      return;
+    }
 
     const halfWidth =
       m.hipHalfWidth * lerp(STANCE_WIDTH_WALK, STANCE_WIDTH_RUN, g.runBlend) +
@@ -631,7 +685,14 @@ export class LocomotionSolver {
       // which is invisible at a fixed time step and turns into a frame-rate
       // dependent gait the moment anything runs at a different one — including
       // the offline baker.
-      const overshoot = local / Math.max(1e-6, g.cycleFrequency);
+      //
+      // Capped at the sub-frame window, because `local` is only the overshoot
+      // when the crossing actually happened this frame. A foot that re-enters
+      // stance for any other reason — landing after a jump, where the cycle
+      // phase was frozen in the air — arrives at an arbitrary `local`, and
+      // charging that whole phase as overshoot shifts the world lock back by
+      // up to `duty * strideLength` and pins the foot there for all of stance.
+      const overshoot = Math.min(local, g.cycleFrequency * dt) / Math.max(1e-6, g.cycleFrequency);
       this.touchdownAnkle(g, groundY, halfWidth, foot.sign, zTouchdown, _v0);
       _v0.z += g.speed * overshoot;
       this.ankleToBall(_v0, this.strikePitch(g), _v1);
@@ -654,14 +715,51 @@ export class LocomotionSolver {
       const yaw = clamp(wrapPi(foot.plantYaw - this.rootYaw), -FOOT_YAW_LIMIT, FOOT_YAW_LIMIT);
       this.ballToAnkle(_ballModel, this.toeOffPitch(g), _v0, yaw);
       this.modelToWorld(_v0, foot.liftWorld);
+      foot.hasLift = true;
     }
 
     if (isStance) {
       this.stanceAnkle(foot, g, groundY, _ankleTarget);
     } else {
+      // No genuine toe-off to swing away from — a solver seeded mid-swing, or
+      // an airborne foot whose cycle phase is frozen so the stale world lock
+      // would recede at the root's speed for the whole flight. Synthesise the
+      // origin from the gait instead: the ankle this stride WOULD have left
+      // the ground at, aged by the swing time already elapsed.
+      if (!foot.hasLift || !grounded) this.seedSwingOrigin(foot, g, groundY, halfWidth, zTouchdown);
       this.swingAnkle(foot, g, groundY, halfWidth, zTouchdown, _ankleTarget);
     }
     _footTargets[foot.side].copy(_ankleTarget);
+    if (grounded) {
+      foot.lastTarget.copy(_ankleTarget);
+      foot.hasLastTarget = true;
+    }
+  }
+
+  /**
+   * Synthesise the world anchor a swing would have started from.
+   *
+   * `liftWorld` is only written at a real toe-off, so a solver that starts (or
+   * resets) with a foot already mid-swing has nothing to blend from, and an
+   * airborne foot's anchor goes stale because the cycle phase is frozen while
+   * the root keeps moving. Deriving it from the gait keeps the swing a pure
+   * function of phase: at toe-off the ball sits one excursion behind its own
+   * touchdown, the ankle follows from the toe-off pitch, and that point has
+   * been receding at the root's speed for `progress` of the swing.
+   */
+  private seedSwingOrigin(
+    foot: FootState,
+    g: GaitSolution,
+    groundY: number,
+    halfWidth: number,
+    zTouchdown: number
+  ): void {
+    const swingDuration = Math.max(1e-4, (1 - g.duty) / Math.max(1e-4, g.cycleFrequency));
+    _ballModel.set(foot.sign * halfWidth, groundY, zTouchdown + g.excursion);
+    this.ballToAnkle(_ballModel, this.toeOffPitch(g), _v0, 0);
+    _v0.z += g.speed * foot.progress * swingDuration;
+    this.modelToWorld(_v0, foot.liftWorld);
+    foot.hasLift = true;
   }
 
   /**
@@ -1085,10 +1183,16 @@ function wrapPi(angle: number): number {
  * ZYX rather than three.js's default XYZ: for a body, roll about the forward
  * axis should be the innermost rotation, so a leaning character's yaw stays
  * about the world vertical instead of tipping with the lean.
+ *
+ * `pitch` is POSITIVE FORWARD, matching `posture.ts`. Every bone this is used
+ * on — pelvis, spine stack, neck, head, clavicle — points up in the bind pose,
+ * and a right-handed rotation about +X takes +Y to +Z, i.e. BACKWARDS for a
+ * character that faces -Z; hence the negation. Without it the run lean, the
+ * gaze stabilisation and the boredom slouch all act in reverse.
  */
 function setEulerZYX(pose: Pose, bone: number, pitch: number, yaw: number, roll: number): void {
   _q0.setFromAxisAngle(_Y_AXIS, yaw);
-  _q1.setFromAxisAngle(_X_AXIS, pitch);
+  _q1.setFromAxisAngle(_X_AXIS, -pitch);
   _q2.setFromAxisAngle(_Z_AXIS, roll);
   _q0.multiply(_q1).multiply(_q2);
   setRotation(pose, bone, _q0);

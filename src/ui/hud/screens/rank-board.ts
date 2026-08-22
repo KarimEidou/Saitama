@@ -34,7 +34,7 @@
 
 import { clamp01 } from '@/util';
 import { button, el } from '../dom';
-import { formatPoints, formatRank, formatSeatDelta } from '../format';
+import { formatPoints, formatRank, formatSeatMove } from '../format';
 import type { FrameWriter } from '../frame-writer';
 import type { IHudModel, IRankMovement, IRivalRow } from '../model';
 import { HudScreen, type HudScreenName } from '../screen';
@@ -215,8 +215,8 @@ export class RankBoardScreen extends HudScreen {
             el(this.doc, 'div', { className: 'hud-row__title', text: movement.reason }),
             el(this.doc, 'div', {
               className: 'hud-row__meta',
-              text: `${formatRank(movement.heroClass, movement.rank)} · ${formatSeatDelta(
-                movement.seats > 900 ? 1 : movement.seats
+              text: `${formatRank(movement.heroClass, movement.rank)} · ${formatSeatMove(
+                movement.seats
               )}`,
             }),
           ],

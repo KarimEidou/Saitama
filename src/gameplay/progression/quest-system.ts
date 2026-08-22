@@ -7,6 +7,10 @@
  *   active ──timer expiry / ally down / civilian threshold / conflict──▶ failed
  *   active ──abandon()──▶ available
  *
+ * `failed` and `completed` are TERMINAL, deliberately: there is no retry edge,
+ * so a quest that other quests list as a prerequisite takes its whole chain
+ * with it when it fails. Abandoning is the survivable exit; failing is not.
+ *
  * ── EVERYTHING ARRIVES ON THE BUS ──────────────────────────────────────────
  * This system imports no other system. Kills, rescues, losses, collateral and
  * ally deaths are all read off `IEventBus` and translated into objective
@@ -40,6 +44,25 @@ import { QUEST_DEFS, RuntimeQuest, type IQuestDef } from './quest-defs';
 import { CLASS_ORDER } from './constants';
 
 const log = createLogger('gameplay.quests');
+
+/**
+ * Metres from a quest's location within which a civilian loss or a piece of
+ * collateral is charged to it. Matches the incident attribution radius in
+ * `progression-system.ts`: generous, because a serious punch throws debris a
+ * long way, but not so generous that a wave in another district fails a
+ * rescue the player is still driving to.
+ */
+const QUEST_BLAST_RADIUS = 200;
+
+/**
+ * Reserved `questProgress` key holding a quest's remaining seconds.
+ *
+ * `ISaveGame.questProgress` is `questId -> objectiveId -> number` and this
+ * workstream does not own that contract, so the timer rides in the same map
+ * under a key no objective id can collide with. Without it every timed quest
+ * reloads with a full clock and is save-scummable to infinity.
+ */
+const TIME_REMAINING_KEY = '__timeRemaining';
 
 /** Callbacks the quest system fires that have no home on the shared bus. */
 export interface IQuestSystemOptions {
@@ -76,8 +99,12 @@ export class QuestSystem implements IQuestSystem {
   private readonly unsubscribers: (() => void)[] = [];
   private readonly options: IQuestSystemOptions;
   private readonly playerPosition = new THREE.Vector3();
-  /** Quests that armed an encounter this session, so it fires exactly once. */
+  /** False until someone pushes a position; the origin is not a player location. */
+  private hasPlayerPosition = false;
+  /** Encounters currently armed, so each fires once per accepted run of its quest. */
   private readonly armedEncounters = new Set<string>();
+  /** Allies reported down this session. 'protect' objectives read it. */
+  private readonly downedAllies = new Set<string>();
 
   constructor(options: IQuestSystemOptions) {
     this.options = options;
@@ -136,6 +163,7 @@ export class QuestSystem implements IQuestSystem {
     quest.timeRemaining = undefined;
     quest.civiliansLost = 0;
     quest.collateral = 0;
+    this.disarmEncounter(quest);
     this.releaseTimeOverride(quest);
     this.setState(quest, 'available');
     if (this.trackedQuestId === questId) this.trackedQuestId = undefined;
@@ -153,14 +181,25 @@ export class QuestSystem implements IQuestSystem {
   /** Push the player's position. Drives 'reach' objectives. */
   setPlayerPosition(position: Vec3): void {
     this.playerPosition.set(position.x, position.y, position.z);
+    this.hasPlayerPosition = true;
   }
 
   update(dt: number): void {
     for (const quest of this.byId.values()) {
       if (quest.state !== 'active') continue;
 
+      this.tickProtect(quest);
       this.tickReach(quest);
       this.tickSurvive(quest, dt);
+
+      // Completion is checked BEFORE the timer runs down. A frame in which the
+      // last objective was met is a frame the player finished inside the
+      // window, and losing it to the same frame's expiry would fail a quest
+      // that was done — permanently, since `failed` is terminal.
+      if (quest.allObjectivesComplete) {
+        this.complete(quest);
+        continue;
+      }
 
       if (quest.timeRemaining !== undefined) {
         quest.timeRemaining -= dt;
@@ -170,8 +209,6 @@ export class QuestSystem implements IQuestSystem {
           continue;
         }
       }
-
-      if (quest.allObjectivesComplete) this.complete(quest);
     }
     this.refreshAvailability();
   }
@@ -216,18 +253,29 @@ export class QuestSystem implements IQuestSystem {
     const quest = this.byId.get(questId);
     if (!quest) return;
     quest.state = state;
-    if (
-      state === 'active' &&
-      quest.timeLimitSeconds !== undefined &&
-      quest.timeRemaining === undefined
-    ) {
-      quest.timeRemaining = quest.timeLimitSeconds;
+
+    if (state === 'active' && quest.timeLimitSeconds !== undefined) {
+      // The stored clock wins. Falling back to the full limit whenever one is
+      // missing is what let a timed quest be save-scummed to infinity.
+      const stored = progress?.[TIME_REMAINING_KEY];
+      quest.timeRemaining =
+        stored !== undefined && Number.isFinite(stored)
+          ? Math.max(0, Math.min(quest.timeLimitSeconds, stored))
+          : quest.timeLimitSeconds;
     }
-    if (!progress) return;
-    for (const objective of quest.objectives) {
-      const value = progress[objective.id];
-      if (typeof value === 'number') objective.current = value;
+
+    if (progress) {
+      for (const objective of quest.objectives) {
+        const value = progress[objective.id];
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          objective.current = Math.max(0, Math.min(objective.required, value));
+        }
+      }
     }
+
+    // A quest restored mid-fight has to re-announce its encounter: nothing else
+    // will, because the objective that would have armed it is already complete.
+    if (state === 'active') this.maybeArmEncounter(quest);
   }
 
   /** Remaining seconds on a quest's timer, or undefined when it is untimed. */
@@ -235,12 +283,13 @@ export class QuestSystem implements IQuestSystem {
     return this.byId.get(questId)?.timeRemaining;
   }
 
-  /** Serialise objective progress for the save file. */
+  /** Serialise objective progress — and the running clock — for the save file. */
   serialiseProgress(): Record<string, Record<string, number>> {
     const out: Record<string, Record<string, number>> = {};
     for (const quest of this.byId.values()) {
       const entry: Record<string, number> = {};
       for (const objective of quest.objectives) entry[objective.id] = objective.current;
+      if (quest.timeRemaining !== undefined) entry[TIME_REMAINING_KEY] = quest.timeRemaining;
       out[quest.id] = entry;
     }
     return out;
@@ -257,6 +306,8 @@ export class QuestSystem implements IQuestSystem {
     for (const off of this.unsubscribers) off();
     this.unsubscribers.length = 0;
     this.listeners.clear();
+    this.armedEncounters.clear();
+    this.downedAllies.clear();
   }
 
   /* ---------------------------------------------------------------------- */
@@ -280,16 +331,20 @@ export class QuestSystem implements IQuestSystem {
       this.bus.on('CivilianLost', (event) => {
         for (const quest of this.byId.values()) {
           if (quest.state !== 'active') continue;
+          // Only losses NEAR the quest count against it. Without the distance
+          // test a wave in another district fails a rescue the player is still
+          // driving to, and `failed` is terminal.
+          if (!this.chargesToQuest(quest, event.position)) continue;
           quest.civiliansLost++;
           const limit = quest.rules.failOnCiviliansLost;
           if (limit !== undefined && quest.civiliansLost >= limit) {
             this.fail(quest, 'civiliansLost');
           }
         }
-        void event;
       }),
 
       this.bus.on('AllyDowned', (event) => {
+        this.downedAllies.add(String(event.entityId));
         for (const quest of this.byId.values()) {
           if (quest.state !== 'active') continue;
           const guarded = quest.rules.failOnAllyDowned;
@@ -302,6 +357,7 @@ export class QuestSystem implements IQuestSystem {
       this.bus.on('ChunkDetached', (event) => {
         for (const quest of this.byId.values()) {
           if (quest.state !== 'active') continue;
+          if (!this.chargesToQuest(quest, event.position)) continue;
           quest.collateral += event.collateralCost;
           const limit = quest.rules.failOnCollateral;
           if (limit !== undefined && quest.collateral > limit) {
@@ -312,8 +368,42 @@ export class QuestSystem implements IQuestSystem {
     );
   }
 
+  /**
+   * True when something that happened at `position` is this quest's problem.
+   *
+   * A quest with no location answers for the whole city, which is what the
+   * citywide duty quota means.
+   */
+  private chargesToQuest(quest: RuntimeQuest, position: Vec3): boolean {
+    if (!quest.location) return true;
+    const dx = quest.location.x - position.x;
+    const dy = quest.location.y - position.y;
+    const dz = quest.location.z - position.z;
+    return dx * dx + dy * dy + dz * dz <= QUEST_BLAST_RADIUS * QUEST_BLAST_RADIUS;
+  }
+
+  /**
+   * 'protect' objectives: satisfied for as long as the guarded ally stands.
+   *
+   * Nothing on the bus reports "still alive", so the objective reads the
+   * inverse — it holds until an `AllyDowned` names its target, and empties the
+   * moment one does. Without this the kind has no progress source at all and
+   * every quest carrying one is uncompletable, taking its dependants with it.
+   */
+  private tickProtect(quest: RuntimeQuest): void {
+    for (const objective of quest.objectives) {
+      if (objective.kind !== 'protect') continue;
+      const downed = objective.targetId !== undefined && this.downedAllies.has(objective.targetId);
+      objective.current = downed ? 0 : objective.required;
+    }
+  }
+
   /** 'reach' objectives: distance to the objective's own location. */
   private tickReach(quest: RuntimeQuest): void {
+    // "Never pushed" is not "standing at the origin": evaluating reach against
+    // (0,0,0) would complete any objective authored near the world centre on
+    // frame one, and silently does nothing for every other quest.
+    if (!this.hasPlayerPosition) return;
     for (const objective of quest.objectives) {
       if (objective.kind !== 'reach' || objective.complete || !objective.location) continue;
       const radius = objective.radius ?? 15;
@@ -360,9 +450,24 @@ export class QuestSystem implements IQuestSystem {
       position: { x: position.x, y: position.y, z: position.z },
       radius: quest.rules.isBoss ? 90 : 45,
       participantIds: (quest.rules.rivals ?? []).map((id) => `ally.${id}`),
-      isBoss: quest.rules.isBoss ?? true,
+      // Matches the radius above and the monster system's producer. Defaulting
+      // to true gave a routine subjugation the boss music and the boss HUD.
+      isBoss: quest.rules.isBoss ?? false,
     });
     log.info(`encounter "${encounterId}" armed by "${quest.title}"`);
+  }
+
+  /**
+   * Let a quest's encounter fire again.
+   *
+   * The guard exists so one accepted run announces its fight exactly once — not
+   * so a quest may only ever be fought once per session. A quest abandoned or
+   * failed with its encounter still latched can be re-accepted and walked back
+   * to, and nothing would ever open the fight again.
+   */
+  private disarmEncounter(quest: RuntimeQuest): void {
+    const encounterId = quest.rules.encounterId;
+    if (encounterId) this.armedEncounters.delete(encounterId);
   }
 
   private meetsRequirements(quest: RuntimeQuest): boolean {
@@ -411,6 +516,7 @@ export class QuestSystem implements IQuestSystem {
 
   private fail(quest: RuntimeQuest, reason: string): void {
     if (quest.state !== 'active') return;
+    this.disarmEncounter(quest);
     this.releaseTimeOverride(quest);
     this.options.onResolved?.(quest, 'failed', reason);
     this.setState(quest, 'failed');

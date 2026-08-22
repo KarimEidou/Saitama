@@ -2,8 +2,11 @@
 
 Four stages: **manifest → fetch → process → runtime**. Each one writes something
 the next one reads, and every intermediate artefact is either committed (small,
-textual, reviewable) or reproducible (large, binary, gitignored). Nothing binary
-is ever committed — `npm run guard` enforces that.
+textual, reviewable) or reproducible (large, binary, gitignored). No pipeline
+output is ever committed — `npm run guard` enforces that, refusing any tracked
+file with one of eighteen game-asset extensions (`.ktx2`, `.glb`, `.hdr`,
+`.png`, `.mp3`, …) outside `docs/screenshots/`, plus any tracked file over 5 MB.
+It is an extension list, not a general binary sniffer.
 
 ```
 tools/manifest/*.json          committed   what we want, and its provenance
@@ -218,7 +221,14 @@ normal-map format, environment filtering, the SH9-over-PMREM advice).
 
 Vite serves `public/` at the web root, so a processed file at
 `public/assets/tex/foo/albedo.mobile.ktx2` is fetched as
-`/assets/tex/foo/albedo.mobile.ktx2`.
+`assets/tex/foo/albedo.mobile.ktx2` — **relative**, resolved against
+`document.baseURI`, never with a leading slash. That is `DEFAULT_ASSET_ROOT` in
+`src/assets/constants.ts`, and it pairs with `base: './'` in `vite.config.ts`:
+Capacitor loads the bundle over a non-root origin on Android and GitHub Pages
+serves this repository from `/<repo>/`, so an absolute `/assets/...` resolves
+outside the bundle and 404s on both. It works on `npm run dev` and on a `dist/`
+served at the web root, which is exactly what makes the mistake survive local
+testing. Build asset URLs relative, always.
 
 For the APK, `scripts/build-apk.ts` prunes every non-mobile tier out of the
 Capacitor copy before Gradle runs. Without that step the APK is ~296 MB — over
@@ -242,17 +252,18 @@ zero-third-party-character-assets assertion stops holding.
 
 ---
 
-## Known issue
+## Fixed: the fresh-clone manifest failure
 
-`loadSourceManifests()` globs every `tools/manifest/*.json` and validates each
-against the third-party source-entry schema. `characters.json` is deliberately a
-different shape, so the load currently aborts:
+`loadSourceManifests()` used to glob every `tools/manifest/*.json` and validate
+each against the third-party source-entry schema. `characters.json` describes
+first-party generated characters and is deliberately a different shape, so on a
+fresh clone the load aborted and took the pipeline with it:
 
-- `assets:fetch` exits 1 and downloads nothing.
-- `assets:process` still builds textures and environments (they read the already
-  resolved `assets/source/manifest.resolved.json`), but the model stage fails,
+- `assets:fetch` exited 1 and downloaded nothing.
+- `assets:process` still built textures and environments (they read the already
+  resolved `assets/source/manifest.resolved.json`), but the model stage failed,
   because `tools/process-models.ts` calls the same loader.
 
-`MANIFEST_FILES` already exists in `tools/lib/manifest.ts` and lists exactly the
-three source manifests; restricting the loader to it — or moving
-`characters.json` elsewhere — resolves this.
+It is fixed. `tools/lib/manifest.ts` already declared `MANIFEST_FILES` — the
+three source manifests, and nothing else — and the loader is now restricted to
+that list rather than globbing the directory.

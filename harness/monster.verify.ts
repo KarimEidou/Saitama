@@ -194,6 +194,12 @@ async function main(): Promise<void> {
       timeout: 180_000,
     });
 
+    // The page sets the ready flag even when a scenario threw, and puts the
+    // cause here — otherwise a boot failure costs the full timeout and reports
+    // nothing but the timeout.
+    const pageError = await page.evaluate(() => window.__MONSTER_ERROR__);
+    if (pageError !== undefined) throw new Error(`monster harness threw:\n${pageError}`);
+
     results = (await page.evaluate(() =>
       window.__MONSTER_HARNESS__!.results()
     )) as unknown as IResults;

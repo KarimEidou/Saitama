@@ -134,6 +134,7 @@ export {
 
 /* -- formatting (pure, unit-tested) --------------------------------------- */
 export {
+  CLASS_MOVE_SEATS,
   clockParts,
   formatClock,
   formatCount,
@@ -144,6 +145,7 @@ export {
   formatPoints,
   formatRank,
   formatSeatDelta,
+  formatSeatMove,
   formatTier,
   formatYenCompact,
   formatYenFull,

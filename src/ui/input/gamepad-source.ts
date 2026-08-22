@@ -21,7 +21,7 @@ import { createLogger } from '@/util';
 import { radialDeadZone, squareToCircle } from './axis';
 import type { IInputBackend, InputContribution } from './backend';
 import type { IInputTuning } from './config';
-import { ChargeTracker } from './look';
+import { ChargeTracker, scaleLookRate } from './look';
 
 const log = createLogger('input.gamepad');
 
@@ -197,7 +197,11 @@ export function createGamepadSource(
       const mappedLook = squareToCircle(rx, ry);
       const lookDead = radialDeadZone(mappedLook.x, mappedLook.y, activeTuning.gamepadDeadZone);
       if (lookDead.x !== 0 || lookDead.y !== 0) {
-        out.setLook(lookDead.x, activeTuning.invertLookY ? -lookDead.y : lookDead.y);
+        // `invertLookY` AND `lookSensitivity`, through the one helper every
+        // already-normalised look source uses, so a sensitivity tuned on touch
+        // means the same thing when the player picks up a controller.
+        const look = scaleLookRate(lookDead.x, lookDead.y, activeTuning);
+        out.setLook(look.x, look.y);
         out.active = true;
       }
 

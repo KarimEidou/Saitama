@@ -149,6 +149,7 @@ declare global {
       determinism(): Promise<IDeterminismResult>;
       punchSpec(): Record<string, number>;
     };
+    __DESTRUCTION_ERROR__?: string;
   }
 }
 
@@ -349,6 +350,12 @@ async function main(): Promise<void> {
       timeout: 420_000,
     });
 
+    // The page sets `ready` on a failed boot too, with the cause here. Reading
+    // it is the difference between the real stack and "waitForFunction timed
+    // out" seven minutes from now.
+    const bootError = await page.evaluate(() => window.__DESTRUCTION_ERROR__);
+    if (bootError !== undefined) throw new Error(`destruction harness boot failed:\n${bootError}`);
+
     const stage = page.locator('#stage');
     const punchSpec = await page.evaluate(() => window.__DESTRUCTION_HARNESS__.punchSpec());
     report.punch = punchSpec;
@@ -543,10 +550,12 @@ async function main(): Promise<void> {
     // --- the picture changed, a lot ---
     const beforeToMid = await imageDifference(beforeFile, midFile);
     const beforeToAfter = await imageDifference(beforeFile, afterFile);
-    report.imageDifference = { beforeToMid, beforeToAfter };
+    const beforeToPersisted = await imageDifference(beforeFile, persistedFile);
+    report.imageDifference = { beforeToMid, beforeToAfter, beforeToPersisted };
     console.log(
       `\nimage difference: before -> mid ${(beforeToMid * 100).toFixed(1)}%, ` +
-        `before -> after ${(beforeToAfter * 100).toFixed(1)}%`
+        `before -> after ${(beforeToAfter * 100).toFixed(1)}%, ` +
+        `before -> persisted ${(beforeToPersisted * 100).toFixed(1)}%`
     );
     if (beforeToMid < 0.02) {
       failures.push(
@@ -557,6 +566,19 @@ async function main(): Promise<void> {
     if (beforeToAfter < 0.02) {
       failures.push(
         `the settled frame differs from intact by only ${(beforeToAfter * 100).toFixed(2)}%`
+      );
+    }
+    // The persisted frame is the settled scene with the streamed-out block
+    // replaced by the one the replay rebuilt, so it must carry the same damage.
+    // If it snaps back toward intact, the restored mesh is not showing what was
+    // replayed onto it — which is the whole claim the screenshot is captioned
+    // with. Half the settled frame's difference is a wide floor: the two frames
+    // differ only by one block's worth of geometry and the overlay caption.
+    if (beforeToPersisted < beforeToAfter * 0.5) {
+      failures.push(
+        `the persisted frame differs from intact by ${(beforeToPersisted * 100).toFixed(2)}% ` +
+          `against the settled frame's ${(beforeToAfter * 100).toFixed(2)}% — the restored ` +
+          `building is not carrying the damage that was replayed onto it`
       );
     }
 

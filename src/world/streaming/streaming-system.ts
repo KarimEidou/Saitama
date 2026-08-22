@@ -59,6 +59,7 @@ import type {
 } from '@/types';
 import {
   CHUNK_COUNT,
+  CHUNK_GRID,
   CHUNK_SIZE,
   chunkIndex,
   chunkIndexToX,
@@ -68,9 +69,11 @@ import {
   worldToChunkZ,
 } from '@/spatial/constants';
 import {
-  MAX_IN_FLIGHT_JOBS,
+  EVICT_MARGIN_CHUNKS,
+  MAX_BUILD_ATTEMPTS,
   MAX_UNLOADS_PER_FRAME,
   MAX_UPLOADS_PER_FRAME,
+  REQUEST_PIN_SCORE,
   RING_COLLIDER_MODE,
   RING_COUNT,
   RING_PRIORITY_STRIDE,
@@ -81,6 +84,8 @@ import {
   UNLOAD_BUDGET_MS,
   UPLOAD_BUDGET_MS,
   UPLOAD_COST_EMA_ALPHA,
+  UPLOAD_MS_PER_BYTE_FLOOR,
+  UPLOAD_MS_PER_BYTE_SEED,
   type ColliderMode,
   type CrowdMode,
 } from './constants';
@@ -175,8 +180,12 @@ export interface IStreamingSystemOptions {
 /** Everything the debug HUD and the verification harness read. */
 export interface IStreamingDetailedStats extends IStreamingStats {
   readonly frame: number;
+  /**
+   * Chunks in any state, including ones still being built. Distinct from the
+   * inherited `activeChunks`, which counts only the ones in the scene graph —
+   * this field exists so the two never have to share a name.
+   */
   readonly residentChunks: number;
-  readonly activeChunks: number;
   readonly chunksByRing: readonly number[];
   readonly queued: number;
   readonly inFlight: number;
@@ -213,12 +222,19 @@ interface IReadyBuild {
   score: number;
 }
 
+/** How an enqueue departs from the plain distance score. See `IQueuedChunk`. */
+interface IEnqueueOptions {
+  /** Absolute score that survives the per-frame re-score. */
+  readonly pin?: number;
+  /** Additive offset reapplied on every re-score. */
+  readonly bias?: number;
+}
+
 /* -------------------------------------------------------------------------- */
 /* System                                                                     */
 /* -------------------------------------------------------------------------- */
 
 export class StreamingSystem implements IStreamingSystem, IChunkHost {
-  readonly config: IWorldConfig;
   /** Point streaming is centred on — normally the player. */
   readonly focus = new THREE.Vector3();
 
@@ -242,6 +258,21 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
   private readonly uploadBudgetMs: number;
   private readonly memoryBudget: number;
 
+  /** Backing store for the `config` getter; the radii track the quality tier. */
+  private worldConfig: IWorldConfig;
+  /**
+   * Chunks an explicit `requestChunk` is waiting on.
+   *
+   * Without this the assignment pass evicts a chunk requested beyond the
+   * resident radius — which is every fast-travel destination — on the very next
+   * frame, and the caller's promise settles on a chunk with no geometry.
+   * Cleared the moment the chunk uploads, so a pin cannot pile up a working set
+   * the memory budget never sees.
+   */
+  private readonly pinned = new Set<number>();
+  /** Chunks this frame's assignment pass has already condemned. */
+  private readonly evicting = new Set<number>();
+
   /** Unit forward on the XZ plane. Drives the angle term of the priority. */
   private forwardX = 0;
   private forwardZ = -1;
@@ -258,7 +289,8 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
   /** Frames since the last visibility handoff marked a chunk seen. */
   private readonly lastSeen = new Int32Array(CHUNK_COUNT).fill(-1);
 
-  private uploadCostEma = 0.5;
+  /** Admission-control predictor: milliseconds of upload per payload byte. */
+  private uploadMsPerByte = UPLOAD_MS_PER_BYTE_SEED;
   private uploadsLastFrame = 0;
   private uploadMsLastFrame = 0;
   private unloadsLastFrame = 0;
@@ -293,14 +325,22 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     this.memoryBudget = options.memoryBudgetBytes ?? 192 * 1024 * 1024;
 
     const seed = options.seed ?? 0x0c17972;
-    this.config = {
+    this.worldConfig = {
       seed,
       chunkSize: CHUNK_SIZE,
-      worldRadiusChunks: 8,
+      // The contract reads this as a SYMMETRIC extent: the playable area is
+      // `(2r + 1)^2` chunks on a `-r..r` grid. The real world is 16x16 on an
+      // asymmetric `-8..7` grid, so publishing 8 sends a consumer that follows
+      // the documented reading to `chunkIndex(8, z)`, which is -1. Seven is the
+      // largest radius on which the documented reading is true. See the note in
+      // `typeChangeRequests`: the contract wants a `worldGridChunks` field.
+      worldRadiusChunks: (CHUNK_GRID >> 1) - 1,
       lodLevels: STREAMING_LOD_LEVELS,
       streamingRadiusChunks: this.residentRadius,
-      evictionRadiusChunks: this.residentRadius + 0.5,
-      maxConcurrentLoads: MAX_IN_FLIGHT_JOBS,
+      evictionRadiusChunks: this.residentRadius + EVICT_MARGIN_CHUNKS,
+      // Documented as the PER-FRAME load cap, which is the upload cap. The
+      // in-flight job cap is a different number with a different job.
+      maxConcurrentLoads: this.maxUploads,
       memoryBudgetBytes: this.memoryBudget,
       groundLevel: 0,
       gravity: -9.81,
@@ -315,6 +355,19 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
 
     this.impostorRing.attach(this.scene);
     if (options.buildImpostor !== false) this.bakeImpostor();
+  }
+
+  /**
+   * The published world configuration.
+   *
+   * A getter rather than a frozen field because two of its numbers are derived
+   * from the quality tier, and a tier change that left them at their boot
+   * values published a resident radius up to 90% larger than the one actually
+   * in force — to a field the harness treats as the authority on the resident
+   * set.
+   */
+  get config(): IWorldConfig {
+    return this.worldConfig;
   }
 
   /* ------------------------------------------------------------------ */
@@ -390,8 +443,22 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       this.evictionsThisSecond = 0;
     }
 
+    // `focus` is public and `IStreamingSystem` declares it writable, so a
+    // driver coded against the contract mutates it directly and never calls
+    // `setView` — which is where the derived view chunk used to be written.
+    // Left stale it pins the PVS term of the priority score to the boot chunk,
+    // or disables it outright, silently either way.
+    this.viewChunk = chunkIndex(worldToChunkX(this.focus.x), worldToChunkZ(this.focus.z));
+
     this.applyDamageDirt();
     const evictions = this.assignRings();
+    // Anything condemned this frame must not be handed a worker slot or an
+    // upload slot on its way out: both are budgets the arriving neighbourhood
+    // needs, and every such upload also fires a ChunkStreamedIn/Out pair for
+    // geometry that was never on screen.
+    this.evicting.clear();
+    for (const index of evictions) this.evicting.add(index);
+
     this.queue.rescore(this.view, (chunk) => this.isPotentiallyVisible(chunk));
     this.dispatch();
     this.uploadPass();
@@ -418,7 +485,11 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       const existing = this.byIndex[index];
 
       if (!shouldLoad(distance, this.residentRadius)) {
-        if (existing !== undefined && shouldEvict(distance, this.residentRadius)) {
+        if (
+          existing !== undefined &&
+          shouldEvict(distance, this.residentRadius) &&
+          !this.pinned.has(index)
+        ) {
           evictions.push(index);
         }
         continue;
@@ -428,6 +499,10 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       if (ring >= RING_R3) {
         // Past R2 the impostor is the representation. Nothing to stream.
         if (existing !== undefined) evictions.push(index);
+        // A chunk that was never resident has no `unloadChunk` coming to call
+        // `forget` for it, so an R3 recorded here would stick to the slot for
+        // the session and hold the chunk at R3 no matter how close it got.
+        else this.rings.forget(index);
         continue;
       }
 
@@ -454,23 +529,39 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
         continue;
       }
 
+      // A build that has failed this many times running fails for a reason
+      // another attempt will not change. Leave the chunk in 'error', where
+      // `IChunk.error` and the stats can see it, rather than re-queuing it
+      // every frame for the rest of the session.
+      if (chunk.buildFailures >= MAX_BUILD_ATTEMPTS) continue;
+
       this.enqueue(chunk, ring);
     }
 
     return evictions;
   }
 
-  /** Queue or re-score a build for a chunk. */
-  private enqueue(chunk: StreamedChunk, ring: number, priorityOverride?: number): void {
+  /**
+   * Queue or re-score a build for a chunk.
+   *
+   * `pin` and `bias` are the two ways an entry departs from the plain distance
+   * score, and both are recorded ON the entry: the queue is re-scored before
+   * every dispatch, so a score written here and nowhere else is erased before
+   * anything acts on it.
+   */
+  private enqueue(chunk: StreamedChunk, ring: number, options: IEnqueueOptions = {}): void {
     const visible = this.isPotentiallyVisible(chunk.index);
     const scored = scoreChunk(chunk.index, ring, this.view, visible);
+    const bias = options.bias ?? 0;
     this.queue.push({
       chunk: chunk.index,
       ring,
-      score: priorityOverride ?? scored.score,
+      score: options.pin ?? scored.score + bias,
       distance: scored.distance,
       angleTerm: scored.angleTerm,
       pvsVisible: visible,
+      pinned: options.pin !== undefined,
+      bias,
       enqueuedFrame: this.frame,
     });
     if (chunk.state === 'unloaded') chunk.state = 'loading';
@@ -478,10 +569,14 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
 
   /** Hand queued work to the pool, highest priority first. */
   private dispatch(): void {
-    while (this.queue.size > 0 && this.pool.inFlight + this.pool.queued < MAX_IN_FLIGHT_JOBS) {
+    while (this.queue.size > 0 && this.pool.inFlight + this.pool.queued < this.pool.capacity) {
       const entry = this.queue.pop()!;
       const chunk = this.byIndex[entry.chunk];
       if (chunk === undefined) continue;
+      // Condemned this frame: the chunk is on its way out and `assignRings`
+      // will not ask for it again, so drop the entry instead of spending one of
+      // only a handful of in-flight slots on it.
+      if (this.evicting.has(entry.chunk)) continue;
 
       const id = this.nextJobId++;
       chunk.jobId = id;
@@ -506,10 +601,16 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
    * THE BUDGETED SECTION.
    *
    * Admission control, not post-hoc accounting: the second upload only starts
-   * if the exponential moving average of what an upload costs still fits in the
-   * remaining budget. The first upload of a frame is always admitted — an
-   * upload cannot be split, and refusing every upload because the average is
-   * high would starve the world instead of smoothing it.
+   * if the PREDICTED cost of the specific chunk at the head of the queue still
+   * fits in the remaining budget. The first upload of a frame is always
+   * admitted — an upload cannot be split, and refusing every upload because the
+   * prediction is high would starve the world instead of smoothing it.
+   *
+   * The prediction is per byte, not per chunk. A single average over all rings
+   * and districts describes no chunk in the queue: a park R2 chunk and a
+   * downtown R0 chunk differ by two orders of magnitude, so an average dragged
+   * down by a run of cheap uploads happily admits a 10 ms one against a 4 ms
+   * cap. Every pending item already carries its exact byte count.
    */
   private uploadPass(): void {
     if (this.ready.length === 0) return;
@@ -517,12 +618,16 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     // Re-score against the CURRENT view: a result that has been waiting is
     // ordered by where the camera is now, not by where it was when queued.
     for (const item of this.ready) {
-      item.score = scoreChunk(
+      const scored = scoreChunk(
         item.chunk.index,
         item.result.ring,
         this.view,
         this.isPotentiallyVisible(item.chunk.index)
       ).score;
+      // An explicit request leads here too. Winning dispatch only to queue
+      // behind a hundred nearer chunks for one of two upload slots is not
+      // "load now" — it just moves the wait one stage later.
+      item.score = this.pinned.has(item.chunk.index) ? scored + REQUEST_PIN_SCORE : scored;
     }
     this.ready.sort((a, b) => a.score - b.score);
 
@@ -530,11 +635,18 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     let uploads = 0;
 
     while (uploads < this.maxUploads && this.ready.length > 0) {
-      if (uploads > 0 && spent + this.uploadCostEma > this.uploadBudgetMs) break;
-
-      const item = this.ready.shift()!;
+      const item = this.ready[0]!;
       const chunk = item.chunk;
-      if (this.byIndex[chunk.index] !== chunk) continue; // evicted while waiting
+      // Evicted while waiting, or condemned by this frame's assignment pass:
+      // the result is geometry for a chunk that is leaving.
+      if (this.byIndex[chunk.index] !== chunk || this.evicting.has(chunk.index)) {
+        this.ready.shift();
+        continue;
+      }
+      if (uploads > 0 && spent + this.predictUploadMs(item.result.bytes) > this.uploadBudgetMs) {
+        break;
+      }
+      this.ready.shift();
 
       // A rebuild replaces geometry the chunk already held; the accounting has
       // to net the two off or the resident total drifts upward forever and the
@@ -552,10 +664,16 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       spent += cost;
       uploads++;
       chunk.uploadTimeMs = cost;
-      this.uploadCostEma =
-        this.uploadCostEma * (1 - UPLOAD_COST_EMA_ALPHA) + cost * UPLOAD_COST_EMA_ALPHA;
+      const perByte = cost / Math.max(item.result.bytes, 1);
+      this.uploadMsPerByte = Math.max(
+        this.uploadMsPerByte * (1 - UPLOAD_COST_EMA_ALPHA) + perByte * UPLOAD_COST_EMA_ALPHA,
+        UPLOAD_MS_PER_BYTE_FLOOR
+      );
       if (cost > this.peakChunkUploadMs) this.peakChunkUploadMs = cost;
 
+      // The caller of `requestChunk` has what it asked for; the chunk goes back
+      // to being ordinary and the distance heuristic owns it again.
+      this.pinned.delete(chunk.index);
       this.totalBytes += bytes - previousBytes;
       this.totalLoads++;
       this.loadsThisSecond++;
@@ -578,6 +696,11 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     if (spent > this.peakUploadMs) this.peakUploadMs = spent;
   }
 
+  /** Predicted main-thread milliseconds to upload a payload of `bytes`. */
+  private predictUploadMs(bytes: number): number {
+    return this.uploadMsPerByte * Math.max(bytes, 1);
+  }
+
   /** Tear down chunks that have drifted out of range, also under budget. */
   private unloadPass(evictions: number[]): void {
     if (evictions.length === 0) return;
@@ -598,16 +721,44 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     this.unloadMsLastFrame = performance.now() - started;
   }
 
-  /** Drop the furthest chunks when resident bytes exceed the soft ceiling. */
+  /**
+   * Drop the furthest chunks when resident bytes exceed the soft ceiling.
+   *
+   * Shares the teardown budget with `unloadPass` rather than running to
+   * completion: a tight `memoryBudgetBytes` on a low-memory device is exactly
+   * the configuration where this fires, and an uncapped loop there is a
+   * several-hundred-millisecond dispose storm plus one synchronous
+   * `ChunkStreamedOut` per chunk — the hitch `MAX_UNLOADS_PER_FRAME` exists to
+   * forbid. Whatever it cannot do this frame it does on the next one.
+   */
   private enforceMemoryBudget(): void {
     if (this.totalBytes <= this.memoryBudget) return;
-    const resident = [...this.chunks.values()].sort(
-      (a, b) => b.distanceToFocus - a.distanceToFocus
-    );
-    for (const chunk of resident) {
+    const allowance = MAX_UNLOADS_PER_FRAME - this.unloadsLastFrame;
+    const timeLeft = UNLOAD_BUDGET_MS - this.unloadMsLastFrame;
+    if (allowance <= 0 || timeLeft <= 0) return;
+
+    // Sort on a distance computed HERE. `distanceToFocus` is only refreshed for
+    // chunks that passed `shouldLoad`, and is still Infinity for a chunk that
+    // `prefetch` or `requestChunk` created — precisely the chunks this pass
+    // would then evict first, wherever they actually are.
+    const resident = [...this.chunks.values()]
+      .map((chunk) => ({
+        chunk,
+        distance: chunkDistanceUnits(chunk.index, this.focus.x, this.focus.z),
+      }))
+      .sort((a, b) => b.distance - a.distance);
+
+    const started = performance.now();
+    let unloaded = 0;
+    for (const entry of resident) {
       if (this.totalBytes <= this.memoryBudget) break;
-      this.unloadChunk(chunk.index, true);
+      if (unloaded >= allowance) break;
+      if (performance.now() - started > timeLeft) break;
+      this.unloadChunk(entry.chunk.index, true);
+      unloaded++;
     }
+    this.unloadsLastFrame += unloaded;
+    this.unloadMsLastFrame += performance.now() - started;
   }
 
   private unloadChunk(index: number, forMemory: boolean): void {
@@ -636,6 +787,7 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     this.crowdSink?.clearChunkCrowd(index);
     this.materials.setResident(index, false);
     this.rings.forget(index);
+    this.pinned.delete(index);
     this.chunks.delete(chunk.key);
     this.byIndex[index] = undefined;
     this.totalEvictions++;
@@ -662,6 +814,10 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       this.impostorUploadMs = this.impostorRing.apply(response);
       return;
     }
+    if (response.kind === 'error') {
+      this.onJobFailed(response.id, response.message);
+      return;
+    }
     if (response.kind !== 'chunk') return;
 
     const ownerIndex = this.jobOwners.get(response.id);
@@ -674,6 +830,31 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     chunk.jobId = -1;
     chunk.state = 'ready';
     this.ready.push({ result: response, chunk, score: 0 });
+  }
+
+  /**
+   * A job that came back as a failure instead of geometry.
+   *
+   * Without this the chunk keeps `jobId` set and `state === 'loading'` forever:
+   * the assignment pass sees a build in flight and never re-queues, the
+   * `jobOwners` entry is never released, `IChunk.load()` never settles, and
+   * `isIdle()` — which only looks at the queue, the ready list and the pool —
+   * reports the world as fully streamed while it is empty.
+   */
+  private onJobFailed(id: number, message: string): void {
+    if (id === this.impostorJobId) {
+      this.impostorJobId = -1;
+      return;
+    }
+    const ownerIndex = this.jobOwners.get(id);
+    this.jobOwners.delete(id);
+    if (ownerIndex === undefined) return;
+
+    const chunk = this.byIndex[ownerIndex];
+    if (chunk === undefined || chunk.jobId !== id) return;
+    // Moves the chunk to 'error', clears the job and rejects the outstanding
+    // `load()` promises. `assignRings` re-queues it up to `MAX_BUILD_ATTEMPTS`.
+    chunk.failBuild(message);
   }
 
   private hasReadyBuild(index: number): boolean {
@@ -785,12 +966,26 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     const index = chunkIndex(coord.x, coord.z);
     const chunk = this.byIndex[index] ?? this.createChunk(index);
     const distance = chunkDistanceUnits(index, this.focus.x, this.focus.z);
-    const ring = Math.min(this.rings.assign(index, distance), RING_R3 - 1);
+    // `ringForChunk`, not `assign`: this runs between frames, and `assign`
+    // writes both the ring memory and the pass-scoped population counters that
+    // `beginPass` owns — recording, in this case, an UNCLAMPED ring the chunk
+    // is then never built at.
+    const ring = Math.min(this.rings.ringForChunk(index, distance), RING_R3 - 1);
     chunk.setLOD(ring);
-    if (chunk.jobId === -1 && !this.hasReadyBuild(index) && chunk.builtRing !== ring) {
-      // Negative override: an explicit request outranks every distance-scored
-      // entry in the queue, which is what "bypassing the heuristic" means.
-      this.enqueue(chunk, ring, priority ?? -1e9);
+    if (chunk.builtRing !== ring) {
+      // Held against eviction until it uploads. A destination beyond the
+      // resident radius — which is what "bypassing the distance heuristic" is
+      // for — is otherwise torn down by the very next assignment pass, and the
+      // caller's promise settles on a chunk with nothing in it. Only taken when
+      // there is a build to wait for: a pin with no upload coming would never
+      // be released.
+      this.pinned.add(index);
+      if (chunk.jobId === -1 && !this.hasReadyBuild(index)) {
+        // A pin, not a one-shot score: the queue is re-scored before every
+        // dispatch, so an explicit request that is merely written into `score`
+        // is back behind every nearby chunk one frame later.
+        this.enqueue(chunk, ring, { pin: priority ?? REQUEST_PIN_SCORE });
+      }
     }
     return chunk.load().then(() => chunk);
   }
@@ -802,10 +997,13 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     if (this.byIndex[index] !== undefined) return;
     const chunk = this.createChunk(index);
     const distance = chunkDistanceUnits(index, this.focus.x, this.focus.z);
-    const ring = Math.min(this.rings.assign(index, distance), RING_R3 - 1);
+    const ring = Math.min(this.rings.ringForChunk(index, distance), RING_R3 - 1);
     chunk.setLOD(ring);
     // Behind every distance-scored entry in the queue: a hint is not a demand.
-    this.enqueue(chunk, ring, RING_COUNT * RING_PRIORITY_STRIDE + distance * CHUNK_SIZE);
+    // A bias rather than a fixed score, so the hint still tracks the camera
+    // among other hints — and so it is dropped the moment the assignment pass
+    // decides it wants this chunk for real.
+    this.enqueue(chunk, ring, { bias: RING_COUNT * RING_PRIORITY_STRIDE });
   }
 
   /** Drop a chunk regardless of distance. */
@@ -841,6 +1039,13 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     if (tier === this.quality) return;
     this.quality = tier;
     this.residentRadius = residentRadiusFor(tier);
+    // The published config carries the resident radius, so it moves with it or
+    // it is a lie — consumers size working sets and prefetch corridors from it.
+    this.worldConfig = {
+      ...this.worldConfig,
+      streamingRadiusChunks: this.residentRadius,
+      evictionRadiusChunks: this.residentRadius + EVICT_MARGIN_CHUNKS,
+    };
     // Chunks outside the new radius are picked up by the next assignment pass,
     // and are evicted under the same per-frame budget as everything else — a
     // tier change must not be allowed to stall a frame either.
@@ -853,9 +1058,17 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
 
   getStats(): IStreamingStats {
     let loading = 0;
-    for (const chunk of this.chunks.values()) if (chunk.state === 'loading') loading++;
+    let active = 0;
+    for (const chunk of this.chunks.values()) {
+      if (chunk.state === 'loading') loading++;
+      // ACTIVE means in the scene graph, which is what the sibling
+      // `loadingChunks` / `pooledChunks` fields imply and what
+      // `getDetailedStats` already reported under the same name. Counting every
+      // resident chunk made this read 250 on the frame two were drawable.
+      if (chunk.isActive) active++;
+    }
     return {
-      activeChunks: this.chunks.size,
+      activeChunks: active,
       loadingChunks: loading,
       pooledChunks: this.ready.length,
       totalMemoryBytes: this.totalBytes,
@@ -868,10 +1081,8 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
   /** Full telemetry for the debug HUD and the verification harness. */
   getDetailedStats(): IStreamingDetailedStats {
     const byRing: number[] = new Array(RING_COUNT).fill(0);
-    let active = 0;
     for (const chunk of this.chunks.values()) {
       if (chunk.builtRing >= 0 && chunk.builtRing < RING_COUNT) byRing[chunk.builtRing]!++;
-      if (chunk.isActive) active++;
     }
     const poolStats = this.pool.stats();
     const damageStats = this.damage.stats();
@@ -879,7 +1090,6 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       ...this.getStats(),
       frame: this.frame,
       residentChunks: this.chunks.size,
-      activeChunks: active,
       chunksByRing: byRing,
       queued: this.queue.size,
       inFlight: this.pool.inFlight,
@@ -962,7 +1172,7 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
   requestBuild(chunk: StreamedChunk): void {
     if (chunk.jobId !== -1 || this.queue.has(chunk.index)) return;
     const ring = chunk.desiredRing >= 0 ? chunk.desiredRing : RING_R0;
-    this.enqueue(chunk, ring, -1e9);
+    this.enqueue(chunk, ring, { pin: REQUEST_PIN_SCORE });
   }
 
   private isPotentiallyVisible(chunk: number): boolean {

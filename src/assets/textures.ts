@@ -94,8 +94,13 @@ export class ManagedTextureHandle implements IManagedTextureHandle {
 
   retain(): TextureHandle {
     if (this.disposed) {
-      log.warn(`retain() on disposed texture "${this.key}"; returning a dead handle`);
-      return this;
+      log.warn(`retain() on disposed texture "${this.key}"; returning an inert handle`);
+      // NOT `this`: returning the live handle without incrementing broke the
+      // retain/release symmetry, so the caller's own matching `release()` hit
+      // refCount 0 and tripped the double-release warning against a caller
+      // that did nothing wrong — and, being `warnOnce` per key, swallowed the
+      // next REAL double-release on that key.
+      return inertHandle(this);
     }
     this.count++;
     this.onTouch?.(this.key);
@@ -124,6 +129,30 @@ export class ManagedTextureHandle implements IManagedTextureHandle {
     // other missing asset's stand-in too.
     if (!this.fallback) this.texture.dispose();
   }
+}
+
+/**
+ * A dead handle whose reference counting is a no-op.
+ *
+ * Handed out by `retain()` on a disposed handle: the texture behind it is
+ * already freed, so there is nothing to count and nothing to release. It keeps
+ * the descriptive fields so a caller inspecting it still sees which asset it
+ * was, and `retain()` on it returns itself rather than resurrecting anything.
+ */
+function inertHandle(source: TextureHandle): TextureHandle {
+  const dead: TextureHandle = {
+    key: source.key,
+    texture: source.texture,
+    colorSpace: source.colorSpace,
+    width: source.width,
+    height: source.height,
+    codec: source.codec,
+    gpuBytes: 0,
+    refCount: 0,
+    retain: () => dead,
+    release: () => undefined,
+  };
+  return dead;
 }
 
 /* -------------------------------------------------------------------------- */

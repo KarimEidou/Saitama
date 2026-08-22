@@ -76,6 +76,7 @@ interface ModelRow {
   lodGroups: number;
   lodCount: number;
   triangles: number[];
+  defaultLevel: number;
   activeLevel: number;
   visiblePerGroup: number[];
   meshes: number;
@@ -147,6 +148,25 @@ interface HarnessStats {
 /* -------------------------------------------------------------------------- */
 
 const failures: string[] = [];
+
+/**
+ * Chromium/SwiftShader startup chatter, matched on its own distinctive text.
+ *
+ * Filtering on the substring `WebGL` — which is what this used to do — also
+ * discards `THREE.WebGLProgram: Shader Error … VALIDATE_STATUS false`, three's
+ * report of a failed program link, and every raw `WebGL: INVALID_OPERATION`.
+ * Those are the messages this harness exists to surface: a GLSL error in any
+ * `onBeforeCompile` patch reachable from the twelve grid materials would have
+ * printed `ok  no console errors`. The sibling drivers filter nothing at all.
+ */
+const BENIGN_CONSOLE_ERRORS = [
+  'Automatic fallback to software WebGL has been deprecated',
+  'GroupMarkerNotSet(crbug.com/242999)',
+];
+
+function isBenignConsoleError(text: string): boolean {
+  return BENIGN_CONSOLE_ERRORS.some((benign) => text.includes(benign));
+}
 
 function check(condition: boolean, message: string): void {
   if (!condition) failures.push(message);
@@ -293,20 +313,29 @@ async function runMode(
   target.searchParams.set('w', String(size.width));
   target.searchParams.set('h', String(size.height));
 
-  await page.setViewportSize(size);
-  await page.goto(target.href, { waitUntil: 'load', timeout: 240_000 });
-  await page.waitForFunction(() => window.__HARNESS_READY__ === true, undefined, {
-    timeout: 420_000,
-  });
+  try {
+    await page.setViewportSize(size);
+    await page.goto(target.href, { waitUntil: 'load', timeout: 240_000 });
+    await page.waitForFunction(() => window.__HARNESS_READY__ === true, undefined, {
+      timeout: 420_000,
+    });
 
-  const pageError = await page.evaluate(() => window.__HARNESS_ERROR__);
-  if (pageError !== undefined) throw new Error(`harness threw:\n${pageError}`);
+    const pageError = await page.evaluate(() => window.__HARNESS_ERROR__);
+    if (pageError !== undefined) throw new Error(`harness threw:\n${pageError}`);
 
-  const stats = (await page.evaluate(() => window.__HARNESS_STATS__)) as HarnessStats;
-  // Generous: several agents share four cores here, and SwiftShader's readback
-  // of a 1600x900 buffer can overrun Playwright's 30 s default under load.
-  const screenshot = await page.screenshot({ type: 'png', timeout: 180_000 });
-  return { stats, screenshot, notFound, requests, consoleErrors };
+    const stats = (await page.evaluate(() => window.__HARNESS_STATS__)) as HarnessStats;
+    // Generous: several agents share four cores here, and SwiftShader's readback
+    // of a 1600x900 buffer can overrun Playwright's 30 s default under load.
+    const screenshot = await page.screenshot({ type: 'png', timeout: 180_000 });
+    return { stats, screenshot, notFound, requests, consoleErrors };
+  } finally {
+    // Every mode loads the whole curated tree onto a live SwiftShader context
+    // — 47 MB of textures before models and environments. Held open, the four
+    // modes carry four copies at once, and the run dies as a Playwright
+    // timeout in the fourth rather than as an assertion. Everything returned
+    // above is already materialised, so the page can go now.
+    await page.close();
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -429,7 +458,7 @@ function assertCommon(name: string, run: RunResult): void {
     stats.materials.every((row) => !row.usesFallbackTexture),
     `${name}: no material bound the missing-texture pattern`
   );
-  const noisy = run.consoleErrors.filter((text) => !text.includes('WebGL'));
+  const noisy = run.consoleErrors.filter((text) => !isBenignConsoleError(text));
   check(noisy.length === 0, `${name}: no console errors`);
   if (noisy.length > 0) console.log(noisy.slice(0, 6).join('\n'));
 }
@@ -462,10 +491,12 @@ function assertTranscode(stats: HarnessStats): void {
     srgb.length > 0 && srgb.every((row) => row.colorSpace === 'srgb'),
     `albedo maps are sRGB, data maps are linear`
   );
+  // Guarded like the albedo check above: an empty filter (a renamed role
+  // suffix, say `.normal` -> `.nrm`) would otherwise pass `every(...)` while
+  // every normal map in the build could be bound as sRGB.
+  const linear = stats.textures.filter((row) => row.key.endsWith('.normal'));
   check(
-    stats.textures
-      .filter((row) => row.key.endsWith('.normal'))
-      .every((row) => row.colorSpace === 'linear'),
+    linear.length > 0 && linear.every((row) => row.colorSpace === 'linear'),
     `normal maps are linear`
   );
 }
@@ -499,9 +530,12 @@ function assertModels(stats: HarnessStats): void {
     withChain.length === stats.models.length,
     `every model exposes its 3-LOD chain (${withChain.length}/${stats.models.length})`
   );
+  // `defaultLevel`, not `activeLevel`: the page forces LOD0 on every model
+  // before it reports `activeLevel`, so asserting on that field can only ever
+  // observe the value the page just wrote.
   check(
-    stats.models.every((row) => row.activeLevel === 0),
-    `models default to LOD0`
+    stats.models.every((row) => row.defaultLevel === 0),
+    `models default to LOD0 as loaded (${stats.models.map((row) => row.defaultLevel).join(',')})`
   );
   check(
     stats.models.every(

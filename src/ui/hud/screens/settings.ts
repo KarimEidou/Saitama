@@ -268,7 +268,7 @@ export class SettingsScreen extends HudScreen {
                 children: option.swatches.map((colour) =>
                   el(this.doc, 'span', {
                     className: 'hud-swatch',
-                    vars: { 'background-color': colour },
+                    vars: { '--hud-swatch-color': colour },
                   })
                 ),
               })

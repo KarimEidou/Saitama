@@ -97,6 +97,17 @@ export class HudStore {
   readonly model: IHudModel = createHudModel();
 
   private readonly unsubscribers: (() => void)[] = [];
+  /**
+   * Buses this store is already subscribed to.
+   *
+   * `attach` is public, its docstring invites re-calling it, and a second
+   * subscription set double-counts every event — `CivilianSaved` twice per
+   * rescue, `EncounterStarted` raising the threat banner twice, which with
+   * {@link ALERT_LIMIT} of three evicts a real alert. Weak so a swapped-out bus
+   * is not retained; replaced wholesale in `dispose`, which is what makes a
+   * deliberate re-attach after teardown work again.
+   */
+  private attachedBuses = new WeakSet<IEventBus>();
   private readonly onDirty: (() => void) | undefined;
   private nextAlertId = 1;
   private nextMovementId = 1;
@@ -117,6 +128,9 @@ export class HudStore {
 
   /** Subscribe to every event the HUD reads. Idempotent per bus. */
   attach(bus: IEventBus): void {
+    if (this.attachedBuses.has(bus)) return;
+    this.attachedBuses.add(bus);
+
     const on = <T extends Parameters<IEventBus['on']>[0]>(
       type: T,
       handler: (event: GameEventOf<T>) => void
@@ -248,6 +262,7 @@ export class HudStore {
   dispose(): void {
     for (const off of this.unsubscribers) off();
     this.unsubscribers.length = 0;
+    this.attachedBuses = new WeakSet();
   }
 
   /* ---------------------------------------------------------------------- */

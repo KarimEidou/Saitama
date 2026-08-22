@@ -17,6 +17,7 @@ import {
   heldJumpSpeedCeiling,
   landingRecoverySeconds,
   resolvePlayerTuning,
+  RISE_GRAVITY_MPS2,
   turnRateRadPerSec,
 } from '../tuning';
 
@@ -34,6 +35,18 @@ describe('values mirrored from other systems', () => {
     expect(L.hardLandFallHeightM).toBe(15);
     expect(L.jumpSpeed).toBeCloseTo(Math.sqrt(2 * 22 * 28), 10);
     expect(apexForLaunchSpeed(L.jumpSpeed)).toBeCloseTo(28, 6);
+  });
+
+  it('matches the physics rise gravity', () => {
+    // src/physics/constants.ts — GRAVITY_Y (-22). The held-jump ceiling decays
+    // at exactly this rate, which is the whole reason releasing the button
+    // leaves the vertical speed continuous. A drift puts a step in it, keeps
+    // the boost live past the ramp, and overshoots `heldJumpApex()`.
+    expect(RISE_GRAVITY_MPS2).toBe(22);
+    expect(heldJumpSpeedCeiling(L, L.jumpRampSeconds)).toBeCloseTo(
+      L.jumpSpeed - RISE_GRAVITY_MPS2 * L.jumpRampSeconds,
+      10
+    );
   });
 
   it('matches the input look rate and charge threshold', () => {

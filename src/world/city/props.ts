@@ -54,13 +54,20 @@ export const PROP_ASSETS = {
     'model.prop.utility_box_02',
   ],
   vehicle: ['model.prop.covered_car'],
-  facade: [
-    'model.prop.exterior_aircon_unit',
-    'model.prop.security_camera_01',
-    'model.prop.security_camera_02',
-    'model.building.modular_metal_gutter',
-    'model.building.modular_airduct_circular_01',
-  ],
+  /**
+   * Models the FACADE KIT attaches, as opposed to ones the scatter places —
+   * `facade.ts` pushes them onto `IBuildingBuild.attachments` and `block.ts`
+   * turns them into instances. No `ZONE_SCATTER` table names this group, so it
+   * exists purely so `allPropAssetKeys()` (and therefore
+   * `CityGenerator.requiredAssets()`) covers them: an id missing here is a
+   * model nothing preloads, and `buildChunkNodes` drops the whole batch
+   * without a word when the model is not resident.
+   *
+   * It previously listed five ids the city never emits and omitted the one it
+   * does, so every fire escape in City Z silently failed to render while five
+   * unused GLBs and their 2K texture sets were preloaded on a phone.
+   */
+  facade: ['model.building.modular_fire_escape'],
   rubble: [
     'model.prop.concrete_road_barrier',
     'model.prop.old_tyre',

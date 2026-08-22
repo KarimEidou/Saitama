@@ -20,7 +20,44 @@ import { createEventBus } from '@/util';
 import { collapsingFloors as cityCollapsingFloors } from '@/world/city';
 import { DestructionSystem } from '../destruction-system';
 import { DEBRIS_HARD_CAP, MAX_ACTIVE_RAGDOLLS } from '../constants';
+import type { IDebrisSink } from '../ports';
 import { FakeDebrisPool, FakeRagdollSink, makeTower } from './fixtures';
+
+/**
+ * A pool that numbers its pieces from ZERO and reports a dead id as `null`.
+ *
+ * Both are legal for the port and both used to strand shape slots: `0` read as
+ * "this slot is free" and got the box resized under a piece still on screen,
+ * and `null` read as "still live" so the slot never came back at all.
+ */
+class ZeroBasedDebrisPool implements IDebrisSink {
+  readonly capacity: number;
+  private next = 0;
+  private readonly live = new Set<number>();
+
+  constructor(capacity: number) {
+    this.capacity = capacity;
+  }
+
+  get count(): number {
+    return this.live.size;
+  }
+
+  spawn(): { readonly id: number } | undefined {
+    if (this.live.size >= this.capacity) return undefined;
+    const id = this.next++;
+    this.live.add(id);
+    return { id };
+  }
+
+  get(id: number): unknown {
+    return this.live.has(id) ? { id } : null;
+  }
+
+  retire(id: number): void {
+    this.live.delete(id);
+  }
+}
 
 /** A city block: 24 twelve-storey towers, 1152 fracture chunks in one cone. */
 function buildBlock(system: DestructionSystem, towers = 24): number {
@@ -137,6 +174,71 @@ describe('the 300-debris cap', () => {
     debris.retire(16);
     system.update(1 / 60);
     expect(system.shapes.freeCount).toBeGreaterThan(0);
+    system.dispose();
+  });
+
+  it('keeps the box of a piece whose id is zero, and frees one reported as null', () => {
+    const bus = createEventBus();
+    const debris = new ZeroBasedDebrisPool(4);
+    const system = new DestructionSystem({ bus, debris, seed: 'zero-id' });
+    const { layout, attribute } = makeTower({ floors: 12 });
+    const structure = system.register({
+      id: 'tower',
+      layout,
+      target: { destroyed: attribute },
+      position: { x: 0, y: 0, z: 0 },
+    });
+
+    system.detachChunk(structure, 0, 'blast');
+    expect(system.shapes.lentCount).toBe(1);
+
+    // Piece 0 is still in the air. Its box may not be handed to the next
+    // detach, whatever the pool chose to number it.
+    system.update(1 / 60);
+    expect(system.shapes.lentCount).toBe(1);
+    expect(system.shapes.freeCount).toBe(3);
+
+    debris.retire(0);
+    system.update(1 / 60);
+    expect(system.shapes.lentCount).toBe(0);
+    expect(system.shapes.freeCount).toBe(4);
+    system.dispose();
+  });
+
+  it('does not recycle a box under a piece that is still falling when the mission restarts', () => {
+    const bus = createEventBus();
+    const debris = new FakeDebrisPool(16);
+    const system = new DestructionSystem({
+      bus,
+      debris,
+      collapsingFloors: cityCollapsingFloors,
+      seed: 'caps-clear',
+    });
+    buildBlock(system, 4);
+
+    bus.emit('ShockwaveFired', {
+      origin: { x: -20, y: 2, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 2.5e6,
+      range: 400,
+      angle: 0.4,
+      intent: 'full',
+      punchKind: 'serious',
+    });
+    system.update(1 / 60);
+    expect(system.shapes.lentCount).toBe(16);
+
+    // `clear()` drops the structures — a mission restart, a fast travel — but
+    // the 12 s fade is still running on sixteen pieces that are on screen.
+    system.clear();
+    expect(system.shapes.lentCount).toBe(16);
+    expect(system.shapes.freeCount).toBe(0);
+
+    // They come back as the pieces retire, which is what `reclaim` is for.
+    debris.retire(16);
+    system.update(1 / 60);
+    expect(system.shapes.lentCount).toBe(0);
+    expect(system.shapes.freeCount).toBe(16);
     system.dispose();
   });
 });

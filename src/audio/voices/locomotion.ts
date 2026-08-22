@@ -128,8 +128,6 @@ export class FootstepVoice extends SynthVoice {
   private readonly ringGain: GainNode;
   private readonly body: OscillatorNode;
   private readonly bodyGain: GainNode;
-  /** Alternates so a walk cycle has a left and a right foot. */
-  private foot = 0;
 
   constructor(
     ctx: BaseAudioContext,
@@ -179,8 +177,13 @@ export class FootstepVoice extends SynthVoice {
     const rng = p.rng;
     // Left/right weight difference plus per-step variation: the two together
     // are what stop a walk cycle from ticking like a metronome.
-    this.foot ^= 1;
-    const footBias = this.foot === 0 ? 1.06 : 0.94;
+    //
+    // The alternation is read from the TRIGGER, not held on the voice. Footsteps
+    // have a four-deep pool and a step is over long before the next one lands,
+    // so the bank round-robins the slots — a per-voice toggle therefore came out
+    // as L,L,L,L,R,R,R,R and the cue arrived at a quarter of its intended rate.
+    const foot = (p.sequence ?? 0) & 1;
+    const footBias = foot === 0 ? 1.06 : 0.94;
     const vary = lerp(0.88, 1.14, rng.next()) * footBias * p.rate;
 
     resetParam(this.scuff.frequency, t, Math.min(s.scuffHz * vary, nq * 0.45));

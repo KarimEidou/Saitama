@@ -9,7 +9,7 @@
  */
 
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { NightUniforms } from '../night-uniforms';
 
 /** A stand-in for the three shader object `onBeforeCompile` receives. */
@@ -82,6 +82,48 @@ describe('NightUniforms', () => {
     expect(shader.vertexShader).toContain('varying vec3 vSkyWorldPos;');
     expect(shader.vertexShader).toContain('vSkyWorldPos = (modelMatrix');
     expect(shader.fragmentShader).toContain('varying vec3 vSkyWorldPos;');
+  });
+
+  it('builds the world position through instanceMatrix and batchingMatrix', () => {
+    // The lit surfaces this module exists for are MOSTLY INSTANCED, and every
+    // instance of an InstancedMesh shares one modelMatrix. Without the ladder
+    // below, all 400 panes of a facade hash to a single cell and light — or go
+    // dark — as one block.
+    const uniforms = new NightUniforms();
+    const material = new THREE.MeshStandardMaterial();
+    uniforms.attach(material, 'window');
+    const vertex = compile(material).vertexShader;
+
+    expect(vertex).toContain('#ifdef USE_INSTANCING');
+    expect(vertex).toContain('instanceMatrix * skyWorldPos');
+    expect(vertex).toContain('#ifdef USE_BATCHING');
+    expect(vertex).toContain('batchingMatrix * skyWorldPos');
+    // ...and the instance placement is applied BEFORE the model matrix, which
+    // is the order three's own <worldpos_vertex> uses.
+    expect(vertex.indexOf('instanceMatrix * skyWorldPos')).toBeLessThan(
+      vertex.indexOf('vSkyWorldPos = (modelMatrix')
+    );
+  });
+
+  it('warns instead of silently doing nothing when the material has no emissive stage', () => {
+    // `String.replace` with an absent needle returns the subject unchanged, so
+    // a MeshBasicMaterial used to report a successful attach and stay dark.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const uniforms = new NightUniforms();
+      const material = new THREE.MeshBasicMaterial({ name: 'vending.glow' });
+      uniforms.attach(material, 'lamp');
+
+      const shader = fakeShader();
+      shader.fragmentShader = '#include <common>\nvoid main() {}';
+      material.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+
+      expect(shader.fragmentShader).not.toContain('uLampIntensity * uNightFactor');
+      expect(warn).toHaveBeenCalled();
+      expect(String(warn.mock.calls[0]?.join(' '))).toContain('emissivemap_fragment');
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('is idempotent per material', () => {
@@ -162,6 +204,33 @@ describe('onBeforeCompile composition — the regression', () => {
     expect(shader.uniforms.uNightFactor).toBe(uniforms.uNightFactor);
   });
 
+  it('carries a cache key that was assigned directly onto the material', () => {
+    // The city's destructible materials assign BOTH `onBeforeCompile` and
+    // `customProgramCacheKey = () => 'city-destroy-v1'`. Installing the
+    // dispatcher over the top of that key collapses every such material onto
+    // one composed key — the adopted hook is always keyed 'adopted', whatever
+    // it injects — and three then hands one of them the other's program.
+    const uniforms = new NightUniforms();
+    const destructible = new THREE.MeshStandardMaterial();
+    destructible.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '// destroy clip');
+    };
+    destructible.customProgramCacheKey = () => 'city-destroy-v1';
+
+    const roster = new THREE.MeshStandardMaterial();
+    roster.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '// roster tint');
+    };
+    roster.customProgramCacheKey = () => 'roster:F-D';
+
+    uniforms.attach(destructible, 'lamp');
+    uniforms.attach(roster, 'lamp');
+
+    expect(destructible.customProgramCacheKey()).toContain('city-destroy-v1');
+    expect(roster.customProgramCacheKey()).toContain('roster:F-D');
+    expect(destructible.customProgramCacheKey()).not.toBe(roster.customProgramCacheKey());
+  });
+
   it('appends to an existing engineShaderHooks array rather than replacing it', () => {
     const uniforms = new NightUniforms();
     const material = new THREE.MeshStandardMaterial();
@@ -212,5 +281,23 @@ describe('attachByName', () => {
     );
     expect(count).toBe(1);
     expect(uniforms.materialCount).toBe(1);
+  });
+
+  it('counts MATERIALS, not mesh/material pairs', () => {
+    // A city block is 200 lamp meshes sharing one material. Counting the
+    // visits reports 200 attachments against a materialCount of 1, and a
+    // caller using the return value as a wiring check is two orders of
+    // magnitude out.
+    const uniforms = new NightUniforms();
+    const root = new THREE.Group();
+    const shared = new THREE.MeshStandardMaterial({ name: 'city.lamp.head' });
+    const geometry = new THREE.BoxGeometry();
+    for (let i = 0; i < 200; i++) root.add(new THREE.Mesh(geometry, shared));
+
+    const count = uniforms.attachByName(root, (name) =>
+      name.includes('lamp') ? 'lamp' : undefined
+    );
+    expect(count).toBe(1);
+    expect(count).toBe(uniforms.materialCount);
   });
 });

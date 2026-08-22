@@ -240,6 +240,7 @@ export interface ISaveManagerOptions {
 /** Reads and writes the save slot. */
 export class SaveManager {
   private backend: ISaveBackend | undefined;
+  private resolving: Promise<ISaveBackend> | undefined;
   private readonly key: string;
   private readonly explicitBackend: ISaveBackend | undefined;
 
@@ -254,8 +255,21 @@ export class SaveManager {
     return this.backend?.name;
   }
 
+  /**
+   * Resolve the backend exactly once.
+   *
+   * The PROMISE is memoised, not the result: `??=` on the result tests before
+   * the await and assigns after it, so two overlapping calls — a boot-time
+   * `load()` and an autosave in the same tick — would each build their own
+   * backend, and on a device with neither Capacitor nor a usable localStorage
+   * those are two separate, unshared memory stores.
+   */
   private async resolveBackend(): Promise<ISaveBackend> {
-    this.backend ??= this.explicitBackend ?? (await selectSaveBackend());
+    if (this.backend) return this.backend;
+    this.resolving ??= this.explicitBackend
+      ? Promise.resolve(this.explicitBackend)
+      : selectSaveBackend();
+    this.backend = await this.resolving;
     return this.backend;
   }
 
@@ -317,15 +331,36 @@ export class SaveManager {
 export function migrate(parsed: unknown): IStoredSave | undefined {
   if (parsed === null || typeof parsed !== 'object') return undefined;
   const save = parsed as Partial<IStoredSave>;
-  if (typeof save.version !== 'number') return undefined;
-  if (save.version > SAVE_VERSION) {
+
+  // `typeof NaN === 'number'` and `NaN > 1` is false, so a bare typeof check
+  // waves through NaN and negative versions as v1.
+  if (!Number.isInteger(save.version) || (save.version ?? 0) < 1) return undefined;
+  if ((save.version ?? 0) > SAVE_VERSION) {
     log.warn(`save is from a newer build (v${save.version} > v${SAVE_VERSION}); refusing it`);
     return undefined;
   }
-  if (!save.progression || typeof save.progression !== 'object') return undefined;
+
+  // EVERY field the restore path dereferences is checked here. Accepting a
+  // payload that carries `progression` but not `questStates` is what let a
+  // truncated write restore rank and rivals and then throw half-way through the
+  // quests — exactly the half-loaded game this function exists to refuse.
+  if (!isPlainObject(save.progression)) return undefined;
+  if (!isPlainObject(save.questStates)) return undefined;
+  if (!isPlainObject(save.questProgress)) return undefined;
+  if (!isPlainObject(save.playerPosition)) return undefined;
+  if (!Number.isFinite(save.playerYaw)) return undefined;
+  if (!Number.isFinite(save.worldSeed)) return undefined;
+  if (!Number.isFinite(save.timeOfDay)) return undefined;
+  if (!Number.isFinite(save.dayCount)) return undefined;
+
   // v1 is the first schema; nothing to migrate yet. New versions add cases
   // here, oldest first, each bumping `version` as it goes.
   return save as IStoredSave;
+}
+
+/** A non-null, non-array object — the shape every save section must have. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Assemble a save payload. Kept separate so it is trivially testable. */
@@ -351,7 +386,14 @@ export function buildSave(input: {
     timeOfDay: input.timeOfDay,
     dayCount: input.dayCount,
     questStates: { ...input.questStates },
-    questProgress: input.questProgress,
-    extras: input.extras,
+    // Copied, not aliased: a caller that keeps mutating its own progress map
+    // after building the payload must not be mutating the payload.
+    questProgress: Object.fromEntries(
+      Object.entries(input.questProgress).map(([questId, entry]) => [questId, { ...entry }])
+    ),
+    // OMITTED rather than written as `undefined`. `Object.entries` still visits
+    // a present-and-undefined key, so `validateSave` would reject this payload
+    // — the builder's own output failing the builder's own validator.
+    ...(input.extras === undefined ? {} : { extras: input.extras }),
   };
 }

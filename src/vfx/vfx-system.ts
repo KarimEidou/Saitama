@@ -49,7 +49,7 @@ import {
   type IVFXTierProfile,
 } from './constants';
 import { DecalLayer, createDecalParams } from './decal-layer';
-import { EffectEmitters } from './effects';
+import { EffectEmitters, type LinearColor } from './effects';
 import { createArcGridGeometry, createQuadGeometry } from './geometry';
 import {
   createDecalMaterial,
@@ -181,6 +181,7 @@ class VFXHandle implements IVFXHandle {
 
   setPosition(position: THREE.Vector3): void {
     if (this.kind === 'effect') this.system.moveEffect(this.slot, this.generation, position);
+    else this.system.moveTrail(this.slot, this.generation, position);
   }
 }
 
@@ -196,6 +197,8 @@ export interface IVFXDiagnostics {
   readonly shockwaveCapacity: number;
   readonly decals: number;
   readonly decalCapacity: number;
+  /** Decals the ring buffer has overwritten since construction. */
+  readonly decalsRecycled: number;
   readonly trails: number;
   readonly trailCapacity: number;
   readonly speedlineIntensity: number;
@@ -233,6 +236,8 @@ export class VFXSystem implements IVFXSystem {
   private readonly sunDirection = new THREE.Vector3(-0.62, -0.52, -0.59).normalize();
   private readonly scratchVector = new THREE.Vector3();
   private readonly scratchVectorB = new THREE.Vector3();
+  private readonly scratchColor = new THREE.Color();
+  private readonly scratchTint: LinearColor = { r: 0, g: 0, b: 0 };
   private readonly decalScratch = createDecalParams();
 
   private readonly cloudAltitude: number;
@@ -296,6 +301,7 @@ export class VFXSystem implements IVFXSystem {
     this.emitters = new EffectEmitters(this.sprites, this.decals, this.shockwaves, this.profile);
 
     this.root.add(this.decals.mesh, this.shockwaves.mesh, this.sprites.mesh, this.speedlines.mesh);
+    this.syncListener();
 
     const effectCapacity = this.quality
       ? effectCapacityFor(this.quality)
@@ -318,6 +324,22 @@ export class VFXSystem implements IVFXSystem {
 
   setCamera(camera: THREE.Camera): void {
     this.camera = camera;
+    this.syncListener();
+  }
+
+  /**
+   * Bring the shake's attenuation listener to the camera.
+   *
+   * `update()` does this every frame, but every `addAtPosition` has a falloff
+   * radius of 40-80 m and the listener starts at the WORLD ORIGIN: an effect
+   * fired before the first update — or on a system whose camera arrived after
+   * construction — is attenuated to nothing anywhere but the middle of the map.
+   */
+  private syncListener(): void {
+    if (!this.camera) return;
+    this.camera.updateMatrixWorld();
+    this.camera.getWorldPosition(this.cameraPosition);
+    this.shake.listenerPosition.copy(this.cameraPosition);
   }
 
   /**
@@ -404,9 +426,26 @@ export class VFXSystem implements IVFXSystem {
    *
    * Every internal event reaction uses this: a building collapse must not mint
    * forty handle objects nobody asked for.
+   *
+   * @param shockwaveAngle Cone half-angle carried by a `ShockwaveFired` event.
+   *                       Omitted on the public `spawn()` path, which falls
+   *                       back to the effect's documented default.
    */
-  private spawnSlot(effect: VFXEffectName, options: IVFXSpawnOptions): number {
+  private spawnSlot(
+    effect: VFXEffectName,
+    options: IVFXSpawnOptions,
+    shockwaveAngle?: number
+  ): number {
     if (this.disposed) return -1;
+    if (this.camera === undefined) {
+      // Silent-death warning: with no camera the shake listener never leaves
+      // the origin, so every distance-attenuated shake beyond its falloff
+      // radius is dropped and the system looks broken rather than unwired.
+      log.warnOnce(
+        'vfx.no-camera',
+        'no camera set: billboarding, depth sorting and distance-attenuated shake are inert until setCamera()'
+      );
+    }
     const priority = options.priority ?? defaultPriority(effect);
     const index = this.acquireSlot(priority);
     if (index < 0) return -1;
@@ -446,7 +485,7 @@ export class VFXSystem implements IVFXSystem {
     }
     slot.lifetime = options.lifetime ?? 1;
 
-    this.build(slot, options, power, scale);
+    this.build(slot, options, power, scale, shockwaveAngle);
     return index;
   }
 
@@ -521,11 +560,23 @@ export class VFXSystem implements IVFXSystem {
 
   /** Wipe everything, including persistent decals. Used on fast travel. */
   clear(): void {
-    for (const slot of this.slots) slot.active = false;
+    for (const slot of this.slots) {
+      slot.active = false;
+      // Dropping the attachment matters as much as deactivating the slot: a
+      // retained `Object3D` pins a whole despawned monster — skinned meshes,
+      // geometries, materials, textures — for as long as this system lives,
+      // and `dispose()` runs through here too.
+      slot.attach = undefined;
+    }
     for (const trail of this.trails) {
       trail.active = false;
       trail.attach = undefined;
     }
+    // Events that arrived this frame have not been flushed yet, and `update()`
+    // flushes before anything else. Left standing, they would spawn a debris
+    // burst at the abandoned encounter's coordinates on the very next frame —
+    // precisely the state this call exists to remove.
+    this.resetCoalesced();
     this.sprites.clear();
     this.shockwaves.clear();
     this.decals.clear();
@@ -541,6 +592,13 @@ export class VFXSystem implements IVFXSystem {
    * `compile()` with a live renderer during loading, never during a fight.
    */
   async preload(_effects: readonly VFXEffectName[]): Promise<void> {
+    // Resolving silently would be a lie: the caller asked for the first punch
+    // not to hitch, and the programs are still unlinked when this returns.
+    log.warnOnce(
+      'vfx.preload',
+      'preload() cannot warm the shader programs on its own — call compile(renderer, scene, camera) ' +
+        'during loading, or render one frame with the VFX meshes visible before the loading screen clears'
+    );
     return Promise.resolve();
   }
 
@@ -641,6 +699,7 @@ export class VFXSystem implements IVFXSystem {
       shockwaveCapacity: this.shockwaves.capacity,
       decals: this.decals.activeCount,
       decalCapacity: this.decals.capacity,
+      decalsRecycled: this.decals.recycled,
       trails,
       trailCapacity: this.trails.length,
       speedlineIntensity: this.speedlines.intensity,
@@ -696,6 +755,23 @@ export class VFXSystem implements IVFXSystem {
     slot.z = position.z;
   }
 
+  /**
+   * Move a trail, e.g. after the tracked object teleported or was re-parented.
+   *
+   * `hasLast` is cleared as well, and that is the whole point: trail velocity
+   * is DIFFERENCED from the object's motion, so a discontinuity would otherwise
+   * be read as tens of thousands of metres per second and lay a solid line of
+   * streaks along the jump.
+   */
+  moveTrail(index: number, generation: number, position: THREE.Vector3): void {
+    if (!this.isTrailAlive(index, generation)) return;
+    const trail = this.trails[index]!;
+    trail.x = position.x;
+    trail.y = position.y;
+    trail.z = position.z;
+    trail.hasLast = false;
+  }
+
   /* ---------------------------------------------------------------------- */
   /* Event bus                                                              */
   /* ---------------------------------------------------------------------- */
@@ -722,20 +798,22 @@ export class VFXSystem implements IVFXSystem {
     this.scratchVector.set(event.origin.x, event.origin.y, event.origin.z);
     this.scratchVectorB.set(event.direction.x, event.direction.y, event.direction.z);
 
-    const index = this.spawnSlot(omnidirectional ? 'shockwaveRing' : 'shockwaveCone', {
-      position: this.scratchVector,
-      direction: this.scratchVectorB,
-      intensity: power,
-      intent: event.intent,
-      scale: event.range,
-      priority: 1,
-    });
-    if (index < 0) return;
-
     // The half-angle travels straight into the shell, so the wave matches the
     // combat cone exactly rather than approximately.
+    const index = this.spawnSlot(
+      omnidirectional ? 'shockwaveRing' : 'shockwaveCone',
+      {
+        position: this.scratchVector,
+        direction: this.scratchVectorB,
+        intensity: power,
+        intent: event.intent,
+        scale: event.range,
+        priority: 1,
+      },
+      event.angle
+    );
+    if (index < 0) return;
     this.slots[index]!.radius = event.range;
-    this.configureShockwave(index, event.angle, event.range, power, event.intent);
   }
 
   private onEntityKilled(event: GameEventOf<'EntityKilled'>): void {
@@ -819,18 +897,15 @@ export class VFXSystem implements IVFXSystem {
     if (this.chunkCount > 0) {
       const inverse = 1 / this.chunkCount;
       this.scratchVector.set(this.chunkX * inverse, this.chunkY * inverse, this.chunkZ * inverse);
+      const intensity = this.chunkPower;
+      const scale = this.chunkSpread + Math.min(20, this.chunkCount * 0.8);
+      this.resetChunks();
       this.spawnSlot('debrisBurst', {
         position: this.scratchVector,
-        intensity: this.chunkPower,
+        intensity,
         priority: 0.35,
-        scale: this.chunkSpread + Math.min(20, this.chunkCount * 0.8),
+        scale,
       });
-      this.chunkCount = 0;
-      this.chunkX = 0;
-      this.chunkY = 0;
-      this.chunkZ = 0;
-      this.chunkPower = 0;
-      this.chunkSpread = 0;
     }
     if (this.impulseCount > 0) {
       const inverse = 1 / this.impulseCount;
@@ -839,43 +914,96 @@ export class VFXSystem implements IVFXSystem {
         this.impulseY * inverse,
         this.impulseZ * inverse
       );
-      if (this.impulsePower > 0.08) {
+      const intensity = this.impulsePower;
+      this.resetImpulses();
+      if (intensity > 0.08) {
         this.spawnSlot('dustCloud', {
           position: this.scratchVector,
-          intensity: this.impulsePower,
+          intensity,
           priority: 0.2,
-          scale: 1.5 + this.impulsePower * 4,
+          scale: 1.5 + intensity * 4,
         });
       }
-      this.impulseCount = 0;
-      this.impulseX = 0;
-      this.impulseY = 0;
-      this.impulseZ = 0;
-      this.impulsePower = 0;
     }
+  }
+
+  /** Drop every event burst accumulated since the last flush. */
+  private resetCoalesced(): void {
+    this.resetChunks();
+    this.resetImpulses();
+  }
+
+  private resetChunks(): void {
+    this.chunkCount = 0;
+    this.chunkX = 0;
+    this.chunkY = 0;
+    this.chunkZ = 0;
+    this.chunkPower = 0;
+    this.chunkSpread = 0;
+  }
+
+  private resetImpulses(): void {
+    this.impulseCount = 0;
+    this.impulseX = 0;
+    this.impulseY = 0;
+    this.impulseZ = 0;
+    this.impulsePower = 0;
   }
 
   /* ---------------------------------------------------------------------- */
   /* Effect construction                                                    */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * Convert `IVFXSpawnOptions.color` into the linear tint the emitters take.
+   *
+   * Returns the shared scratch block, which the emitters read synchronously and
+   * never retain — a spawn must not allocate, and a collapse spawns forty.
+   */
+  private resolveTint(color: number | undefined): LinearColor | undefined {
+    if (color === undefined) return undefined;
+    this.scratchColor.setHex(color);
+    this.scratchTint.r = this.scratchColor.r;
+    this.scratchTint.g = this.scratchColor.g;
+    this.scratchTint.b = this.scratchColor.b;
+    return this.scratchTint;
+  }
+
   /** The one-shot content of an effect, emitted at spawn. */
-  private build(slot: EffectSlot, options: IVFXSpawnOptions, power: number, scale: number): void {
+  private build(
+    slot: EffectSlot,
+    options: IVFXSpawnOptions,
+    power: number,
+    scale: number,
+    shockwaveAngle?: number
+  ): void {
     const rng = this.rng;
     const { x, y, z } = slot;
+    // `IVFXSpawnOptions.color` is an sRGB hex; the emitters shade in linear
+    // space, so it is converted once here and handed to the emitters that have
+    // a tintable population. Undefined keeps every module default untouched.
+    const tint = this.resolveTint(options.color);
 
     switch (slot.name) {
       case 'shockwaveRing':
       case 'shockwaveCone':
-      case 'airDistortion':
-        // Shells and the dust front are configured by `configureShockwave`,
-        // which needs the cone half-angle the event carried.
+      case 'airDistortion': {
         slot.lifetime = 2.2 + power * 2.4;
+        // A `ShockwaveFired` event carries the combat cone's exact half-angle
+        // and range; a direct `spawn()` carries neither, so the effect name
+        // supplies the angle and `scale` is read as the range. Going through
+        // the same path either way is what stops `spawn('shockwaveRing', …)`
+        // from returning a live handle to an effect that draws nothing.
+        const halfAngle =
+          shockwaveAngle ?? (slot.name === 'shockwaveCone' ? DEFAULT_CONE_HALF_ANGLE : Math.PI);
+        const range = options.scale ?? DEFAULT_SHOCKWAVE_RANGE;
+        this.configureShockwave(slot, halfAngle, range, power, options.intent);
         break;
+      }
 
       case 'punchImpact':
       case 'monsterDeath': {
-        this.emitters.impactFlash(rng, x, y + 0.4, z, power);
+        this.emitters.impactFlash(rng, x, y + 0.4, z, power, tint);
         this.emitters.hitSparks(
           rng,
           x,
@@ -885,7 +1013,8 @@ export class VFXSystem implements IVFXSystem {
           slot.dy,
           slot.dz,
           power,
-          14 + power * 26
+          14 + power * 26,
+          tint
         );
         this.emitters.debrisChips(
           rng,
@@ -907,8 +1036,8 @@ export class VFXSystem implements IVFXSystem {
       }
 
       case 'explosion': {
-        this.emitters.impactFlash(rng, x, y + 1, z, power);
-        this.emitters.hitSparks(rng, x, y + 1, z, 0, 1, 0, power, 22 + power * 30);
+        this.emitters.impactFlash(rng, x, y + 1, z, power, tint);
+        this.emitters.hitSparks(rng, x, y + 1, z, 0, 1, 0, power, 22 + power * 30, tint);
         this.emitters.debrisChips(rng, x, y + 1, z, 0, 1, 0, power, 10 + power * 16);
         this.emitters.dustPlume(rng, x, y + 0.6, z, 2 + scale, power, 26 + power * 40, 2.4);
         this.spawnShell(x, y, z, 0, 1, 0, Math.PI, 8 + scale * 6, power, 0, true);
@@ -986,12 +1115,34 @@ export class VFXSystem implements IVFXSystem {
         break;
 
       case 'sparks':
-        this.emitters.hitSparks(rng, x, y, z, slot.dx, slot.dy, slot.dz, power, 10 + power * 20);
+        this.emitters.hitSparks(
+          rng,
+          x,
+          y,
+          z,
+          slot.dx,
+          slot.dy,
+          slot.dz,
+          power,
+          10 + power * 20,
+          tint
+        );
         slot.lifetime = 1.2;
         break;
 
       case 'bloodSpray':
-        this.emitters.hitSparks(rng, x, y, z, slot.dx, slot.dy, slot.dz, power, 12 + power * 18);
+        this.emitters.hitSparks(
+          rng,
+          x,
+          y,
+          z,
+          slot.dx,
+          slot.dy,
+          slot.dz,
+          power,
+          12 + power * 18,
+          tint
+        );
         slot.lifetime = 1.2;
         break;
 
@@ -1002,8 +1153,8 @@ export class VFXSystem implements IVFXSystem {
 
       case 'healPulse':
       case 'rankUpBurst': {
-        this.emitters.impactFlash(rng, x, y + 1, z, power * 0.5);
-        this.emitters.hitSparks(rng, x, y + 0.5, z, 0, 1, 0, power * 0.5, 12);
+        this.emitters.impactFlash(rng, x, y + 1, z, power * 0.5, tint);
+        this.emitters.hitSparks(rng, x, y + 0.5, z, 0, 1, 0, power * 0.5, 12, tint);
         slot.lifetime = 1.4;
         break;
       }
@@ -1027,14 +1178,12 @@ export class VFXSystem implements IVFXSystem {
    * Shell 2 is the one the dust front rides, and the one the slot keeps.
    */
   private configureShockwave(
-    index: number,
+    slot: EffectSlot,
     halfAngle: number,
     range: number,
     power: number,
-    intent: LethalIntent
+    intent: LethalIntent | undefined
   ): void {
-    if (index < 0) return;
-    const slot = this.slots[index]!;
     const rng = this.rng;
     const { x, y, z } = slot;
     const omnidirectional = halfAngle >= 2.6;
@@ -1240,13 +1389,19 @@ export class VFXSystem implements IVFXSystem {
       }
 
       if (slot.rate > 0 && slot.age < slot.emitUntil) {
-        const alive = slot.shell >= 0 && this.shockwaves.isAlive(slot.shell, slot.shellGeneration);
-        if (alive) {
+        // Re-resolve every frame: the layer compacts, so the shell this slot
+        // is riding moves to another index as soon as an older shell expires.
+        // Trusting the cached index here is what used to cut the dust front off
+        // a fifth of the way from the end of its life, on every punch.
+        const shell =
+          slot.shell >= 0 ? this.shockwaves.indexOf(slot.shell, slot.shellGeneration) : -1;
+        if (shell >= 0) {
+          slot.shell = shell;
           slot.carry += slot.rate * dt;
           const whole = Math.floor(slot.carry);
           if (whole > 0) {
             slot.carry -= whole;
-            const progress = this.shockwaves.progressOf(slot.shell);
+            const progress = this.shockwaves.progressOf(shell);
             // NOMINAL front speed, not `radius / age`.
             //
             // The expansion curve starts at a tenth of the range and is
@@ -1257,14 +1412,7 @@ export class VFXSystem implements IVFXSystem {
             // fraction of the average front speed and decays as the wave
             // gives up its energy.
             const edgeSpeed = Math.min(240, slot.frontSpeed) * (1 - progress * 0.6);
-            this.emitters.dustFront(
-              this.rng,
-              slot.shell,
-              edgeSpeed,
-              slot.power,
-              whole,
-              slot.lofted
-            );
+            this.emitters.dustFront(this.rng, shell, edgeSpeed, slot.power, whole, slot.lofted);
           }
         } else {
           slot.rate = 0;
@@ -1383,6 +1531,16 @@ export class VFXSystem implements IVFXSystem {
 const _quaternion = new THREE.Quaternion();
 const _shellParams = createShockwaveParams();
 const _shellColor = new THREE.Color();
+
+/**
+ * Cone half-angle used when `shockwaveCone` is spawned directly instead of
+ * arriving on a `ShockwaveFired` event. 22 degrees — the combat system's own
+ * serious-punch cone, so a hand-driven wave matches the one the game fires.
+ */
+const DEFAULT_CONE_HALF_ANGLE = 0.384;
+
+/** Range in metres for a shockwave spawned without a `scale`. */
+const DEFAULT_SHOCKWAVE_RANGE = 40;
 
 const THREAT_WEIGHT: Readonly<Record<string, number>> = {
   wolf: 0.4,

@@ -112,6 +112,17 @@ export const PRIORITY = {
 
 export type PriorityName = keyof typeof PRIORITY;
 
+/**
+ * Fetch+transcode attempts for one texture before its stand-in is permanent.
+ *
+ * A failed fetch installs the marked checker under the real key, which makes
+ * the asset "resident" — so without a retry allowance one dropped request
+ * during a wifi/cellular handover paints that wall magenta for the rest of the
+ * session. Bounded, because a genuinely absent file must not be re-fetched
+ * once per chunk stream-in for the rest of the session either.
+ */
+export const TEXTURE_ATTEMPT_LIMIT = 3;
+
 /* -------------------------------------------------------------------------- */
 /* Fallbacks                                                                  */
 /* -------------------------------------------------------------------------- */

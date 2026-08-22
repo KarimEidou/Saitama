@@ -50,6 +50,28 @@ import type { EntityId, GameEvent, Vec3 } from '@/types';
 import { EventBus, clamp01, createRng } from '@/util';
 
 /* -------------------------------------------------------------------------- */
+/* Error surface                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Publish a boot failure instead of simply never becoming ready.
+ *
+ * The scene build, the 200 000-sample mirror check and the 3 000-query broad
+ * phase comparison all run at module scope, and a throw in any of them leaves
+ * `__COMBAT_READY__` unset — which the driver can only report, two minutes
+ * later, as "waitForFunction timed out", with the real stack in a console array
+ * it never reaches. Installed before the first statement that can throw; a
+ * module-evaluation error is reported to this handler.
+ */
+window.addEventListener('error', (event) => {
+  if (window.__COMBAT_READY__ === true) return;
+  const error: unknown = event.error;
+  window.__COMBAT_ERROR__ ??=
+    error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : event.message;
+  window.__COMBAT_READY__ = true;
+});
+
+/* -------------------------------------------------------------------------- */
 /* Reference broad-phase adapter — how the game should wire this              */
 /* -------------------------------------------------------------------------- */
 
@@ -124,7 +146,12 @@ const canvas = document.getElementById('view') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const scale = canvas.width / VIEW_METRES;
 
-/** World origin sits a third of the way up the canvas; the punch fires north. */
+/**
+ * World origin sits about a fifth of the way up the canvas (canvas Y grows
+ * downward, so 0.82 is 82 % of the way DOWN); the punch fires north. That
+ * leaves ~43 m of frame behind the attacker — enough for the `behind-shoulder`
+ * block at z = +26, and the margin to watch if `VIEW_METRES` ever grows.
+ */
 const ORIGIN_PX = { x: canvas.width * 0.5, y: canvas.height * 0.82 };
 const toPx = (x: number, z: number): [number, number] => [
   ORIGIN_PX.x + x * scale,
@@ -139,6 +166,9 @@ const attackerPosition = { x: 0, y: 1.4, z: 0 };
 const attackerFacing = { x: 0, y: 0.02, z: -1 };
 
 const broadPhase = new GridBroadPhase();
+
+/** Where the meter starts, and where `reset()` puts it back. */
+const START_BOREDOM = 0.55;
 
 const combat = new CombatSystem({
   bus,
@@ -158,7 +188,7 @@ const combat = new CombatSystem({
   broadPhase,
   districtAt: () => 'downtown',
   seed: 'harness',
-  boredom: 0.55,
+  boredom: START_BOREDOM,
 });
 
 const rng = createRng('city-z');
@@ -759,6 +789,15 @@ function reset(): void {
     target.dead = false;
     target.health = target.maxHealth;
   }
+  // Resurrecting the street is not enough: boredom only ever climbs on a kill
+  // and only decays BELOW its baseline, so without this every shot inherits the
+  // kills of the shots before it. The scripted encounter would then stamp a
+  // `boredomBefore` that is three earlier punches' residue rather than the
+  // configured start — and, once the residue clamps at 1, the "a fight of
+  // nothing but instant kills raised boredom" assertion fires on a fight that
+  // raised it by a third.
+  combat.boredomMeter.set(START_BOREDOM);
+  combat.chain.reset();
   broadPhase.rebuild(combat.targets.values());
   destruction.clear();
   events.length = 0;
@@ -887,6 +926,8 @@ declare global {
   interface Window {
     __COMBAT_HARNESS__?: ICombatHarness;
     __COMBAT_READY__?: boolean;
+    /** Set instead of the harness when module evaluation threw. */
+    __COMBAT_ERROR__?: string;
   }
 }
 

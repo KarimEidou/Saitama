@@ -238,7 +238,15 @@ export class CrowdSystem implements ICrowdSink {
   private readonly safeTimer = new Float32Array(MID_CAP + NEAR_CAP);
   private readonly deadTimer = new Float32Array(MID_CAP + NEAR_CAP);
   private readonly rescuedByPlayer = new Uint8Array(MID_CAP + NEAR_CAP);
-  private readonly killedByPlayer = new Uint8Array(MID_CAP + NEAR_CAP);
+  /**
+   * Elapsed time of the last player-caused damage to each agent.
+   *
+   * Bounded by `COLLATERAL_WINDOW`, exactly like debris attribution. A latched
+   * flag would mean that grazing somebody once at `restrained` intent makes
+   * every later death theirs — including one a monster causes ten minutes on —
+   * and charges the player the 3x penalty for it.
+   */
+  private readonly playerDamageTime = new Float32Array(MID_CAP + NEAR_CAP).fill(-Infinity);
 
   private readonly player = { x: 0, z: 0 };
   private playerRegistered = false;
@@ -515,7 +523,16 @@ export class CrowdSystem implements ICrowdSink {
     lethality: number,
     sourceId: EntityId | undefined
   ): void {
-    if (sourceId !== undefined && sourceId === this.playerId) return;
+    if (sourceId !== undefined) {
+      if (sourceId === this.playerId) return;
+      // ANY registered ally, not just the one that fired: Genos parks a 24 m
+      // cone on the monster Mumen Rider is standing on, and Tatsumaki's 62 m
+      // one reaches half a district. Letting those land turns the allies into
+      // each other's executioners and blames the player for the funeral.
+      for (const hero of this.heroes) {
+        if (hero.id === sourceId) return;
+      }
+    }
     for (const hero of this.heroes) {
       if (hero.isDead || hero.id === sourceId) continue;
       const dx = hero.transform.position.x - origin.x;
@@ -557,7 +574,7 @@ export class CrowdSystem implements ICrowdSink {
     if (before <= 0) return 0;
     const dealt = Math.min(before, amount);
     agents.health[index] = before - dealt;
-    if (causedByPlayer) this.killedByPlayer[index] = 1;
+    if (causedByPlayer) this.playerDamageTime[index] = this.elapsed;
 
     const position = { x: agents.posX[index]!, y: 0.9, z: agents.posZ[index]! };
     if (agents.health[index]! > 0) {
@@ -604,7 +621,7 @@ export class CrowdSystem implements ICrowdSink {
       'lost',
       agents.idOf(index),
       position,
-      causedByPlayer || this.killedByPlayer[index] === 1,
+      causedByPlayer || this.elapsed - this.playerDamageTime[index]! < COLLATERAL_WINDOW,
       witness,
       agents.peakAlarm[index]!,
       this.elapsed
@@ -845,7 +862,7 @@ export class CrowdSystem implements ICrowdSink {
     this.safeTimer[index] = 0;
     this.deadTimer[index] = 0;
     this.rescuedByPlayer[index] = 0;
-    this.killedByPlayer[index] = 0;
+    this.playerDamageTime[index] = -Infinity;
     this.agents.despawn(index);
   }
 
@@ -875,7 +892,7 @@ export class CrowdSystem implements ICrowdSink {
       this.safeTimer[index] = 0;
       this.deadTimer[index] = 0;
       this.rescuedByPlayer[index] = 0;
-      this.killedByPlayer[index] = 0;
+      this.playerDamageTime[index] = -Infinity;
       return index;
     }
     return -1;
@@ -913,7 +930,14 @@ export class CrowdSystem implements ICrowdSink {
       }
     }
 
-    if (this.spawnPoints.length === 0) {
+    // The two sources are ADDITIVE, not exclusive. Streaming publishes about
+    // ten slots per chunk for the two innermost rings — a few dozen points
+    // against a 250-agent cap — so gating the open-ground pass on "the chunk
+    // pass produced nothing" means one streamed chunk switches it off and the
+    // spawn cursor wraps several times while filling the band, stacking
+    // civilians on the same handful of points. Top the list up whenever it is
+    // thin enough for the cursor to wrap during a fill.
+    if (this.spawnPoints.length < this.caps.mid * 2) {
       // One point per open field cell in the band, jittered off the cell
       // centre so a freshly-populated street does not appear on a visible 12 m
       // lattice. The RNG is derived from the ANCHOR, not advanced from a
@@ -1020,6 +1044,9 @@ export class CrowdSystem implements ICrowdSink {
       this.agents.peakAlarm[i] = 0;
       this.safeTimer[i] = 0;
       this.rescuedByPlayer[i] = 0;
+      // A resolved save closes the book on this person's last incident,
+      // including whatever the player did to them during it.
+      this.playerDamageTime[i] = -Infinity;
     }
   }
 

@@ -104,6 +104,27 @@ describe('humanoid rig', () => {
     expect(small.headTopY).toBeCloseTo(1.2, 3);
   });
 
+  it('never lets a broken profile resolve to a degenerate rig', () => {
+    // `BodyProfile.height` is a cross-system contract with no runtime
+    // validation. A 0 collapses every vertex onto the origin; a NaN poisons
+    // the bounding sphere, so the mesh culls unpredictably — and neither
+    // throws anything a caller could notice.
+    for (const height of [0, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const dims = resolveDimensions({ ...PROFILE, height });
+      expect(Number.isFinite(dims.unit), `height ${height}`).toBe(true);
+      expect(dims.unit, `height ${height}`).toBeGreaterThan(0);
+      expect(dims.standingHeight, `height ${height}`).toBeGreaterThan(0);
+      expect(Number.isFinite(dims.headTopY)).toBe(true);
+    }
+    for (const uniformScale of [0, Number.NaN]) {
+      const dims = resolveDimensions({ ...PROFILE, uniformScale });
+      expect(dims.unit, `scale ${uniformScale}`).toBeGreaterThan(0);
+      expect(dims.standingHeight).toBeCloseTo(PROFILE.height, 6);
+    }
+    // ...and a sane profile is passed through untouched.
+    expect(resolveDimensions({ ...PROFILE, height: 1.83 }).standingHeight).toBeCloseTo(1.83, 9);
+  });
+
   it('exposes combat sockets in world space', () => {
     const build = buildCharacter('saitama', 0);
     const parts = createCharacterParts(build, new THREE.MeshBasicMaterial());

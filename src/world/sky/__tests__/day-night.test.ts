@@ -205,6 +205,56 @@ describe('quest time override', () => {
     expect(path.some((t) => t > 0.3 && t < 0.7)).toBe(false);
   });
 
+  it('still elapses days while the clock is held', () => {
+    // The free-running clock is advanced and wrapped in every override mode,
+    // but the wrap used to be READ in only two of the three: a quest holding
+    // dusk across midnight lost a whole in-game day, permanently, and the
+    // day-count consumers (rival progression, the HUD readout) never got it
+    // back. `forceTimeOfDay` promises the opposite in as many words.
+    const system = makeSystem(0.79);
+    system.forceTimeOfDay(0.79);
+    expect(system.dayCount).toBe(0);
+
+    // Six real minutes at the shipped day length is a quarter of a cycle, so
+    // the free clock passes midnight while the visible one does not move.
+    for (let i = 0; i < 360; i++) system.update(1);
+    expect(system.state.timeOfDay).toBeCloseTo(0.79, 9);
+    expect(system.dayCount).toBe(1);
+
+    // ...and releasing does not double-count the wrap that already happened.
+    system.releaseTime(0);
+    expect(system.dayCount).toBe(1);
+  });
+
+  it('clamps a nonsense day length given to the constructor', () => {
+    // `step = dt / 0` is Infinity, `wrap01` guards it back to 0, and the clock
+    // then wraps every single frame: dayCount climbs at 60/s and every
+    // consumer of it is driven with garbage.
+    const system = new DayNightSystem({ dayLengthSeconds: 0, startTimeOfDay: 0.5 });
+    expect(system.dayLengthSeconds).toBeGreaterThanOrEqual(1);
+    for (let i = 0; i < 60; i++) system.update(1 / 60);
+    expect(system.dayCount).toBeLessThanOrEqual(1);
+
+    const negative = new DayNightSystem({ dayLengthSeconds: -100 });
+    expect(negative.dayLengthSeconds).toBeGreaterThanOrEqual(1);
+  });
+
+  it('restores the day count and lunar age from a save', () => {
+    // `ISaveGame.dayCount` is persisted and was write-only: reloading on day 5
+    // put the HUD back to day 0 and re-ran the off-screen rival accounting
+    // from zero.
+    const system = makeSystem(0.5);
+    system.setDayCount(5);
+    expect(system.dayCount).toBe(5);
+
+    system.setDayCount(7, 14.0);
+    expect(system.lunarAgeDays).toBeCloseTo(14.0, 9);
+    expect(system.state.dayCount).toBe(7);
+
+    system.setDayCount(Number.NaN);
+    expect(system.dayCount).toBe(0);
+  });
+
   it('setTimeOfDay clears an active override', () => {
     const system = makeSystem(0.5);
     system.forceTimeOfDay(0.1);
@@ -283,6 +333,44 @@ describe('published lighting', () => {
     expect(system.derived.moonIsKeyLight).toBe(false);
     expect(system.state.sunIntensity).toBeGreaterThan(0.8);
     expect(system.state.moonIntensity).toBeLessThan(0.05);
+  });
+
+  it('hands the key light over WITHOUT reversing it in one frame', () => {
+    // Twice a cycle the moon takes the directional light from the sun, and at
+    // that moment the two bodies are on opposite sides of the sky. Selecting
+    // the brighter one with a bare `>` rotated `sunDirection` 174 degrees and
+    // snapped its colour orange->blue between two consecutive frames, while
+    // the intensity moved by less than 0.2% — every shadow in City Z flipped
+    // end for end, twice a day. The handover has to be a cross-fade.
+    const system = new DayNightSystem({ startTimeOfDay: 0, lunarAgeDays: 14.0 });
+    const steps = 12000; // ~7 in-game minutes apart
+
+    system.setTimeOfDay(0);
+    let previousDirection = system.lighting.sunDirection.clone();
+    let previousColor = system.lighting.sunColor.clone();
+    let worstTurn = 0;
+    let worstColorStep = 0;
+
+    for (let i = 1; i <= steps; i++) {
+      system.setTimeOfDay(i / steps);
+      const direction = system.lighting.sunDirection;
+      const dot = Math.min(1, Math.max(-1, direction.dot(previousDirection)));
+      worstTurn = Math.max(worstTurn, (Math.acos(dot) * 180) / Math.PI);
+
+      const color = system.lighting.sunColor;
+      worstColorStep = Math.max(
+        worstColorStep,
+        Math.abs(color.r - previousColor.r),
+        Math.abs(color.g - previousColor.g),
+        Math.abs(color.b - previousColor.b)
+      );
+      previousDirection = direction.clone();
+      previousColor = color.clone();
+    }
+
+    // The hard switch produced a single 174 degree step here.
+    expect(worstTurn).toBeLessThan(12);
+    expect(worstColorStep).toBeLessThan(0.08);
   });
 
   it('tightens the shadow cascades at night', () => {

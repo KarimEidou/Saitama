@@ -10,7 +10,8 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { EventBus, wrapAngle } from '@/util';
-import { ThirdPersonCameraRig, type ICameraTarget } from '../camera-rig';
+import type { IPhysicsWorld } from '@/types';
+import { ThirdPersonCameraRig, createPhysicsCameraProbe, type ICameraTarget } from '../camera-rig';
 import { DEFAULT_CAMERA_TUNING, DEFAULT_PLAYER_TUNING } from '../tuning';
 import { InputScript, wallProbe } from './stubs';
 
@@ -221,13 +222,57 @@ describe('collision', () => {
     expect(shortened).toBeLessThan(C.armLengthM);
 
     planeX = 100;
-    rig.update(input.poll(DT), DT);
-    const afterOneFrame = rig.armLength;
-    expect(afterOneFrame - shortened).toBeLessThanOrEqual(C.armRecoverSpeedMps * DT + 1e-6);
+    // EVERY frame of the recovery, not just the first. Sampling only the frame
+    // after the wall vanishes cannot see the real failure: the cap used to be
+    // gated on last frame's occlusion flag, which the (short) sweep cleared the
+    // instant the blocker left its range, so frame two snapped the whole way
+    // back to the resting length at 22x the cap.
+    let previous = shortened;
+    let frames = 0;
+    for (let i = 0; i < 200 && previous < C.armLengthM - 1e-6; i++) {
+      rig.update(input.poll(DT), DT);
+      const step = rig.armLength - previous;
+      expect(step, `frame ${i}`).toBeLessThanOrEqual(C.armRecoverSpeedMps * DT + 1e-6);
+      previous = rig.armLength;
+      frames++;
+    }
+    // Which also means the recovery cannot be quicker than the cap allows.
+    expect(frames * DT).toBeGreaterThanOrEqual(
+      (C.armLengthM - shortened) / C.armRecoverSpeedMps - DT
+    );
 
     for (let i = 0; i < 120; i++) rig.update(input.poll(DT), DT);
     expect(rig.armLength).toBeCloseTo(C.armLengthM, 3);
     expect(rig.isOccluded).toBe(false);
+  });
+
+  it('keeps the cap while a receding blocker is still inside the arm it wants', () => {
+    // The sweep has to reach as far as the arm is trying to grow back to, or
+    // the rig is blind to the very blocker it is recovering away from.
+    let planeX = 2;
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    const target = new MutableTarget();
+    const input = new InputScript();
+    const rig = new ThirdPersonCameraRig({
+      camera,
+      target,
+      yaw: Math.PI / 2,
+      probe: {
+        probe(origin, direction, maxDistance): number {
+          if (direction.x <= 1e-6) return Number.POSITIVE_INFINITY;
+          const d = (planeX - origin.x) / direction.x;
+          return d < 0 || d > maxDistance ? Number.POSITIVE_INFINITY : d;
+        },
+      },
+    });
+    for (let i = 0; i < 60; i++) rig.update(input.poll(DT), DT);
+    expect(rig.armLength).toBeLessThan(C.armLengthM);
+
+    // The wall steps back to 3 m — still well inside the 4.5 m resting arm.
+    planeX = 3;
+    rig.update(input.poll(DT), DT);
+    expect(rig.isOccluded).toBe(true);
+    expect(rig.armLength).toBeLessThan(3);
   });
 
   it('never goes below the minimum arm even flush against geometry', () => {
@@ -297,6 +342,28 @@ describe('orientation', () => {
     r.target.heightAboveGround = 0;
     r.run(240);
     expect(r.rig.diagnostics().pitchDeg).toBeCloseTo(resting, 1);
+  });
+
+  it('gives back every degree the apex bias borrowed, at the band edge too', () => {
+    // The bias is ADDITIVE by design. Clamping the stored player value against
+    // a band shifted by the bias made it destructive instead: a player looking
+    // down at the tuned maximum lost 22 degrees to every leap and never got
+    // them back, so the camera crept upward over a session.
+    const r = setup();
+    r.input.setLook(0, -1);
+    r.run(300);
+    r.input.setLook(0, 0);
+    const authored = r.rig.diagnostics().pitchDeg;
+    expect(authored).toBeCloseTo(C.maxPitchDeg, 3);
+
+    r.target.heightAboveGround = 27;
+    r.run(240);
+    // The total stays inside the tuned band even at full bias.
+    expect(r.rig.diagnostics().pitchDeg).toBeLessThanOrEqual(C.maxPitchDeg + 1e-6);
+
+    r.target.heightAboveGround = 0;
+    r.run(240);
+    expect(r.rig.diagnostics().pitchDeg).toBeCloseTo(authored, 3);
   });
 
   it('recentres behind the character on demand', () => {
@@ -432,6 +499,48 @@ describe('impact lag', () => {
     r.input.release('heavyPunch');
   });
 
+  it('keeps the lagged camera out of geometry, not just the desired one', () => {
+    // Both ends of the blend were collision-valid when they were computed; the
+    // straight line between them never was. Here the wall arrives (destruction
+    // rebuilds a chunk) between the stale frame and the current one, so the
+    // three-frame-old position the lag blends toward is now inside it.
+    const bus = new EventBus();
+    let planeX = 100;
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+    const target = new MutableTarget();
+    const input = new InputScript();
+    const rig = new ThirdPersonCameraRig({
+      camera,
+      target,
+      bus,
+      yaw: Math.PI / 2,
+      probe: {
+        probe(origin, direction, maxDistance): number {
+          if (direction.x <= 1e-6) return Number.POSITIVE_INFINITY;
+          const d = (planeX - origin.x) / direction.x;
+          return d < 0 || d > maxDistance ? Number.POSITIVE_INFINITY : d;
+        },
+      },
+    });
+    for (let i = 0; i < 60; i++) rig.update(input.poll(DT), DT);
+    expect(camera.position.x).toBeGreaterThan(4);
+
+    bus.emit('ShockwaveFired', {
+      origin: { x: 0, y: 1, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 5e5,
+      range: 40,
+      angle: 0.6,
+      intent: 'serious',
+      punchKind: 'serious',
+    });
+    planeX = 1.5;
+    rig.update(input.poll(DT), DT);
+
+    expect(rig.diagnostics().impactLag).toBeGreaterThan(0.5);
+    expect(camera.position.x).toBeLessThan(1.5);
+  });
+
   it('ignores a barely-charged punch', () => {
     const r = setup();
     r.run(30);
@@ -444,6 +553,28 @@ describe('impact lag', () => {
 /* -------------------------------------------------------------------------- */
 /* Lifecycle                                                                  */
 /* -------------------------------------------------------------------------- */
+
+describe('physics probe', () => {
+  it('allocates nothing per probe, as `ICameraProbe.probe` promises', () => {
+    // Six probes a frame, 360 a second, is a steady contribution to exactly the
+    // young-generation churn whose GC hitches truncate a held jump elsewhere.
+    const seen = new Set<object>();
+    const world = {
+      raycast(options: object): undefined {
+        seen.add(options);
+        return undefined;
+      },
+    } as unknown as IPhysicsWorld;
+
+    const probe = createPhysicsCameraProbe(world, { layers: ['world'] });
+    const origin = new THREE.Vector3();
+    const direction = new THREE.Vector3(1, 0, 0);
+    for (let i = 0; i < 6; i++) {
+      expect(probe.probe(origin, direction, 4 + i)).toBe(Number.POSITIVE_INFINITY);
+    }
+    expect(seen.size).toBe(1);
+  });
+});
 
 describe('lifecycle', () => {
   it('unsubscribes from the bus on dispose', () => {

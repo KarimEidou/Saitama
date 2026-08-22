@@ -172,6 +172,19 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
   const density = STRUCTURE_DENSITY[recipe.structureMaterial];
   let totalMass = 0;
 
+  // The building's AABB is unioned from the geometry as it is emitted, not
+  // derived from the footprint: rooftop plant stands up to 8.8 m above the
+  // parapet and the facade kit projects balconies, awnings and signs up to
+  // 1.35 m past the footprint. Everything downstream — the block AABB, the
+  // chunk AABB, `ICityBlock.bounds` — is a fold of this one, so a footprint-
+  // only box tells every culler the mast is not there.
+  let minX = Infinity;
+  let minY = 0;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = 0;
+  let maxZ = -Infinity;
+
   for (let f = 0; f < recipe.floors; f++) {
     const y0 = f === 0 ? 0 : floorTops[f - 1];
     const y1 = floorTops[f];
@@ -229,6 +242,14 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
       }
 
       const span = builder.endChunk();
+      if (span.vertexCount > 0) {
+        if (span.bounds[0] < minX) minX = span.bounds[0];
+        if (span.bounds[1] < minY) minY = span.bounds[1];
+        if (span.bounds[2] < minZ) minZ = span.bounds[2];
+        if (span.bounds[3] > maxX) maxX = span.bounds[3];
+        if (span.bounds[4] > maxY) maxY = span.bounds[4];
+        if (span.bounds[5] > maxZ) maxZ = span.bounds[5];
+      }
       const index = f * QUADRANTS + q;
       // Wall area x nominal 0.22 m of concrete is a better mass proxy than the
       // triangle-area sum, which double counts reveals and clutter.
@@ -299,16 +320,16 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
     slotBase: slotOffsets,
   };
 
-  let minX = Infinity;
-  let minZ = Infinity;
-  let maxX = -Infinity;
-  let maxZ = -Infinity;
+  // Fold the footprint and the nominal parapet top in as a floor, so a
+  // building whose geometry was suppressed (a `box`-detail stub, a degenerate
+  // edge) still reports at least the box it occupies.
   for (const p of footprint) {
     if (p[0] < minX) minX = p[0];
     if (p[0] > maxX) maxX = p[0];
     if (p[1] < minZ) minZ = p[1];
     if (p[1] > maxZ) maxZ = p[1];
   }
+  maxY = Math.max(maxY, height + recipe.parapetHeight);
 
   return {
     id: recipe.id,
@@ -317,7 +338,7 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
     floors: recipe.floors,
     height,
     footprint,
-    bounds: [minX, 0, minZ, maxX, height + recipe.parapetHeight, maxZ],
+    bounds: [minX, minY, minZ, maxX, maxY, maxZ],
     attachments,
     triangles: buffers.indexCount / 3,
     panelCount: panels.length,
@@ -515,7 +536,9 @@ function emitFlatBay(
     [o[0], o[1], o[2]],
     [o[0], o[1] + h, o[2]],
     [o[0] + r[0] * w, o[1] + h, o[2] + r[2] * w],
-    [c.uStart * scale, o[1] * scale, (c.uStart + w) * scale, (o[1] + h) * scale],
+    // Corner `a` sits at wall distance `w`, so it takes the texel for `w`; the
+    // U pair follows the winding, not the u0..u1 order. See `wallQuad`.
+    [(c.uStart + w) * scale, o[1] * scale, c.uStart * scale, (o[1] + h) * scale],
     color
   );
   c.builder.addVolume(w * h * 0.22);
@@ -590,14 +613,17 @@ function emitParapet(
       (y + height) * uvScale,
     ];
 
-    // Outer face — continues the wall, so it takes the wall material.
+    // Outer face — continues the wall, so it takes the wall material AND the
+    // wall's running U. It winds b -> a like every other outward-facing quad,
+    // so its U pair is reversed; handing it over in 0..length order mirrors
+    // the coping course against the wall directly below it.
     builder.quad(
       MatSlot.Facade,
       [outer[1][0], y, outer[1][1]],
       [outer[0][0], y, outer[0][1]],
       [outer[0][0], y + height, outer[0][1]],
       [outer[1][0], y + height, outer[1][1]],
-      uv,
+      [edge.length * uvScale, y * uvScale, 0, (y + height) * uvScale],
       shadeTint(tint, 1.02)
     );
     // Inner face, in shadow.
@@ -788,6 +814,9 @@ function emitClutter(builder: MeshBuilder, item: IClutterItem, y: number, uvScal
     }
     case 'mast': {
       const h = 5.5 * s;
+      // Four sides, no caps: `0b101101` is +X +Z -X -Z. Dropping bit 5 leaves
+      // the pole with no -Z face, so from due north — where its silhouette
+      // against the sky is the whole point — it disappears.
       builder.box(
         MatSlot.Roof,
         item.x,
@@ -798,7 +827,7 @@ function emitClutter(builder: MeshBuilder, item: IClutterItem, y: number, uvScal
         0.09,
         uvScale,
         item.tint,
-        0b001101
+        0b101101
       );
       for (let i = 1; i <= 3; i++) {
         const yy = y + (h * i) / 4;

@@ -351,12 +351,18 @@ export class SpawnDirector {
         this.retire.push(monster.id);
         continue;
       }
-      // The ring rule, applied symmetrically. A monster that drifted a full
-      // ring past where it was allowed to be placed is now in territory with
-      // no NPCs and no colliders — the same reason it could not spawn there is
-      // the reason it should not stay there.
+      // The ring rule, applied symmetrically — the same threshold placement
+      // uses. A monster that drifted a full ring past where it was allowed to
+      // be placed is now in territory with no NPCs and no colliders, and the
+      // same reason it could not spawn there is the reason it should not stay
+      // there.
+      //
+      // The threshold was `maxSpawnRing + 1`, which is TWO rings past and
+      // unreachable in practice: with the shipped policy it needs R3, R3 starts
+      // at 816 m of Chebyshev distance, Euclidean distance is never smaller,
+      // and the 620 m recycle test above has therefore already fired.
       const ring = this.ringAt?.(monster.position) ?? ringBetween(monster.position, context.focus);
-      if (ring > this.policy.maxSpawnRing + 1) this.retire.push(monster.id);
+      if (ring > this.policy.maxSpawnRing) this.retire.push(monster.id);
     }
   }
 
@@ -396,12 +402,19 @@ export class SpawnDirector {
     for (let attempt = 0; attempt < policy.placementAttempts; attempt++) {
       /* ---- a point in the annulus around the focus --------------------- */
       const angle = rng.range(0, Math.PI * 2);
-      // sqrt keeps the sample uniform by AREA, so the ring nearest the player
-      // is not over-represented — which it visibly is with a linear draw.
-      const t = Math.sqrt(rng.next());
-      const distance =
-        policy.minSpawnDistanceMetres +
-        t * (policy.maxSpawnDistanceMetres - policy.minSpawnDistanceMetres);
+      // The inverse CDF of a draw uniform by AREA over the annulus, so the band
+      // nearest the player is neither over- nor under-represented.
+      //
+      // `min + (max - min) * sqrt(u)` is the version for a DISC and is only
+      // area-uniform when `min` is 0: its radial density is proportional to
+      // (r - min) rather than to r, which puts a density of ZERO at
+      // `minSpawnDistanceMetres` itself. With the shipped 34 m / 520 m policy
+      // that made close spawns 4.6x rarer than intended and left the nearest
+      // band — the knob the policy presents as "how close is too close" —
+      // effectively unused.
+      const inner = policy.minSpawnDistanceMetres;
+      const outer = policy.maxSpawnDistanceMetres;
+      const distance = Math.sqrt(inner * inner + rng.next() * (outer * outer - inner * inner));
       const x = context.focus.x + Math.sin(angle) * distance;
       const z = context.focus.z + Math.cos(angle) * distance;
 

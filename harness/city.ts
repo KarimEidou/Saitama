@@ -358,8 +358,11 @@ function makeFractureView(): IView {
   );
   focusShadows(built.scene, new THREE.Vector3(96, 12, -330), 120);
 
-  // Take out floors 1-3 of everything near the camera. The holes land on the
-  // baked chunk seams: one floor x one facade quadrant at a time.
+  // Take out chunk floors 1-3 of EVERY building in the region — `floor` is
+  // 0-based (`index === floor * 4 + quadrant`), so that is the second to
+  // fourth storeys, and there is no distance filter: the blocks behind the
+  // framed one are gutted too. The holes land on the baked chunk seams: one
+  // floor x one facade quadrant at a time.
   //
   // Quadrants 0 (+X, east) and 1 (+Z, south) specifically, because the camera
   // below looks north-west and those are the two faces it can see. Destroying
@@ -384,9 +387,10 @@ function makeFractureView(): IView {
     built,
     camera,
     label:
-      `Baked fracture: ${destroyedChunks} chunks removed — floors 2-4, east and ` +
-      `south quadrants. Every hole is a seam the generator baked in; the floor ` +
-      `slabs behind them were always there.`,
+      `Baked fracture: ${destroyedChunks} chunks removed — chunk floors 1-3 ` +
+      `(0-based: the second to fourth storeys), east and south quadrants, every ` +
+      `building in the region. Every hole is a seam the generator baked in; the ` +
+      `floor slabs behind them were always there.`,
   };
 }
 

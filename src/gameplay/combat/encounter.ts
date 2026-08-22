@@ -232,9 +232,23 @@ export class EncounterTracker {
     return result;
   }
 
-  /** True once every registered hostile is dead. */
+  /**
+   * True once every registered hostile is dead.
+   *
+   * A tally that never had a hostile is NOT cleared. An `EncounterStarted`
+   * whose participants have not reached combat's registry yet — the spawn
+   * path files the event before the target bridge mirrors the monsters, and
+   * crowd and hero NPCs are never mirrored at all — resolves to an empty
+   * hostile set, and an empty set is trivially "all dead". Reporting that as
+   * cleared arms the settle timer immediately and scores a fight the player
+   * has not started as a clean victory with `kills: 0`.
+   */
   get cleared(): boolean {
-    return this.tally !== undefined && this.tally.hostilesRemaining.size === 0;
+    return (
+      this.tally !== undefined &&
+      this.tally.hostiles.size > 0 &&
+      this.tally.hostilesRemaining.size === 0
+    );
   }
 
   /* ---------------------------------------------------------------------- */

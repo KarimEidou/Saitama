@@ -68,6 +68,36 @@ describe('ringWithHysteresis', () => {
     expect(ringWithHysteresis(boundary - RING_HYSTERESIS_CHUNKS * 1.5, RING_R1)).toBe(RING_R0);
   });
 
+  it('promotes across a skipped ring instead of getting stuck', () => {
+    // A camera cut / fast travel / respawn moves the focus by several chunks in
+    // one frame, so a chunk goes from R2 straight into the R0 band. The R0 dead
+    // band is not cleared at 1.3 units, but the R1 one is — and testing only
+    // the target ring and giving up left the chunk at R2 forever: merged boxes
+    // 125 m from the player with no colliders and no crowd.
+    expect(ringWithHysteresis(1.3, RING_R2)).toBe(RING_R1);
+    expect(ringWithHysteresis(1.5, RING_R2)).toBe(RING_R1);
+    expect(ringWithHysteresis(1.14, RING_R2)).toBe(RING_R0);
+    expect(ringWithHysteresis(4.4, RING_R3)).toBe(RING_R2);
+    // The dead band still holds where it should: no ring in between qualifies.
+    expect(ringWithHysteresis(1.3, RING_R1)).toBe(RING_R1);
+    expect(ringWithHysteresis(4.2, RING_R2)).toBe(RING_R2);
+  });
+
+  it('is non-decreasing in distance from any starting ring', () => {
+    // The visible symptom of the stuck band was non-monotonicity: a chunk at
+    // 1.6 units promoted to R1 while the SAME chunk moved closer, to 1.5, was
+    // held at R2. Whatever the hysteresis does, moving further away must never
+    // buy a finer ring.
+    for (let current = -1; current <= RING_R3; current++) {
+      let previous = -1;
+      for (let step = 0; step <= 1200; step++) {
+        const ring = ringWithHysteresis(step * 0.01, current);
+        expect(ring).toBeGreaterThanOrEqual(previous);
+        previous = ring;
+      }
+    }
+  });
+
   it('has no distance at which the promote and demote thresholds coincide', () => {
     // The defining property of hysteresis: for every distance in the band,
     // the answer depends on where you came from.
@@ -134,6 +164,22 @@ describe('RingAssigner', () => {
     }
     const assigner = run(sequence);
     expect(assigner.transitionCount).toBe(4);
+  });
+
+  it('answers a ring query without recording it', () => {
+    // `prefetch` and `requestChunk` run BETWEEN frames. Asking through `assign`
+    // there both double-counts the pass-scoped ring populations and writes a
+    // ring the caller then clamps — leaving the assigner remembering a ring the
+    // chunk was never built at.
+    const assigner = new RingAssigner();
+    assigner.beginPass();
+    expect(assigner.ringForChunk(4, 0.2)).toBe(RING_R0);
+    expect(assigner.ringOf(4)).toBe(-1);
+    expect(assigner.countFor(RING_R0)).toBe(0);
+
+    // And it still honours the history of a chunk that has one.
+    assigner.assign(4, 0.2);
+    expect(assigner.ringForChunk(4, RING_OUTER_CHUNKS[0]! + 0.1)).toBe(RING_R0);
   });
 
   it('forgets an evicted chunk', () => {

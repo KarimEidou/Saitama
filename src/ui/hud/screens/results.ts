@@ -39,7 +39,7 @@ import {
   formatDuration,
   formatPercent,
   formatPoints,
-  formatSeatDelta,
+  formatSeatMove,
   formatYenFull,
   formatYenOku,
   groupDigits,
@@ -198,7 +198,7 @@ export class ResultsScreen extends HudScreen {
             }),
             el(this.doc, 'div', {
               className: 'hud-invoice__sub',
-              text: `${formatSeatDelta(invoice.seats > 900 ? 1 : invoice.seats)} on the ladder`,
+              text: `${formatSeatMove(invoice.seats)} on the ladder`,
             }),
           ],
         }),

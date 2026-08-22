@@ -147,6 +147,32 @@ describe('moon', () => {
     expect(newAtNoon).toBeGreaterThan(newAtMidnight);
   });
 
+  it('swings its declination with the phase instead of pinning it at full', () => {
+    // The moon's declination band is the sun's, walked through across a
+    // month: aligned at new, opposite at full, through zero at the quarters.
+    // Pinned at the full-moon value, a first-quarter moon culminates ~20 deg
+    // too low — and moonlit shadow length is the one thing this model is for.
+    const peakElevation = (lunarAgeDays: number): number => {
+      let peak = -Infinity;
+      for (let i = 0; i < 1440; i++) {
+        peak = Math.max(peak, moonPosition(i / 1440, lunarAgeDays, { dayOfYear: 172 }).elevation);
+      }
+      return peak * RAD2DEG;
+    };
+
+    // Midsummer, 35.6N: a full moon sits opposite a +23.4 deg sun and stays
+    // low; a first-quarter moon rides near declination 0 and passes far higher.
+    const full = peakElevation(29.530588 / 2);
+    const firstQuarter = peakElevation(29.530588 / 4);
+    const newMoon = peakElevation(0);
+
+    expect(full).toBeLessThan(40);
+    expect(firstQuarter).toBeGreaterThan(full + 15);
+    // A new moon shares the sun's declination, so it climbs as high as the sun.
+    expect(newMoon).toBeGreaterThan(firstQuarter);
+    expect(newMoon).toBeLessThan(90);
+  });
+
   it('stays on the unit sphere', () => {
     for (let i = 0; i < 120; i++) {
       const p = moonPosition(i / 120, 14);

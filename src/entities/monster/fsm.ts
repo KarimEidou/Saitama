@@ -73,13 +73,23 @@ export const MONSTER_TRANSITIONS: Readonly<Record<MonsterState, readonly Monster
 /**
  * States a monster may re-enter from itself.
  *
- * Only `attack`: throwing a second swing is a genuine re-entry — the wind-up
- * restarts, the clip restarts, the timer restarts. Re-entering `pursue` or
- * `idle` would silently reset `timeInState` and quietly defeat the watchdog,
- * so those return false instead.
+ * `attack`, because throwing a second swing is a genuine re-entry — the
+ * wind-up restarts, the clip restarts, the timer restarts.
+ *
+ * `stagger`, for exactly the same reason and no other: a second interrupting
+ * hit is a second interruption. Without it `MonsterFsm.transition('stagger')`
+ * is refused while already staggering, `MonsterBrain.onDamaged` discards the
+ * refusal, and the monster recovers on the FIRST hit's clock — so a sustained
+ * burst reads as though every blow after the first did nothing at all, and
+ * releases the monster EARLY rather than holding it for the archetype's
+ * `staggerSeconds`.
+ *
+ * Re-entering `pursue` or `idle` would silently reset `timeInState` and
+ * quietly defeat the watchdog, so those still return false.
  */
 export const MONSTER_SELF_TRANSITIONS: ReadonlySet<MonsterState> = new Set<MonsterState>([
   'attack',
+  'stagger',
 ]);
 
 /* -------------------------------------------------------------------------- */

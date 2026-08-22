@@ -190,7 +190,12 @@ describe('participants', () => {
     scene.combat.dispose();
   });
 
-  it('ignores a second begin while one fight is already live', () => {
+  it('closes the live fight before starting a second one, rather than dropping it', () => {
+    // Combat is the ONLY production emitter of `EncounterEnded`. Discarding a
+    // second `EncounterStarted` — or overwriting the tally with it — leaves an
+    // encounter id that can never be closed: progression files an incident on
+    // `EncounterStarted` and only ever deletes it on `EncounterEnded`, and the
+    // HUD opens a banner that never comes down.
     const scene = createScene({ seed: 'reentrant' });
     populateStreet(scene);
     scene.combat.beginEncounter({
@@ -206,8 +211,30 @@ describe('participants', () => {
       participantIds: ['monster-01'],
       isBoss: false,
     });
-    expect(scene.combat.encounters.encounterId).toBe('first');
+    expect(scene.combat.encounters.encounterId).toBe('second');
+
+    const ended = scene.bus.ofType('EncounterEnded');
+    expect(ended).toHaveLength(1);
+    expect(ended[0]!.encounterId).toBe('first');
+    expect(ended[0]!.outcome).toBe('aborted');
     scene.combat.dispose();
+  });
+
+  it('closes a fight still running when the system is torn down', () => {
+    const scene = createScene({ seed: 'dispose-open' });
+    populateStreet(scene);
+    scene.combat.beginEncounter({
+      encounterId: 'interrupted',
+      hostileIds: ['monster-01'],
+      time: 0,
+    });
+    scene.combat.dispose();
+
+    const ended = scene.bus.ofType('EncounterEnded');
+    expect(ended).toHaveLength(1);
+    expect(ended[0]!.encounterId).toBe('interrupted');
+    // Tearing down mid-fight is an abort, not a win — but it is still a close.
+    expect(ended[0]!.outcome).toBe('aborted');
   });
 
   it('ending with no fight on is a no-op, not a crash', () => {

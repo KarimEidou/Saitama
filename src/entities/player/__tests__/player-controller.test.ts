@@ -215,6 +215,23 @@ describe('ground contact grace', () => {
     h.run(20);
     expect(h.player.state).toBe('fall');
   });
+
+  it('never leaves the machine airborne while the character is grounded', () => {
+    // `fall` and `jumpLaunch` have NO edge to a ground state — the landing is
+    // the only way out of them. Anything that puts the machine there while
+    // contact is held (a jump into a ceiling, a hard reset) would otherwise
+    // wedge it: `resolveState()` asks for `idle` every frame and is refused
+    // every frame, and the character runs around playing the falling clip.
+    const h = setup();
+    h.run(10);
+    expect(h.player.state).toBe('idle');
+
+    h.player.stateMachine.transition('fall', true);
+    h.run(1);
+    expect(h.player.state).not.toBe('fall');
+    h.run(30);
+    expect(h.player.state).toBe('idle');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -268,6 +285,33 @@ describe('jump', () => {
     expect(full).toBeGreaterThan(half + 1);
   });
 
+  it('does not cancel the held boost on a single long frame', () => {
+    /** Hold jump throughout, with one hitched frame right after take-off. */
+    const apexAfterHitch = (hitchSeconds: number): number => {
+      const h = setup();
+      h.input.press('jump');
+      h.player.update(h.input.poll(DT), DT);
+      h.player.postStep();
+      // A city-chunk streaming hitch, inside the 0.12 s ramp window. Nothing is
+      // in the character's way, so the ascent must survive it.
+      h.player.update(h.input.poll(hitchSeconds), hitchSeconds);
+      h.player.postStep();
+      let apex = 0;
+      h.run(400, () => {
+        apex = Math.max(apex, h.player.heightAboveGround);
+      });
+      return apex;
+    };
+
+    const steady = apexAfterHitch(DT);
+    const hitched = apexAfterHitch(0.055);
+    expect(steady).toBeGreaterThan(L.hardLandFallHeightM);
+    // Truncating here turns a 27 m leap into a 12 m hop that also stops
+    // cratering — at random, only on a loaded device.
+    expect(hitched).toBeGreaterThan(L.hardLandFallHeightM);
+    expect(hitched).toBeGreaterThan(steady * 0.9);
+  });
+
   it('never double-jumps from one press', () => {
     const h = setup();
     let launches = 0;
@@ -316,6 +360,30 @@ describe('coyote time', () => {
     expect(ledgeJump(0).jumped).toBe(true);
     expect(ledgeJump(windowFrames - 2).jumped).toBe(true);
     expect(ledgeJump(windowFrames + 4).jumped).toBe(false);
+  });
+
+  it('grants none of it to a controller that has never reported contact', () => {
+    // The real `CharacterController` computes contact inside `move()`, so it
+    // reports `false` at construction whatever the character is standing on.
+    // Starting the clock at 0 there reads out a full window that does not
+    // exist, and hands a genuinely airborne spawn a free jump on frame 1.
+    const stub = new StubCharacterController({ grounded: false });
+    const input = new InputScript();
+    const player = new PlayerController({ controller: stub, animator: null });
+    expect(player.coyoteRemaining).toBe(0);
+
+    let launches = 0;
+    player.stateMachine.onEnter('jumpLaunch', () => launches++);
+    input.press('jump');
+    player.update(input.poll(DT), DT);
+    player.postStep();
+    expect(launches).toBe(0);
+
+    // The press is remembered, not dropped: contact resolves and the buffer
+    // spends it on the next frame.
+    player.update(input.poll(DT), DT);
+    player.postStep();
+    expect(launches).toBe(1);
   });
 
   it('reports the remaining window as it drains', () => {
@@ -543,6 +611,30 @@ describe('landings', () => {
     const hop = retention(1);
     expect(hop.hard).toBe(false);
     expect(hop.ratio).toBeGreaterThan(0.7);
+  });
+
+  it('a teleport onto the ground leaves a state the next frame can resolve', () => {
+    // `Game.load()` restores a save by teleporting to the exact capsule centre
+    // the player was standing at. Forcing `fall` there wedged the machine: the
+    // touchdown is filtered as solver noise, so no landing fires, and `fall`
+    // has no edge to a ground state — the character walked, ran and dashed
+    // around the city playing the falling clip until he next pressed jump.
+    const h = setup();
+    h.player.setPosition(new THREE.Vector3(0, 0.875, 0));
+    h.run(5);
+    expect(h.player.isGrounded).toBe(true);
+    expect(h.player.state).toBe('idle');
+
+    h.input.setMove(0, 1);
+    h.run(60);
+    expect(h.player.state).toBe('run');
+  });
+
+  it('still reads a teleport into the sky as a fall', () => {
+    const h = setup();
+    h.player.setPosition(new THREE.Vector3(0, 40, 0));
+    h.run(20);
+    expect(h.player.state).toBe('fall');
   });
 
   it('prefers the physics landing event when a bus is wired in', () => {

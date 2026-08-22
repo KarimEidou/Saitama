@@ -25,11 +25,13 @@
  * a twenty-storey building and craters the pavement on the way down.
  *
  * ── VALUES THAT MUST MATCH ANOTHER SYSTEM ──────────────────────────────────
- * Three numbers here are duplicated from `src/physics/constants.ts` ON PURPOSE:
+ * Six numbers here are duplicated from `src/physics/constants.ts` ON PURPOSE:
  * this workstream may not import another system's implementation, so it cannot
- * read them directly. They are marked `MIRRORS PHYSICS` below, and
- * `harness/player.ts` asserts each one against the physics module at runtime —
- * so a drift is a failed harness run, not a silent feel regression.
+ * read them directly. They are marked `MIRRORS PHYSICS` below — five tuning
+ * fields plus `RISE_GRAVITY_MPS2` — and `tuning.test.ts` pins every one of
+ * them, so a drift is a failed test rather than a silent feel regression.
+ * `harness/player.ts` re-checks the five FIELDS against the live physics module
+ * at runtime; the rise gravity is not in that runtime list yet.
  */
 
 import { clamp01, DEG2RAD } from '@/util';
@@ -198,6 +200,16 @@ export interface IPlayerLocomotionTuning {
    * jump-forgiveness window.
    */
   readonly groundGraceSeconds: number;
+  /**
+   * Drop below which a lost-and-regained contact reads as solver noise rather
+   * than a fall.
+   *
+   * The DISTANCE half of the same two-part filter `groundGraceSeconds` is the
+   * TIME half of. Both have to move together: widening the time window for a
+   * 30 fps profile while this stays put reclassifies a real half-metre drop off
+   * a kerb as a hiccup on that tier only, and the landing silently disappears.
+   */
+  readonly microAirborneDropM: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -387,6 +399,7 @@ export const DEFAULT_LOCOMOTION_TUNING: IPlayerLocomotionTuning = Object.freeze(
   runSpeedThreshold: 4.2,
   jumpLaunchSeconds: 0.18,
   groundGraceSeconds: 0.08,
+  microAirborneDropM: 0.5,
 } satisfies IPlayerLocomotionTuning);
 
 /** Third-person camera defaults. Frozen. */
@@ -462,12 +475,25 @@ export function resolvePlayerTuning(patch?: IPlayerTuningPatch): IPlayerTuning {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Downward acceleration applied while RISING, m/s².
+ * MIRRORS PHYSICS `GRAVITY_Y` (−22, magnitude 22).
+ *
+ * Not a tuning field: overriding it in a device profile would not change how
+ * fast the world pulls, it would only decouple the held-jump ceiling from the
+ * curve it is built to converge onto — the ceiling would sit above free flight
+ * for the whole hold window and releasing the button would put a visible step
+ * in the vertical speed. It is a mirror, so it lives here once, marked, and is
+ * pinned by `tuning.test.ts`.
+ */
+export const RISE_GRAVITY_MPS2 = 22;
+
+/**
  * Ballistic apex above the take-off point for a given launch speed.
  *
  * Uses the RISE gravity only. The physics module applies a 1.6x multiplier on
  * the way back down, which changes airtime but not apex height.
  */
-export function apexForLaunchSpeed(launchSpeed: number, riseGravity = 22): number {
+export function apexForLaunchSpeed(launchSpeed: number, riseGravity = RISE_GRAVITY_MPS2): number {
   return (launchSpeed * launchSpeed) / (2 * Math.abs(riseGravity));
 }
 
@@ -485,7 +511,7 @@ export function apexForLaunchSpeed(launchSpeed: number, riseGravity = 22): numbe
 export function heldJumpSpeedCeiling(
   tuning: IPlayerLocomotionTuning,
   elapsed: number,
-  riseGravity = 22
+  riseGravity = RISE_GRAVITY_MPS2
 ): number {
   const t = clamp01(elapsed / Math.max(1e-4, tuning.jumpRampSeconds));
   const ceiling = tuning.hopSpeed + (tuning.jumpSpeed - tuning.hopSpeed) * t;
@@ -500,7 +526,10 @@ export function heldJumpSpeedCeiling(
  * tests and the harness can compare a MEASURED apex against the number the
  * tuning implies, instead of against a hand-written constant that drifts.
  */
-export function heldJumpApex(tuning: IPlayerLocomotionTuning, riseGravity = 22): number {
+export function heldJumpApex(
+  tuning: IPlayerLocomotionTuning,
+  riseGravity = RISE_GRAVITY_MPS2
+): number {
   const g = Math.abs(riseGravity);
   const T = Math.max(1e-4, tuning.jumpRampSeconds);
   // v(t) = hop + ((jump - hop)/T - g) * t   for t in [0, T]

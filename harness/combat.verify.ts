@@ -231,6 +231,12 @@ async function main(): Promise<void> {
       timeout: 120_000,
     });
 
+    // The page marks itself ready on a boot failure too, with the cause here.
+    // Without this a throw at module scope costs the full two-minute timeout
+    // and reports only that the timeout expired.
+    const pageError = await page.evaluate(() => window.__COMBAT_ERROR__);
+    if (pageError !== undefined) throw new Error(`combat harness threw:\n${pageError}`);
+
     /* ---- 1. the serious punch, fully charged ------------------------- */
     await page.evaluate(() => {
       window.__COMBAT_HARNESS__!.reset();

@@ -46,9 +46,19 @@ export class CollapseScheduler {
   private chunkIndices = new Int32Array(INITIAL_CAPACITY);
   private dueFrames = new Int32Array(INITIAL_CAPACITY);
 
-  /** Live entries occupy `[head, tail)`. */
+  /** Live entries occupy `[head, tail)`, which may contain holes. */
   private head = 0;
   private tail = 0;
+  /**
+   * Entries in `[head, tail)` that are still going to fall.
+   *
+   * Tracked rather than derived from `tail - head`, because both
+   * `removeStructure` and a drained-but-not-yet-reclaimed slot leave HOLES in
+   * the window. A tower that streamed out mid-collapse would otherwise keep
+   * reporting its forty chunks as "queued to fall" — a diagnostic that shows a
+   * collapse which never drains, on a queue that is actually empty.
+   */
+  private live = 0;
 
   private readonly maxPerFrame: number;
 
@@ -58,7 +68,7 @@ export class CollapseScheduler {
 
   /** Chunks waiting to fall. */
   get pending(): number {
-    return this.tail - this.head;
+    return this.live;
   }
 
   /**
@@ -107,20 +117,37 @@ export class CollapseScheduler {
    * Anything over the ceiling stays queued and arrives next frame — a
    * three-block collapse degrades into a slightly longer collapse rather than
    * into a dropped frame.
+   *
+   * SKIP, DO NOT STOP. `dueFrames` is only monotonic WITHIN one `enqueue`, so
+   * a tower that started falling one frame after its neighbour sits behind
+   * entries that are not due yet. Breaking at the first of those held its waves
+   * back and then delivered two of them together — the "pop, not a collapse"
+   * outcome the stagger exists to prevent, arriving exactly when several
+   * buildings come down in a row and it is most visible.
    */
   drain(frame: number, detach: CollapseDrainFn): number {
     let done = 0;
-    while (this.head < this.tail && done < this.maxPerFrame) {
-      if (this.dueFrames[this.head]! > frame) break;
-      const structure = this.structures[this.head];
-      const chunkIndex = this.chunkIndices[this.head]!;
-      this.structures[this.head] = undefined;
-      this.head++;
-      if (structure !== undefined) {
-        detach(structure, chunkIndex);
-        done++;
+    // Offset from `head`, not an absolute index: `detach` runs arbitrary
+    // subscriber code, and a compaction triggered from inside it slides the
+    // window to zero while preserving every entry's position within it.
+    let offset = 0;
+    while (done < this.maxPerFrame) {
+      const i = this.head + offset;
+      if (i >= this.tail) break;
+      const structure = this.structures[i];
+      if (structure === undefined || this.dueFrames[i]! > frame) {
+        offset++;
+        continue;
       }
+      this.structures[i] = undefined;
+      this.live--;
+      detach(structure, this.chunkIndices[i]!);
+      done++;
+      offset++;
     }
+    // Reclaim the drained head. Holes further in are reclaimed as the window
+    // walks past them, and `push` compacts when it runs out of room.
+    while (this.head < this.tail && this.structures[this.head] === undefined) this.head++;
     if (this.head === this.tail) {
       this.head = 0;
       this.tail = 0;
@@ -131,7 +158,10 @@ export class CollapseScheduler {
   /** Drop every queued detach belonging to a structure being unregistered. */
   removeStructure(structure: RegisteredStructure): void {
     for (let i = this.head; i < this.tail; i++) {
-      if (this.structures[i] === structure) this.structures[i] = undefined;
+      if (this.structures[i] === structure) {
+        this.structures[i] = undefined;
+        this.live--;
+      }
     }
   }
 
@@ -139,6 +169,7 @@ export class CollapseScheduler {
     for (let i = this.head; i < this.tail; i++) this.structures[i] = undefined;
     this.head = 0;
     this.tail = 0;
+    this.live = 0;
   }
 
   private push(structure: RegisteredStructure, chunkIndex: number, due: number): void {
@@ -153,19 +184,24 @@ export class CollapseScheduler {
     this.chunkIndices[this.tail] = chunkIndex;
     this.dueFrames[this.tail] = due;
     this.tail++;
+    this.live++;
   }
 
-  /** Slide live entries back to zero. Cheaper than growing, and allocation-free. */
+  /**
+   * Slide the window back to zero. Cheaper than growing, and allocation-free.
+   * Entries keep their position WITHIN the window, so an in-flight `drain`
+   * scanning at an offset from `head` is unaffected.
+   */
   private compact(): void {
-    const live = this.tail - this.head;
-    for (let i = 0; i < live; i++) {
+    const span = this.tail - this.head;
+    for (let i = 0; i < span; i++) {
       this.structures[i] = this.structures[this.head + i];
       this.chunkIndices[i] = this.chunkIndices[this.head + i]!;
       this.dueFrames[i] = this.dueFrames[this.head + i]!;
     }
-    for (let i = live; i < this.tail; i++) this.structures[i] = undefined;
+    for (let i = span; i < this.tail; i++) this.structures[i] = undefined;
     this.head = 0;
-    this.tail = live;
+    this.tail = span;
   }
 
   /**

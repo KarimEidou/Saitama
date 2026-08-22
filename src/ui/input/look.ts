@@ -91,6 +91,36 @@ export class LookSmoother {
 }
 
 /**
+ * Apply the two look TUNING knobs to an already-normalised look rate.
+ *
+ * The touch/mouse path gets both inside `LookSmoother.update()`, where they
+ * scale real degrees-per-pixel. Sources that are already normalised — a gamepad
+ * right stick, the keyboard look keys — have no pixels to scale, so they apply
+ * the same two knobs here instead. Without this, `invertLookY` and
+ * `lookSensitivity` mean different things depending on which device is in hand,
+ * which is exactly the divergence the shared contribution shape exists to stop.
+ *
+ * The result is clamped back into the unit disc: `AxisState` is bounded to
+ * -1..1, so a sensitivity above 1 saturates rather than overflowing the
+ * contract.
+ */
+export function scaleLookRate(
+  x: number,
+  y: number,
+  tuning: IInputTuning
+): { x: number; y: number } {
+  const sensitivity = tuning.lookSensitivity;
+  let nx = x * sensitivity;
+  let ny = (tuning.invertLookY ? -y : y) * sensitivity;
+  const magnitude = Math.hypot(nx, ny);
+  if (magnitude > 1) {
+    nx /= magnitude;
+    ny /= magnitude;
+  }
+  return { x: nx, y: ny };
+}
+
+/**
  * Shared charge-button timing, used identically by touch, keyboard and gamepad
  * so a charged punch feels the same on every device and — more importantly —
  * produces the same `InputState`.

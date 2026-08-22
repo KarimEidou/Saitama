@@ -148,23 +148,44 @@ function sampleLocomotive(
  * exporter — sees ordinary three.js animation data and can work with it, even
  * though the runtime evaluates the procedural source directly.
  */
+export interface AnimationClipOptions {
+  /**
+   * True when the poses cover a CLOSED cycle. Decides the keyframe grid, which
+   * differs between the two cases — see below. Defaults to true.
+   */
+  readonly loop?: boolean;
+}
+
 export function toAnimationClip(
   rig: AnimRig,
   name: string,
   poses: readonly Pose[],
-  duration: number
+  duration: number,
+  options: AnimationClipOptions = {}
 ): THREE.AnimationClip {
-  const frames = poses.length;
-  const times = new Float32Array(frames);
-  for (let i = 0; i < frames; i++) times[i] = (i / frames) * duration;
+  const samples = poses.length;
+  const loop = options.loop ?? true;
+  // The grid has to match the one `sampleClip` sampled on, and the two cases
+  // are genuinely different. A LOOPING bake covers `[0, duration)` on `i/n`,
+  // with no key at `duration` — so a mixer holds the last frame for a whole
+  // frame interval and then jumps back to frame 0, a visible hitch once per
+  // loop. Repeating frame 0 at `duration` closes the seam. A ONE-SHOT bake is
+  // sampled on the closed grid `i/(n-1)`, so its keys belong there too; laying
+  // them on `i/n` instead compresses the performance into (n-1)/n of the stated
+  // duration and slides every marker early by that fraction.
+  const keys = loop && samples > 1 ? samples + 1 : samples;
+  const times = new Float32Array(keys);
+  for (let i = 0; i < keys; i++) {
+    times[i] = samples <= 1 ? 0 : loop ? (i / samples) * duration : (i / (samples - 1)) * duration;
+  }
 
   const tracks: THREE.KeyframeTrack[] = [];
   for (let b = 0; b < rig.boneCount; b++) {
     const boneName = rig.bones[b]!.name;
-    const quats = new Float32Array(frames * 4);
+    const quats = new Float32Array(keys * 4);
     let moves = false;
-    for (let i = 0; i < frames; i++) {
-      const pose = poses[i]!;
+    for (let i = 0; i < keys; i++) {
+      const pose = poses[i % samples]!;
       quats[i * 4] = pose.rot[b * 4]!;
       quats[i * 4 + 1] = pose.rot[b * 4 + 1]!;
       quats[i * 4 + 2] = pose.rot[b * 4 + 2]!;
@@ -179,16 +200,16 @@ export function toAnimationClip(
         moves = true;
       }
     }
-    if (moves || frames === 1) {
+    if (moves || samples === 1) {
       tracks.push(new THREE.QuaternionKeyframeTrack(`${boneName}.quaternion`, times, quats));
     }
 
     // Only the root translates in a humanoid clip; emitting 27 constant
     // position tracks would triple the clip size for nothing.
     let translates = false;
-    const positions = new Float32Array(frames * 3);
-    for (let i = 0; i < frames; i++) {
-      const pose = poses[i]!;
+    const positions = new Float32Array(keys * 3);
+    for (let i = 0; i < keys; i++) {
+      const pose = poses[i % samples]!;
       positions[i * 3] = pose.pos[b * 3]!;
       positions[i * 3 + 1] = pose.pos[b * 3 + 1]!;
       positions[i * 3 + 2] = pose.pos[b * 3 + 2]!;
@@ -219,19 +240,43 @@ export function bakeAnimationClips(
   for (const entry of entries) {
     const poses = sampleClip(rig, entry, { frames });
     const key = `${entry.def.slot}:${entry.def.variant}`;
-    out.set(key, toAnimationClip(rig, key, poses, clipDuration(entry, rig)));
+    out.set(
+      key,
+      toAnimationClip(rig, key, poses, clipDuration(entry, rig), { loop: entry.def.loop })
+    );
   }
   return out;
 }
 
-/** Upper-body mask, cached per rig so callers do not rebuild it per frame. */
+/**
+ * Region mask, cached per rig so callers do not rebuild it per frame.
+ *
+ * The cache is the point: this is exported, and `upperBodyMask` allocates a
+ * fresh `Float32Array` on every call (the `lower` branch allocated a second).
+ * A per-frame overlay blend over 250 crowd members was therefore producing
+ * ~1.6 MB/s of garbage from a function whose docstring promised it did not.
+ *
+ * The returned mask is SHARED. Treat it as read-only; nothing in this system
+ * writes to a mask.
+ */
 export function maskFor(rig: AnimRig, region: 'full' | 'upper' | 'lower'): BoneMask | undefined {
-  if (region === 'upper') return upperBodyMask(rig);
-  if (region === 'lower') {
-    const upper = upperBodyMask(rig);
-    const mask = new Float32Array(rig.boneCount);
-    for (let i = 0; i < rig.boneCount; i++) mask[i] = 1 - upper[i]!;
-    return mask;
+  if (region === 'full') return undefined;
+  let cached = _regionMasks.get(rig);
+  if (cached === undefined) {
+    cached = {};
+    _regionMasks.set(rig, cached);
   }
-  return undefined;
+  const existing = cached[region];
+  if (existing !== undefined) return existing;
+  const upper = upperBodyMask(rig);
+  if (region === 'upper') {
+    cached.upper = upper;
+    return upper;
+  }
+  const mask = new Float32Array(rig.boneCount);
+  for (let i = 0; i < rig.boneCount; i++) mask[i] = 1 - upper[i]!;
+  cached.lower = mask;
+  return mask;
 }
+
+const _regionMasks = new WeakMap<AnimRig, { upper?: BoneMask; lower?: BoneMask }>();

@@ -13,10 +13,53 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { FlowField } from '../flow-field';
+import { FlowField, type IDirectionField } from '../flow-field';
 import { ObstacleField, cellCentreX, cellCentreZ, cellX, cellZ } from '../obstacles';
-import { COST_UNREACHABLE, FIELD_DIM, STEP_ORTHO, FIELD_CELL } from '../constants';
+import {
+  COST_UNREACHABLE,
+  FIELD_DIM,
+  STEP_DIAG,
+  STEP_ORTHO,
+  FIELD_CELL,
+  WALL_HUG_PENALTY,
+} from '../constants';
 import { cityRects, singleBlock, threatAt } from './fixtures';
+
+/**
+ * The per-cell arrival penalty, read back out of a settled cost field.
+ *
+ * Dial's relaxation is `cost(cell) = min over neighbours (cost(n) + step +
+ * penalty(cell))`, so `cost(cell) - cost(n) - step` is at most the penalty for
+ * every neighbour and exactly the penalty for the one that settled it. Taking
+ * the maximum recovers the penalty without reaching inside `FlowField`, and
+ * without depending on where the commute goals happened to land.
+ */
+function arrivalPenalty(
+  field: IDirectionField,
+  obstacles: ObstacleField,
+  x: number,
+  z: number
+): number {
+  const gx = cellX(x);
+  const gz = cellZ(z);
+  const here = field.cost[gz * FIELD_DIM + gx]!;
+  let best = -Infinity;
+  for (let dz = -1; dz <= 1; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dz === 0) continue;
+      const nx = gx + dx;
+      const nz = gz + dz;
+      if (nx < 0 || nz < 0 || nx >= FIELD_DIM || nz >= FIELD_DIM) continue;
+      const n = nz * FIELD_DIM + nx;
+      if (!obstacles.isWalkableCell(n)) continue;
+      const cost = field.cost[n]!;
+      if (cost === COST_UNREACHABLE) continue;
+      const step = dx !== 0 && dz !== 0 ? STEP_DIAG : STEP_ORTHO;
+      best = Math.max(best, here - cost - step);
+    }
+  }
+  return best;
+}
 
 // These simulate hundreds of frames of a 250-agent crowd. Vitest's default
 // five-second budget is comfortable on an idle machine and not comfortable at
@@ -78,6 +121,22 @@ describe('ObstacleField', () => {
     expect(obstacles.segmentClear(-60, 60, 60, 60, 40)).toBe(false);
     // Degenerate: a point can see itself.
     expect(obstacles.segmentClear(10, 10, 10, 10)).toBe(true);
+  });
+
+  it('still contains a façade that ends just short of a cell boundary', () => {
+    const obstacles = new ObstacleField();
+    // Field cells are 12 m wide and start at `FIELD_ORIGIN`, so a boundary
+    // sits at world x = 24. This rectangle stops 0.1 m short of it, which puts
+    // its whole un-inflated AABB in the column to the LEFT of the boundary —
+    // while a body standing at 24.05 is in the column to the right and is
+    // 0.15 m inside its own 0.26 m margin.
+    obstacles.rebuild([{ minX: 0, minZ: 0, maxX: 23.9, maxZ: 10, height: 20 }]);
+    expect(cellX(23.9)).toBe(cellX(24.05) - 1);
+    expect(obstacles.rectAt(24.05, 5, 0.26)).toBe(0);
+    expect(obstacles.isWalkable(24.05, 5, 0.26)).toBe(false);
+    // The margin is still a margin: a point genuinely clear of it is clear.
+    expect(obstacles.isWalkable(24.05, 5)).toBe(true);
+    expect(obstacles.isWalkable(24.5, 5, 0.26)).toBe(true);
   });
 
   it('bumps its revision so dependent fields know to rebuild', () => {
@@ -182,13 +241,23 @@ describe('FlowField', () => {
     obstacles.rebuild(singleBlock(0, 0, 36));
     const flow = new FlowField();
     flow.rebuild(obstacles, []);
-    // A cell flush against the wall costs more to stand in than one a couple
-    // of cells out, so paths prefer the middle of the road.
+
+    // Cell centres at 42, 54 and 66 sit one, two and three cells clear of a
+    // façade that ends at x = 36. `clearance` counts a BLOCKED cell as zero,
+    // so those are clearances 1, 2 and 3 — the three rungs of the documented
+    // ramp, which the cost field must charge for on arrival.
     const hugging = flow.sampleCost(flow.commuteA, 42, 0);
+    const oneOut = flow.sampleCost(flow.commuteA, 54, 0);
     const middle = flow.sampleCost(flow.commuteA, 66, 0);
-    expect(hugging).not.toBe(COST_UNREACHABLE);
-    expect(middle).not.toBe(COST_UNREACHABLE);
-    expect(hugging + middle).toBeGreaterThan(0);
+    for (const cost of [hugging, oneOut, middle]) {
+      expect(cost).not.toBe(COST_UNREACHABLE);
+      // A goal cell costs nothing to arrive at and has no penalty to read.
+      expect(cost).toBeGreaterThan(0);
+    }
+
+    expect(arrivalPenalty(flow.commuteA, obstacles, 42, 0)).toBe(WALL_HUG_PENALTY);
+    expect(arrivalPenalty(flow.commuteA, obstacles, 54, 0)).toBe(WALL_HUG_PENALTY >> 1);
+    expect(arrivalPenalty(flow.commuteA, obstacles, 66, 0)).toBe(0);
   });
 
   it('is a pure function of its inputs — rebuilding twice changes nothing', () => {

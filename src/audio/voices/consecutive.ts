@@ -303,8 +303,16 @@ export class ConsecutiveVoice extends SynthVoice {
       const unit = this.units[i % HIT_UNITS]!;
       // A touch of humanised timing so the chain is not a metronome, but far
       // less than the debris scheduler: a punch chain SHOULD be tight.
+      //
       const jitter = (p.rng.next() - 0.5) * interval * 0.12;
-      const t = p.time + hit.offset + jitter;
+      // Clamped so a hit can never precede the trigger. Hit 0 sits at offset 0,
+      // so the negative half of the jitter put it up to 6.6 ms BEFORE `p.time` —
+      // before `trigger` writes the VCA, the panner position and the 2D/3D
+      // routing, none of which exist earlier on the timeline. Half the time the
+      // chain's opening hit lost most of its transient, or played at the
+      // previous instance's level, position and routing. Later hits have room
+      // for the full symmetric jitter, so the chain's feel is unchanged.
+      const t = p.time + Math.max(hit.offset + jitter, 0);
       end = Math.max(end, unit.hit(t, hit.pitch, hit.gain, hit.decay, hit.subFrom, hit.subTo, nq));
     }
     return end - p.time;

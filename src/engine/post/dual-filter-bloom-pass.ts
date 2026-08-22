@@ -44,11 +44,19 @@ const VERTEX_SHADER = /* glsl */ `
 `;
 
 /**
- * Downsample by 2, optionally applying the bright-pass.
+ * Downsample, optionally applying the bright-pass.
  *
- * `uTexel` is one texel of the SOURCE, so the four diagonal taps land exactly
- * on the corners between source texels and the hardware's bilinear unit gives
- * four samples for the price of one — the reason this kernel is only 5 fetches.
+ * `uTexel` is HALF the DESTINATION texel. The centre tap then lands on a corner
+ * between source texels and the hardware's bilinear unit gives four samples for
+ * the price of one — the reason this kernel is only 5 fetches — while the four
+ * diagonal taps span the full source footprint of the destination texel.
+ *
+ * For an exact 2x step, half a destination texel IS one source texel, which is
+ * why the pyramid steps can hand over their source size directly. The FIRST
+ * step reduces by `1 / scale` (4x at the default 0.25), and passing the source
+ * texel there would collapse all five taps into the central 2x2 of each 4x4
+ * source block — 12 of every 16 source texels never fetched, so every sub-4px
+ * highlight pops its bloom halo on and off as the camera pans.
  */
 const DOWNSAMPLE_FRAGMENT = /* glsl */ `
 	uniform sampler2D tSource;
@@ -239,8 +247,19 @@ export class DualFilterBloomPass extends Pass {
   }
 
   override setSize(width: number, height: number): void {
-    this.width = Math.max(1, Math.round(width));
-    this.height = Math.max(1, Math.round(height));
+    const nextWidth = Math.max(1, Math.round(width));
+    const nextHeight = Math.max(1, Math.round(height));
+
+    // Same-size guard. Every other target in the chain gets one for free from
+    // three's `RenderTarget.setSize`; this pass allocates rather than resizes,
+    // so without it a mobile `resize`/`orientationchange` storm (the URL bar
+    // collapsing fires one per frame, usually with an unchanged drawing-buffer
+    // size once the DPR clamp and governor scale are applied) tears down and
+    // recreates the whole HalfFloat pyramid on every event.
+    if (nextWidth === this.width && nextHeight === this.height && this.mips.length > 0) return;
+
+    this.width = nextWidth;
+    this.height = nextHeight;
     this.disposeMips();
 
     let mipWidth = Math.max(2, Math.round(this.width * this.scale));
@@ -289,17 +308,22 @@ export class DualFilterBloomPass extends Pass {
     this.fsQuad.material = this.downsampleMaterial;
     this.downsampleMaterial.uniforms.tSource!.value = readBuffer.texture;
     this.downsampleMaterial.uniforms.uPrefilter!.value = 1;
-    texel.set(1 / readBuffer.width, 1 / readBuffer.height);
-    renderer.setRenderTarget(this.mips[0]!);
+    // Half the DESTINATION texel, not one source texel: this step is a 1/scale
+    // reduction (4x by default), so a source-sized kernel would only ever read
+    // the middle of each source block. See the DOWNSAMPLE_FRAGMENT header.
+    const first = this.mips[0]!;
+    texel.set(0.5 / first.width, 0.5 / first.height);
+    renderer.setRenderTarget(first);
     this.fsQuad.render(renderer);
 
     /* --- remaining downsamples ------------------------------------------ */
     this.downsampleMaterial.uniforms.uPrefilter!.value = 0;
     for (let i = 1; i < this.mips.length; i++) {
       const source = this.mips[i - 1]!;
+      const destination = this.mips[i]!;
       this.downsampleMaterial.uniforms.tSource!.value = source.texture;
-      texel.set(1 / source.width, 1 / source.height);
-      renderer.setRenderTarget(this.mips[i]!);
+      texel.set(0.5 / destination.width, 0.5 / destination.height);
+      renderer.setRenderTarget(destination);
       this.fsQuad.render(renderer);
     }
 

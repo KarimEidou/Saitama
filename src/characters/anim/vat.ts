@@ -302,29 +302,45 @@ export interface VatInstance {
   readonly clip: number;
   /** Seconds added to the global clock for this instance. */
   readonly offset: number;
-  /** Playback rate multiplier. 1 is the baked rate. */
+  /**
+   * Playback rate multiplier. 1 plays the clip at its own baked duration —
+   * the per-clip correction against the material's single `vatFps` uniform is
+   * applied by `vatInstanceAttribute`, not by the caller.
+   */
   readonly rate?: number;
 }
 
 /**
  * Build the instanced attribute that de-synchronises a crowd.
  *
- * `xyzw = (atlas row, frame count, time offset, rate)`. Packing the row and
- * count rather than an index means the shader never needs a uniform array,
+ * `xyzw = (atlas row, signed frame count, time offset, rate)`. Packing the row
+ * and count rather than an index means the shader never needs a uniform array,
  * which keeps the whole crowd on one material.
+ *
+ * TWO things ride in there that are easy to miss:
+ *
+ *  - The frame count is SIGNED. Negative marks a one-shot, which the shader
+ *    clamps at the last frame instead of wrapping — otherwise a baked `death`
+ *    loops forever and the civilian dies, snaps upright and dies again.
+ *  - `rate` carries the clip's own playback speed relative to the material's
+ *    `vatFps`, which is a single scalar taken from the atlas's FIRST clip.
+ *    `bakeVat` gives every clip the same frame count, so `vatParams.y` holds no
+ *    duration information and nothing else can recover it; without this every
+ *    clip but the reference would complete its cycle in the reference's time.
  */
 export function vatInstanceAttribute(
   bake: VatBake,
   instances: readonly VatInstance[]
 ): THREE.InstancedBufferAttribute {
+  const reference = bake.clips.length > 0 ? vatClipFps(bake.clips[0]!) : 30;
   const data = new Float32Array(instances.length * 4);
   for (let i = 0; i < instances.length; i++) {
     const instance = instances[i]!;
     const clip = bake.clips[Math.min(instance.clip, bake.clips.length - 1)]!;
     data[i * 4] = clip.row;
-    data[i * 4 + 1] = clip.frames;
+    data[i * 4 + 1] = clip.loop ? clip.frames : -clip.frames;
     data[i * 4 + 2] = instance.offset;
-    data[i * 4 + 3] = instance.rate ?? 1;
+    data[i * 4 + 3] = (instance.rate ?? 1) * (vatClipFps(clip) / Math.max(1e-4, reference));
   }
   return new THREE.InstancedBufferAttribute(data, 4);
 }
@@ -332,9 +348,16 @@ export function vatInstanceAttribute(
 /**
  * Frames-per-second the shader should advance a clip at, so that the baked
  * frames span the clip's real duration.
+ *
+ * The two grids differ, because `sampleClip` samples them differently. A
+ * looping clip's `n` frames cover `[0, duration)`, so the rate is `n/duration`.
+ * A one-shot's cover the CLOSED interval — its last frame sits at `duration`,
+ * not one frame short of it — so only `n-1` frame steps fit and `n/duration`
+ * plays it `n/(n-1)` too fast (4.3 % at 24 frames).
  */
 export function vatClipFps(clip: VatClipRange): number {
-  return clip.frames / Math.max(1e-4, clip.duration);
+  const steps = clip.loop ? clip.frames : Math.max(1, clip.frames - 1);
+  return steps / Math.max(1e-4, clip.duration);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -346,6 +369,11 @@ export interface VatUniforms {
   readonly vatTexture: { value: THREE.Texture | null };
   readonly vatTexelSize: { value: THREE.Vector2 };
   readonly vatTime: { value: number };
+  /**
+   * ONE scalar for the whole atlas, taken from its first clip. Every other
+   * clip's rate is carried per instance in `vatParams.w`; see
+   * `vatInstanceAttribute`.
+   */
   readonly vatFps: { value: number };
 }
 
@@ -369,15 +397,19 @@ void vatFetchBone(float bone, float row, out vec4 r0, out vec4 r1, out vec4 r2) 
 }
 
 // The two rows the current time falls between, and the blend between them.
+// vatParams.y is the frame count, SIGNED: negative marks a one-shot, which
+// clamps at the last frame instead of wrapping. Same rule as sampleVatMatrix,
+// so the CPU verification path and the GPU read the same animation.
 void vatFrames(out float rowA, out float rowB, out float mixT) {
   float base = vatParams.x;
-  float count = max(vatParams.y, 1.0);
+  float count = max(abs(vatParams.y), 1.0);
+  float looping = step(0.0, vatParams.y);
   float t = (vatTime + vatParams.z) * vatParams.w * vatFps;
-  float f = mod(t, count);
+  float f = mix(clamp(t, 0.0, count - 1.0), mod(t, count), looping);
   float f0 = floor(f);
   mixT = f - f0;
   rowA = base + f0;
-  rowB = base + mod(f0 + 1.0, count);
+  rowB = base + mix(min(f0 + 1.0, count - 1.0), mod(f0 + 1.0, count), looping);
 }
 
 mat4 vatBoneMatrix(float bone, float rowA, float rowB, float mixT) {

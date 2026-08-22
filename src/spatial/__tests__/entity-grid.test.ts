@@ -93,6 +93,49 @@ describe('Dynamic entity grid structure', () => {
     expect((grid.getRef(1999) as IFakeEntity).id).toBe('e1999');
   });
 
+  it('releases entity references when the frame is discarded', () => {
+    // The slot arrays keep the high-water crowd's size, so a shrinking crowd
+    // would otherwise pin every despawned entity — and its meshes and
+    // materials — for the rest of the session.
+    const grid = new DynamicEntityGrid(16);
+    const rng = createRng('grid-refs');
+    fill(grid, makeEntities(120, rng));
+    const capacity = grid.stats().capacity;
+    expect(grid.getRef(119)).toBeDefined();
+
+    grid.beginFrame();
+    grid.add({ id: 'survivor' }, 0, 0, 0, 1);
+    grid.build();
+    for (let slot = 1; slot < capacity; slot++) {
+      expect(grid.getRef(slot), `slot ${slot} still holds last frame's entity`).toBeUndefined();
+    }
+  });
+
+  it('does not answer from corrupt buckets after a late add', () => {
+    // A late `add` — one after `build()` — used to increment an entry of the
+    // finished prefix sum, shifting every following bucket one slot past its
+    // own data and returning last frame's slots as hits.
+    const rng = createRng('grid-late-add');
+    const grid = new DynamicEntityGrid(64);
+    const fast = new IndexList();
+    const slow = new IndexList();
+    fill(grid, makeEntities(120, rng, 600));
+    expect(grid.queryRadius(0, 0, 0, 1e5, fast)).toBe(120);
+
+    const late = grid.add({ id: 'boss' }, 40, 0, -40, 3);
+    // Unbuilt: an empty answer, never a wrong one.
+    expect(grid.queryRadius(0, 0, 0, 1e5, fast)).toBe(0);
+    expect(grid.queryNearest(0, 0, 0, 1e5)).toBe(-1);
+
+    grid.build();
+    grid.build(); // a second build must not prefix-sum a prefix sum
+    expect(grid.queryRadius(0, 0, 0, 1e5, fast)).toBe(121);
+    grid.queryRadiusBrute(0, 0, 0, 1e5, slow);
+    expect(describeDifference(sortedList(fast), sortedList(slow))).toBeUndefined();
+    expect(grid.queryRadius(40, 0, -40, 1, fast)).toBe(1);
+    expect(fast.at(0)).toBe(late);
+  });
+
   it('clamps entities knocked outside the world into the edge cells', () => {
     const grid = new DynamicEntityGrid(8);
     grid.beginFrame();

@@ -427,6 +427,82 @@ describe('the tap/hold discriminator', () => {
     scene.combat.dispose();
   });
 
+  it('drops a charge whose gesture ended without a release edge', () => {
+    // Several shipped paths take `punch` to neutral while deliberately
+    // suppressing `released`: the uppercut swipe consumes the charge through
+    // `clearSilently()`, and a blur / pagehide / backend swap hard-resets the
+    // tracker with `prevHeld = false`. A charge that outlived those would come
+    // out on the player's next innocent tap as a Serious Punch through the
+    // street — the loop's most important decision, made by a cancelled
+    // gesture.
+    const scene = createScene({ seed: 'stranded-charge' });
+    populateStreet(scene);
+    scene.attacker.moveTo(0, 1.4, -6.6);
+    scene.attacker.faceTowards(0, 1, -8);
+
+    const input = createInputManager({ headless: true, exposeTestBridge: false });
+    managers.push(input);
+    input.syntheticEnabled = true;
+    input.synthetic.press('punch');
+
+    let frame = 0;
+    const step = (): void => {
+      const time = frame * DT;
+      scene.bus.setFrame(frame, time);
+      scene.combat.update(input.poll(frame, time), DT, time);
+      frame++;
+    };
+
+    // 21 frames = 0.35 s of charge, well past the discriminator.
+    for (let i = 0; i < 21; i++) step();
+    expect(scene.combat.diagnostics().charging).toBe(true);
+
+    // The gesture is taken away with no release edge at all.
+    input.reset();
+    for (let i = 0; i < 5; i++) step();
+    expect(scene.bus.ofType('ShockwaveFired')).toHaveLength(0);
+    expect(scene.combat.diagnostics().charging).toBe(false);
+    expect(scene.combat.diagnostics().chargeSeconds).toBe(0);
+
+    // Seconds later, one tap. It has to be a jab.
+    input.synthetic.tap('punch');
+    step();
+    step();
+    const waves = scene.bus.ofType('ShockwaveFired');
+    expect(waves).toHaveLength(1);
+    expect(waves[0]!.punchKind).toBe('normal');
+    expect(waves[0]!.range).toBe(TUNING.normalReachMetres);
+    scene.combat.dispose();
+  });
+
+  it('honours a direct heavy attack that never went through the punch button', () => {
+    // The gamepad maps RT straight to `heavyPunch`, with the charged punch
+    // still coming from holding X. Requiring a `punch` hold before a
+    // `heavyPunch.pressed` would be honoured made that whole input path throw
+    // nothing at all, on every frame, forever.
+    const scene = createScene({ seed: 'direct-heavy' });
+    const input = createInputManager({ headless: true, exposeTestBridge: false });
+    managers.push(input);
+    input.syntheticEnabled = true;
+    input.synthetic.tap('heavyPunch', 0.8);
+
+    for (let frame = 0; frame < 4; frame++) {
+      const time = frame * DT;
+      scene.bus.setFrame(frame, time);
+      scene.combat.update(input.poll(frame, time), DT, time);
+    }
+
+    const waves = scene.bus.ofType('ShockwaveFired');
+    expect(waves).toHaveLength(1);
+    expect(waves[0]!.punchKind).toBe('serious');
+    // Combat saw no hold, so the charge falls back to the input's own ratio.
+    const expected =
+      TUNING.seriousRangeMinMetres +
+      (TUNING.seriousRangeMaxMetres - TUNING.seriousRangeMinMetres) * 0.8;
+    expect(waves[0]!.range).toBeCloseTo(expected, 6);
+    scene.combat.dispose();
+  });
+
   it('charging next to a monster no longer kills it before the release', () => {
     // The exact failure the press-edge model produced: the jab lands, the
     // monster is already dead, and the serious punch levels the street for
@@ -595,6 +671,28 @@ describe('consecutive normal punches', () => {
     scene.combat.dispose();
   });
 
+  it('breaking the chain does not erase the record it reached', () => {
+    // `longestReached` is documented as the longest chain since the last
+    // RESET, and a serious punch is not a session boundary — it is a
+    // different verb. A HUD or achievement readout must not drop to 0 because
+    // the player finished a barrage with a charged punch.
+    const scene = createScene({ seed: 'chain-longest' });
+    for (let i = 0; i < 5; i++) scene.combat.normalPunch();
+    expect(scene.combat.chain.longestReached).toBe(5);
+
+    scene.combat.seriousPunch(0.5);
+    expect(scene.combat.chain.state(0).length).toBe(0);
+    expect(scene.combat.chain.longestReached).toBe(5);
+
+    scene.combat.groundSlam({ x: 0, y: 0, z: 0 }, 30, 25);
+    expect(scene.combat.chain.longestReached).toBe(5);
+
+    // An actual session boundary still forgets it.
+    scene.combat.chain.reset();
+    expect(scene.combat.chain.longestReached).toBe(0);
+    scene.combat.dispose();
+  });
+
   it('accumulates camera trauma along the chain', () => {
     const scene = createScene({ seed: 'chain-shake' });
     const shakes: number[] = [];
@@ -685,6 +783,153 @@ describe('the ground slam', () => {
       intent: 'serious',
     });
     expect(scene.bus.ofType('CivilianLost')).toHaveLength(12);
+    scene.combat.dispose();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The registry and the rest of the game                                      */
+/* -------------------------------------------------------------------------- */
+
+describe('the boss gate', () => {
+  /** Broadcast one phase transition, as a boss script would. */
+  function phase(scene: ReturnType<typeof createScene>, index: number, isFinal: boolean): void {
+    scene.bus.emit('BossPhaseChanged', {
+      entityId: 'boss-01',
+      specId: 'deep-sea-king',
+      previousPhase: index - 1,
+      phase: index,
+      healthFraction: 1,
+      isFinalPhase: isFinal,
+    });
+  }
+
+  it('latches open — a later non-final phase cannot re-close it', () => {
+    // A multi-phase script broadcasts on every transition, and a "recovering"
+    // beat, a re-entrant script or a second controller re-stating phase state
+    // reports `isFinalPhase: false` AFTER the final one. Re-closing the gate
+    // would make the boss permanently unkillable with no feedback, and the
+    // encounter could then never clear.
+    const scene = createScene({ seed: 'boss-latch' });
+    populateStreet(scene);
+    expect(scene.combat.targets.get('boss-01')!.phaseResolved).toBe(false);
+
+    phase(scene, 2, true);
+    expect(scene.combat.targets.get('boss-01')!.phaseResolved).toBe(true);
+    phase(scene, 3, false);
+    expect(scene.combat.targets.get('boss-01')!.phaseResolved).toBe(true);
+
+    scene.attacker.moveTo(0, 1.4, 0);
+    scene.attacker.faceTowards(0, 2, -30);
+    scene.combat.seriousPunch(1);
+    expect(scene.bus.ofType('EntityKilled').map((e) => e.entityId)).toContain('boss-01');
+    scene.combat.dispose();
+  });
+
+  it('stays shut until the script says otherwise', () => {
+    const scene = createScene({ seed: 'boss-unresolved' });
+    populateStreet(scene);
+    phase(scene, 1, false);
+    expect(scene.combat.targets.get('boss-01')!.phaseResolved).toBe(false);
+    scene.combat.dispose();
+  });
+});
+
+describe('kills combat did not make', () => {
+  it('never kills something the rest of the game already killed', () => {
+    // Civilians and hero NPCs emit their own `EntityKilled` — a civilian
+    // crushed by falling debris is dead to the crowd system. If combat's
+    // registry does not hear it, the next punch that sweeps the corpse emits
+    // a SECOND `EntityKilled` and a second `CivilianLost` for the same id.
+    const scene = createScene({ seed: 'already-dead' });
+    populateStreet(scene);
+    scene.bus.emit('EntityKilled', {
+      entityId: 'civ-0',
+      entityType: 'npc',
+      faction: 'civilian',
+      position: { x: 2.5, y: 1, z: -6 },
+      intent: 'normal',
+      rewardPoints: 0,
+    });
+    expect(scene.combat.targets.get('civ-0')!.dead).toBe(true);
+    expect(scene.combat.targets.get('civ-0')!.health).toBe(0);
+
+    // Arm's length from the corpse, and nothing else within 1.2 m.
+    scene.attacker.moveTo(2.5, 1.4, -5);
+    scene.attacker.faceTowards(2.5, 1, -6);
+    const outcome = scene.combat.normalPunch();
+
+    expect(outcome.hits).toHaveLength(0);
+    expect(scene.bus.ofType('EntityKilled')).toHaveLength(1);
+    expect(scene.bus.ofType('CivilianLost')).toHaveLength(0);
+    scene.combat.dispose();
+  });
+});
+
+describe('an encounter nobody could join', () => {
+  it('is never settled as a clean victory', () => {
+    // `EncounterStarted` can name participants combat has not been told about
+    // yet — the spawn path files the event before the target bridge mirrors
+    // the monsters, and crowd and hero NPCs are never mirrored at all. An
+    // empty hostile set is trivially "all dead", so arming the settle timer on
+    // it books a win for a fight the player has not started.
+    const scene = createScene({ seed: 'ghost-fight' });
+    populateStreet(scene);
+    const input = createInputManager({ headless: true, exposeTestBridge: false });
+    managers.push(input);
+    input.syntheticEnabled = true;
+
+    scene.bus.emit('EncounterStarted', {
+      encounterId: 'ghosts',
+      threatTier: 'wolf',
+      position: { x: 0, y: 0, z: 0 },
+      radius: 20,
+      participantIds: ['spawned-this-frame'],
+      isBoss: false,
+    });
+    expect(scene.combat.encounters.active).toBe(true);
+    expect(scene.combat.encounters.cleared).toBe(false);
+
+    const frames = Math.ceil((TUNING.encounterSettleSeconds + 2) / DT);
+    for (let frame = 0; frame < frames; frame++) {
+      const time = frame * DT;
+      scene.bus.setFrame(frame, time);
+      scene.combat.update(input.poll(frame, time), DT, time);
+    }
+    expect(scene.bus.ofType('EncounterEnded')).toHaveLength(0);
+    scene.combat.dispose();
+  });
+
+  it('still settles normally once a registered hostile dies', () => {
+    const scene = createScene({ seed: 'real-fight' });
+    populateStreet(scene);
+    const input = createInputManager({ headless: true, exposeTestBridge: false });
+    managers.push(input);
+    input.syntheticEnabled = true;
+
+    scene.bus.emit('EncounterStarted', {
+      encounterId: 'real',
+      threatTier: 'demon',
+      position: { x: 0, y: 0, z: -8 },
+      radius: 20,
+      participantIds: ['monster-01'],
+      isBoss: false,
+    });
+    scene.attacker.moveTo(0, 1.4, -6.6);
+    scene.attacker.faceTowards(0, 1, -8);
+    scene.combat.normalPunch();
+    expect(scene.combat.encounters.cleared).toBe(true);
+
+    const frames = Math.ceil((TUNING.encounterSettleSeconds + 1) / DT);
+    for (let frame = 0; frame < frames; frame++) {
+      const time = frame * DT;
+      scene.bus.setFrame(frame, time);
+      scene.combat.update(input.poll(frame, time), DT, time);
+    }
+    const ended = scene.bus.ofType('EncounterEnded');
+    expect(ended).toHaveLength(1);
+    expect(ended[0]!.encounterId).toBe('real');
+    expect(ended[0]!.outcome).toBe('victory');
     scene.combat.dispose();
   });
 });

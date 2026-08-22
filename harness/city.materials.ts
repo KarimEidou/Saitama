@@ -455,7 +455,13 @@ function deriveNormalMap(albedo: HTMLCanvasElement, strength: number): HTMLCanva
         lum(x + 1, y - 1) -
         (lum(x - 1, y + 1) + 2 * lum(x, y + 1) + lum(x + 1, y + 1));
       const nx = dx * strength;
-      const ny = dy * strength;
+      // NEGATED. `dx`/`dy` are image-space gradients with y running DOWN, and
+      // `CanvasTexture` uploads with the default `flipY`, so texture v runs
+      // opposite to image y. Tangent-space green is -dh/dv = +dh/dy_image,
+      // which is -dy. Without this, every horizontal relief — brick courses,
+      // plank rows, tile grout — lights as a ridge where it should be a
+      // groove, and only the vertical `ribs` pattern looks right.
+      const ny = -dy * strength;
       const nz = 1;
       const len = Math.hypot(nx, ny, nz);
       const i = (y * TEX_SIZE + x) * 4;

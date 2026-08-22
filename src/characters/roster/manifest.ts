@@ -11,6 +11,7 @@
  */
 
 import type { MaterialSpec } from '@/types';
+import { resolveSurfaces } from './surfaces';
 import type { Expression, RosterEntry } from './types';
 import { EXPRESSIONS } from './types';
 
@@ -63,12 +64,21 @@ export function materialSpecFor(entry: RosterEntry): MaterialSpec {
   };
 }
 
-/** True when a character needs an emissive map baked. */
+/**
+ * True when a character needs an emissive map baked.
+ *
+ * Derived from the RESOLVED surface table, restricted to the classes the
+ * character actually paints — because that is exactly what the baker keys off
+ * (`atlas.ts` sets `glowing` whenever a painted texel's resolved style has an
+ * `emissive`). Consulting only `entry.surfaces` missed the `glow` class, which
+ * carries an emissive in `DEFAULT_SURFACES` and needs no override to be used:
+ * the bake would write `emissive.<tier>.png`, the manifest would omit the
+ * texture and the runtime would never fetch it, leaving glowing cores flat.
+ */
 export function entryGlows(entry: RosterEntry): boolean {
   if (entry.face.glow !== undefined) return true;
-  const surfaces = entry.surfaces;
-  if (surfaces === undefined) return false;
-  return Object.values(surfaces).some((style) => style?.emissive !== undefined);
+  const styles = resolveSurfaces(entry.surfaces);
+  return entry.colors.some((color) => styles[color.surface].emissive !== undefined);
 }
 
 /** Expressions a character ships, in strip order (index 0 at the bottom). */

@@ -208,9 +208,20 @@ export class Frustum {
     this.nIndex[i + 2] = sz >= 0 ? 2 : 5;
   }
 
-  /** Copy planes from another frustum. */
+  /**
+   * Copy planes from another frustum.
+   *
+   * The derived tables go with them. `planes` alone does not define this
+   * object's answers: `testPacked` / `classifyPacked` pick their corner through
+   * `pIndex` / `nIndex` and the node tests read `planesAbs`, so copying the
+   * coefficients on their own would leave a frustum whose predicates still
+   * describe whatever it held before.
+   */
   copy(other: Frustum): this {
     this.planes.set(other.planes);
+    this.planesAbs.set(other.planesAbs);
+    this.pIndex.set(other.pIndex);
+    this.nIndex.set(other.nIndex);
     return this;
   }
 

@@ -14,8 +14,11 @@
  *
  * ── WHAT IS GUARANTEED ────────────────────────────────────────────────────
  *  - A planted foot's loaded contact point moves under 0.1 mm per stance, at
- *    every speed, while accelerating, and while turning — measured through the
- *    full pipeline in `analysis.ts`, not asserted.
+ *    every speed, while accelerating, and while turning at up to ~1.8 rad/s —
+ *    measured through the full pipeline in `analysis.ts`, not asserted. Past
+ *    that rate the planted foot's heading saturates at `FOOT_YAW_LIMIT` and
+ *    the sole pivots about its locked ball, which is what a person does and
+ *    which the measurement charges as contact drift (~2 cm at 2 rad/s).
  *  - The gait is frame-rate independent: an 8x change in time step moves no
  *    bone by more than 0.05 degrees, so the offline VAT bake and the runtime
  *    produce the same animation.
@@ -51,6 +54,7 @@ export {
   maskFor,
   sampleClip,
   toAnimationClip,
+  type AnimationClipOptions,
   type SampleOptions,
 } from './bake';
 

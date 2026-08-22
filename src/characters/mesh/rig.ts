@@ -18,9 +18,12 @@
  * Mixamo bakes bone roll into rest rotations so each bone's local +Y runs
  * down its own length. We deliberately do not: every bone rests with an
  * identity quaternion and a pure translation offset. That means a procedural
- * animator can say "rotate LeftForeArm about Z to bend the elbow" and be right
+ * animator can say "rotate LeftForeArm about Y to bend the elbow" and be right
  * without consulting a per-bone basis, which matters far more for hand-written
- * procedural animation than for imported clips.
+ * procedural animation than for imported clips. (Y, not Z: the bind pose lays
+ * the arm along ±X with the palms DOWN, so elbow flexion carries the hand
+ * forward. Z is the plane the 7° T-pose droop lives in — a rotation about it
+ * is shoulder abduction.)
  *
  * ── PROPORTIONS ───────────────────────────────────────────────────────────
  * Landmarks are stored as fractions of standing height, taken from adult
@@ -282,16 +285,21 @@ export function resolveDimensions(profile: BodyProfile): RigDimensions {
   const shoulderX = p.shoulderX * profile.shoulderWidth * tweak.shoulder;
   const clavicleX = p.clavicleX * profile.shoulderWidth * tweak.shoulder;
 
-  // Renormalise: the crown must land exactly on the requested height.
+  // Renormalise: the crown must land exactly on the requested height. Both
+  // inputs are sanitised first — `BodyProfile.height` is a cross-system
+  // contract with no runtime validation, and a 0 or NaN reaching `unit`
+  // collapses every vertex onto the origin or poisons the bounding sphere,
+  // silently, with nothing thrown.
   const nominal = headTopY;
-  const unit = (profile.height * profile.uniformScale) / nominal;
+  const standing = sanitizeHeight(profile) * sanitizeScale(profile);
+  const unit = standing / nominal;
 
   const droop = p.armDroop;
   const leftArmDir = new THREE.Vector3(-Math.cos(droop), -Math.sin(droop), 0).normalize();
 
   return {
     profile,
-    standingHeight: profile.height * profile.uniformScale,
+    standingHeight: standing,
     unit,
     ankleY: ankleY * unit,
     kneeY: kneeY * unit,
@@ -458,7 +466,21 @@ export function buildRig(profile: BodyProfile): HumanoidRig {
 /* Small helpers shared with the shape solver                                 */
 /* -------------------------------------------------------------------------- */
 
+/** Fallback for a profile whose height is missing or not a number at all. */
+const FALLBACK_HEIGHT = 1.7;
+
 /** Standing height a profile asks for, clamped to something buildable. */
 export function sanitizeHeight(profile: BodyProfile): number {
+  // `clamp` passes NaN straight through, and a NaN height propagates into
+  // every position: `computeBoundingSphere` then warns and leaves a NaN
+  // sphere, so the mesh culls unpredictably and raycasts return garbage.
+  if (!Number.isFinite(profile.height)) return FALLBACK_HEIGHT;
   return clamp(profile.height, 0.4, 12);
+}
+
+/** Uniform scale a profile asks for, guarded against 0 and NaN. */
+function sanitizeScale(profile: BodyProfile): number {
+  const scale = profile.uniformScale;
+  if (!Number.isFinite(scale) || scale <= 0) return 1;
+  return clamp(scale, 0.05, 20);
 }

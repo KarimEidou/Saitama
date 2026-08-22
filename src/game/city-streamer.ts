@@ -810,8 +810,23 @@ export class CityStreamer {
     return [...this.resident.values()];
   }
 
+  /**
+   * Adopt a new tier's resident radius, and act on it now.
+   *
+   * The re-score is the whole point: `pending` is refilled by `rescore()` alone,
+   * and the only other things that reach it are a focus change that crosses a
+   * chunk boundary and `buildImmediate()`. Without it a player who raises
+   * quality while standing still keeps the smaller ring until they happen to
+   * walk 96 m, and a player who lowers it keeps paying for the chunks the drop
+   * was meant to reclaim until the same crossing evicts them all at once.
+   */
   setQuality(quality: IQualityTier): void {
-    this.residentRadius = RESIDENT_RADIUS_BY_TIER[quality];
+    const radius = RESIDENT_RADIUS_BY_TIER[quality];
+    if (radius === this.residentRadius) return;
+    this.residentRadius = radius;
+    // No focus yet means nothing has been scored at all; `setFocus` will do the
+    // first pass with the new radius already in place.
+    if (this.focusValid) this.rescore();
   }
 
   /** District at a world position, from whatever chunk is resident there. */
@@ -1312,6 +1327,15 @@ export class CityStreamer {
     this.streamingMaterials.setResident(index, false);
 
     for (const id of chunk.structureIds) this.destruction.unregister(id);
+    // The damage cursor goes with them. `build()` hands out slots from it and a
+    // chunk is only ever rebuilt after being evicted, so leaving it behind means
+    // the SAME buildings take slots 7..13 on their second residency and run out
+    // of the 16 the mask has on their third — after which every building in the
+    // chunk registers unaddressable and no damage it takes is ever written to
+    // the persistent mask. Cleared here, the address is a pure function of the
+    // chunk's (deterministic) build, which is what the comment at the
+    // assignment promises.
+    this.slotCursor.delete(index);
     if (this.physics !== undefined) {
       for (const handle of chunk.bodyHandles) this.physics.removeBody(handle);
     }

@@ -121,6 +121,8 @@ export class NearCivilian implements IActor, INPCBehaviour {
   /** Live index into the shared agent arrays. -1 once detached. */
   private agentIndex: number;
   private staggerTimer = 0;
+  private staggerVelX = 0;
+  private staggerVelZ = 0;
   private shepherdTimer = 0;
   private deathPlayed = false;
   private clipTime = 0;
@@ -217,6 +219,8 @@ export class NearCivilian implements IActor, INPCBehaviour {
 
   reset(): void {
     this.staggerTimer = 0;
+    this.staggerVelX = 0;
+    this.staggerVelZ = 0;
     this.shepherdTimer = 0;
     this.deathPlayed = false;
     this.clipTime = 0;
@@ -234,8 +238,33 @@ export class NearCivilian implements IActor, INPCBehaviour {
     const causedByPlayer = source?.faction === 'hero' && source.type === 'player';
     const dealt = this.host.damageAgent(this.agentIndex, amount, causedByPlayer, source?.id);
     this.health = this.host.agents.health[this.agentIndex]!;
-    if (dealt > 0 && !this.isDead) this.staggerTimer = STAGGER_SECONDS;
+    if (dealt > 0 && !this.isDead) {
+      this.staggerTimer = STAGGER_SECONDS;
+      // Snapshot the velocity the hit interrupted; `stumble` decays this copy.
+      this.staggerVelX = this.host.agents.velX[this.agentIndex]!;
+      this.staggerVelZ = this.host.agents.velZ[this.agentIndex]!;
+    }
     return dealt;
+  }
+
+  /**
+   * Bleed off the velocity a hit interrupted, while the stagger lasts.
+   *
+   * ABSOLUTE, not a multiplicative damp of whatever is currently in the agent
+   * arrays. The shared steering pass runs AFTER the tree and adds up to
+   * `ACCELERATION * dt` of flee preference every frame, so damping its output
+   * converges on `0.9v + 0.125 ≈ 1.25 m/s` — a civilian gliding along at
+   * nearly full walking pace for the whole stagger, playing a stagger
+   * animation. Decaying a stored copy leaves steering nothing to accumulate.
+   */
+  stumble(dt: number): void {
+    const i = this.agentIndex;
+    if (i < 0) return;
+    const damp = Math.max(0, 1 - dt * 6);
+    this.staggerVelX *= damp;
+    this.staggerVelZ *= damp;
+    this.host.agents.velX[i] = this.staggerVelX;
+    this.host.agents.velZ[i] = this.staggerVelZ;
   }
 
   heal(amount: number): void {
@@ -410,9 +439,7 @@ function buildCivilianTree(): BtNode<CivilianContext> {
       'staggered',
       (c) => c.self.stagger > 0,
       action<CivilianContext>('reel', (c, dt) => {
-        const damp = Math.max(0, 1 - dt * 6);
-        c.agents.velX[c.index] = c.agents.velX[c.index]! * damp;
-        c.agents.velZ[c.index] = c.agents.velZ[c.index]! * damp;
+        c.self.stumble(dt);
         return 'running';
       })
     ),

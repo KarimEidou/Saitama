@@ -32,7 +32,7 @@
 
 import { CSS_NUMBER_STYLES } from './css-number';
 import { SAFE_AREA_STYLES } from './safe-area';
-import { PALETTES, THUMB_RESERVE_PX, type PaletteName } from './tokens';
+import { MIN_TAP_PX, PALETTES, THUMB_RESERVE_PX, type PaletteName } from './tokens';
 
 export const HUD_STYLE_ID = 'opm-hud-styles';
 
@@ -79,9 +79,14 @@ export function hudStyles(): string {
 /* lets it be transitioned and interpolated. Without this, --boredom is a     */
 /* token string and transition: --boredom does nothing at all.              */
 /* ========================================================================== */
+/* --fill INHERITS, and that is load-bearing rather than incidental: two of its  */
+/* consumers are ::after pseudo-elements (.hud-rankchip__pts, .hud-standing__bar) */
+/* and a writer can only reach the ORIGINATING element. A pseudo inherits from   */
+/* its originator exactly as a child does, so with inherits:false the registered  */
+/* initial-value wins inside ::after and every progress sliver reads 0 forever.  */
 @property --boredom{syntax:'<number>';inherits:true;initial-value:0}
 @property --charge{syntax:'<number>';inherits:true;initial-value:0}
-@property --fill{syntax:'<number>';inherits:false;initial-value:0}
+@property --fill{syntax:'<number>';inherits:true;initial-value:0}
 @property --collateral{syntax:'<number>';inherits:false;initial-value:0}
 @property --urgency{syntax:'<number>';inherits:true;initial-value:0}
 
@@ -100,7 +105,12 @@ ${CSS_NUMBER_STYLES}
   --hud-radius:10px;
   --hud-gap:8px;
   --hud-thumb-reserve:${THUMB_RESERVE_PX}px;
-  --hud-panel:linear-gradient(180deg,rgba(14,19,29,.90),rgba(6,9,15,.86));
+  --hud-pause-size:${MIN_TAP_PX}px;
+  /* Composed from the PALETTE's surface, not hard-coded: IHudPalette.surface
+     is documented as the panel fill, and the High-contrast palette's whole
+     point is an opaque one. A literal gradient here made four of the five
+     surface values dead data and left that setting changing nothing. */
+  --hud-panel:linear-gradient(180deg,color-mix(in srgb,#fff 4%,var(--hud-surface)),var(--hud-surface));
   --hud-shadow:0 6px 20px rgba(0,0,0,.55);
   ${paletteVars('default')};
 }
@@ -173,7 +183,14 @@ ${allPalettes()}
 }
 .hud-top__left{grid-area:1 / 1;display:flex;flex-direction:column;gap:var(--hud-gap);align-items:flex-start;min-width:0}
 .hud-top__centre{grid-area:1 / 2;display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
-.hud-top__right{grid-area:1 / 3;display:flex;flex-direction:column;gap:var(--hud-gap);align-items:flex-end;min-width:0}
+/* The reserve for the pause affordance, which is absolutely positioned in the
+   same corner. Expressed in terms of --hud-pause-size so the button and the
+   space kept clear for it cannot drift apart. */
+.hud-top__right{
+  grid-area:1 / 3;display:flex;flex-direction:column;gap:var(--hud-gap);
+  align-items:flex-end;min-width:0;
+  padding-right:calc(var(--hud-pause-size) + 6px);
+}
 /* The tracker is a PLACED GRID ITEM rather than a member of a column.
    In landscape it hangs under the centre column, which is the only region of a
    390 px-tall viewport that is neither under a hand nor holding a live readout;
@@ -203,7 +220,11 @@ ${allPalettes()}
 /* ---- boredom ----------------------------------------------------------- */
 /* The game's real progress bar. Presented as a MOOD: a word, a slow breath,  */
 /* and a fill that drains of colour rather than filling up with it.           */
-.hud-boredom{width:min(214px,42vw);padding:6px 9px 7px}
+/* The container scales WITH the type it holds. --hud-scale is an
+   accessibility setting; a fixed-width panel around scaled type turns 130 % into
+   "GOING THROUGH TH…", which makes the setting worse than useless. The vw cap
+   is unchanged, so at the default scale the geometry is identical. */
+.hud-boredom{width:min(calc(214px * var(--hud-scale)),42vw);padding:6px 9px 7px}
 .hud-boredom__head{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
 .hud-boredom__mood{
   font-family:${DISPLAY_FONT};font-size:calc(11px * var(--hud-scale));
@@ -263,10 +284,17 @@ ${allPalettes()}
 .hud-encounter__sep{opacity:.55}
 
 /* boss bar: only geometry the compositor can do */
-.hud-boss{width:min(340px,58vw);padding:5px 10px 7px}
+.hud-boss{width:min(calc(340px * var(--hud-scale)),58vw);padding:5px 10px 7px}
 .hud-boss__track{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+/* display:block is not decoration. The fill is a <span>, and a non-replaced
+   INLINE box is not a transformable element (CSS Transforms 1) and ignores
+   height (CSS 2.1) — so without this the bar has no box, no transform, and
+   paints nothing whatever --fill says. --fill:1 is the honest default the
+   dead var(--fill,1) fallback could never supply: --fill is a REGISTERED
+   property, so it is never guaranteed-invalid and the fallback never fires. */
 .hud-boss__fill{
-  height:100%;transform-origin:0 50%;transform:scaleX(var(--fill,1));
+  --fill:1;
+  display:block;height:100%;transform-origin:0 50%;transform:scaleX(var(--fill));
   background:linear-gradient(90deg,var(--hud-tier,#ff4d4d),color-mix(in srgb,var(--hud-tier,#ff4d4d) 40%,#fff));
   will-change:transform;
 }
@@ -300,8 +328,9 @@ ${allPalettes()}
 /* propertyDamageScore, NOT yen. Yen is unbounded and would peg this meter on  */
 /* the first serious punch of the game; the score is the compressed 0..1 field */
 /* that exists precisely so a meter has something honest to read.              */
+/* display:block for the same reason as .hud-boss__fill — see there. */
 .hud-collateral__fill{
-  height:100%;transform-origin:0 50%;transform:scaleX(var(--collateral,0));
+  display:block;height:100%;transform-origin:0 50%;transform:scaleX(var(--collateral,0));
   background:linear-gradient(90deg,var(--hud-collateral),#ff4d4d);
   will-change:transform;
 }
@@ -309,7 +338,7 @@ ${allPalettes()}
 
 /* ---- quest tracker ----------------------------------------------------- */
 .hud-tracker{
-  width:min(232px,46vw);padding:6px 10px 8px;
+  width:min(calc(232px * var(--hud-scale)),46vw);padding:6px 10px 8px;
   border-left:2px solid var(--hud-accent);
 }
 .hud-tracker[data-urgency='soon']{border-left-color:var(--hud-collateral)}
@@ -384,9 +413,13 @@ ${allPalettes()}
 /* ---- pause affordance -------------------------------------------------- */
 /* Top-right of the safe area and nowhere near a thumb, because a pause button */
 /* under a thumb is pressed by accident during every fight.                    */
+/* MIN_TAP_PX, not a smaller circle that "looks tighter": this is the only
+   in-game escape hatch, and tokens.ts calls anything under 44 px a bug rather
+   than a style. .hud-top__right reserves --hud-pause-size for it. */
 .hud-pausebtn{
   position:absolute;top:var(--hud-sa-t);right:var(--hud-sa-r);
-  width:40px;height:40px;min-width:40px;min-height:40px;
+  width:var(--hud-pause-size);height:var(--hud-pause-size);
+  min-width:var(--hud-pause-size);min-height:var(--hud-pause-size);
   border-radius:50%;padding:0;display:grid;place-items:center;
   font-size:15px;letter-spacing:0;
 }
@@ -466,6 +499,9 @@ ${allPalettes()}
   overflow:hidden;
 }
 .hud-sheet--wide{max-width:820px}
+/* A menu of four destinations, not a form: narrower than the reading sheets. */
+.hud-sheet--narrow{max-width:420px}
+.hud-menu{display:grid;gap:var(--hud-gap)}
 .hud-sheet__head{
   display:flex;align-items:center;gap:10px;
   padding:11px 14px;border-bottom:1px solid var(--hud-line);flex:0 0 auto;
@@ -573,8 +609,11 @@ ${allPalettes()}
 .hud-setting__name{font-family:${DISPLAY_FONT};font-size:calc(14px * var(--hud-scale));letter-spacing:.06em}
 .hud-setting__hint{font-size:11px;color:var(--hud-ink-muted);line-height:1.3;margin-top:1px}
 .hud-seg{display:flex;gap:3px;flex:0 0 auto;background:rgba(255,255,255,.05);padding:3px;border-radius:9px}
+/* The segmented options are the ONLY control on the settings screen, chosen
+   over sliders precisely because they can be full tap targets. 38 px was not
+   one. */
 .hud-seg__opt{
-  pointer-events:auto;cursor:pointer;min-height:38px;min-width:44px;padding:6px 11px;
+  pointer-events:auto;cursor:pointer;min-height:${MIN_TAP_PX}px;min-width:${MIN_TAP_PX}px;padding:6px 11px;
   border:none;border-radius:7px;background:none;color:var(--hud-ink-muted);
   font-family:${DISPLAY_FONT};font-size:calc(13px * var(--hud-scale));letter-spacing:.08em;
   text-transform:uppercase;touch-action:none;
@@ -587,6 +626,7 @@ ${allPalettes()}
 .hud-swatches{display:flex;gap:5px;flex:0 0 auto}
 .hud-swatch{
   width:14px;height:14px;border-radius:3px;border:1px solid rgba(255,255,255,.25);
+  background:var(--hud-swatch-color,transparent);
 }
 
 /* ---- loading ----------------------------------------------------------- */
@@ -610,7 +650,7 @@ ${allPalettes()}
   background:rgba(255,255,255,.10);overflow:hidden;
 }
 .hud-loading__fill{
-  height:100%;background:var(--hud-accent);
+  display:block;height:100%;background:var(--hud-accent);
   transform-origin:0 50%;transform:scaleX(var(--fill,0));
   will-change:transform;
 }
@@ -635,10 +675,10 @@ ${allPalettes()}
 /* ========================================================================== */
 @media (max-height:520px){
   .hud-root{--hud-gap:6px}
-  .hud-boredom{width:min(190px,32vw)}
-  .hud-tracker{width:min(200px,32vw)}
+  .hud-boredom{width:min(calc(190px * var(--hud-scale)),32vw)}
+  .hud-tracker{width:min(calc(200px * var(--hud-scale)),32vw)}
   .hud-encounter__name{max-width:24vw}
-  .hud-boss{width:min(300px,42vw)}
+  .hud-boss{width:min(calc(300px * var(--hud-scale)),42vw)}
   .hud-charge{width:150px;height:86px;margin-left:-75px}
   .hud-sheet{max-height:100%}
   .hud-loading{gap:11px}
@@ -656,7 +696,7 @@ ${allPalettes()}
   .hud-top__left{grid-area:1 / 1}
   .hud-top__right{grid-area:1 / 2}
   .hud-top__centre{grid-area:2 / 1 / auto / -1;align-items:flex-start}
-  .hud-boredom{width:min(200px,50vw)}
+  .hud-boredom{width:min(calc(200px * var(--hud-scale)),50vw)}
   /* FIXED, not absolute. .hud-top is itself absolutely positioned with an
      auto height, so an absolutely-positioned child resolving bottom against
      IT lands above the top of the screen — which is precisely the bug the
@@ -665,7 +705,7 @@ ${allPalettes()}
   .hud-tracker{
     position:fixed;left:var(--hud-sa-l);
     bottom:calc(var(--hud-sa-b) + var(--hud-thumb-reserve));
-    width:min(260px,68vw);
+    width:min(calc(260px * var(--hud-scale)),68vw);
   }
   .hud-encounter__name{max-width:52vw}
   .hud-sheet{max-width:100%}

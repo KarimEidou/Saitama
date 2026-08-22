@@ -6,8 +6,8 @@
  * thing the rest of the game can actually see.
  */
 
-import { describe, expect, it } from 'vitest';
-import { MonsterSystem } from '../monster-system';
+import { describe, expect, it, vi } from 'vitest';
+import { MAX_SCRIPTED_MINIONS, MonsterSystem } from '../monster-system';
 import { monsterArchetype } from '../archetypes';
 import { mirrorPunch, makeTarget, recordingBus, type IMirrorTarget } from './fixtures';
 import type { IMonsterTarget, Vec3 } from '../types';
@@ -304,6 +304,164 @@ describe('the phase gate, through the system', () => {
     expect(state.title).toBe('The Arena');
     expect(state.phaseResolved).toBe(false);
     expect(state.isFinalPhase).toBe(false);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Encounter teardown — the boss must not outlive its own script              */
+/* -------------------------------------------------------------------------- */
+
+describe('closing an encounter', () => {
+  const ENDED = {
+    outcome: 'fled',
+    duration: 12,
+    civiliansLost: 0,
+    collateralCost: 0,
+  } as const;
+
+  it('releases the boss when the fight ends without a victory', () => {
+    const { recorder, monsters } = system('flee');
+    monsters.startBossEncounter('boss.boros', ORIGIN);
+    const boss = monsters.boss!;
+    expect(monsters.isPhaseResolved(boss.id)).toBe(false);
+
+    recorder.bus.emit('EncounterEnded', { encounterId: 'boss.boros', ...ENDED });
+
+    expect(monsters.activeEncounter).toBeUndefined();
+    // The script that was going to open the gate is gone, and nothing else in
+    // the game can produce `isFinalPhase: true` — so leaving it closed means a
+    // 24 000-HP monster walking the city that absorbs every lethal punch for
+    // the rest of the session, with no corpse timer and no recycler that can
+    // see it.
+    expect(monsters.isPhaseResolved(boss.id)).toBe(true);
+    expect(mirrorPunch(combatTargetFor(monsters, boss.id), 'normal').killed).toBe(true);
+    expect(boss.scripted).toBe(false);
+    expect(recorder.ofType('BossPhaseChanged').at(-1)!.isFinalPhase).toBe(true);
+  });
+
+  it('releases it on abortEncounter, and when a second encounter opens over it', () => {
+    const { monsters } = system('abort');
+    monsters.startBossEncounter('boss.boros', ORIGIN);
+    const first = monsters.boss!;
+    monsters.abortEncounter();
+    expect(monsters.activeEncounter).toBeUndefined();
+    expect(monsters.isPhaseResolved(first.id)).toBe(true);
+    expect(first.scripted).toBe(false);
+
+    monsters.startBossEncounter('boss.vaccineMan', ORIGIN);
+    const second = monsters.boss!;
+    monsters.startBossEncounter('boss.deepSeaKing', { x: 80, y: 0, z: 0 });
+    expect(monsters.boss!.id).not.toBe(second.id);
+    expect(monsters.isPhaseResolved(second.id)).toBe(true);
+    expect(monsters.isPhaseResolved(monsters.boss!.id)).toBe(false);
+  });
+
+  it('takes the scripted swarm with it', () => {
+    const { recorder, monsters } = system('swarm-close');
+    monsters.startBossEncounter('boss.mosquitoGirl', ORIGIN);
+    expect(monsters.count).toBe(15); // the boss and her fourteen
+
+    recorder.bus.emit('EncounterEnded', { encounterId: 'boss.mosquitoGirl', ...ENDED });
+
+    // Nothing downstream can ever retire a scripted minion — the director
+    // ignores them by design and they have no corpse timer — so the script
+    // that placed them is the only thing that can take them away.
+    expect(monsters.all().filter((m) => m.archetype.id === 'mob.swarm.mosquito')).toHaveLength(0);
+    expect(monsters.count).toBe(1);
+  });
+
+  it('bounds the swarm however often the boss summons', () => {
+    const { monsters } = system('swarm-cap');
+    monsters.startBossEncounter('boss.mosquitoGirl', ORIGIN);
+    const swarm = (): number =>
+      monsters.all().filter((m) => m.archetype.id === 'mob.swarm.mosquito').length;
+    expect(swarm()).toBe(14);
+
+    // Her `summon` ATTACK runs on a 16 s cooldown for the whole encounter and
+    // its minions are tracked by nothing: three or four extra volleys in a
+    // leisurely fight used to leave fifty-plus permanent, inert entities, each
+    // a full brain per frame, a combat target and a crowd threat.
+    for (let i = 0; i < 8; i++) monsters.summon('mob.swarm.mosquito', 14, ORIGIN);
+    expect(swarm()).toBeLessThanOrEqual(MAX_SCRIPTED_MINIONS);
+    expect(swarm()).toBeGreaterThanOrEqual(14);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The shared IActor / IMonster contract                                      */
+/* -------------------------------------------------------------------------- */
+
+describe('the IActor entry points', () => {
+  it('despawns a monster killed through takeDamage, and says so on the bus', () => {
+    const { recorder, monsters } = system('actor-damage', { corpseSeconds: 1 });
+    const monster = monsters.spawn(monsterArchetype('mob.wolf.pest'), ORIGIN);
+
+    expect(monster.takeDamage(monster.maxHealth)).toBe(monster.maxHealth);
+    expect(monster.isDead).toBe(true);
+
+    // The corpse timer is written from `EntityKilled` and from nowhere else,
+    // and the director's other removal path cannot see a dead monster — so a
+    // kill that published nothing left the monster ticking, holding its scene
+    // node and its pooled body, and being published to combat, for ever.
+    const killed = recorder.ofType('EntityKilled');
+    expect(killed).toHaveLength(1);
+    expect(killed[0]!.entityId).toBe(monster.id);
+    expect(killed[0]!.rewardPoints).toBe(monster.archetype.rewardPoints);
+
+    run(monsters, 2, [], ORIGIN, 0.5);
+    expect(monsters.get(monster.id)).toBeUndefined();
+  });
+
+  it('counts a minion killed that way against its phase', () => {
+    const { monsters } = system('actor-minion');
+    monsters.startBossEncounter('boss.mosquitoGirl', ORIGIN);
+    const minion = monsters.all().find((m) => m.archetype.id === 'mob.swarm.mosquito')!;
+    minion.takeDamage(minion.maxHealth);
+    // Otherwise `requireSummonsCleared` waits on a monster that is already
+    // dead, and the phase stalls for the full 240 s guard.
+    expect(monsters.activeEncounter!.summonsAlive).toBe(13);
+  });
+
+  it('refuses to kill a gated boss, whatever hits it', () => {
+    const { recorder, monsters } = system('actor-gate');
+    monsters.startBossEncounter('boss.deepSeaKing', ORIGIN);
+    const boss = monsters.boss!;
+    expect(boss.brain.phaseResolved).toBe(false);
+
+    // An ally's attack, a collapsing girder: 9 800 damage during phase 0 used
+    // to set health to 0 and call `onKilled` outright — the "boss that died at
+    // 0 HP" outcome the contract says never happens.
+    boss.takeDamage(1e9);
+    expect(boss.isDead).toBe(false);
+    expect(boss.health).toBe(1);
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    boss.kill();
+    warn.mockRestore();
+    expect(boss.isDead).toBe(false);
+    expect(recorder.ofType('EntityKilled')).toHaveLength(0);
+    expect(monsters.activeEncounter!.finished).toBe(false);
+  });
+
+  it('reports the seconds until the next attack is actually permitted', () => {
+    const { recorder, monsters } = system('cooldown');
+    const monster = monsters.spawn(monsterArchetype('mob.wolf.pest'), ORIGIN);
+    expect(monster.attackCooldownRemaining).toBe(0);
+
+    // Step to just past the end of a swing's recovery. `attackPhase` is
+    // undefined there but the 1.1 s cooldown is still running — precisely the
+    // window the old getter reported as 0, "ready to attack".
+    const player = makeTarget('player', 0, 1.2);
+    let released = -1;
+    for (let t = 0; t < 4; t += 1 / 60) {
+      monsters.update(1 / 60, { time: t, focus: ORIGIN, targets: [player] });
+      if (released < 0 && recorder.ofType('ShockwaveFired').length > 0) released = t;
+      if (released >= 0 && t > released + 0.6) break;
+    }
+    expect(released).toBeGreaterThan(0);
+    expect(monster.snapshot().attackPhase).toBeUndefined();
+    expect(monster.attackCooldownRemaining).toBeGreaterThan(0);
+    expect(monster.attackCooldownRemaining).toBeLessThan(monster.archetype.attackCooldown);
   });
 });
 

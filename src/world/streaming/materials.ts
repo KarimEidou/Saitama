@@ -40,6 +40,93 @@ import { CHUNK_GRID } from '@/spatial/constants';
 /** Injected uniform name for the residency lookup. */
 const RESIDENCY_UNIFORM = 'uResidency';
 
+/* -------------------------------------------------------------------------- */
+/* onBeforeCompile interop                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `THREE.Material.onBeforeCompile` is a SINGLE SLOT, and this is not the only
+ * system that wants it: the material library injects there, the shadow system's
+ * `CSM.setupMaterial()` assigns it outright, and the night lighting hooks it
+ * too. Whoever assigns last silently deletes the others — and the impostor
+ * material is explicitly documented as accepting a caller-supplied material,
+ * so "last" is not something this file gets to decide.
+ *
+ * The renderer workstream's answer is a composed dispatcher parked on
+ * `material.userData.engineShaderHooks`. Streaming CANNOT import it (a system
+ * depends on `@/types` and `@/util` only), so it participates in the same
+ * convention instead: same array, same record shape, same cache-key half. It
+ * works in either order — whoever arrives first creates the array and adopts
+ * whatever plain function was already in the slot, and the other appends.
+ *
+ * The cache key is not decoration. three builds its program cache key from
+ * `defines` plus `customProgramCacheKey()` and never inspects what
+ * `onBeforeCompile` did, so two materials with different hooks and no
+ * distinguishing key are handed the same cached program.
+ */
+type ComposableHook = (
+  shader: THREE.WebGLProgramParametersWithUniforms,
+  renderer: THREE.WebGLRenderer
+) => void;
+
+interface IHookRecord {
+  readonly key: string;
+  readonly fn: ComposableHook;
+}
+
+interface IHookedMaterial {
+  engineShaderHooks?: IHookRecord[];
+}
+
+function addComposableHook(material: THREE.Material, key: string, fn: ComposableHook): void {
+  const data = material.userData as IHookedMaterial;
+  let hooks = data.engineShaderHooks;
+
+  if (!hooks) {
+    hooks = [];
+    data.engineShaderHooks = hooks;
+
+    // A cache key assigned DIRECTLY onto the material describes GLSL the
+    // composed key knows nothing about. Installing the dispatcher over it
+    // without carrying it forward collapses every such material onto one key,
+    // and three then hands one of them the other's compiled program.
+    const priorKey = Object.prototype.hasOwnProperty.call(material, 'customProgramCacheKey')
+      ? material.customProgramCacheKey.bind(material)
+      : undefined;
+
+    // ...and the callback that key described. Dropping CSM's cascade uniforms
+    // here is exactly the failure this mechanism exists to prevent: the ring
+    // then accumulates all three cascade lights and renders three times too
+    // bright, with no error anywhere. Adopt it as the chain's FIRST hook, under
+    // the same key the engine's own dispatcher uses.
+    const priorCallback = Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')
+      ? material.onBeforeCompile
+      : undefined;
+
+    const list = hooks;
+    material.onBeforeCompile = function composedOnBeforeCompile(shader, renderer): void {
+      for (let i = 0; i < list.length; i++) list[i]!.fn(shader, renderer);
+    };
+    material.customProgramCacheKey = function composedCacheKey(): string {
+      let out = priorKey === undefined ? 'engine:' : `engine:${priorKey()}|`;
+      for (let i = 0; i < list.length; i++) out += `${list[i]!.key}|`;
+      return out;
+    };
+
+    if (priorCallback !== undefined) {
+      hooks.push({
+        key: 'assigned',
+        fn: (shader, renderer) => priorCallback.call(material, shader, renderer),
+      });
+    }
+  }
+
+  hooks.push({ key, fn });
+  // The cache key changed: force a recompile if the material has already been
+  // used this session.
+  material.needsUpdate = true;
+}
+
 /** `aChunkId` value that is never suppressed (the impostor's ground plane). */
 export const IMPOSTOR_ALWAYS_VISIBLE = 0xffff;
 
@@ -115,7 +202,7 @@ export class StreamingMaterials {
   private installResidencyTest(material: THREE.Material): void {
     const residency = this.residency;
     const grid = CHUNK_GRID.toFixed(1);
-    material.onBeforeCompile = (shader): void => {
+    addComposableHook(material, 'streaming.residency', (shader): void => {
       shader.uniforms[RESIDENCY_UNIFORM] = { value: residency };
       shader.vertexShader = shader.vertexShader
         .replace(
@@ -138,8 +225,7 @@ uniform sampler2D ${RESIDENCY_UNIFORM};`
     }
   }`
         );
-    };
-    material.needsUpdate = true;
+    });
   }
 
   /** Mark a chunk resident (its real geometry is in the scene). */

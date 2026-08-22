@@ -69,6 +69,8 @@ interface HarnessReport {
     poolUpdate: TimingSummary;
     awakeAtEnd: number;
     settledAtEnd: number;
+    /** Of the simulated pieces only — see the note in `harness/physics.ts`. */
+    settledSimulated: number;
     lowestY: number;
     highestY: number;
     ballisticLowestY: number;
@@ -256,8 +258,15 @@ async function main(): Promise<void> {
         failures.push(`piece accounting mismatch: ${d.simulated} + ${d.ballistic} != ${d.spawned}`);
       }
       if (d.ballistic < 1) failures.push('no piece took the ballistic path — threshold never hit');
-      if (d.settledAtEnd < d.simulated * 0.9) {
-        failures.push(`only ${d.settledAtEnd}/${d.simulated} pieces settled`);
+      // Against the SIMULATED count, not the mixed total: ballistic gravel flags
+      // itself settled the moment its bounce is spent, so `settledAtEnd` carries
+      // ~60 free passes and the effective bar would be 65 % of the pieces the
+      // solver actually has to put to sleep.
+      if (d.settledSimulated < d.simulated * 0.9) {
+        failures.push(
+          `only ${d.settledSimulated}/${d.simulated} simulated pieces settled ` +
+            `(${d.settledAtEnd}/${d.spawned} counting ballistic gravel)`
+        );
       }
       if (d.lowestY < -0.6) failures.push(`a piece tunnelled through the floor (y=${d.lowestY})`);
       if (d.highestY > 12) failures.push(`a piece never came down (y=${d.highestY})`);
@@ -379,7 +388,10 @@ async function main(): Promise<void> {
     console.log(`pool update          avg ${fmt(d.poolUpdate.avgMs)} ms`);
     console.log(`warm-up steps        ${d.warmupMs.join(', ')} ms (excluded above)`);
     console.log(`budget               ${d.budgetMs} ms`);
-    console.log(`settled / awake      ${d.settledAtEnd} settled, ${d.awakeAtEnd} bodies awake`);
+    console.log(
+      `settled / awake      ${d.settledAtEnd} settled (${d.settledSimulated}/${d.simulated} ` +
+        `simulated), ${d.awakeAtEnd} bodies awake`
+    );
     console.log(`pile height          ${d.lowestY} … ${d.highestY} m`);
     console.log(`ballistic rest y     ${d.ballisticLowestY} … ${d.ballisticHighestY} m`);
     console.log('\n── ragdolls ──');

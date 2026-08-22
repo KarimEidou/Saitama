@@ -131,6 +131,82 @@ describe('ChunkPriorityQueue', () => {
     }
   });
 
+  it('keeps an explicit pin ahead of everything through a re-score', () => {
+    // The queue is re-scored before EVERY dispatch, so a score written once at
+    // enqueue time is erased before anything acts on it. A chunk pinned by
+    // `requestChunk` for a fast-travel destination in R2 would be rescored to
+    // ~2e5 and land behind every R0 and R1 entry in the queue — hundreds of
+    // frames of waiting for a call documented as "load now".
+    const queue = new ChunkPriorityQueue();
+    const near = chunkIndex(0, -1);
+    const far = chunkIndex(7, 7);
+    push(queue, near, 0);
+    queue.push({
+      chunk: far,
+      ring: 2,
+      score: -1e9,
+      distance: 0,
+      angleTerm: 0,
+      pvsVisible: true,
+      pinned: true,
+      enqueuedFrame: 0,
+    });
+
+    queue.rescore(view, () => true);
+    expect(queue.peek()!.chunk).toBe(far);
+    expect(queue.peek()!.score).toBe(-1e9);
+    // The distance fields still track the camera — only the score is held.
+    expect(queue.get(far)!.distance).toBeGreaterThan(0);
+  });
+
+  it('does not let the next plain push erase a pin', () => {
+    // The assignment pass re-queues a wanted chunk every frame until it is
+    // dispatched, which is the other half of the same erasure.
+    const queue = new ChunkPriorityQueue();
+    const pinnedChunk = chunkIndex(4, 4);
+    queue.push({
+      chunk: pinnedChunk,
+      ring: 1,
+      score: -1e9,
+      distance: 0,
+      angleTerm: 0,
+      pvsVisible: true,
+      pinned: true,
+      enqueuedFrame: 0,
+    });
+    push(queue, pinnedChunk, 5000);
+    expect(queue.peek()!.score).toBe(-1e9);
+  });
+
+  it('re-applies a prefetch bias so a hint never outranks real work', () => {
+    const queue = new ChunkPriorityQueue();
+    const hint = chunkIndex(0, -1);
+    const real = chunkIndex(6, 6);
+    // The hint is the NEAREST chunk of the two, so only the bias can hold it
+    // back once the queue is re-scored.
+    queue.push({
+      chunk: hint,
+      ring: 0,
+      score: 0,
+      distance: 0,
+      angleTerm: 0,
+      pvsVisible: true,
+      bias: 4 * RING_PRIORITY_STRIDE,
+      enqueuedFrame: 0,
+    });
+    push(queue, real, 0);
+
+    queue.rescore(view, () => true);
+    expect(queue.peek()!.chunk).toBe(real);
+    expect(queue.get(hint)!.score).toBeGreaterThan(4 * RING_PRIORITY_STRIDE);
+
+    // Re-pushed by the assignment pass without a bias: the handicap is gone,
+    // because by then the system wants the chunk for real.
+    push(queue, hint, 12);
+    queue.rescore(view, () => true);
+    expect(queue.peek()!.chunk).toBe(hint);
+  });
+
   it('re-scores against a new view in one heapify', () => {
     const queue = new ChunkPriorityQueue();
     const ahead = chunkIndex(0, -3);

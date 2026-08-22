@@ -13,9 +13,10 @@
  *   __GAME_READY__  flips true only after a real frame has presented — never on
  *                   "the bundle parsed" and never on "the loop started", so a
  *                   harness that screenshots on it cannot catch an empty canvas.
- *   __GAME_DIAG__   is published BEFORE anything can fail and mutated in place
- *                   afterwards, so a boot that dies still leaves a readable
- *                   `errors` array rather than an undefined global.
+ *   __GAME_DIAG__   is published from here as a zeroed stub BEFORE anything can
+ *                   fail, so a boot that dies still leaves a readable `errors`
+ *                   array rather than an undefined global. `createDiagnostics`
+ *                   swaps in the real, live object once boot reaches it.
  *
  * `src/game/diagnostics.ts` adds `boot`, `timings`, `systems` and `world` to it.
  * All four are additive: a harness written against the original shape passes
@@ -33,6 +34,73 @@ import { clamp, createLogger } from '@/util';
 import { Game } from '@/game';
 
 const log = createLogger('main');
+
+/* -------------------------------------------------------------------------- */
+/* Diagnostics global                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Cap on `__GAME_DIAG__.errors` written from this file.
+ *
+ * The window-level handlers below can fire once per frame for a throw inside
+ * the RAF loop; an uncapped array would then grow until the tab dies, taking
+ * the diagnostic it exists to preserve with it.
+ */
+const MAX_RECORDED_ERRORS = 64;
+
+/**
+ * Publish the diagnostics global BEFORE anything can fail.
+ *
+ * `src/game/diagnostics.ts` builds the real object, but that happens several
+ * steps into `Game.boot` — after `detectPlatform()` and the GPU probe, which
+ * are exactly the things that die on the devices where the diagnostic matters
+ * most. Without this stub, `recordDiagError` below no-ops and a harness polling
+ * the global cannot tell "the bundle never parsed" from "the probe threw".
+ *
+ * Zeroed, and replaced wholesale by `createDiagnostics` once boot reaches it.
+ */
+function publishDiagnosticsStub(): void {
+  if (window.__GAME_DIAG__) return;
+  window.__GAME_DIAG__ = {
+    renderer: 'unknown',
+    vendor: 'unknown',
+    isWebGL2: false,
+    maxTextureSize: 0,
+    maxAnisotropy: 0,
+    compressedFormats: [],
+    drawCalls: 0,
+    triangles: 0,
+    fps: 0,
+    frameCount: 0,
+    quality: 'low',
+    bootTimeMs: 0,
+    errors: [],
+  };
+}
+
+publishDiagnosticsStub();
+
+/** Append to `__GAME_DIAG__.errors`, whichever object is currently published. */
+function recordDiagError(text: string): void {
+  const diag = window.__GAME_DIAG__;
+  if (!diag) return;
+  const errors = (diag.errors ??= []);
+  if (errors.length >= MAX_RECORDED_ERRORS) return;
+  errors.push(text);
+}
+
+// `boot().catch()` is otherwise the only error sink in the whole app, so a
+// throw inside the RAF loop — the most likely place for a long-session failure
+// — would never reach `errors` at all.
+window.addEventListener('error', (event) => {
+  recordDiagError(`uncaught: ${event.message} (${event.filename}:${event.lineno})`);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  const reason: unknown = event.reason;
+  recordDiagError(
+    `unhandled rejection: ${reason instanceof Error ? reason.message : String(reason)}`
+  );
+});
 
 /* -------------------------------------------------------------------------- */
 /* The pre-HUD boot screen                                                    */
@@ -59,13 +127,17 @@ function setStatus(text: string, progress: number): void {
 function fail(message: string, error: unknown): void {
   log.error(message, error);
   const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+  // Un-hide FIRST. Past `HANDOVER_FRACTION` the screen carries `.hidden`,
+  // which is `opacity: 0` — everything written below would be rendered
+  // invisibly, leaving the player staring at a loading bar that will never
+  // advance and the harness screenshotting a stall with no explanation.
+  bootScreen?.classList.remove('hidden');
   if (bootStatus) bootStatus.textContent = 'Failed to start';
   if (bootError) {
     bootError.style.display = 'block';
     bootError.textContent = `${message}\n\n${detail}`;
   }
-  const diag = window.__GAME_DIAG__;
-  if (diag) (diag.errors ??= []).push(`${message}: ${detail}`);
+  recordDiagError(`${message}: ${detail}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -140,9 +212,43 @@ async function boot(): Promise<void> {
   // drives input through `window.__INPUT__` but reads world state from here.
   (window as unknown as { __GAME__?: Game }).__GAME__ = game;
 
-  window.addEventListener('pagehide', () => {
-    void game.save();
+  installBackgroundSave(game);
+}
+
+/**
+ * Persist on backgrounding.
+ *
+ * `pagehide` alone is not enough: Android (and the Capacitor WebView this ships
+ * in) does not guarantee it for an app that is backgrounded and later reclaimed
+ * — the last reliably delivered callback is `visibilitychange` -> `hidden`. On
+ * that path the player loses up to `AUTOSAVE_INTERVAL` seconds of progress with
+ * no indication anything went wrong.
+ *
+ * Both triggers are kept, coalesced through one in-flight flag: `pagehide`
+ * fires on every navigation-away including bfcache entry, so back-forward
+ * navigation could otherwise start a second `save()` while the first is still
+ * writing — two writers to one storage key, with `Game.save`'s own try/catch
+ * swallowing whichever one loses.
+ */
+function installBackgroundSave(game: Game): void {
+  let inFlight = false;
+  const requestSave = (): void => {
+    if (inFlight) return;
+    inFlight = true;
+    void game
+      .save()
+      .catch((error: unknown) => {
+        log.warn('background save failed', error);
+      })
+      .finally(() => {
+        inFlight = false;
+      });
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') requestSave();
   });
+  window.addEventListener('pagehide', requestSave);
 }
 
 boot().catch((error) => {

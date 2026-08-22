@@ -441,7 +441,10 @@ function renderWalkCycle(): WalkStats {
   const naive = measureNaiveFootSlide(rig, speed, 8);
   const gait = solver.gait;
   return {
-    phases: PHASES,
+    // Counted, not asserted: `stanceCounts` gains one entry per cell that was
+    // actually rendered, so an early `break` or a swallowed viewport moves this
+    // number. Publishing the loop bound `PHASES` could not.
+    phases: stanceCounts.length,
     speed,
     cadence: gait.cycleFrequency,
     strideLength: gait.strideLength,
@@ -831,7 +834,9 @@ function renderCrowd(): CrowdStats {
   for (const animator of references) animator.dispose();
 
   return {
-    instances: INSTANCES,
+    // What the InstancedMesh actually draws, rather than the constant it was
+    // sized from.
+    instances: mesh.count,
     drawCalls,
     triangles,
     textureBytes: bake.bytes,

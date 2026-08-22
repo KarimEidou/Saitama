@@ -437,7 +437,15 @@ function ringFrames(
       q.setFromUnitVectors(axes[i - 1]!, axes[i]!);
       a = a.clone().applyQuaternion(q);
       a.addScaledVector(axes[i]!, -a.dot(axes[i]!));
-      if (a.lengthSq() < 1e-10) a.set(axes[i]!.y, axes[i]!.z, axes[i]!.x);
+      if (a.lengthSq() < 1e-10) {
+        // Fall back exactly the way the seed frame does: pick the world axis
+        // least aligned with the sweep and RE-PROJECT it. A cyclic permutation
+        // of the axis is not perpendicular to it (for (1,1,1)/sqrt(3) it is
+        // the axis itself), which leaves `b = axis x a` short and silently
+        // squashes the cross-section along B.
+        a = Math.abs(axes[i]!.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+        a.addScaledVector(axes[i]!, -a.dot(axes[i]!));
+      }
       a.normalize();
     }
     frames.push({ a: a.clone(), b: new THREE.Vector3().crossVectors(axes[i]!, a) });
@@ -472,6 +480,7 @@ export function poleHeight(shape: RingShape): number {
 export function loftStrand(builder: MeshBuilder, strand: Strand): number[][] {
   const { rings, radialSegments: segments, uvRect } = strand;
   if (rings.length < 2) return [];
+  const offset = (strand.radialOffset ?? 0) / segments;
 
   const axes = ringAxes(rings);
   const frames = ringFrames(axes, strand.frameHint);
@@ -493,10 +502,11 @@ export function loftStrand(builder: MeshBuilder, strand: Strand): number[][] {
     const row: number[] = [];
     // segments + 1 columns: the last duplicates the first so u can reach 1.
     for (let k = 0; k <= segments; k++) {
-      const t = k / segments;
-      evalRingPoint(ring.shape, t === 1 ? 0 : t, _local);
+      const u = k / segments;
+      const t = k === segments ? offset : u + offset;
+      evalRingPoint(ring.shape, t, _local);
       _p.copy(ring.center).addScaledVector(_axisA, _local.x).addScaledVector(_axisB, _local.y);
-      packUV(uvRect, t, ring.v, _uv);
+      packUV(uvRect, u, ring.v, _uv);
       row.push(builder.addVertex(_p, _uv[0], _uv[1], color, ring.skin, strand.smoothGroup));
     }
     grid.push(row);
@@ -566,12 +576,24 @@ function capStrand(
   // edge stays sharp, then fan to a centre vertex.
   const group = strand.smoothGroup + 0x4000 + (atStart ? 0 : 1);
   const frame = frames[i]!;
+  const offset = (strand.radialOffset ?? 0) / segments;
+  // Re-derive the rim through the SAME frame the strand surface used, roll
+  // included. A rim built from the un-rolled frame is no longer bit-identical
+  // to the strand's own, the weld stops collapsing the duplicates, and the cap
+  // tears a hole all the way around.
+  _axisA.copy(frame.a);
+  _axisB.copy(frame.b);
+  if (ring.roll !== undefined && ring.roll !== 0) {
+    _axisA.applyAxisAngle(axis, ring.roll);
+    _axisB.applyAxisAngle(axis, ring.roll);
+  }
   const rim: number[] = [];
   for (let k = 0; k <= segments; k++) {
-    const t = k / segments;
-    evalRingPoint(ring.shape, t === 1 ? 0 : t, _local);
-    _p.copy(ring.center).addScaledVector(frame.a, _local.x).addScaledVector(frame.b, _local.y);
-    packUV(strand.uvRect, t, ring.v, _uv);
+    const u = k / segments;
+    const t = k === segments ? offset : u + offset;
+    evalRingPoint(ring.shape, t, _local);
+    _p.copy(ring.center).addScaledVector(_axisA, _local.x).addScaledVector(_axisB, _local.y);
+    packUV(strand.uvRect, u, ring.v, _uv);
     rim.push(builder.addVertex(_p, _uv[0], _uv[1], ring.color ?? strand.color, ring.skin, group));
   }
   _p.copy(ring.center);
@@ -589,6 +611,7 @@ export function makeStrand(
   rings: readonly Ring[],
   options: {
     readonly radialSegments: number;
+    readonly radialOffset?: number;
     readonly uvRect: UVRect;
     readonly slot: MeshSlot;
     readonly color: THREE.Color;
@@ -604,6 +627,7 @@ export function makeStrand(
     name,
     rings,
     radialSegments: options.radialSegments,
+    radialOffset: options.radialOffset,
     capStart: options.capStart ?? 'pole',
     capEnd: options.capEnd ?? 'pole',
     uvRect: options.uvRect,

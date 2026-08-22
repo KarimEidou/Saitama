@@ -126,6 +126,81 @@ describe('LoadScheduler', () => {
     expect(order).toEqual(['late', 'other']);
   });
 
+  it('clamps a concurrency of 0 or NaN instead of never starting anything', async () => {
+    // `pump()`'s guard is `active < concurrency`, so 0 (a config slider, a
+    // thermal path, `Number(param)`) means no task EVER starts and every
+    // load() hangs with no error. NaN behaves the same way.
+    for (const slots of [0, -4, Number.NaN]) {
+      const scheduler = new LoadScheduler(slots);
+      expect(scheduler.slots).toBeGreaterThanOrEqual(1);
+      await expect(scheduler.schedule('k', 'normal', async () => 'ran')).resolves.toBe('ran');
+    }
+    const scheduler = new LoadScheduler(4);
+    scheduler.setConcurrency(Number.NaN);
+    expect(scheduler.slots).toBeGreaterThanOrEqual(1);
+  });
+
+  it('runs a task scheduled from INSIDE a task, at a worse priority, on one slot', async () => {
+    // The boot-screen deadlock: `loadMaterial` runs in a slot at `critical`
+    // and awaits its textures at `high`. The parent outranks its own children,
+    // so `pump()` hands every freed slot to another parent and the children
+    // never start. With one slot it wedges on the very first material.
+    const scheduler = new LoadScheduler(1);
+    const order: string[] = [];
+
+    const child = async (name: string): Promise<void> => {
+      await scheduler.schedule(name, PRIORITY.high, async () => {
+        order.push(name);
+      });
+    };
+
+    await scheduler.schedule('parent', PRIORITY.critical, async () => {
+      await scheduler.withSlotReleased(async () => {
+        await Promise.all([child('t1'), child('t2')]);
+      });
+      order.push('parent');
+    });
+
+    expect(order).toEqual(['t1', 't2', 'parent']);
+    expect(scheduler.running).toBe(0);
+  });
+
+  it('keeps idle() waiting while a task that gave its slot back is still running', async () => {
+    const scheduler = new LoadScheduler(2);
+    const inner = gate('inner');
+    let settled = false;
+
+    const parent = scheduler.schedule('parent', PRIORITY.critical, async () => {
+      await scheduler.withSlotReleased(async () => inner.run());
+    });
+    const idle = scheduler.idle().then(() => {
+      settled = true;
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    // Nothing holds a slot, but the parent has not finished.
+    expect(settled).toBe(false);
+    inner.open();
+    await parent;
+    await idle;
+    expect(settled).toBe(true);
+  });
+
+  it('drops queued work on cancelAll instead of leaving callers hanging', async () => {
+    const scheduler = new LoadScheduler(1);
+    const blocker = gate('block');
+    const ran = vi.fn(async () => undefined);
+    const first = scheduler.schedule('blocker', 'normal', blocker.run);
+    const queued = scheduler.schedule('queued', 'normal', ran);
+
+    scheduler.cancelAll();
+    await expect(queued).resolves.toBeUndefined();
+    expect(ran).not.toHaveBeenCalled();
+    blocker.open();
+    await first;
+  });
+
   it('surfaces a task rejection to every caller and keeps running', async () => {
     const scheduler = new LoadScheduler(2);
     await expect(

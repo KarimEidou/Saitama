@@ -115,11 +115,13 @@ export function scoreOutcome(
   let multiplier = 1;
   if (witness.byPlayer) multiplier = WITNESS_MULTIPLIER;
   else if (witness.bystanders > 0) multiplier = BYSTANDER_MULTIPLIER;
-  // Reputation LOSSES are not discounted for being unwitnessed. A civilian the
-  // player killed in an alley with nobody watching still died, and letting the
-  // player farm a lower penalty by fighting where the cameras are not is a
-  // straightforward exploit.
-  if (kind === 'lost' && multiplier < 1) multiplier = 1;
+  // Reputation LOSSES are not scaled by witnessing at all. Both multipliers
+  // are above 1, so scaling a loss means the UNWITNESSED death is the cheap
+  // one — and a player who levels a building from inside an alley, out of
+  // sight of every civilian, would pay a third less per body than one who did
+  // it in the open. That is precisely the exploit this clamp exists to close:
+  // a civilian the player killed with nobody watching still died.
+  if (kind === 'lost') multiplier = 1;
   return Math.round(base * multiplier * 100) / 100;
 }
 

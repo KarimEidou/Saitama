@@ -220,6 +220,12 @@ function measureBody(
   const wrist = at('LeftHand', _d);
   const upperArm = shoulderL.distanceTo(elbow) || 0.3;
   const foreArm = elbow.distanceTo(wrist) || 0.25;
+  // Captured as a NUMBER here, before the hip reads below reuse `_a` and `_b`.
+  // `at` returns the scratch vector it was handed, so `shoulderL`/`shoulderR`
+  // alias those two and reading `.x` off them afterwards silently yields the
+  // hip span instead — which is always narrower, so the measured shoulder width
+  // was discarded on every rig and the metric collapsed to `hipHalfWidth·1.05`.
+  const shoulderSpan = Math.abs(shoulderL.x - shoulderR.x);
   const armRestDir = elbow.clone().sub(shoulderL);
   if (armRestDir.lengthSq() < 1e-10) armRestDir.set(-1, 0, 0);
   armRestDir.normalize();
@@ -227,10 +233,7 @@ function measureBody(
   const hipL = at('LeftUpLeg', _a);
   const hipR = at('RightUpLeg', _b);
   const hipHalfWidth = Math.max(Math.abs(hipL.x - hipR.x) * 0.5, 0.02 * profile.height);
-  const shoulderHalfWidth = Math.max(
-    Math.abs(shoulderL.x - shoulderR.x) * 0.5,
-    hipHalfWidth * 1.05
-  );
+  const shoulderHalfWidth = Math.max(shoulderSpan * 0.5, hipHalfWidth * 1.05);
 
   const hips = at('Hips', _a);
   const neck = at('Neck', _b);

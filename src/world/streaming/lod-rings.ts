@@ -66,11 +66,21 @@ export function ringWithHysteresis(distanceChunks: number, currentRing: number):
     return distanceChunks > boundary + RING_HYSTERESIS_CHUNKS ? target : currentRing;
   }
 
-  // Promoting to a finer ring: require the chunk to be clearly INSIDE the
-  // finer band, not merely touching its outer edge.
-  const boundary = RING_OUTER_CHUNKS[target];
-  if (boundary === undefined) return target;
-  return distanceChunks < boundary - RING_HYSTERESIS_CHUNKS ? target : currentRing;
+  // Promoting to a finer ring: require the chunk to be clearly INSIDE the band
+  // it moves to, not merely touching its outer edge.
+  //
+  // The walk matters. Testing only `target` and giving up would strand a chunk
+  // at its current ring whenever the jump skips a band — a camera cut that
+  // drops an R2 chunk to 1.3 units fails the R0 test (1.3 > 1.5 - 0.35) and
+  // would keep it at R2 forever, 130 m from the player with no colliders and no
+  // crowd. Walking outwards finds the finest ring whose dead band is genuinely
+  // cleared, which also makes the result monotonic in `distanceChunks`.
+  for (let ring = target; ring < currentRing; ring++) {
+    const boundary = RING_OUTER_CHUNKS[ring];
+    if (boundary === undefined) break;
+    if (distanceChunks < boundary - RING_HYSTERESIS_CHUNKS) return ring;
+  }
+  return currentRing;
 }
 
 /** Resident radius in chunk units for a render tier. */
@@ -108,6 +118,20 @@ export class RingAssigner {
   /** Ring a chunk is currently assigned to, or -1. */
   ringOf(chunk: number): number {
     return this.rings[chunk]!;
+  }
+
+  /**
+   * The ring a chunk WOULD be assigned, without recording anything.
+   *
+   * `assign` writes `rings[chunk]` and feeds the pass-scoped `counts` that
+   * `beginPass` owns, so anything running outside the per-frame pass —
+   * `prefetch`, `requestChunk` — has to ask this instead. Calling `assign`
+   * there double-counts the ring populations and, worse, records a ring the
+   * caller then clamps, leaving the assigner remembering a ring the chunk was
+   * never built at.
+   */
+  ringForChunk(chunk: number, distanceChunks: number): number {
+    return ringWithHysteresis(distanceChunks, this.rings[chunk]!);
   }
 
   /** Reset the per-ring population counters before a pass. */

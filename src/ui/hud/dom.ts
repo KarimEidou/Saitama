@@ -11,6 +11,8 @@
  * HUD in one page) and must never reach for a global.
  */
 
+import type { CssVarName } from './frame-writer';
+
 /** Attributes and children accepted by {@link el}. */
 export interface IElementSpec {
   readonly className?: string;
@@ -18,8 +20,15 @@ export interface IElementSpec {
   readonly html?: never;
   readonly attrs?: Readonly<Record<string, string>>;
   readonly dataset?: Readonly<Record<string, string>>;
-  /** Custom properties set once at build time. Never in the 60 Hz path. */
-  readonly vars?: Readonly<Record<string, string>>;
+  /**
+   * Custom properties set once at build time. Never in the 60 Hz path.
+   *
+   * The key type is the enforcement: `vars` is the only thing distinguishing
+   * "safe, composed by the stylesheet" writes from real inline layout, so a
+   * `padding-right` smuggled through here would make the name mean both. Real
+   * properties belong in `styles.ts`, where the rest of the layout can see them.
+   */
+  readonly vars?: Readonly<Partial<Record<CssVarName, string>>>;
   readonly children?: readonly (Node | null | undefined)[];
 }
 
@@ -39,7 +48,9 @@ export function el<K extends keyof HTMLElementTagNameMap>(
     for (const [key, value] of Object.entries(spec.dataset)) node.dataset[key] = value;
   }
   if (spec.vars) {
-    for (const [key, value] of Object.entries(spec.vars)) node.style.setProperty(key, value);
+    for (const [key, value] of Object.entries(spec.vars)) {
+      if (value !== undefined) node.style.setProperty(key, value);
+    }
   }
   if (spec.children) {
     for (const child of spec.children) if (child) node.appendChild(child);
@@ -99,22 +110,56 @@ export function button(
    */
   let swallowNextClick = false;
   let disarm: ReturnType<typeof setTimeout> | undefined;
-  node.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    node.dataset.pressed = 'true';
-  });
+  /**
+   * The pointer currently pressing this button, while it is still ON it.
+   *
+   * A press that slides off has to be cancellable, which is what every other
+   * button on the platform does — and the release position cannot decide it:
+   * for touch the UA IMPLICITLY CAPTURES the pointer on `pointerdown`, so
+   * `pointerup` is retargeted here no matter where the finger travelled, and
+   * boundary events are suppressed to the capture target while the capture
+   * holds, so `pointerleave` never arrives either. What DOES arrive, retargeted
+   * by that same capture, is every `pointermove` — so the flag is disarmed on
+   * the move that leaves the box. Without this, a thumb that lands on
+   * "Settings" instead of "Resume", slides half a screen away and lifts still
+   * opens the settings sheet.
+   */
+  let pressedPointerId: number | undefined;
   const release = (): void => {
+    pressedPointerId = undefined;
     delete node.dataset.pressed;
   };
+  const over = (event: PointerEvent): boolean => {
+    const rect = node.getBoundingClientRect();
+    return (
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom
+    );
+  };
+  node.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    pressedPointerId = event.pointerId;
+    node.dataset.pressed = 'true';
+  });
+  node.addEventListener('pointermove', (event) => {
+    // One layout read per move, and only while this button is being held. Not
+    // the 60 Hz path: nothing is animating under a finger that is dragging.
+    if (pressedPointerId === event.pointerId && !over(event)) release();
+  });
   node.addEventListener('pointerup', (event) => {
     event.preventDefault();
+    const armed = pressedPointerId === event.pointerId;
     release();
+    // Swallowed either way: the synthetic click follows a CANCELLED press too,
+    // and letting that one through would reinstate the press just cancelled.
     swallowNextClick = true;
     clearTimeout(disarm);
     disarm = setTimeout(() => {
       swallowNextClick = false;
     }, 400);
-    onPress();
+    if (armed) onPress();
   });
   node.addEventListener('pointercancel', release);
   node.addEventListener('pointerleave', release);

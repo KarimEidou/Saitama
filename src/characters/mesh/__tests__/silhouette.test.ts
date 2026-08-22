@@ -19,8 +19,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import { measureSilhouette, silhouetteDistance } from '../analysis';
-import { buildHumanoid } from '../assemble';
+import { buildHumanoid, type HumanoidBuild } from '../assemble';
 import { buildCharacter, buildCivilian, showcaseBodies } from '../characters';
 import type { BodyProfile } from '@/types';
 
@@ -34,6 +35,21 @@ const BALD: BodyProfile = {
   uniformScale: 1,
   seed: 9,
 };
+
+/** Bounding box of one named region's own vertices. */
+function regionBox(build: HumanoidBuild, name: string): THREE.Box3 {
+  const region = build.regions.find((entry) => entry.name === name);
+  expect(region, `region ${name}`).toBeDefined();
+  const index = build.geometry.getIndex()!;
+  const position = build.geometry.getAttribute('position');
+  const box = new THREE.Box3();
+  const point = new THREE.Vector3();
+  for (let i = 0; i < region!.indexCount; i++) {
+    const vertex = index.getX(region!.indexStart + i);
+    box.expandByPoint(point.fromBufferAttribute(position as THREE.BufferAttribute, vertex));
+  }
+  return box;
+}
 
 describe('proportions', () => {
   it('puts the crown exactly on the requested height', () => {
@@ -86,6 +102,31 @@ describe('proportions', () => {
     // The character faces -Z, so the character's LEFT is -X.
     expect(rest.LeftArm.x).toBeLessThan(0);
     expect(rest.RightArm.x).toBeGreaterThan(0);
+  });
+
+  it('mirrors the MESH of a paired part, not only its bones', () => {
+    // Rest bones say nothing about the ring frames the two sides were lofted
+    // in: with one shared frame hint the ear frame's B axis comes out down on
+    // one side and up on the other, so the table's graduated `offB` droops the
+    // left ear and cocks the right one.
+    const build = buildCharacter('saitama', 0);
+    const left = regionBox(build, 'earLeft');
+    const right = regionBox(build, 'earRight');
+
+    expect(left.max.y, 'ear tops').toBeCloseTo(right.max.y, 6);
+    expect(left.min.y, 'ear bottoms').toBeCloseTo(right.min.y, 6);
+    expect(left.min.z, 'ear depth').toBeCloseTo(right.min.z, 6);
+    expect(left.min.x, 'ear reach').toBeCloseTo(-right.max.x, 6);
+    expect(left.max.x).toBeLessThan(0);
+  });
+
+  it('reports the standing height, not the hair', () => {
+    // `HumanoidStats.height` is the contract camera framing and collision
+    // capsules read; helmets, spikes and horns legitimately sit above the
+    // crown, so the bounding box is NOT that number.
+    const build = buildCharacter('mumenRider', 0);
+    expect(build.stats.height).toBeCloseTo(1.71, 6);
+    expect(build.geometry.boundingBox!.max.y).toBeGreaterThan(build.stats.height + 0.005);
   });
 });
 

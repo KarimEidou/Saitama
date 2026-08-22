@@ -222,6 +222,12 @@ export class FlowField {
    */
   update(dt: number, obstacles: ObstacleField, threats: readonly IThreatSource[]): void {
     let dirty = false;
+    // One timer spanning both halves. The commute pass is the expensive one —
+    // two full searches over 16,384 cells — and it always forces the flee pass
+    // in the same call, so timing them separately guaranteed that the only
+    // frame worth profiling reported the cheap number measured microseconds
+    // later.
+    let spent = 0;
     if (obstacles.revision !== this.obstacleRevision) {
       this.obstacleRevision = obstacles.revision;
       this.buildPenalty(obstacles);
@@ -229,7 +235,7 @@ export class FlowField {
       const start = performance.now();
       this.solve(this.commuteA, this.goalsA, obstacles, false);
       this.solve(this.commuteB, this.goalsB, obstacles, false);
-      this.lastMs = performance.now() - start;
+      spent += performance.now() - start;
       dirty = true;
     }
 
@@ -238,8 +244,9 @@ export class FlowField {
       this.accumulator = 0;
       const start = performance.now();
       this.rebuildFlee(obstacles, threats);
-      this.lastMs = performance.now() - start;
+      spent += performance.now() - start;
       this.rebuilds++;
+      this.lastMs = spent;
     }
   }
 
@@ -289,14 +296,17 @@ export class FlowField {
   /**
    * Cost bonus for walking near a building.
    *
-   * `clearance` saturates at 3 cells, so this is a three-step ramp: flush
-   * against a façade is expensive, one cell off is half that, two cells or
-   * more is free.
+   * `computeClearance` gives a BLOCKED cell clearance 0, so a walkable cell
+   * flush against a façade is clearance 1, not 0 — the ramp is indexed from
+   * there. Flush costs the full penalty, one cell off costs half, two or more
+   * clear cells (the saturated value is 3) cost nothing. The blocked cells
+   * that fall into the first branch are never entered by the solver, so their
+   * value is irrelevant.
    */
   private buildPenalty(obstacles: ObstacleField): void {
     for (let i = 0; i < FIELD_COUNT; i++) {
       const clear = obstacles.clearance[i]!;
-      this.penalty[i] = clear >= 2 ? 0 : clear === 1 ? WALL_HUG_PENALTY >> 1 : WALL_HUG_PENALTY;
+      this.penalty[i] = clear >= 3 ? 0 : clear === 2 ? WALL_HUG_PENALTY >> 1 : WALL_HUG_PENALTY;
     }
   }
 

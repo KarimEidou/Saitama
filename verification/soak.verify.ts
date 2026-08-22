@@ -28,8 +28,11 @@
  *      and a game whose every render dies still "runs".
  *   3. `frameCount` advanced monotonically — the counter is written AFTER the
  *      render, so it stalls the moment rendering throws.
- *   4. The player crossed chunk boundaries in both directions, so chunks were
- *      built AND evicted, which is the streaming lifetime this run is for.
+ *   4. The player crossed chunk boundaries in both directions, AND the resident
+ *      chunk set both gained and lost members — chunks were built and evicted,
+ *      which is the streaming lifetime this run is for. Both halves are
+ *      measured as a per-sample set difference; the focus chunk index alone
+ *      says only that the player walked.
  *
  * Frame RATE is not measured or reported anywhere: the only GL here is
  * SwiftShader, a CPU rasteriser, and a number derived from it says nothing
@@ -42,7 +45,7 @@
 import { chromium, type Browser, type Page } from 'playwright';
 import { createServer, type Server } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -73,6 +76,7 @@ const MIME: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
   '.png': 'image/png',
   '.wasm': 'application/wasm',
   '.glb': 'model/gltf-binary',
@@ -84,19 +88,30 @@ const MIME: Record<string, string> = {
 
 function serveDist(): Promise<{ server: Server; port: number }> {
   const server = createServer(async (req, res) => {
-    const url = new URL(req.url ?? '/', 'http://localhost');
-    let filePath = path.join(DIST, decodeURIComponent(url.pathname));
-    if (url.pathname === '/' || url.pathname === '') filePath = path.join(DIST, 'index.html');
-    if (!filePath.startsWith(DIST) || !existsSync(filePath)) {
-      res.writeHead(404).end('not found');
-      return;
+    // The try/catch is load-bearing, not decoration: `decodeURIComponent('/%')`
+    // throws synchronously and `readFile` on a directory rejects with EISDIR.
+    // Either one leaves this async handler's promise unhandled, and Node's
+    // default `--unhandled-rejections=throw` then kills a 30-second run from
+    // outside `main()`, with no verdict and no diagnosable failure.
+    try {
+      const url = new URL(req.url ?? '/', 'http://localhost');
+      let filePath = path.join(DIST, decodeURIComponent(url.pathname));
+      if (url.pathname === '/' || url.pathname === '') filePath = path.join(DIST, 'index.html');
+      // `DIST + path.sep`: a bare prefix test also accepts `<ROOT>/dist-notes`.
+      const contained = filePath === DIST || filePath.startsWith(DIST + path.sep);
+      if (!contained || !existsSync(filePath) || !statSync(filePath).isFile()) {
+        res.writeHead(404).end('not found');
+        return;
+      }
+      const body = await readFile(filePath);
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+    } catch (error) {
+      res.writeHead(500).end(String(error));
     }
-    const body = await readFile(filePath);
-    res.writeHead(200, {
-      'Content-Type': MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream',
-      'Cache-Control': 'no-store',
-    });
-    res.end(body);
   });
   return new Promise((resolve, reject) => {
     server.on('error', reject);
@@ -136,6 +151,15 @@ interface ISample {
   readonly lastError: string;
   readonly residentChunks: number;
   readonly chunkIndex: number;
+  /**
+   * The resident chunk INDICES, not just how many there are.
+   *
+   * `chunkIndex` is the focus chunk, a single scalar: sweeping a range of it
+   * proves the player walked, and nothing more. Eviction is a set difference —
+   * a streamer that builds and never drops leaves `chunkIndex` doing exactly
+   * what a healthy one does while `residentChunks` climbs from 9 to 200.
+   */
+  readonly resident: readonly number[];
   readonly x: number;
   readonly z: number;
 }
@@ -148,7 +172,10 @@ const sample = (page: Page): Promise<ISample> =>
       world: Record<string, unknown>;
     };
     const game = window as unknown as {
-      __GAME__: { renderer: { raw: { info: { render: { calls: number } } } } };
+      __GAME__: {
+        renderer: { raw: { info: { render: { calls: number } } } };
+        cityStreamer: { chunks: readonly { index: number }[] };
+      };
     };
     const errors = diag.errors ?? [];
     const position = diag.world.playerPosition as { x: number; z: number };
@@ -159,6 +186,7 @@ const sample = (page: Page): Promise<ISample> =>
       lastError: errors[errors.length - 1] ?? '',
       residentChunks: diag.world.residentChunks as number,
       chunkIndex: diag.world.chunkIndex as number,
+      resident: game.__GAME__.cityStreamer.chunks.map((c) => c.index),
       x: position.x,
       z: position.z,
     };
@@ -231,6 +259,10 @@ async function main(): Promise<void> {
     let minChunk = booted.chunkIndex;
     let maxChunk = booted.chunkIndex;
     let firstErrorAt = -1;
+    let built = 0;
+    let evicted = 0;
+    let peakResident = booted.residentChunks;
+    let previousResident = new Set(booted.resident);
 
     for (let done = 0; done < FRAMES; done += SAMPLE) {
       // Walk out and back, so chunks are BUILT and then EVICTED, repeatedly.
@@ -250,6 +282,14 @@ async function main(): Promise<void> {
       lastFrameCount = now.frameCount;
       minChunk = Math.min(minChunk, now.chunkIndex);
       maxChunk = Math.max(maxChunk, now.chunkIndex);
+
+      // The build/evict ledger this run exists for. A set difference per
+      // sample, the same instrument `playthrough.verify.ts:sampleChunks` uses.
+      const resident = new Set(now.resident);
+      for (const index of previousResident) if (!resident.has(index)) evicted++;
+      for (const index of resident) if (!previousResident.has(index)) built++;
+      previousResident = resident;
+      peakResident = Math.max(peakResident, now.residentChunks);
 
       say(
         `  frame ${String(now.frameCount).padStart(5)}  draws ${String(now.drawCalls).padStart(4)}` +
@@ -273,6 +313,8 @@ async function main(): Promise<void> {
     say(`  console errors         ${consoleErrors.length}`);
     say(`  draw calls, last frame ${final.drawCalls}`);
     say(`  chunk index range      ${minChunk}..${maxChunk}`);
+    say(`  chunks built/evicted   ${built} / ${evicted}`);
+    say(`  resident chunks        ${final.residentChunks} now, ${peakResident} peak`);
 
     if (final.diagErrors > 0) {
       failures.push(
@@ -297,6 +339,18 @@ async function main(): Promise<void> {
     }
     if (minChunk === maxChunk) {
       failures.push('the player never left its spawn chunk — no streaming was exercised');
+    }
+    // BUILT *AND* EVICTED is the streaming lifetime this file claims to cover.
+    // Without the eviction half, a streamer that only ever adds passes every
+    // other assertion here while its resident set grows without bound.
+    if (built < 1) {
+      failures.push('no city chunk was ever built — the walk streamed nothing in');
+    }
+    if (evicted < 1) {
+      failures.push(
+        `no city chunk was ever evicted across ${final.frameCount} frames — streaming is ` +
+          `one-way and the resident set only grows (peak ${peakResident})`
+      );
     }
   } finally {
     await browser?.close();

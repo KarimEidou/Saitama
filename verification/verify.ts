@@ -16,7 +16,7 @@
 
 import { chromium, type Browser, type Page } from 'playwright';
 import { createServer, type Server } from 'node:http';
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -31,6 +31,35 @@ const DOCS_SHOT = path.join(ROOT, 'docs', 'screenshots', 'task01-bootstrap.png')
 
 const VIEWPORT = { width: 900, height: 1600 }; // portrait, phone-like
 
+/**
+ * Width of the committed evidence copy.
+ *
+ * The capture itself is DPR 2 — 1800x3200, 5.76 megapixels — and the binary
+ * guard's 5 MB SIZE rule still applies inside `docs/screenshots/` (the
+ * allow-list exempts it from the FORMAT rule only). The densest committed shot
+ * in that directory measures 1.31 bytes/pixel, which at 5.76 MP projects to
+ * 7.2 MB: a busy first frame would pass verification and then fail the very
+ * next `npm run guard`, on a file the guard's own remedy does not fit. So the
+ * evidence copy is downscaled and the full-resolution capture stays in
+ * `verification/`, which `.gitignore` excludes.
+ */
+const DOCS_SHOT_WIDTH = 900;
+
+/** The binary guard's per-file ceiling, mirrored so this fails at the source. */
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Artifacts `index.html` links that a plain `vite build` does not produce.
+ *
+ * `scripts/make-icons.ts` writes both into `public/` (gitignored), and its only
+ * callers are `scripts/build-web.ts` and `scripts/build-apk.ts` — neither of
+ * which is reachable from `npm run build`. Following this harness's own
+ * instructions therefore serves a `dist/` with a dangling `rel="manifest"`,
+ * Chromium logs the 404 at error level, and the run fails naming a console
+ * error rather than the missing build step.
+ */
+const BUILD_EXTRAS = ['manifest.webmanifest', path.join('icons', 'apple-touch-icon.png')];
+
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -38,10 +67,16 @@ const MIME: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
+  // Emscripten's default instantiation path is `compileStreaming`, which
+  // REJECTS on any type but `application/wasm`; the three sibling harnesses all
+  // declare it. Today three's loaders pre-fetch the binary as an ArrayBuffer,
+  // so the omission was invisible — until a loader changes.
+  '.wasm': 'application/wasm',
   '.glb': 'model/gltf-binary',
   '.ktx2': 'image/ktx2',
   '.hdr': 'image/vnd.radiance',
@@ -56,8 +91,10 @@ function serveDist(): Promise<{ server: Server; port: number }> {
       const url = new URL(req.url ?? '/', 'http://localhost');
       let filePath = path.join(DIST, decodeURIComponent(url.pathname));
       if (url.pathname === '/' || url.pathname === '') filePath = path.join(DIST, 'index.html');
-      // Contain path traversal.
-      if (!filePath.startsWith(DIST)) {
+      // Contain path traversal. `DIST + path.sep`, not `DIST`: a bare prefix
+      // test lets `/../dist-notes/secrets.txt` through, because `<ROOT>/dist-notes`
+      // starts with `<ROOT>/dist`.
+      if (filePath !== DIST && !filePath.startsWith(DIST + path.sep)) {
         res.writeHead(403).end('forbidden');
         return;
       }
@@ -144,6 +181,19 @@ async function main(): Promise<void> {
   await mkdir(OUT_DIR, { recursive: true });
   await mkdir(path.dirname(DOCS_SHOT), { recursive: true });
 
+  // Say what is missing BEFORE the browser gets a chance to 404 on it, so the
+  // run names its own cause instead of reporting a Blink console error.
+  const missingExtras = BUILD_EXTRAS.filter((rel) => !existsSync(path.join(DIST, rel)));
+  if (missingExtras.length > 0) {
+    console.warn(
+      `WARNING: dist/ is missing ${missingExtras.join(', ')}, which index.html links.\n` +
+        `         Chromium will request them and the server will answer 404 — any console\n` +
+        `         error below may be that, not the game. They are produced by\n` +
+        `         \`npx tsx scripts/make-icons.ts\` (run by scripts/build-web.ts and\n` +
+        `         scripts/build-apk.ts); plain \`npm run build\` does not run it.`
+    );
+  }
+
   const { server, port } = await serveDist();
   const url = `http://127.0.0.1:${port}/`;
   console.log(`serving dist/ at ${url}`);
@@ -195,7 +245,13 @@ async function main(): Promise<void> {
 
     await page.screenshot({ path: SCREENSHOT, type: 'png' });
     const pixels = await analyseScreenshot(SCREENSHOT);
-    await writeFile(DOCS_SHOT, await readFile(SCREENSHOT));
+    // Downscaled — see DOCS_SHOT_WIDTH. The analysis above is of the full
+    // capture; only the committed copy shrinks.
+    await sharp(SCREENSHOT)
+      .resize({ width: DOCS_SHOT_WIDTH })
+      .png({ compressionLevel: 9 })
+      .toFile(DOCS_SHOT);
+    const docsBytes = (await stat(DOCS_SHOT)).size;
 
     /* ---------------------------- assertions ---------------------------- */
     if (pixels.isBlank) {
@@ -211,6 +267,15 @@ async function main(): Promise<void> {
     if (diag && diag.frameCount < 2) failures.push(`too few frames rendered (${diag.frameCount})`);
     if (consoleErrors.length > 0) {
       failures.push(`console errors: ${consoleErrors.slice(0, 5).join(' | ')}`);
+    }
+    // Fail HERE rather than in the next `npm run guard`: the guard is right,
+    // but the file it rejects was written by this step and `git rm --cached`
+    // is the wrong remedy for it.
+    if (docsBytes > MAX_FILE_BYTES) {
+      failures.push(
+        `evidence copy ${DOCS_SHOT} is ${(docsBytes / 1048576).toFixed(2)} MB, over the binary ` +
+          `guard's ${MAX_FILE_BYTES / 1048576} MB limit — lower DOCS_SHOT_WIDTH`
+      );
     }
 
     /* ------------------------------ report ------------------------------ */

@@ -75,7 +75,7 @@ const EAR_SECTIONS: readonly { at: number; a: number; b: number; offB: number; v
 /**
  * One ear: a flattened lobe pushed out of the side of the skull.
  *
- * It starts INSIDE the head (at 86% of the skull's half-width) so the two
+ * It starts INSIDE the head (at 93% of the skull's half-width) so the two
  * volumes interpenetrate and there is no seam to hide, which is the whole
  * reason parts of this generator are separate closed shells rather than one
  * stitched surface.
@@ -115,7 +115,12 @@ export function buildEarStrand(
     uvRect: UV_REGIONS.extremity,
     slot: MeshSlot.Skin,
     color: ctx.skinColor,
-    frameHint: new THREE.Vector3(0, 0, -1),
+    // The ear sweeps along -X on the left and +X on the right, so the hint has
+    // to mirror with it — exactly as `buildArmStrand` and `buildHandStrand`
+    // do. One shared hint puts the frame's B axis DOWN on one side and UP on
+    // the other, and `offsetB` then tilts the left ear down while the right
+    // one cocks up.
+    frameHint: new THREE.Vector3(0, 0, side === 'Left' ? -1 : 1),
     smoothGroup: SMOOTH.ear,
   });
 }

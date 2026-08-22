@@ -85,9 +85,15 @@ interface OrientationParams {
 }
 
 /**
- * Move a panner or the listener. `time` schedules the move on the audio
- * timeline where AudioParams are available, which avoids the zipper noise a
- * per-frame `setPosition` produces on a fast-moving source.
+ * Move a panner or the listener.
+ *
+ * `time` places the move on the audio timeline where AudioParams are available,
+ * which buys SAMPLE-ACCURATE SCHEDULING — a position written for a future
+ * instant lands at that instant rather than at the next frame. It does not
+ * smooth: `setValueAtTime` is a step at the next render quantum, exactly like
+ * the legacy `setPosition` fallback below. Interpolating between frames would
+ * need `linearRampToValueAtTime` over the frame interval, and no caller asks
+ * for that today.
  */
 export function setSpatialPosition(
   target: PannerNode | AudioListener,
@@ -122,15 +128,4 @@ export function setListenerOrientation(
     return;
   }
   l.setOrientation?.(forward.x, forward.y, forward.z, up.x, up.y, up.z);
-}
-
-/**
- * Squared distance from the listener, used for voice-priority decisions
- * (a far-away debris impact loses to a near one) without a `Math.sqrt`.
- */
-export function distanceSqTo(listener: Vec3, position: Vec3): number {
-  const dx = position.x - listener.x;
-  const dy = position.y - listener.y;
-  const dz = position.z - listener.z;
-  return dx * dx + dy * dy + dz * dz;
 }

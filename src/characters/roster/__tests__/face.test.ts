@@ -16,6 +16,34 @@ import { measureHead, prepareRosterGeometry } from '../geometry';
 import { buildRosterMesh, listRoster, rosterEntry } from '../roster';
 import { EXPRESSIONS } from '../types';
 
+/**
+ * Recover an eye's drawn geometry from the lid clip path.
+ *
+ * `drawEye` emits the lid as
+ * `M left lidY Q cx (lidY - ry*0.55) right lidY L right bottom ...`, with
+ * `lidY = cy - ry + 2*ry*lid` and `bottom = cy + ry*4` — enough to solve for
+ * the eye radius, the lid fraction and what is left visible above it. Measuring
+ * the OUTPUT is the only way to pin "the bored tile narrows the eye"; comparing
+ * the two SVGs as strings passes with the eyes identical.
+ */
+function measureEye(svg: string): { radius: number; lid: number; aperture: number } {
+  const numbers = String.raw`(-?[\d.]+)`;
+  const pattern = new RegExp(
+    `<clipPath id="lid-[^"]*"><path d="M ${numbers} ${numbers} ` +
+      `Q ${numbers} ${numbers} ${numbers} ${numbers} ` +
+      `L ${numbers} ${numbers}`
+  );
+  const match = pattern.exec(svg);
+  if (match === null) throw new Error('no lid clip path in the tile');
+  const lidY = Number(match[2]);
+  const controlY = Number(match[4]);
+  const bottom = Number(match[8]);
+  const radius = (lidY - controlY) / 0.55;
+  const centerY = bottom - radius * 4;
+  const lid = (lidY - (centerY - radius)) / (2 * radius);
+  return { radius, lid, aperture: 2 * radius * (1 - lid) };
+}
+
 function regionFor(id: string): ReturnType<typeof faceRegion> {
   const entry = rosterEntry(id);
   const build = buildRosterMesh(entry, 0);
@@ -97,12 +125,17 @@ describe('expressions', () => {
   it('narrows the eyes when bored — the whole point of the tile', () => {
     const region = regionFor('chr.saitama');
     const style = rosterEntry('chr.saitama').face;
-    const neutral = faceSvg(style, 'neutral', region);
-    const bored = faceSvg(style, 'bored', region);
-    // The bored tile clips the eye under a lid; the neutral one does not.
-    expect(bored).toContain('clipPath');
-    expect(neutral.includes('clipPath')).toBe(true);
-    expect(bored).not.toBe(neutral);
+    const neutral = measureEye(faceSvg(style, 'neutral', region));
+    const bored = measureEye(faceSvg(style, 'bored', region));
+
+    // Both tiles clip the eye under a lid — every mood has one. What makes the
+    // bored tile bored is that the lid falls FURTHER and the eye flattens, and
+    // "the two strings differ" cannot tell the difference: the mouth curve
+    // alone would keep them apart with the eyes untouched.
+    expect(bored.radius).toBeLessThan(neutral.radius);
+    expect(bored.lid).toBeGreaterThan(neutral.lid);
+    // What is left of the eye above the lid, in tile pixels.
+    expect(bored.aperture).toBeLessThan(neutral.aperture * 0.6);
   });
 
   it('emits an emissive layer only for faces that glow', () => {

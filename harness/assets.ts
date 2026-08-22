@@ -74,6 +74,8 @@ interface IModelRow {
   lodGroups: number;
   lodCount: number;
   triangles: number[];
+  /** The level the LOADER left selected, read before the page forces LOD0. */
+  defaultLevel: number;
   activeLevel: number;
   /** Visible children per `__LOD` group. Must be exactly 1 everywhere. */
   visiblePerGroup: number[];
@@ -286,15 +288,20 @@ async function main(): Promise<void> {
   }
   const sky = environments[0];
   if (sky !== undefined) {
-    // PMREM where it was built, the equirect otherwise; on the SH path the
-    // probe carries the diffuse term instead of a texture.
-    scene.environment = registry.getHDRI(sky.key) ?? null;
     // The four skies are not exposure-matched; normalise by the measured mean
     // before using one as a light source.
-    scene.environmentIntensity = 1 / Math.max(1e-6, sky.meanLuminance);
+    const intensity = 1 / Math.max(1e-6, sky.meanLuminance);
     if (sky.mode === 'sh' && sky.sh !== undefined) {
-      // Mobile path: 27 baked floats instead of a PMREM chain.
-      scene.add(new THREE.LightProbe(sky.sh, 1 / Math.max(1e-6, sky.meanLuminance)));
+      // Mobile path: 27 baked floats instead of a PMREM chain, and NOTHING on
+      // `scene.environment`. `getHDRI` hands back the raw equirect when no
+      // PMREM was built, and three builds a PMREM of its own from any equirect
+      // assigned there — the diffuse term would be applied twice, and a broken
+      // SH bake would still render as a correctly lit frame.
+      scene.add(new THREE.LightProbe(sky.sh, intensity));
+    } else {
+      // PMREM where it was built, the equirect otherwise.
+      scene.environment = registry.getHDRI(sky.key) ?? null;
+      scene.environmentIntensity = intensity;
     }
   }
 
@@ -443,13 +450,21 @@ function buildModelRow(
     let meshes = 0;
     let compressed = 0;
     let total = 0;
+    let defaultLevel = -1;
     const visiblePerGroup: number[] = [];
 
     if (model !== undefined) {
-      const instance = model.scene.clone(true);
-      // A clone copies `visible`, so LOD0-only selection carries over — but
-      // re-apply it in case a caller changed the template.
+      // What the LOADER selected, captured before this page normalises it.
+      // `activeLevel` below is read after the `setLodLevel(0)` and can only
+      // ever be 0, so it is this field the driver has to assert on.
+      defaultLevel = model.activeLevel;
+      // A clone copies `visible`, which snapshots the level selection at the
+      // instant it is taken — so normalise the TEMPLATE first. Re-applying it
+      // afterwards would leave an earlier consumer's LOD2 in the scene while
+      // `visiblePerGroup` and `activeLevel`, read from the template, report
+      // LOD0.
       model.setLodLevel(0);
+      const instance = model.scene.clone(true);
       const box = new THREE.Box3();
       instance.updateWorldMatrix(true, true);
       instance.traverse((child) => {
@@ -502,6 +517,7 @@ function buildModelRow(
       lodGroups: model?.lodGroups.length ?? 0,
       lodCount: model?.lodCount ?? 0,
       triangles: trianglesPerLevel(model),
+      defaultLevel,
       activeLevel: model?.activeLevel ?? -1,
       visiblePerGroup,
       meshes,
@@ -624,10 +640,18 @@ async function runBudgetProbe(registry: AssetRegistry): Promise<IBudgetReport> {
 
   const before = registry.textureBytes;
   const budgetBytes = Math.floor(before * 0.45);
+  // `lastEviction` is STICKY. Snapshot it first and compare identities after,
+  // so a pass that recorded nothing cannot hand this probe some earlier,
+  // unrelated eviction — or a `?? []` default — as its own result.
+  const previous = registry.diagnostics().lastEviction;
   registry.setTextureBudget(budgetBytes);
-  const report = registry.diagnostics().lastEviction;
+  const recorded = registry.diagnostics().lastEviction;
+  const report = recorded === previous ? undefined : recorded;
   const after = registry.textureBytes;
   const evicted = [...(report?.evicted ?? [])];
+  // A pass that freed nothing must not read as healthy, so when this probe has
+  // no report of its own the state is taken from what is actually resident.
+  const overBudget = report?.overBudget ?? after > budgetBytes;
 
   return {
     budgetBytes,
@@ -637,13 +661,15 @@ async function runBudgetProbe(registry: AssetRegistry): Promise<IBudgetReport> {
     pinned: [...(report?.pinned ?? [])],
     retainedKeys: referenced,
     retainedStillResident: referenced.every((key) => registry.getTextureDetail(key) !== undefined),
-    evictedWereUnreferenced: evicted.every((key) => unreferenced.includes(key)),
+    // Both verdicts below are about the EVICTED set, and `[].every(...)` is
+    // true: without the guard a pass that evicted nothing claims both.
+    evictedWereUnreferenced:
+      evicted.length > 0 && evicted.every((key) => unreferenced.includes(key)),
     // Eviction walks the LRU in order, so the first key out is the oldest
     // unreferenced one even though newer unreferenced keys also qualify.
     evictedInLruOrder:
-      evicted.length === 0 ||
-      (evicted[0] === unreferenced[0] && evicted.length <= unreferenced.length),
-    overBudget: report?.overBudget ?? false,
+      evicted.length > 0 && evicted[0] === unreferenced[0] && evicted.length <= unreferenced.length,
+    overBudget,
   };
 }
 
@@ -705,10 +731,18 @@ function renderReadout(stats: IHarnessStats): void {
     `<b>load</b> ${stats.loadMs} ms · ${stats.drawCalls} draw calls`,
   ];
   if (stats.budget) {
+    const budget = stats.budget;
+    // An eviction pass that freed NOTHING is not a pass. Without these two
+    // terms the tick is green whenever the probe did nothing at all, because
+    // the verdicts it is built from say nothing about an empty eviction list.
+    const freed = budget.evicted.length > 0;
+    const settled = budget.residentAfter <= budget.budgetBytes || budget.pinned.length > 0;
     lines.push(
       mark(
-        stats.budget.retainedStillResident && stats.budget.evictedWereUnreferenced,
-        `LRU evicted ${stats.budget.evicted.length}, kept all ${stats.budget.retainedKeys.length} referenced`
+        freed && settled && budget.retainedStillResident && budget.evictedWereUnreferenced,
+        `LRU evicted ${budget.evicted.length}, kept all ${budget.retainedKeys.length} referenced — ` +
+          `${bytesMb(budget.residentAfter)} resident against a ${bytesMb(budget.budgetBytes)} ` +
+          `budget, ${budget.pinned.length} pinned`
       )
     );
   }

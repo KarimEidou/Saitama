@@ -188,6 +188,13 @@ export class ShaderWarmup implements IDisposable {
     const info = renderer.info;
     const programsBefore = info.programs?.length ?? 0;
 
+    // `run()` is idempotent. Without this a second call stacks a second full set
+    // of probes on top of the first, doubling the meshes the probe render (and
+    // every cascade's shadow pass) walks.
+    this.group.clear();
+    for (const item of this.disposables) item.dispose();
+    this.disposables.length = 0;
+
     let meshes = 0;
     for (const entry of this.entries) {
       for (const kind of entry.kinds) {
@@ -213,45 +220,52 @@ export class ShaderWarmup implements IDisposable {
     const previousScissorTest = renderer.getScissorTest();
 
     let renderedShadows = false;
-    if (this.options.warmShadows && renderer.shadowMap.enabled) {
-      renderer.shadowMap.needsUpdate = true;
-      renderedShadows = true;
-    }
-
     const destinations: ('offscreen' | 'direct')[] = [];
     const size = this.options.size;
 
-    if (this.options.includeOffscreen) {
-      destinations.push('offscreen');
-      renderer.setRenderTarget(this.target);
-      // `compile()` must run with the destination ALREADY bound: it builds
-      // programs for whatever render target is current, so compiling against
-      // the wrong one produces a set of programs that will never be used.
-      renderer.compile(this.scene, this.camera);
-      renderer.clear();
-      renderer.render(this.scene, this.camera);
+    // Everything from here on MUST be undone even when a shader-compile error,
+    // a driver INVALID_OPERATION inside `compile()` or an out-of-memory on the
+    // probe target throws: the caller's `catch` records a diagnostic and moves
+    // on, so an un-restored scissor would leave the game rendering into a 4x4
+    // corner of a black screen forever, with the probe group still in the scene
+    // casting into every cascade. That is an unrecoverable boot from a swallowed
+    // error, which is why the restore lives in `finally`.
+    try {
+      if (this.options.warmShadows && renderer.shadowMap.enabled) {
+        renderer.shadowMap.needsUpdate = true;
+        renderedShadows = true;
+      }
+
+      if (this.options.includeOffscreen) {
+        destinations.push('offscreen');
+        renderer.setRenderTarget(this.target);
+        // `compile()` must run with the destination ALREADY bound: it builds
+        // programs for whatever render target is current, so compiling against
+        // the wrong one produces a set of programs that will never be used.
+        renderer.compile(this.scene, this.camera);
+        renderer.clear();
+        renderer.render(this.scene, this.camera);
+      }
+
+      if (this.options.includeDirectFramebuffer) {
+        destinations.push('direct');
+        // Same materials, tone-mapping and sRGB encode compiled in. Confined to
+        // a 4x4 corner by the scissor so nothing visible is disturbed.
+        renderer.setRenderTarget(null);
+        renderer.setScissorTest(true);
+        renderer.setScissor(0, 0, size, size);
+        renderer.setViewport(0, 0, size, size);
+        renderer.compile(this.scene, this.camera);
+        renderer.render(this.scene, this.camera);
+      }
+    } finally {
+      renderer.setScissorTest(previousScissorTest);
+      renderer.setScissor(previousScissor);
+      renderer.setViewport(previousViewport);
+      renderer.setRenderTarget(previousTarget);
+      renderer.shadowMap.autoUpdate = previousShadowAuto;
+      this.scene.remove(this.group);
     }
-
-    if (this.options.includeDirectFramebuffer) {
-      destinations.push('direct');
-      // Same materials, tone-mapping and sRGB encode compiled in. Confined to a
-      // 4x4 corner by the scissor so nothing visible is disturbed.
-      renderer.setRenderTarget(null);
-      renderer.setScissorTest(true);
-      renderer.setScissor(0, 0, size, size);
-      renderer.setViewport(0, 0, size, size);
-      renderer.compile(this.scene, this.camera);
-      renderer.render(this.scene, this.camera);
-    }
-
-    // Restore.
-    renderer.setScissorTest(previousScissorTest);
-    renderer.setScissor(previousScissor);
-    renderer.setViewport(previousViewport);
-    renderer.setRenderTarget(previousTarget);
-    renderer.shadowMap.autoUpdate = previousShadowAuto;
-
-    this.scene.remove(this.group);
 
     const programsAfter = info.programs?.length ?? 0;
     const report: IWarmupReport = {

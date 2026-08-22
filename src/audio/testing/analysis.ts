@@ -600,7 +600,13 @@ export function detectOnsets(
   const source = usePreEmphasis ? preEmphasise(x) : x;
   const env = smooth(envelope(source, sampleRate, windowMs), smoothFrames);
   if (env.length < 3) return [];
-  const secondsPerFrame = windowMs / 1000;
+  // `envelope` rounds its window to whole samples, so the true frame period is
+  // `win / sampleRate`, not the requested `windowMs`. At 44.1 kHz with the
+  // default 3 ms that is 132 samples = 2.9932 ms, and using 3 ms instead skews
+  // every reported onset by +0.23 % — a drift that grows with position and
+  // changes with the sample rate.
+  const win = Math.max(1, Math.round((windowMs / 1000) * sampleRate));
+  const secondsPerFrame = win / sampleRate;
   const maxEnv = peak(env);
   if (maxEnv <= 0) return [];
   const floor = maxEnv * relativeThreshold;

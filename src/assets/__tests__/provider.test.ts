@@ -49,6 +49,22 @@ describe('HttpAssetProvider', () => {
     );
   });
 
+  it('appends generatedRoot when the base merely ENDS in its name', async () => {
+    // A CDN or a differently-named directory: '…/game-assets'.endsWith('assets')
+    // is true, so the `assets/` segment was skipped and every single file 404d,
+    // three requests deep, with no diagnostic pointing at the path.
+    const { fetchImpl } = fakeFetch();
+    const provider = new HttpAssetProvider({
+      baseUrl: 'https://cdn.example.invalid/game-assets',
+      fetchImpl,
+      tier: 'mobile',
+    });
+    await provider.loadManifest();
+    expect(provider.resolveUrl('hdri.sky.day', 'mobile')).toBe(
+      'https://cdn.example.invalid/game-assets/assets/env/hdri.sky.day.mobile.ktx2'
+    );
+  });
+
   it('resolves per asset, not globally, at a tier most assets lack', async () => {
     const { fetchImpl } = fakeFetch();
     const provider = new HttpAssetProvider({ baseUrl: '/assets', fetchImpl, signals: DESKTOP });
@@ -56,6 +72,38 @@ describe('HttpAssetProvider', () => {
     expect(provider.selectTier()).toBe('ultra');
     expect(provider.effectiveTier('mat.road.asphalt.worn.albedo', 'ultra')).toBe('ultra');
     expect(provider.effectiveTier('mat.wall.plaster.beige.albedo', 'ultra')).toBe('mobile');
+  });
+
+  it('re-decides once a renderer can answer MAX_TEXTURE_SIZE', async () => {
+    // The manifest loads before any consumer has a renderer, so the ceiling is
+    // unknown there and `selectQualityTier` reads unknown as zero — which made
+    // `ultra` unreachable through the wiring `index.ts` documents, however
+    // capable the machine was.
+    const { fetchImpl } = fakeFetch();
+    const provider = new HttpAssetProvider({
+      baseUrl: '/assets',
+      fetchImpl,
+      signals: { ...DESKTOP, maxTextureSize: undefined },
+    });
+    await provider.loadManifest();
+    expect(provider.selectTier()).toBe('high');
+
+    provider.adoptRenderer({ capabilities: { maxTextureSize: 16384 } });
+    expect(provider.selectTier()).toBe('ultra');
+    expect(provider.signals?.maxTextureSize).toBe(16384);
+  });
+
+  it('lets an explicit signal override outrank the renderer probe', async () => {
+    const { fetchImpl } = fakeFetch();
+    const provider = new HttpAssetProvider({
+      baseUrl: '/assets',
+      fetchImpl,
+      signals: { ...DESKTOP, maxTextureSize: 2048 },
+    });
+    await provider.loadManifest();
+    provider.adoptRenderer({ capabilities: { maxTextureSize: 16384 } });
+    expect(provider.signals?.maxTextureSize).toBe(2048);
+    expect(provider.selectTier()).toBe('mobile');
   });
 
   it('selects mobile and requests NOTHING outside the package on Android', async () => {

@@ -161,6 +161,8 @@ interface HarnessReport {
   };
   poses: Pose[];
   errors: string[];
+  /** Degradations the run survived. Reported, never fatal. */
+  warnings?: string[];
 }
 
 interface PixelReport {
@@ -291,6 +293,12 @@ async function main(): Promise<void> {
       if (report.errors.length > 0) {
         failures.push(`harness reported errors: ${report.errors.join(' | ')}`);
       }
+      // Printed, never failed: the capsule proxy exists so a camera harness
+      // survives a mesh generator moving, and failing on it throws away every
+      // locomotion and camera result the run did produce.
+      for (const warning of report.warnings ?? []) {
+        console.log(`warning              ${warning}`);
+      }
 
       // Mirrored constants: a drift here is a silent feel regression.
       for (const mirror of report.mirrors) {
@@ -413,6 +421,15 @@ async function main(): Promise<void> {
       }
       if (cam.fovSuspendedFrames < 10) {
         failures.push('the camera kept writing FOV while another system owned it');
+      }
+      // `fovSuspendedFrames` is the rig's own SELF-REPORT that it stood down.
+      // This is the measurement: the page encodes "the external override was
+      // overwritten anyway" as a non-finite value, and printing that as `NaN°`
+      // in a wall of output is not an assertion.
+      if (!Number.isFinite(cam.fovAfterExternalOverride)) {
+        failures.push(
+          'the camera overwrote an external FOV override while reporting itself suspended'
+        );
       }
 
       // Clearance — the assertion that matters most.

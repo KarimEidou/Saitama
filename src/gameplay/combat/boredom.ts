@@ -97,6 +97,8 @@ export class BoredomMeter {
   private sinceEvent = 0;
   /** True while heroism credit is still being unwound by the decay. */
   private belowBaseline = false;
+  /** True while this meter is emitting, so it does not adopt its own echo. */
+  private applying = false;
 
   constructor(options: IBoredomOptions) {
     this.bus = options.bus;
@@ -108,8 +110,29 @@ export class BoredomMeter {
 
     this.unsubscribes.push(
       this.bus.on('EntityKilled', (event) => this.onKilled(event)),
-      this.bus.on('CivilianSaved', (event) => this.onCivilianSaved(event))
+      this.bus.on('CivilianSaved', (event) => this.onCivilianSaved(event)),
+      this.bus.on('BoredomChanged', (event) => this.onBoredomChanged(event))
     );
+  }
+
+  /**
+   * Adopt a boredom value somebody else published.
+   *
+   * Combat is the authority on boredom RISING, but it is not the only writer:
+   * progression emits `BoredomChanged` from its own heroism ledger and from a
+   * loaded save. Without this the two meters diverge silently, and the next
+   * kill emits from THIS meter's stale number — destroying a restored save
+   * value or a heroic deed's relief in a single event. Own emissions are
+   * ignored: `applying` is set for exactly the duration of the emit.
+   */
+  private onBoredomChanged(event: GameEventOf<'BoredomChanged'>): void {
+    if (this.applying) return;
+    const next = clamp01(event.value);
+    this.current = next;
+    // The quantisation reference moves with it, or the first foreign value
+    // would be re-reported as a jump the moment anything nudges the meter.
+    this.lastReported = next;
+    this.belowBaseline = next < this.tuning.boredomBaseline;
   }
 
   get value(): number {
@@ -242,22 +265,45 @@ export class BoredomMeter {
 
     const reported = this.lastReported;
     this.lastReported = next;
-    this.bus.emit('BoredomChanged', { value: next, previous: reported, reason });
+    this.emitChanged(next, reported, reason);
     if (this.keepLog) {
       this.entries.push({ time: this.time, delta: next - reported, value: next, reason, detail });
     }
     return next - previous;
   }
 
-  /** Force a value, e.g. loading a save. Always reports. */
+  /**
+   * Force a value, e.g. loading a save. Reports unless it changes nothing.
+   *
+   * The baseline drift is derived from the RESULT, not left as whatever the
+   * last `apply()` happened to leave behind: a save restored below the
+   * baseline must still drift back up, or the module's central rule — relief
+   * fades, the mood returns to `boredomBaseline` — silently stops applying to
+   * exactly the value the player loaded.
+   */
   set(value: number, reason: BoredomReason = 'decay'): void {
     const previous = this.current;
     const next = clamp01(value);
     if (next === previous) return;
     this.current = next;
+    this.belowBaseline = next < this.tuning.boredomBaseline;
+    this.sinceEvent = 0;
     const reported = this.lastReported;
     this.lastReported = next;
-    this.bus.emit('BoredomChanged', { value: next, previous: reported, reason });
+    this.emitChanged(next, reported, reason);
+  }
+
+  /**
+   * The one emit site, flagged so the meter's own subscription does not adopt
+   * its own echo as a foreign value.
+   */
+  private emitChanged(value: number, previous: number, reason: BoredomReason): void {
+    this.applying = true;
+    try {
+      this.bus.emit('BoredomChanged', { value, previous, reason });
+    } finally {
+      this.applying = false;
+    }
   }
 
   dispose(): void {

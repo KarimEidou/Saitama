@@ -38,6 +38,7 @@ import {
   FOG_CHROMA_GAIN,
   FOG_DENSITY_DAY,
   FOG_DENSITY_NIGHT,
+  KEY_LIGHT_CROSSFADE,
   MOON_COLOR,
   MOON_PEAK_INTENSITY,
   PHASE_BOUNDARIES,
@@ -84,7 +85,11 @@ export interface ISkyDerived {
   readonly moonElevation: number;
   /** Illuminated fraction of the lunar disc, 0..1. */
   readonly moonPhase: number;
-  /** True while the moon, not the sun, is the directional light. */
+  /**
+   * True while the moon, not the sun, owns the directional light. Reported,
+   * never used as the selector: the handover itself is cross-faded, and this
+   * flag flips at the halfway point of that fade.
+   */
   readonly moonIsKeyLight: boolean;
 }
 
@@ -127,6 +132,10 @@ export class MutableDayNightState implements IDayNightState {
 /* Scratch. This runs every frame; it must not allocate. --------------------- */
 const SCRATCH_UP = new THREE.Vector3(0, 1, 0);
 const SCRATCH_HORIZON = new THREE.Vector3(0, 0, 1);
+const SCRATCH_SUN_DIRECTION = new THREE.Vector3();
+const SCRATCH_MOON_DIRECTION = new THREE.Vector3();
+const SCRATCH_TURN = new THREE.Quaternion();
+const SCRATCH_PARTIAL_TURN = new THREE.Quaternion();
 
 /**
  * Diffuse albedo of City Z's streets, as a tint. Weathered asphalt and
@@ -189,22 +198,45 @@ export function deriveLighting(
 
   const moonAbove = smoothstep(-0.05, 0.15, moon.elevation);
   const moonIntensity = MOON_PEAK_INTENSITY * moonAbove * moonPhase * (1 - sunAbove);
-  const moonIsKeyLight = moonIntensity > sunIntensity;
 
   /* Key light: sun by day, moon by night --------------------------------- */
 
-  // `ILightingState` carries ONE directional light. Whichever body is
-  // brighter owns it, so night still casts real shadows instead of going
-  // flat. `IDayNightState` below keeps the true sun vector for gameplay.
-  if (moonIsKeyLight) {
-    lighting.sunDirection.set(-moon.toBodyX, -moon.toBodyY, -moon.toBodyZ).normalize();
-    lighting.sunColor.copy(MOON_TINT);
-    lighting.sunIntensity = moonIntensity;
+  // `ILightingState` carries ONE directional light. Whichever body is brighter
+  // owns it, so night still casts real shadows instead of going flat.
+  // `IDayNightState` below keeps the true sun vector for gameplay.
+  //
+  // The handover is CROSS-FADED rather than switched. Only the magnitude is
+  // continuous across a `moon > sun` test; the direction and the colour are
+  // not, and at the crossing the two bodies sit ~174° apart, so a hard swap
+  // reverses every shadow in the city between two frames — the same class of
+  // artefact `solar.ts` rejects the acos azimuth for. The weight is the two
+  // intensities' normalised balance, which is smooth in time and pinned to the
+  // ends long before either body is the only thing lighting the scene.
+  const totalKeyIntensity = sunIntensity + moonIntensity;
+  const keyBalance =
+    totalKeyIntensity > 1e-6 ? (moonIntensity - sunIntensity) / totalKeyIntensity : -1;
+  const keyBlend = smoothstep(-KEY_LIGHT_CROSSFADE, KEY_LIGHT_CROSSFADE, keyBalance);
+  const moonIsKeyLight = keyBlend >= 0.5;
+
+  SCRATCH_SUN_DIRECTION.set(-sun.toBodyX, -sun.toBodyY, -sun.toBodyZ).normalize();
+  if (keyBlend <= 0) {
+    lighting.sunDirection.copy(SCRATCH_SUN_DIRECTION);
   } else {
-    lighting.sunDirection.set(-sun.toBodyX, -sun.toBodyY, -sun.toBodyZ).normalize();
-    lighting.sunColor.copy(SUN_ZENITH).lerp(SUN_HORIZON, horizonMix);
-    lighting.sunIntensity = sunIntensity;
+    SCRATCH_MOON_DIRECTION.set(-moon.toBodyX, -moon.toBodyY, -moon.toBodyZ).normalize();
+    if (keyBlend >= 1) {
+      lighting.sunDirection.copy(SCRATCH_MOON_DIRECTION);
+    } else {
+      // ROTATED, not lerped. The two directions are near-antipodal exactly
+      // where the blend is halfway, and `lerp` collapses them to a near-zero
+      // vector whose normalised direction is numerical noise; a slerp along
+      // the shortest arc stays unit length the whole way across.
+      SCRATCH_TURN.setFromUnitVectors(SCRATCH_SUN_DIRECTION, SCRATCH_MOON_DIRECTION);
+      SCRATCH_PARTIAL_TURN.identity().slerp(SCRATCH_TURN, keyBlend);
+      lighting.sunDirection.copy(SCRATCH_SUN_DIRECTION).applyQuaternion(SCRATCH_PARTIAL_TURN);
+    }
   }
+  lighting.sunColor.copy(SUN_ZENITH).lerp(SUN_HORIZON, horizonMix).lerp(MOON_TINT, keyBlend);
+  lighting.sunIntensity = lerp(sunIntensity, moonIntensity, keyBlend);
 
   /* Ambient, ground and fog colour — read out of the sky itself ---------- */
 

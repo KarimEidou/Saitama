@@ -295,6 +295,29 @@ function aspect(): number {
   return (canvas.clientWidth || 1280) / Math.max(1, canvas.clientHeight || 720);
 }
 
+/**
+ * Release every buffer a scene owns.
+ *
+ * `buildScene()` is not cheap: 25 generated chunks, a `BufferGeometry` per
+ * non-empty block, one per merged ground group and a `BoxGeometry` per bone of
+ * 24 victim rigs. The determinism check builds two more of them and `reset()`
+ * builds one per call, and anything that has been through `render()` also has
+ * live VBOs in the renderer's geometry cache. Dropping the reference is not
+ * enough — only `dispose()` frees those.
+ *
+ * MATERIALS ARE LEFT ALONE: the block and ground materials come from the shared
+ * `FallbackMaterialLibrary`, which outlives every world, and the handful the
+ * harness makes itself (one per victim rig, one for the debris) carry no
+ * textures and are collected with the world.
+ */
+function disposeScene(built: IScene): void {
+  built.scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh === true) mesh.geometry.dispose();
+  });
+  built.scene.clear();
+}
+
 /* -------------------------------------------------------------------------- */
 /* The wired-up world                                                         */
 /* -------------------------------------------------------------------------- */
@@ -702,6 +725,91 @@ function differingPixels(a: Uint8Array, b: Uint8Array): number {
   return differing;
 }
 
+const CORNER = new THREE.Vector3();
+
+/**
+ * Fraction of the viewport a block's bounds project onto. 0 when off-screen.
+ *
+ * Bounds rather than pixels: this only has to rank blocks by how much of the
+ * frame they can possibly account for, and an occlusion query would be
+ * measuring SwiftShader.
+ */
+function screenCoverage(
+  block: ReturnType<typeof buildBlockMesh>,
+  camera: THREE.PerspectiveCamera,
+  frustum: THREE.Frustum
+): number {
+  const geometry = block.mesh.geometry;
+  if (geometry.boundingBox === null) geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox;
+  if (bounds === null || !frustum.intersectsBox(bounds)) return 0;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let inFront = 0;
+  for (let corner = 0; corner < 8; corner++) {
+    CORNER.set(
+      (corner & 1) === 0 ? bounds.min.x : bounds.max.x,
+      (corner & 2) === 0 ? bounds.min.y : bounds.max.y,
+      (corner & 4) === 0 ? bounds.min.z : bounds.max.z
+    );
+    // View space first: a corner behind the eye projects to a MIRRORED point,
+    // which would inflate the bounds instead of being clipped out of them.
+    CORNER.applyMatrix4(camera.matrixWorldInverse);
+    if (CORNER.z > -camera.near) continue;
+    inFront++;
+    CORNER.applyMatrix4(camera.projectionMatrix);
+    minX = Math.min(minX, CORNER.x);
+    maxX = Math.max(maxX, CORNER.x);
+    minY = Math.min(minY, CORNER.y);
+    maxY = Math.max(maxY, CORNER.y);
+  }
+  if (inFront === 0) return 0;
+  const width = Math.min(1, maxX) - Math.max(-1, minX);
+  const height = Math.min(1, maxY) - Math.max(-1, minY);
+  if (width <= 0 || height <= 0) return 0;
+  // NDC spans [-1, 1] on both axes, so the whole viewport has area 4.
+  return (width * height) / 4;
+}
+
+/**
+ * The block with the most frame to lose — WHAT THE SHADER CHECK NEEDS.
+ *
+ * Both assertions downstream ("a large fraction of the image must change",
+ * "the frame must not be bit-identical") are about pixels, so the target has to
+ * be chosen by what is on screen. Picking the block with the most vertices
+ * instead — as this did — hands the choice to the city generator: the fattest
+ * block in 25 generated chunks is regularly one nobody can see, and flagging
+ * every vertex of an off-screen block changes nothing, failing the harness's
+ * single most valuable check while the attribute works perfectly.
+ */
+function pickVisibleBlock(built: IScene): ReturnType<typeof buildBlockMesh> {
+  const camera = built.camera;
+  camera.updateMatrixWorld();
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(
+    new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+  );
+
+  let best = built.blockMeshes[0]!;
+  let bestCoverage = -1;
+  let bestVertices = -1;
+  for (const block of built.blockMeshes) {
+    const coverage = screenCoverage(block, camera, frustum);
+    const vertices = block.mesh.geometry.getAttribute('position').count;
+    // Coverage decides; vertex count only breaks a tie between two blocks that
+    // occupy the frame equally (including two that occupy none of it).
+    if (coverage > bestCoverage || (coverage === bestCoverage && vertices > bestVertices)) {
+      best = block;
+      bestCoverage = coverage;
+      bestVertices = vertices;
+    }
+  }
+  return best;
+}
+
 export interface IShaderTruthResult {
   readonly totalPixels: number;
   /** Pixels that changed when the correct flag (255) was written. */
@@ -733,12 +841,7 @@ function runShaderTruth(): IShaderTruthResult {
   const w = world;
   if (w === undefined) throw new Error('no world');
 
-  // A block with plenty of visible facade: the one nearest the camera axis.
-  const target = w.scene.blockMeshes.reduce((best, mesh) => {
-    const a = (mesh.mesh.geometry.getAttribute('position').array as Float32Array).length;
-    const b = (best.mesh.geometry.getAttribute('position').array as Float32Array).length;
-    return a > b ? mesh : best;
-  }, w.scene.blockMeshes[0]!);
+  const target = pickVisibleBlock(w.scene);
 
   const attribute = target.destroyed;
   const array = attribute.array as Uint8Array;
@@ -864,6 +967,37 @@ function runPersistence(): IPersistenceResult {
   let hidden = 0;
   for (let i = 0; i < freshArray.length; i++) if (freshArray[i]! / 255 > 0.5) hidden++;
 
+  // ---- put the restored geometry where it can actually be seen ----
+  // `IDestructionTarget` is `{ destroyed }` and nothing else, so `register()`
+  // has no scene coupling and cannot do this. Without it the page keeps drawing
+  // the ORIGINAL mesh — whose attribute was written by the punch — and the
+  // "persisted" screenshot proves nothing: breaking the replay path entirely
+  // would leave that frame byte-identical.
+  const stale = w.scene.blockMeshes[entry.blockIndex]!;
+  w.scene.scene.remove(stale.mesh);
+  stale.mesh.geometry.dispose();
+  w.scene.blockMeshes[entry.blockIndex] = freshMesh;
+  w.scene.scene.add(freshMesh.mesh);
+
+  // Everything else in this block was registered against the mesh just thrown
+  // away. A real chunk reload restores the whole block, and leaving the
+  // neighbours pointed at off-scene geometry would freeze their damage in the
+  // visible frame. `register()` unregisters and replays each one for us.
+  for (const sibling of w.scene.buildings) {
+    if (sibling.blockIndex !== entry.blockIndex || sibling.id === id) continue;
+    if (!(sibling.id in freshMesh.fractures)) continue;
+    const layout = freshMesh.fractures[sibling.id]!;
+    const at = findSummary(w.scene, sibling.id);
+    w.destruction.register({
+      id: sibling.id,
+      layout,
+      target: freshMesh,
+      position: { x: at[0], y: at[1], z: at[2] },
+      chunkIndex: sibling.chunkIndex,
+      buildingIndex: sibling.buildingIndex,
+    });
+  }
+
   const maskStats = w.damage.stats();
   return {
     buildingId: id,
@@ -917,6 +1051,9 @@ async function runDeterminism(): Promise<IDeterminismResult> {
     fresh.debris.dispose();
     fresh.ragdolls.dispose();
     fresh.physics.dispose();
+    // The twin is a whole second city. Freeing only the physics half would
+    // leave two of them on the heap for the rest of the page's life.
+    disposeScene(fresh.scene);
     return log;
   };
 
@@ -972,6 +1109,8 @@ declare global {
       determinism(): Promise<IDeterminismResult>;
       punchSpec(): Record<string, number>;
     };
+    /** Set instead of `ready` never arriving, so a boot failure is reportable. */
+    __DESTRUCTION_ERROR__?: string;
   }
 }
 
@@ -990,6 +1129,10 @@ window.__DESTRUCTION_HARNESS__ = {
       world.debris.dispose();
       world.ragdolls.dispose();
       world.physics.dispose();
+      // This city has been rendered, so its buffers are live VBOs the renderer
+      // will hold forever unless the geometry is disposed.
+      disposeScene(world.scene);
+      world = undefined;
     }
     world = await buildWorld(seed);
     render();
@@ -1038,4 +1181,13 @@ async function boot(): Promise<void> {
   window.__DESTRUCTION_HARNESS__.ready = true;
 }
 
-void boot();
+void boot().catch((error: unknown) => {
+  // Without this the driver only ever learns that `ready` never arrived — after
+  // seven minutes of `waitForFunction`, with the real stack buried in a console
+  // array it never reaches. Publish the cause and let it fail immediately.
+  const message = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+  window.__DESTRUCTION_ERROR__ = message;
+  window.__DESTRUCTION_HARNESS__.ready = true;
+  console.error('[destruction-harness] boot failed', error);
+  noteEl.textContent = `boot failed: ${message}`;
+});

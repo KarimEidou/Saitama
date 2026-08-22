@@ -70,8 +70,18 @@ const ROSTER: readonly {
 ];
 
 export interface IRivalTrackerOptions {
-  /** Called whenever a rival's class or rank actually changes. */
-  readonly onRivalRankChanged?: (snapshot: IRivalSnapshot, previous: IHeroRank) => void;
+  /**
+   * Called whenever a rival's class or rank actually changes.
+   *
+   * `seatsAbovePlayer` is absent on purpose: this tracker does not know the
+   * player's rank, and a documented field filled with a placeholder 0 reads as
+   * "level with the player" at exactly the moment Genos crosses above. Ask
+   * `snapshot(playerRank)` for the gap.
+   */
+  readonly onRivalRankChanged?: (
+    snapshot: Omit<IRivalSnapshot, 'seatsAbovePlayer'>,
+    previous: IHeroRank
+  ) => void;
   /** Turn off off-screen drift. Used by tests that want a still world. */
   readonly offscreenProgress?: boolean;
 }
@@ -216,10 +226,14 @@ export class RivalTracker {
     for (const [id, entry] of Object.entries(data)) {
       const rival = this.rivals.get(id as RivalId);
       if (!rival) continue;
-      if (typeof entry.points === 'number') rival.points = entry.points;
-      if (typeof entry.shared === 'number') rival.sharedCredit = entry.shared;
-      if (typeof entry.offscreen === 'number') rival.offscreenCredit = entry.offscreen;
-      if (typeof entry.joint === 'number') rival.jointIncidents = entry.joint;
+      // `typeof NaN === 'number'`, and a NaN point total parks a rival at the
+      // bottom of the ladder forever AND makes the next save throw on the
+      // validator's non-finite check. Nothing below zero either: `penalise`
+      // floors there, so a restore must not undercut it.
+      rival.points = finiteAtLeastZero(entry.points, rival.points);
+      rival.sharedCredit = finiteAtLeastZero(entry.shared, rival.sharedCredit);
+      rival.offscreenCredit = finiteAtLeastZero(entry.offscreen, rival.offscreenCredit);
+      rival.jointIncidents = finiteAtLeastZero(entry.joint, rival.jointIncidents);
     }
   }
 
@@ -235,11 +249,16 @@ export class RivalTracker {
         sharedCredit: rival.sharedCredit,
         offscreenCredit: rival.offscreenCredit,
         jointIncidents: rival.jointIncidents,
-        seatsAbovePlayer: 0,
       },
       previous
     );
   }
+}
+
+/** A usable, non-negative saved number, or the value already in place. */
+function finiteAtLeastZero(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isFinite(value)) return fallback;
+  return Math.max(0, value);
 }
 
 /** Points that exactly hold a seat, so a rival's first award moves them. */

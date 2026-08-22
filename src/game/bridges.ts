@@ -188,6 +188,8 @@ export function auditAimPoints(
  */
 export class ThreatBridge {
   private readonly scratch = new Map<EntityId, THREE.Vector3>();
+  /** Ids published by the current sync, so the pool can shed the rest. */
+  private readonly seen = new Set<EntityId>();
 
   constructor(
     private readonly monsters: MonsterSystem,
@@ -196,8 +198,10 @@ export class ThreatBridge {
 
   sync(): void {
     const threats: IThreatSource[] = [];
+    this.seen.clear();
     for (const snapshot of this.monsters.snapshots()) {
       if (snapshot.state === 'dead') continue;
+      this.seen.add(snapshot.id);
       let vector = this.scratch.get(snapshot.id);
       if (vector === undefined) {
         vector = new THREE.Vector3();
@@ -205,6 +209,13 @@ export class ThreatBridge {
       }
       vector.set(snapshot.position.x, snapshot.position.y, snapshot.position.z);
       threats.push(makeThreat(snapshot.id, vector, tierIntensity(snapshot.tier), snapshot.tier));
+    }
+    // Monster ids are unique per spawn, so a pool keyed by id and never pruned
+    // grows with TOTAL spawns for the whole session rather than with the live
+    // count — the same `seen` sweep `CombatTargetBridge` uses above keeps it
+    // bounded by what is actually on the street.
+    for (const id of this.scratch.keys()) {
+      if (!this.seen.has(id)) this.scratch.delete(id);
     }
     this.crowd.setThreats(threats);
   }

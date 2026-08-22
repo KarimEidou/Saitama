@@ -56,6 +56,26 @@ export interface IQueuedChunk {
   pvsVisible: boolean;
   /** Frame the entry was enqueued on, for starvation diagnostics. */
   readonly enqueuedFrame: number;
+  /**
+   * True when `score` was set explicitly and must survive `rescore`.
+   *
+   * The queue is re-scored before every dispatch, so an entry that carries no
+   * mark of its own is indistinguishable from a distance-scored one by the time
+   * it matters. A pin is what makes "load this chunk now, bypassing the
+   * distance heuristic" mean anything, and it sticks to the entry until the
+   * entry leaves the queue.
+   */
+  pinned?: boolean;
+  /**
+   * Additive score offset reapplied on every `rescore`.
+   *
+   * A demotion (a prefetch hint, which must queue behind everything real) is
+   * naturally a bias rather than a pin: the entry still tracks the camera, it
+   * just tracks it from behind. Unlike a pin, a bias is replaced whenever the
+   * entry is re-pushed, so the moment the assignment pass decides it wants the
+   * chunk for real the hint's handicap is gone.
+   */
+  bias?: number;
 }
 
 /** The view state priority is computed against. */
@@ -132,10 +152,16 @@ export class ChunkPriorityQueue {
     if (at !== undefined) {
       const existing = this.heap[at]!;
       existing.ring = entry.ring;
-      existing.score = entry.score;
       existing.distance = entry.distance;
       existing.angleTerm = entry.angleTerm;
       existing.pvsVisible = entry.pvsVisible;
+      // A pin outranks a later plain push: the assignment pass re-queues a
+      // requested chunk every frame until it is dispatched, and letting that
+      // overwrite the pin would erase the request one frame after it was made.
+      // A bias is the opposite and is always replaced — see `IQueuedChunk`.
+      existing.bias = entry.bias;
+      if (entry.pinned === true || existing.pinned !== true) existing.score = entry.score;
+      if (entry.pinned === true) existing.pinned = true;
       this.siftUp(at);
       this.siftDown(this.positions.get(entry.chunk)!);
       return;
@@ -186,14 +212,19 @@ export class ChunkPriorityQueue {
    * `SpatialIndex.isChunkPotentiallyVisible`, passed in rather than imported so
    * the queue stays a pure data structure with no knowledge of the spatial
    * index.
+   *
+   * Pinned entries keep the score their requester set — this runs before every
+   * dispatch, so re-scoring them would make an explicit request
+   * indistinguishable from a distance-scored one before it was ever honoured.
    */
   rescore(view: IPriorityView, pvsFor: (chunk: number) => boolean): void {
     for (const entry of this.heap) {
-      const scored = scoreChunk(entry.chunk, entry.ring, view, pvsFor(entry.chunk));
-      entry.score = scored.score;
+      const visible = pvsFor(entry.chunk);
+      const scored = scoreChunk(entry.chunk, entry.ring, view, visible);
       entry.distance = scored.distance;
       entry.angleTerm = scored.angleTerm;
-      entry.pvsVisible = pvsFor(entry.chunk);
+      entry.pvsVisible = visible;
+      if (entry.pinned !== true) entry.score = scored.score + (entry.bias ?? 0);
     }
     // Floyd's heapify: O(n), against O(n log n) for repeated sift-ups.
     for (let i = (this.heap.length >> 1) - 1; i >= 0; i--) this.siftDown(i);

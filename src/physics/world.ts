@@ -29,6 +29,7 @@ import * as THREE from 'three';
 import type {
   Ball,
   Collider,
+  ColliderDesc,
   EventQueue,
   Ray,
   World as RapierWorld,
@@ -274,12 +275,7 @@ export class PhysicsWorld implements IPhysicsWorld {
     colliderDesc.setCollisionGroups(groupsFor(desc.layer, desc.collidesWith));
     if (desc.isSensor === true) colliderDesc.setSensor(true);
 
-    const reportContacts =
-      this.wantsContacts && (desc.layer !== 'debris' || this.debrisContactEvents);
-    if (reportContacts) {
-      colliderDesc.setActiveEvents(R.ActiveEvents.CONTACT_FORCE_EVENTS);
-      colliderDesc.setContactForceEventThreshold(this.contactForceThreshold);
-    }
+    this.applyContactEvents(colliderDesc, desc.layer);
 
     const collider = this.raw.createCollider(colliderDesc, rawBody);
 
@@ -293,6 +289,22 @@ export class PhysicsWorld implements IPhysicsWorld {
     );
     this.register(body);
     return body;
+  }
+
+  /**
+   * Apply this world's contact-event policy to a collider description.
+   *
+   * `createBody` is not the only place colliders are built: the debris pool
+   * rebuilds its own on every spawn, and it is the only producer of `debris`
+   * bodies in the game. With the rule inlined in `createBody` alone,
+   * `debrisContactEvents` was a flag that silently did nothing. Both callers go
+   * through here so the rule lives in exactly one place.
+   */
+  applyContactEvents(colliderDesc: ColliderDesc, layer: PhysicsLayer): void {
+    if (!this.wantsContacts) return;
+    if (layer === 'debris' && !this.debrisContactEvents) return;
+    colliderDesc.setActiveEvents(this.rapier.ActiveEvents.CONTACT_FORCE_EVENTS);
+    colliderDesc.setContactForceEventThreshold(this.contactForceThreshold);
   }
 
   /** Register an externally created body (character controller, ragdoll limb). */
@@ -321,18 +333,39 @@ export class PhysicsWorld implements IPhysicsWorld {
    * Bring the query BVH up to date without advancing time.
    *
    * A zero-length step rebuilds the acceleration structure while integrating
-   * nothing: positions, velocities and sleep timers all come out unchanged
-   * (verified — `dt = 0` makes every integration term zero). No event queue is
-   * passed, so no spurious contacts are reported either.
+   * nothing — but velocities are NOT an integration term. They are the output
+   * of the constraint solver, which runs to completion even at `dt = 0` and
+   * writes its result back into every contacting body (measured on a settled
+   * six-box stack: positions unchanged, velocities off by 0.34 m/s). That is a
+   * determinism break, because whether a refresh happens at all depends on when
+   * gameplay happens to spawn debris relative to a query.
+   *
+   * So the solver is switched off for the duration as well. With zero
+   * iterations the step is effectively a broad-phase rebuild: positions,
+   * rotations and velocities all come out bit-identical, and a collider created
+   * since the last step still becomes visible to `castRay` (both verified
+   * against Rapier 0.20). No event queue is passed, so no spurious contacts are
+   * reported either.
+   *
+   * What it is NOT is free: the step still rewrites solver bookkeeping — the
+   * warm-start impulse cache above all — which the JS API cannot save and
+   * restore, and Rapier 0.20 exposes no BVH-only rebuild to use instead. Two
+   * runs whose QUERY schedules differ therefore still drift apart slowly in a
+   * chaotic pile (measured: ~1 m over 120 steps, against ~4 m without this
+   * guard). Query timing belongs in the deterministic script.
    */
   refreshQueries(): void {
     if (!this.queriesDirty || this.disposed) return;
     this.queriesDirty = false;
     this.queryRefreshes++;
-    const dt = this.raw.integrationParameters.dt;
-    this.raw.integrationParameters.dt = 0;
+    const params = this.raw.integrationParameters;
+    const dt = params.dt;
+    const iterations = params.numSolverIterations;
+    params.dt = 0;
+    params.numSolverIterations = 0;
     this.raw.step();
-    this.raw.integrationParameters.dt = dt;
+    params.numSolverIterations = iterations;
+    params.dt = dt;
   }
 
   /** Query refreshes performed since construction. */
@@ -512,6 +545,10 @@ export class PhysicsWorld implements IPhysicsWorld {
       b.getLinearVelocity(tmpVecB);
       record.relativeSpeed = Math.abs(tmpVecA.sub(tmpVecB).dot(record.normal));
 
+      // Records are pooled and only ever overwritten, so a skipped read would
+      // hand the subscriber whatever the previous occupant of this slot wrote —
+      // an impact effect hundreds of metres from the impact.
+      record.point.set(0, 0, 0);
       if (a.collider !== undefined && b.collider !== undefined) {
         this.readContactPoint(a.collider, b.collider, record.point);
       }

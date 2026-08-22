@@ -54,14 +54,29 @@ function sourcePosition(): Vec3 | undefined {
 
 const unlockButton = $<HTMLButtonElement>('unlock');
 unlockButton.addEventListener('click', () => {
-  void audio.unlock().then(() => {
-    document.body.classList.remove('locked');
-    unlockButton.textContent = 'Audio unlocked — click anything below';
-    unlockButton.disabled = true;
-    audio.playMusic('calm');
-    // Listener at the origin, looking down -Z, which is the three.js default.
-    audio.setListener({ x: 0, y: 1.6, z: 0 }, { x: 0, y: 0, z: -1 }, { x: 0, y: 1, z: 0 });
-  });
+  void audio
+    .unlock()
+    .then(() => {
+      // `AudioSystem.unlock()` SWALLOWS a rejected `resume()` and resolves
+      // anyway, so the promise settling proves nothing. Ask the system what
+      // actually happened: this button is the only control carrying a user
+      // gesture, and disabling it against a suspended context leaves the page
+      // permanently silent with no way back but a reload.
+      if (!audio.unlocked) {
+        unlockButton.textContent = 'Audio blocked by the browser — tap again';
+        return;
+      }
+      document.body.classList.remove('locked');
+      unlockButton.textContent = 'Audio unlocked — click anything below';
+      unlockButton.disabled = true;
+      audio.playMusic('calm');
+      // Listener at the origin, looking down -Z, which is the three.js default.
+      audio.setListener({ x: 0, y: 1.6, z: 0 }, { x: 0, y: 0, z: -1 }, { x: 0, y: 1, z: 0 });
+    })
+    .catch((error: unknown) => {
+      unlockButton.textContent = 'Audio blocked by the browser — tap again';
+      console.error('[audio-harness] unlock failed', error);
+    });
 });
 
 /* -------------------------------------------------------------------------- */

@@ -262,6 +262,21 @@ describe('pinch and twist', () => {
     expect(rig.frame().pinchDelta).toBeCloseTo(1 / T.pinchMaxRatioPerFrame, 4);
   });
 
+  it('clamps the pinch ratio ONCE PER FRAME, not once per pointer event', () => {
+    const rig = makeRig();
+    rig.down(1, 700, 300);
+    rig.down(2, 720, 300); // span 20
+    rig.frame();
+    // One frame's worth of coalesced moves on a high-rate digitiser, each
+    // roughly doubling the span. Clamped per event these multiply to 1.5^3.
+    rig.move(2, 740, 300); // span 40
+    rig.move(2, 780, 300); // span 80
+    rig.move(2, 860, 300); // span 160
+    const f = rig.frame();
+    expect(f.pinchDelta).toBeLessThanOrEqual(T.pinchMaxRatioPerFrame + 1e-9);
+    expect(f.pinchDelta).toBeCloseTo(T.pinchMaxRatioPerFrame, 6);
+  });
+
   it('ignores sub-pixel jitter', () => {
     const rig = makeRig();
     rig.down(1, 700, 300);
@@ -491,6 +506,20 @@ describe('pointer cancellation', () => {
     expect(f.buttons.punch.held).toBe(false);
     expect(f.pointerCount).toBe(0);
   });
+
+  it('reset() drops the dash LATCH — a backgrounded app must not resume sprinting', () => {
+    const rig = makeRig();
+    rig.button(1, 950, 520, 'dash');
+    rig.up(1, 950, 520);
+    expect(rig.frame().buttons.sprint.held).toBe(true);
+
+    rig.core.reset(); // window blur / visibility loss
+    const f = rig.frame();
+    expect(rig.core.isDashOn).toBe(false);
+    expect(f.buttons.sprint.held).toBe(false);
+    // ...and it stays off on every later frame, with no player input.
+    expect(rig.frame().buttons.sprint.held).toBe(false);
+  });
 });
 
 /* ========================================================================== */
@@ -543,6 +572,33 @@ describe('punch button and charge', () => {
     expect(rig.chargeCompletions).toBe(1);
   });
 
+  it('a second finger on the punch button does not restart the charge', () => {
+    const rig = makeRig();
+    rig.button(1, 950, 520, 'punch');
+    for (let i = 0; i < 30; i++) rig.frame();
+    const before = rig.core.chargeHoldTime;
+    expect(before).toBeGreaterThan(T.chargeStartSec);
+
+    rig.button(2, 950, 520, 'punch'); // an index finger brushes the same button
+    rig.frame();
+    expect(rig.core.chargeHoldTime).toBeGreaterThan(before);
+  });
+
+  it('the punch button stays held until the LAST finger lifts', () => {
+    const rig = makeRig();
+    rig.button(1, 950, 520, 'punch');
+    rig.button(2, 950, 520, 'punch');
+    expect(rig.frame().buttons.punch.held).toBe(true);
+
+    rig.up(2, 950, 520); // the SECOND finger lifts first
+    expect(rig.frame().buttons.punch.held).toBe(true);
+
+    rig.up(1, 950, 520);
+    const f = rig.frame();
+    expect(f.buttons.punch.held).toBe(false);
+    expect(f.buttons.punch.released).toBe(true);
+  });
+
   it('exposes holdTime so the ring can be drawn from InputState alone', () => {
     const rig = makeRig();
     rig.button(1, 950, 520, 'punch');
@@ -575,6 +631,16 @@ describe('jump, dash and interact buttons', () => {
     const f = rig.frame();
     expect(f.buttons.sprint.held).toBe(false);
     expect(f.buttons.sprint.released).toBe(true);
+  });
+
+  it('two fingers landing on DASH toggle sprint ONCE, not twice', () => {
+    const rig = makeRig();
+    rig.button(1, 950, 520, 'dash');
+    rig.button(2, 953, 523, 'dash'); // a second finger inside the same hit area
+    expect(rig.frame().buttons.sprint.held).toBe(true);
+    rig.up(1, 950, 520);
+    rig.up(2, 953, 523);
+    expect(rig.frame().buttons.sprint.held).toBe(true);
   });
 
   it('interact does nothing until a target is in range', () => {
@@ -760,6 +826,18 @@ describe('pointer samples', () => {
     expect(samples[0]).toMatchObject({ down: true, up: true });
     // ...and never again.
     expect(rig.frame().contribution.pointers).toHaveLength(0);
+  });
+
+  it('never reports a live id as lifted after a duplicate pointerdown', () => {
+    const rig = makeRig();
+    rig.down(1, 200, 400);
+    rig.frame();
+    rig.down(1, 700, 300); // same id, new place: we missed an `up`
+    const samples = rig.frame().contribution.pointers;
+    // The stale pointer is retired internally, but a consumer keyed on
+    // `PointerSample.id` must not be told that finger 1 came up: it is down.
+    expect(samples).toHaveLength(1);
+    expect(samples[0]).toMatchObject({ id: 1, down: true, up: false });
   });
 
   it('is sorted by id, so snapshots are stable', () => {

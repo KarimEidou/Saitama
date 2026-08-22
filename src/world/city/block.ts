@@ -120,7 +120,7 @@ export function generateBlock(
   zone: IPlanZone,
   options: IBlockGenOptions
 ): IBlockBuild {
-  const seed = blockSeed(options.planVersion, block.id);
+  const seed = blockSeed(options.planVersion, block.id, block.salt);
   const rng = createRng(seed);
   const params = zone.params;
 
@@ -148,7 +148,11 @@ export function generateBlock(
     index++;
     if (!lot.isPrimary && !buildRng.bool(clamp01(params.density * block.density))) continue;
     const centre = polygonCentroid(lot.footprint);
-    if (isExcluded(options.exclusions, centre[0], centre[1])) continue;
+    // The whole LOT is tested against the exclusion circle, not just its
+    // centroid: a perimeter lot is up to `lotDepth` deep, so a centroid test
+    // lets a building whose centre clears the circle by a metre still grow
+    // several metres through the landmark it is meant to keep clear of.
+    if (isRectExcluded(options.exclusions, lot.footprint)) continue;
 
     const recipe = makeRecipe(
       `${block.id}.b${index}`,
@@ -258,7 +262,11 @@ export function generateBlock(
   // destruction system can work on the block mesh directly.
   const fractures: Record<string, IFractureLayout> = {};
   for (let i = 0; i < buildings.length; i++) {
-    fractures[buildings[i].id] = rebaseFracture(buildings[i].fracture, geometry.offsets[i]);
+    fractures[buildings[i].id] = rebaseFracture(
+      buildings[i].fracture,
+      geometry.offsets[i],
+      geometry.slotBase
+    );
   }
 
   const outlineBounds = polygonBounds(block.outline);
@@ -345,7 +353,12 @@ export function mergeBlocks(blocks: readonly IBlockBuild[]): IBlockBatch[] {
     for (let i = 0; i < group.length; i++) {
       const offset = merged.offsets[i];
       for (const [id, layout] of Object.entries(group[i].fractures)) {
-        fractures[id] = rebaseLayout(layout, offset.vertexOffset, offset.slotIndexOffset);
+        fractures[id] = rebaseLayout(
+          layout,
+          offset.vertexOffset,
+          offset.slotIndexOffset,
+          merged.slotBase
+        );
       }
     }
     out.push({
@@ -425,9 +438,9 @@ export function subdivideBlock(
   // Small parcels take the whole footprint as one building rather than a ring
   // of slivers around a courtyard two metres across.
   if (minSide < depth * 2.3 + 6) {
-    const runs = Math.max(
-      1,
-      Math.round(Math.max(width, depthZ) / rng.range(params.lotWidth[0], params.lotWidth[1]))
+    const runs = lotCount(
+      Math.max(width, depthZ),
+      rng.range(params.lotWidth[0], params.lotWidth[1])
     );
     const alongX = width >= depthZ;
     for (let i = 0; i < runs; i++) {
@@ -507,8 +520,7 @@ function pushRun(
 ): void {
   const runLength = axis === 'x' ? rect.maxX - rect.minX : rect.maxZ - rect.minZ;
   if (runLength < 4) return;
-  const target = rng.range(params.lotWidth[0], params.lotWidth[1]);
-  const count = Math.max(1, Math.round(runLength / target));
+  const count = lotCount(runLength, rng.range(params.lotWidth[0], params.lotWidth[1]));
 
   // Uneven frontages: real streets are not a comb. Each lot's share is jittered
   // and then renormalised so the run still fills exactly.
@@ -558,6 +570,24 @@ function pushRun(
     });
   }
 }
+
+/**
+ * Lots along a run of `runLength` metres at a target frontage of `target`.
+ *
+ * `validatePlan` rejects a zone whose `lotWidth` could make this divide by
+ * zero, but `subdivideBlock` is public API and a caller can hand it any zone
+ * params it likes: the clamp keeps a bad target degrading into one fat lot
+ * rather than into `Infinity` lots, which is a multi-second freeze followed by
+ * a `RangeError` from `shares.push`.
+ */
+function lotCount(runLength: number, target: number): number {
+  const count = Math.round(runLength / target);
+  if (!Number.isFinite(count)) return 1;
+  return Math.max(1, Math.min(MAX_LOTS_PER_RUN, count));
+}
+
+/** Hard ceiling on lots in one perimeter run; a 96 m block never nears it. */
+const MAX_LOTS_PER_RUN = 256;
 
 function shrinkRect(rect: IRect, amount: number): Polygon {
   const a = Math.max(0, amount);
@@ -834,19 +864,25 @@ function emitParkPlanting(
       litWindowChance: 0,
       structureMaterial: 'wood',
     });
+    const y = 1.6 * scale;
+    // ONE rotation, used by the merge and reported in the summary. A collider
+    // rebuilt from the summary has to match the canopy that was drawn.
+    const rotationY = rng.range(0, Math.PI);
+    // Rotating a square footprint grows its AABB by |cos| + |sin|.
+    const rr = r * (Math.abs(Math.cos(rotationY)) + Math.abs(Math.sin(rotationY)));
     buildings.push(built);
-    placements.push({ x, y: 1.6 * scale, z, rotationY: rng.range(0, Math.PI) });
+    placements.push({ x, y, z, rotationY });
     summaries.push({
       id: `${block.id}.tree${i}`,
       footprint: built.footprint,
-      position: [x, 1.6 * scale, z],
-      rotationY: 0,
+      position: [x, y, z],
+      rotationY,
       floors: 1,
       height: built.height,
       style: 'residential',
       structureMaterial: 'wood',
       integrity: 40,
-      bounds: [x - r, 0, z - r, x + r, 1.6 * scale + built.height, z + r],
+      bounds: [x - rr, y, z - rr, x + rr, y + built.height, z + rr],
       triangles: built.triangles,
     });
   }
@@ -986,6 +1022,22 @@ function isExcluded(
   return false;
 }
 
+/** True when an exclusion circle reaches any part of a footprint's AABB. */
+function isRectExcluded(
+  exclusions: readonly (readonly [number, number, number])[] | undefined,
+  footprint: Polygon
+): boolean {
+  if (!exclusions || exclusions.length === 0) return false;
+  const b = polygonBounds(footprint);
+  for (const [cx, cz, r] of exclusions) {
+    // Closest point of the rectangle to the circle centre, one clamp per axis.
+    const dx = Math.max(b.minX - cx, 0, cx - b.maxX);
+    const dz = Math.max(b.minZ - cz, 0, cz - b.maxZ);
+    if (dx * dx + dz * dz < r * r) return true;
+  }
+  return false;
+}
+
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
@@ -993,7 +1045,8 @@ function clamp01(v: number): number {
 /** Shift a building's fracture ranges into the merged block buffer. */
 function rebaseFracture(
   layout: IFractureLayout,
-  offset: { readonly vertexOffset: number; readonly slotIndexOffset: readonly number[] }
+  offset: { readonly vertexOffset: number; readonly slotIndexOffset: readonly number[] },
+  slotBase: readonly number[]
 ): IFractureLayout {
-  return rebaseLayout(layout, offset.vertexOffset, offset.slotIndexOffset);
+  return rebaseLayout(layout, offset.vertexOffset, offset.slotIndexOffset, slotBase);
 }

@@ -23,8 +23,13 @@
  *      its edge the way real airborne dust does.
  *   A  coverage.
  *
- * Every tile is authored with a transparent margin so mip-mapping never bleeds
- * one tile into its neighbour.
+ * Every tile is authored with a transparent margin, which keeps a tile out of
+ * its neighbours for the mip levels a particle is actually drawn at. The margin
+ * is a FRACTION of the tile, so it shrinks with the tile: at the shipping size
+ * (512 atlas, 4x4) it is 5.8 texels at mip 0 and under one texel from mip 3
+ * down, where a box filter starts mixing neighbouring tiles. That is a real
+ * limit of packing an atlas into one mip chain — closing it needs per-tile mips
+ * or a `DataArrayTexture` layer per tile, not a wider margin.
  */
 
 import * as THREE from 'three';
@@ -32,7 +37,7 @@ import { createRng, type IRandom } from '@/util';
 import { ATLAS_TILES, CRACK_TILES, CrackTile, SpriteTile } from './constants';
 import { distanceToSegmentSq, fbm, hash1, ridgedFbm, smoothstep, valueNoise } from './noise';
 
-/** Fraction of a tile kept transparent on every side, to stop mip bleed. */
+/** Fraction of a tile kept transparent on every side. See the file header. */
 const TILE_MARGIN = 0.045;
 
 /* -------------------------------------------------------------------------- */

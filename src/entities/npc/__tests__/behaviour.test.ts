@@ -21,6 +21,7 @@ import {
   condition,
   cooldown,
   effect,
+  fallthrough,
   guard,
   invert,
   selector,
@@ -28,6 +29,8 @@ import {
 } from '../behaviour-tree';
 import { HeroNpc, HERO_SPECS, type IHeroWorld } from '../hero-npc';
 import { MUMEN_HEALTH, MUMEN_DOWN_SECONDS } from '../constants';
+import type { ProceduralAnimator } from '@/characters/anim';
+import type { CharacterParts } from '@/characters/mesh';
 import type { IHeroCallout, IThreatSource } from '../types';
 
 // These simulate hundreds of frames of a 250-agent crowd. Vitest's default
@@ -120,6 +123,38 @@ describe('behaviour tree', () => {
     expect(ctx.count).toBe(2);
   });
 
+  it('arms a cooldown whose branch must still fall through to combat', () => {
+    // The shape both Genos's callout and Tatsumaki's contempt need: a side
+    // effect that runs ALONGSIDE the branch below it. Returning `'failure'`
+    // from the action to get that would leave the cooldown — which arms on
+    // success — permanently open, and the line would fire every tick.
+    const ctx: Ctx = { count: 0, flag: false };
+    const tree = new BehaviourTree(
+      selector<Ctx>('priority', [
+        fallthrough(
+          cooldown<Ctx>(
+            'shout',
+            1,
+            effect<Ctx>('line', (c) => {
+              c.count++;
+            })
+          )
+        ),
+        action<Ctx>('combat', (c) => {
+          c.flag = true;
+          return 'success';
+        }),
+      ])
+    );
+    for (let f = 0; f < 30; f++) tree.tick(ctx, 1 / 60);
+    // Once per period, not once per tick.
+    expect(ctx.count).toBe(1);
+    // And the branch below it ran on the very tick the side effect fired.
+    expect(ctx.flag).toBe(true);
+    for (let f = 0; f < 45; f++) tree.tick(ctx, 1 / 60);
+    expect(ctx.count).toBe(2);
+  });
+
   it('inverts, guards and swallows failure as documented', () => {
     const ctx: Ctx = { count: 0, flag: false };
     expect(invert(condition<Ctx>('t', () => true)).tick(ctx, 0)).toBe('failure');
@@ -154,6 +189,32 @@ function heroWorld(
     seedAlarm: () => {},
     say: (callout) => callouts.push(callout),
   };
+}
+
+/**
+ * A body whose animator records what it was asked to play.
+ *
+ * Every ally in this directory is otherwise built WITHOUT one, which is how
+ * `present()` — and the death clip that never advanced past its first frame —
+ * went unexamined for so long.
+ */
+function spyBody(): { parts: CharacterParts; animator: ProceduralAnimator; plays: string[] } {
+  const plays: string[] = [];
+  const animator = {
+    setLocomotion: (): void => {},
+    setRoot: (): void => {},
+    play: (clip: string): void => {
+      plays.push(clip);
+    },
+    playAdditive: (): void => {},
+    update: (): void => {},
+    dispose: (): void => {},
+  } as unknown as ProceduralAnimator;
+  const parts = {
+    root: new THREE.Group(),
+    dispose: (): void => {},
+  } as unknown as CharacterParts;
+  return { parts, animator, plays };
 }
 
 describe('HeroNpc', () => {
@@ -250,6 +311,92 @@ describe('HeroNpc', () => {
     const distance = Math.abs(6 - tatsumaki.transform.position.x);
     expect(distance).toBeGreaterThan(12);
     expect(callouts.some((c) => c.key === 'tatsumaki.contempt')).toBe(true);
+  });
+
+  it('Genos calls out without giving up the shot he was ready to take', () => {
+    const bus = new EventBus();
+    const fired: number[] = [];
+    bus.on('ShockwaveFired', (e) => fired.push(e.power));
+    const callouts: IHeroCallout[] = [];
+    const threats: IThreatSource[] = [
+      { id: 'm', position: new THREE.Vector3(18, 0, 0), intensity: 1 },
+    ];
+    const genos = new HeroNpc('genos', 'genos', heroWorld(bus, threats, callouts));
+    // Three hits, each under his 22 % knockdown fraction, to get him below the
+    // callout threshold without putting him on the ground.
+    for (let i = 0; i < 3; i++) genos.takeDamage(genos.maxHealth * 0.2);
+    expect(genos.isDown).toBe(false);
+
+    // One tick, with the callout gate open AND the attack off cooldown. The
+    // callout branch sits above combat precisely so it does not replace it.
+    genos.update(1 / 60);
+    expect(callouts.filter((c) => c.key === 'genos.callout').length).toBe(1);
+    expect(fired.length).toBe(1);
+  });
+
+  it('Tatsumaki says her line once a cooldown, not once a frame', () => {
+    const callouts: IHeroCallout[] = [];
+    const threats: IThreatSource[] = [
+      { id: 'm', position: new THREE.Vector3(6, 0, 0), intensity: 1 },
+    ];
+    const tatsumaki = new HeroNpc(
+      'tatsumaki',
+      'tatsumaki',
+      heroWorld(undefined, threats, callouts)
+    );
+    tatsumaki.transform.set(2, 0, 0, 0);
+    // Ten seconds, well inside the seventeen-second contempt cooldown.
+    for (let f = 0; f < 600; f++) tatsumaki.update(1 / 60);
+    expect(callouts.filter((c) => c.key === 'tatsumaki.contempt').length).toBe(1);
+  });
+
+  it('leaves the attack state once the swing is over', () => {
+    const threats: IThreatSource[] = [
+      { id: 'm', position: new THREE.Vector3(18, 0, 0), intensity: 1 },
+    ];
+    const genos = new HeroNpc('genos', 'genos', heroWorld(undefined, threats, []));
+    genos.fireAttack(threats[0]!);
+    expect(genos.status().state).toBe('attack');
+    // Two frames: one to consume the one-shot request, one to step back out.
+    genos.update(1 / 60);
+    genos.update(1 / 60);
+    expect(genos.status().state).not.toBe('attack');
+  });
+
+  it('issues the death and stagger clips once, not once a frame', () => {
+    const genosBody = spyBody();
+    const genos = new HeroNpc('genos', 'genos', heroWorld(undefined, [], []), genosBody);
+    genos.kill();
+    for (let f = 0; f < 90; f++) genos.update(1 / 60);
+    // `death` does not loop, so the animator's re-play guard does not cover
+    // it: a second `play` restarts it at time zero and the corpse never falls.
+    expect(genosBody.plays.filter((c) => c === 'death').length).toBe(1);
+
+    const mumenBody = spyBody();
+    const mumen = new HeroNpc('mumen', 'mumenRider', heroWorld(undefined, [], []), mumenBody);
+    mumen.knockdown();
+    for (let f = 0; f < 30; f++) mumen.update(1 / 60);
+    expect(mumenBody.plays.filter((c) => c === 'stagger').length).toBe(1);
+    // A fresh knockdown does replay it.
+    mumen.knockdown();
+    for (let f = 0; f < 30; f++) mumen.update(1 / 60);
+    expect(mumenBody.plays.filter((c) => c === 'stagger').length).toBe(2);
+  });
+
+  it('Tatsumaki does not hurl a building at something on the far side of the city', () => {
+    const bus = new EventBus();
+    const fired: number[] = [];
+    bus.on('ShockwaveFired', (e) => fired.push(e.power));
+    const threats: IThreatSource[] = [
+      { id: 'm', position: new THREE.Vector3(300, 0, 0), intensity: 1 },
+    ];
+    const tatsumaki = new HeroNpc('tatsumaki', 'tatsumaki', heroWorld(bus, threats, []));
+    // Half a second of closing, from three hundred metres out. There IS heavy
+    // debris beside her, so the only thing that can hold the branch is range.
+    for (let f = 0; f < 30; f++) tatsumaki.update(1 / 60);
+    expect(tatsumaki.distanceTo(threats[0]!)).toBeGreaterThan(HERO_SPECS.tatsumaki.attackRange);
+    // Firing here burns both cooldowns and panics a district for nothing.
+    expect(fired).toEqual([]);
   });
 
   it('reports a status the HUD can render', () => {

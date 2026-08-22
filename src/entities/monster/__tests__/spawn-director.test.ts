@@ -140,6 +140,32 @@ describe('placement rules', () => {
     }
   });
 
+  it('samples the annulus uniformly by AREA, as its own comment claims', () => {
+    // `min + (max - min) * sqrt(u)` is the formula for a DISC and is only
+    // area-uniform when `min` is 0: its radial density is proportional to
+    // (r - min) rather than to r, so the density AT `minSpawnDistanceMetres` is
+    // exactly zero and the nearest band — the knob the policy presents as "how
+    // close is too close" — is never used at all.
+    //
+    // Measured on a clean 200-400 m annulus with the ring rule relaxed, so
+    // nothing truncates the far half of the draw. Five twelfths of that
+    // annulus's AREA lies inside 300 m; the biased draw puts a quarter of its
+    // samples there.
+    const director = new SpawnDirector({
+      seed: 'annulus',
+      policy: { minSpawnDistanceMetres: 200, maxSpawnDistanceMetres: 400, maxSpawnRing: 3 },
+    });
+    const { orders } = drive(director, 8000, { dt: 0.25 });
+    expect(orders.length).toBeGreaterThan(300);
+    for (const order of orders) {
+      expect(order.distanceFromFocus).toBeGreaterThanOrEqual(200);
+      expect(order.distanceFromFocus).toBeLessThanOrEqual(400);
+    }
+    const inner = orders.filter((o) => o.distanceFromFocus < 300).length / orders.length;
+    expect(inner).toBeGreaterThan(0.34);
+    expect(inner).toBeLessThan(0.49);
+  });
+
   it('honours a host-supplied ringAt in preference to its own mirror', () => {
     // The real streaming system says everything is R3. Nothing may spawn.
     const director = new SpawnDirector({ seed: 'injected-ring', ringAt: () => 3 });
@@ -451,25 +477,50 @@ describe('culling', () => {
   });
 
   it('retires a monster that wandered a full ring past where it could spawn', () => {
-    const director = new SpawnDirector({ seed: 'cull-ring' });
+    // THE RING RULE, ISOLATED. 500 m is R2, and it is young and comfortably
+    // inside the 620 m recycle distance — so neither the distance rule nor the
+    // staleness rule can fire and a retire here can only have come from the
+    // ring. Asserted that way round on purpose: the previous version of this
+    // test used 864 m, which is 244 m OUTSIDE the recycle distance, so it
+    // passed on the distance rule and a regression that deleted the ring
+    // branch entirely would not have failed it.
     const drifted: ILiveMonsterRef = {
       id: 'drifted',
       tier: 'wolf',
-      // Ring 3, inside the recycle distance, young. Only the ring rule catches it.
-      position: { x: 9 * MONSTER_CHUNK_SIZE_METRES, y: 0, z: 0 },
+      position: { x: 500, y: 0, z: 0 },
       age: 1,
       engaged: false,
       scripted: false,
     };
-    expect(ringBetween(drifted.position, FOCUS)).toBe(3);
-    const decision = director.update(0.5, {
-      focus: FOCUS,
-      live: [{ ...drifted, position: { x: 600, y: 0, z: 0 } }],
-    });
-    // 600 m is ring 2 and inside the 620 m recycle distance: still allowed.
-    expect(decision.retire).toHaveLength(0);
-    const next = director.update(0.5, { focus: FOCUS, live: [drifted] });
-    expect(next.retire).toEqual(['drifted']);
+    expect(ringBetween(drifted.position, FOCUS)).toBe(2);
+    expect(Math.hypot(drifted.position.x, drifted.position.z)).toBeLessThan(
+      DEFAULT_SPAWN_POLICY.recycleDistanceMetres
+    );
+    expect(drifted.age).toBeLessThan(DEFAULT_SPAWN_POLICY.staleSeconds);
+
+    const director = new SpawnDirector({ seed: 'cull-ring' });
+    expect(director.update(0.5, { focus: FOCUS, live: [drifted] }).retire).toEqual(['drifted']);
+
+    // The control: a host whose real streaming answer is "still R0 out there"
+    // keeps it, which proves the retire above came from the ring and not from
+    // anything else in `cull`.
+    const streamed = new SpawnDirector({ seed: 'cull-ring', ringAt: () => 0 });
+    expect(streamed.update(0.5, { focus: FOCUS, live: [drifted] }).retire).toHaveLength(0);
+  });
+
+  it('keeps a monster inside the ring it was allowed to spawn in', () => {
+    const director = new SpawnDirector({ seed: 'cull-ring-inside' });
+    const near: ILiveMonsterRef = {
+      id: 'near',
+      tier: 'wolf',
+      // 4.4 chunks: the far edge of R1, which is where a spawn is still legal.
+      position: { x: 4.4 * MONSTER_CHUNK_SIZE_METRES, y: 0, z: 0 },
+      age: 1,
+      engaged: false,
+      scripted: false,
+    };
+    expect(ringBetween(near.position, FOCUS)).toBe(DEFAULT_SPAWN_POLICY.maxSpawnRing);
+    expect(director.update(0.5, { focus: FOCUS, live: [near] }).retire).toHaveLength(0);
   });
 });
 

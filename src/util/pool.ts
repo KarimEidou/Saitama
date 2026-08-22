@@ -6,11 +6,25 @@
  * particles, NPCs, vectors, event payloads — should come from a pool.
  *
  * Usage:
- *   const pool = new ObjectPool(() => new THREE.Vector3(), v => v.set(0,0,0));
+ *   const pool = new ObjectPool({
+ *     factory: () => new THREE.Vector3(),
+ *     reset: (v) => v.set(0, 0, 0),
+ *   });
  *   const v = pool.acquire();
  *   ...
  *   pool.release(v);
  */
+
+import { createLogger } from './logger';
+
+const log = createLogger('pool');
+
+/**
+ * Whether to run the double-release check. Development only: it costs a Set
+ * insert and delete per acquire/release, which is exactly the per-frame work
+ * this module exists to avoid.
+ */
+const CHECK_DOUBLE_RELEASE = import.meta.env?.DEV === true;
 
 /** Pool configuration. */
 export interface IPoolOptions<T> {
@@ -51,6 +65,8 @@ export class ObjectPool<T> {
   private readonly resetFn: ((item: T) => void) | undefined;
   private readonly destroyFn: ((item: T) => void) | undefined;
   private readonly maxSize: number;
+  /** Checked-out instances, for the development double-release guard. */
+  private readonly checkedOut: Set<T> | undefined = CHECK_DOUBLE_RELEASE ? new Set<T>() : undefined;
 
   private activeCount = 0;
   private createdCount = 0;
@@ -76,22 +92,38 @@ export class ObjectPool<T> {
 
   /** Take an instance, creating one only if the free list is empty. */
   acquire(): T {
-    const item = this.free.pop();
+    const pooled = this.free.pop();
     this.activeCount++;
-    if (item !== undefined) {
+    let item: T;
+    if (pooled === undefined) {
+      item = this.create();
+    } else {
       this.reusedCount++;
-      return item;
+      item = pooled;
     }
-    return this.create();
+    this.checkedOut?.add(item);
+    return item;
   }
 
   /**
    * Return an instance.
    *
-   * Releasing the same object twice is a bug that produces two live references
-   * to one instance, so it is guarded in development builds via `has`.
+   * Releasing the same object twice is a bug: the free list would then hold it
+   * twice and the next two `acquire()` calls would hand ONE instance to two
+   * independent callers, whose writes then silently overwrite each other. In
+   * development builds that release is rejected and logged; in production the
+   * check is compiled out, so `release()` must be called exactly once per
+   * `acquire()`.
    */
   release(item: T): void {
+    if (this.checkedOut !== undefined && !this.checkedOut.delete(item)) {
+      log.warnOnce(
+        'double-release',
+        'release() called for an instance that is not checked out — ignoring. ' +
+          'Releasing twice hands one instance to two callers.'
+      );
+      return;
+    }
     if (this.activeCount > 0) this.activeCount--;
     this.resetFn?.(item);
 

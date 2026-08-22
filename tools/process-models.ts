@@ -83,7 +83,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -246,6 +246,18 @@ const OUTPUT_DIR = path.join(REPO_ROOT, 'public', 'assets', 'mdl');
  * mid-run ENOENT. Owning the directory removes the question.
  */
 const KTX_CACHE_DIR = path.join(REPO_ROOT, 'public', 'assets', 'mdl', '.cache');
+
+/**
+ * Per-run scratch for the PNGs handed to `ktx`, namespaced by pid.
+ *
+ * Owning `.cache/` settles who may `rm -rf` it, but not who may `rm -rf` a
+ * subdirectory of it: two shells building the same asset (two tiers, or the
+ * same `--only`) both derived `<asset>-<tier>` and the first to finish deleted
+ * the other's inputs mid-encode. The pid makes the paths disjoint, exactly as
+ * `WORK_DIR` does for the orchestrator.
+ */
+const SCRATCH_ROOT = path.join(KTX_CACHE_DIR, '.work');
+const SCRATCH_DIR = path.join(SCRATCH_ROOT, String(process.pid));
 
 /**
  * The `ktx` ELF, not the npm shim. See the header note: the shim writes a
@@ -520,6 +532,14 @@ interface ILodSummary {
   readonly parts: readonly string[];
   /** Per level: total triangles, and how many parts reused the level above. */
   readonly levels: readonly { triangles: number; shared: number }[];
+  /**
+   * Half the longest edge of the LARGEST individual kit piece, in metres.
+   *
+   * Not the file's bounding box: these files are catalogues, not props, and
+   * their AABB measures the grid the pieces are laid out on. See
+   * `screenDistanceFor`.
+   */
+  readonly partRadius: number;
 }
 
 /**
@@ -541,6 +561,7 @@ function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
   const parts: string[] = [];
   const levelTris = LOD_RATIOS.map(() => 0);
   const levelShared = LOD_RATIOS.map(() => 0);
+  let partRadius = 0;
   const unlitMaterials = new Map<Material, Material>();
   /**
    * Source mesh → its LOD ladder, so geometry reused by several nodes is
@@ -565,6 +586,19 @@ function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
     const baseMesh = node.getMesh() as Mesh;
     const name = node.getName() || baseMesh.getName() || 'part';
     parts.push(name);
+
+    // Measured here, while the node still carries its geometry directly and
+    // before `setMesh(null)` below. A world-space AABB includes the node's
+    // place on the catalogue grid, but an EXTENT is translation-invariant, so
+    // this is the piece's own size. An empty subtree yields an inverted
+    // (±Infinity) box, hence the finite guard.
+    const box = getBounds(node);
+    const extent = Math.max(
+      box.max[0] - box.min[0],
+      box.max[1] - box.min[1],
+      box.max[2] - box.min[2]
+    );
+    if (Number.isFinite(extent)) partRadius = Math.max(partRadius, extent / 2);
 
     let ladder = ladders.get(baseMesh);
     if (!ladder) {
@@ -601,8 +635,15 @@ function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
         infos.push({ level, triangles: candidateTris, shared: false });
       }
 
-      if (unlitFurthest && meshes[meshes.length - 1] !== meshes[0]) {
-        applyUnlit(doc, meshes[meshes.length - 1], unlitMaterials);
+      // Only when the furthest level owns its mesh outright. A level too small
+      // to decimate reuses the mesh of the level above (`meshes.push(previous)`)
+      // and `applyUnlit` MUTATES that object, so comparing against LOD0 alone
+      // lets an LOD2-reuses-LOD1 part turn LOD1 unlit too — flat,
+      // full-daylight-brightness geometry at mid distance. On the mobile
+      // facade kit that is 53 of 147 parts.
+      const furthest = meshes[meshes.length - 1];
+      if (unlitFurthest && !meshes.slice(0, -1).includes(furthest)) {
+        applyUnlit(doc, furthest, unlitMaterials);
       }
       baseMesh.setName(`${name}_LOD0`);
 
@@ -638,6 +679,7 @@ function buildLodGroups(doc: Document, unlitFurthest: boolean): ILodSummary {
   return {
     parts,
     levels: LOD_RATIOS.map((_, i) => ({ triangles: levelTris[i], shared: levelShared[i] })),
+    partRadius,
   };
 }
 
@@ -926,9 +968,16 @@ function outputPathFor(id: string, tier: QualityTier): string {
 }
 
 /**
- * Content-addressed output key: source digest + every knob that can change
- * the bytes + the tool version. Equal key ⇒ byte-identical output ⇒ nothing
- * to do.
+ * Content-addressed output key: source digest + every knob that shapes the
+ * result + the tool version. Equal key ⇒ the same build was asked of the same
+ * bytes ⇒ nothing to do.
+ *
+ * `params.threads` is deliberately absent, here and in the per-texture KTX
+ * cache key. It is derived from `os.cpus()` and `--concurrency`, and `ktx`
+ * copies it verbatim into `KTXwriterScParams`, so including it would only buy
+ * cross-machine byte-identity at the price of re-encoding the whole set every
+ * time the box or the concurrency changes — which is the cost this cache exists
+ * to avoid. Reproducible-bytes checks must therefore pin both.
  */
 function outputKey(
   srcSha: string,
@@ -1047,7 +1096,7 @@ async function processOne(
   const bounds = [...box.min, ...box.max] as [number, number, number, number, number, number];
 
   // ── KTX2 ─────────────────────────────────────────────────────────────────
-  const scratchDir = path.join(KTX_CACHE_DIR, '.work', `${entry.providerAssetId}-${tier}`);
+  const scratchDir = path.join(SCRATCH_DIR, `${entry.providerAssetId}-${tier}`);
   await mkdir(scratchDir, { recursive: true });
   let textures: ITextureSummary;
   try {
@@ -1093,7 +1142,7 @@ async function processOne(
     file: path.posix.join('mdl', path.basename(glbPath)),
     triangles: level.triangles,
     bytes: lodBytes[index],
-    screenDistance: screenDistanceFor(index, bounds),
+    screenDistance: screenDistanceFor(index, lod.partRadius),
   }));
 
   const record: IModelAssetOutput = {
@@ -1160,18 +1209,25 @@ async function processOne(
 }
 
 /**
- * Distance in metres past which a level takes over. Derived from the model's
- * own size so a 30 cm hydrant and a 15 m facade do not share a switch point.
- * A starting point for the streaming system, not a tuned curve.
+ * Distance in metres past which a level takes over. Derived from the size of
+ * the thing that is actually PLACED so a 30 cm hydrant and a 15 m facade panel
+ * do not share a switch point. A starting point for the streaming system, not a
+ * tuned curve.
+ *
+ * `partRadius`, never the file's bounding box. These sources are catalogues:
+ * `modular_urban_apartments_facade` is 147 independently-placed pieces laid out
+ * side by side on a 51 m grid, and each `__LOD` group is one of them. Sizing the
+ * switch off the grid gave every 1–2 m door and window panel a 361 m LOD1
+ * distance, i.e. the 270k-triangle LOD0 drawn at every plausible camera range
+ * while 3.5 MB of LOD1/LOD2 buffers were uploaded and never sampled. Single-
+ * object files (a hydrant) are unaffected: their one part IS the file.
+ *
+ * The largest part rather than the median, because switching a piece too early
+ * pops visibly whereas switching a small one late costs only triangles.
  */
-function screenDistanceFor(level: number, bounds: readonly number[]): number {
-  const extent = Math.max(
-    bounds[3] - bounds[0],
-    bounds[4] - bounds[1],
-    bounds[5] - bounds[2],
-    0.25
-  );
-  const radius = extent / 2;
+function screenDistanceFor(level: number, partRadius: number): number {
+  // 0.25 m floor: a piece with no measurable extent still needs a sane switch.
+  const radius = Math.max(partRadius, 0.125);
   if (level === 0) return 0;
   return Math.round((level === 1 ? 14 : 40) * radius * 10) / 10;
 }
@@ -1206,6 +1262,7 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
 
   await mkdir(OUTPUT_DIR, { recursive: true });
   await guardOutputDir();
+  await sweepScratch();
 
   // `writeBinary` needs the meshopt encoder, and reading needs every Khronos
   // extension the source files use (KHR_texture_transform on the chainlink
@@ -1266,21 +1323,7 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
   const skipped = results.filter((r) => r.cached).length;
   const bytes = results.reduce((sum, r) => sum + r.outputBytes, 0);
 
-  await writeFile(
-    path.join(OUTPUT_DIR, `index.${opts.tier}.json`),
-    `${JSON.stringify(
-      {
-        version: 1,
-        tier: opts.tier,
-        generator: TOOL_VERSION,
-        generatedAt: new Date().toISOString(),
-        totalBytes: bytes,
-        models: records,
-      },
-      null,
-      2
-    )}\n`
-  );
+  await writeTierIndex(opts.tier, records);
 
   log.ok(
     `models · ${written} built, ${skipped} cached · ${formatBytes(bytes)} total · ` +
@@ -1297,6 +1340,95 @@ export async function processModels(opts: ProcessOptions): Promise<ProcessResult
     models: records,
     stats: results,
   };
+}
+
+/**
+ * Reclaim scratch left behind by a run that died.
+ *
+ * Ctrl-C or an OOM between `mkdir(scratchDir)` and the `finally` that removes
+ * it strands a full-resolution PNG inside `.cache/.work/<pid>/`, and unlike the
+ * orchestrator's `WORK_ROOT` nothing ever came back for it. Only pids that are
+ * genuinely gone are swept — `isPidAlive` reads the errno rather than catching
+ * bare, so a build running as another user is left alone.
+ */
+async function sweepScratch(): Promise<void> {
+  /**
+   * Signal 0 tests for existence without delivering anything. It throws ESRCH
+   * for "no such process" but EPERM for "exists, owned by another user", so a
+   * bare catch would read a build running under a different uid as dead and
+   * delete its scratch. Duplicated rather than imported from
+   * `process-assets.ts` to keep this stage free of a hard dependency on the
+   * orchestrator — see the note on `ProcessOptions`.
+   */
+  const isPidAlive = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code !== 'ESRCH';
+    }
+  };
+
+  let siblings: string[];
+  try {
+    siblings = await readdir(SCRATCH_ROOT);
+  } catch {
+    return; // never created, or already gone
+  }
+  for (const name of siblings) {
+    const pid = Number(name);
+    if (!Number.isInteger(pid) || pid <= 0) continue;
+    if (pid === process.pid || isPidAlive(pid)) continue;
+    await rm(path.join(SCRATCH_ROOT, name), { recursive: true, force: true });
+  }
+}
+
+/** The readable form of `ProcessResult.models`, one file per tier. */
+interface ITierIndex {
+  readonly version: number;
+  readonly tier: QualityTier;
+  readonly generator: string;
+  readonly generatedAt: string;
+  readonly totalBytes: number;
+  readonly models: readonly IModelAssetOutput[];
+}
+
+/**
+ * Fold this run's rows into `index.<tier>.json`, keeping the rest.
+ *
+ * Merging, not overwriting, for exactly the reason `writeRuntimeIndex` merges:
+ * `--only hydrant` builds one model, and a blind rewrite would drop the other
+ * 38 from the index while their `.glb` files and sidecars sat perfectly good
+ * next to it. The same applies to a model that threw this run — it keeps its
+ * last-known-good row rather than silently vanishing. Rows are replaced by id,
+ * so a rebuilt model updates in place.
+ */
+async function writeTierIndex(
+  tier: QualityTier,
+  records: readonly IModelAssetOutput[]
+): Promise<void> {
+  const file = path.join(OUTPUT_DIR, `index.${tier}.json`);
+  const merged = new Map<string, IModelAssetOutput>();
+  try {
+    const previous = JSON.parse(await readFile(file, 'utf8')) as ITierIndex;
+    if (previous.version === 1 && previous.tier === tier) {
+      for (const record of previous.models ?? []) merged.set(record.id, record);
+    }
+  } catch {
+    // Absent, unreadable, or another schema: this run's rows are the index.
+  }
+  for (const record of records) merged.set(record.id, record);
+
+  const models = [...merged.values()].sort((a, b) => (a.id < b.id ? -1 : 1));
+  const index: ITierIndex = {
+    version: 1,
+    tier,
+    generator: TOOL_VERSION,
+    generatedAt: new Date().toISOString(),
+    totalBytes: models.reduce((sum, record) => sum + record.output.bytes, 0),
+    models,
+  };
+  await writeFile(file, `${JSON.stringify(index, null, 2)}\n`);
 }
 
 /** Fail early and loudly rather than 39 times inside the worker pool. */

@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { WITNESS_CREDIBILITY, WITNESS_RADIUS, WITNESS_SATURATION } from '../constants';
 import { WitnessField, mergeReports, NO_WITNESSES } from '../witness';
+import { RivalTracker } from '../rivals';
 import { indexForRank, rankGap } from '../rank-ladder';
 import { at, makeHarness, ORIGIN } from './support';
 
@@ -156,6 +157,40 @@ describe('rank does NOT move on kills', () => {
     expect(gained).toBeLessThan(200);
     expect(harness.coordinator.progression.state.rank.heroClass).toBe('C');
     harness.dispose();
+  });
+
+  it('pays the same for one kill inside an incident as for forty', () => {
+    // `EntityKilled.rewardPoints` used to be summed into the award as a
+    // "significance bonus" capped at +50%, which is a kill counter by another
+    // name: grinding inside the encounter radius bought half a rank again, for
+    // the player AND for every rival credited off the same figure.
+    const one = makeHarness();
+    const many = makeHarness();
+
+    for (const [harness, kills] of [
+      [one, 1],
+      [many, 40],
+    ] as const) {
+      harness.crowd(ORIGIN, 12);
+      harness.startEncounter('encounter.same', {
+        threatTier: 'demon',
+        participantIds: ['ally.genos'],
+      });
+      for (let i = 0; i < kills; i++) {
+        harness.killMonster({ threatTier: 'demon', rewardPoints: 25 });
+      }
+      harness.endEncounter('encounter.same');
+      harness.tick(0.3);
+    }
+
+    const quiet = one.coordinator.progression.incidentReports[0]!;
+    const grind = many.coordinator.progression.incidentReports[0]!;
+    expect(grind.kills).toBe(40);
+    expect(grind.basePoints).toBe(quiet.basePoints);
+    expect(grind.awardedPoints).toBeCloseTo(quiet.awardedPoints, 9);
+    expect(grind.rivalCredit.genos).toBeCloseTo(quiet.rivalCredit.genos!, 9);
+    one.dispose();
+    many.dispose();
   });
 
   it('moves a great deal for ONE witnessed encounter', () => {
@@ -322,6 +357,38 @@ describe('the Genos problem', () => {
     harness.coordinator.rivals.restore(saved);
     expect(harness.coordinator.rivals.rank('genos').points).toBe(saved.genos!.points);
     harness.dispose();
+  });
+
+  it('refuses a rival total a save cannot mean', () => {
+    const tracker = new RivalTracker();
+    const intact = tracker.rank('genos').points;
+
+    // `typeof NaN === 'number'`, so the old guard let all of these through: a
+    // NaN parks Genos at the bottom of the ladder AND makes every future save
+    // throw on the validator's non-finite check.
+    tracker.restore({
+      genos: { points: Number.NaN, shared: Number.POSITIVE_INFINITY, offscreen: -50, joint: -1 },
+    });
+
+    expect(tracker.rank('genos').points).toBe(intact);
+    expect(tracker.rank('genos').heroClass).toBe('S');
+    const serialised = tracker.serialise().genos!;
+    expect(Number.isFinite(serialised.shared)).toBe(true);
+    expect(serialised.offscreen).toBe(0);
+    expect(serialised.joint).toBe(0);
+  });
+
+  it('does not tell a rival listener the gap is zero when it does not know it', () => {
+    const seen: Record<string, unknown>[] = [];
+    const tracker = new RivalTracker({
+      onRivalRankChanged: (snapshot) => seen.push({ ...snapshot }),
+    });
+    tracker.advanceOffscreen(30);
+
+    expect(seen.length).toBeGreaterThan(0);
+    // The player's rank is not this object's business; `snapshot(playerRank)`
+    // is where the real gap comes from.
+    for (const snapshot of seen) expect('seatsAbovePlayer' in snapshot).toBe(false);
   });
 });
 

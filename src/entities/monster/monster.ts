@@ -213,6 +213,7 @@ export class Monster implements IMonster {
   /** True for boss minions and scripted actors the spawn director must ignore. */
   scripted = false;
 
+  private readonly bus: IEventBus;
   private characterInstance: ICharacterInstance | undefined;
   private lastClip: ClipName | undefined;
   private disposed = false;
@@ -221,6 +222,7 @@ export class Monster implements IMonster {
     this.root = new THREE.Object3D();
     this.root.name = `monster:${options.id}`;
     this.transform = new MonsterTransform(this.root);
+    this.bus = options.bus;
     this.brain = new MonsterBrain(options);
     this.stateMachine = new ActorStateView(this.brain.fsm);
 
@@ -294,9 +296,19 @@ export class Monster implements IMonster {
    *  holds ids only, so the host resolves it. Undefined unless one was set. */
   target: IActor | undefined;
 
+  /**
+   * `IMonster.attackCooldownRemaining` — "seconds until the next attack is
+   * permitted", read from the brain's per-attack timers.
+   *
+   * It used to answer from `attackPhase`, which is the inverse of the
+   * contract in both directions: 0 ("ready") during the post-swing cooldown
+   * when the monster specifically cannot attack, and a constant that never
+   * counts down while a swing is in flight. It also allocated a whole
+   * `IMonsterSnapshot` — position object and `clip` evaluation included — on
+   * every read, which is per-monster-per-frame garbage for a polling HUD.
+   */
   get attackCooldownRemaining(): number {
-    const snapshot = this.brain.snapshot();
-    return snapshot.attackPhase === undefined ? 0 : this.archetype.attackCooldown;
+    return this.brain.attackCooldownRemaining;
   }
 
   set attackCooldownRemaining(_value: number) {
@@ -399,12 +411,19 @@ export class Monster implements IMonster {
    * monster system forwards into the brain. This entry point exists for the
    * other things that can hurt a monster — an ally's attack, a collapsing
    * building — and it routes to the same reaction so both look identical.
+   *
+   * It therefore has to honour the same two rules the resolver does, because
+   * "identical" is the whole point: THE GATE (a boss whose scripted phase has
+   * not resolved cannot be killed by anything, so its health is floored at 1
+   * exactly as `bossPhaseChipDamage` floors it), and DEATH IS AN EVENT (see
+   * `die`).
    */
   takeDamage(amount: number, _source?: IActor, _impulse?: THREE.Vector3): number {
     if (this.isDead || amount <= 0) return 0;
-    const dealt = Math.min(this.brain.health, amount);
+    const gated = this.archetype.isBoss && !this.brain.phaseResolved;
+    const dealt = Math.min(Math.max(0, this.brain.health - (gated ? 1 : 0)), amount);
     this.brain.onDamaged(this.brain.health - dealt, dealt);
-    if (this.brain.health <= 0) this.brain.onKilled();
+    if (!gated && this.brain.health <= 0) this.die();
     return dealt;
   }
 
@@ -414,7 +433,47 @@ export class Monster implements IMonster {
   }
 
   kill(): void {
+    if (this.archetype.isBoss && !this.brain.phaseResolved) {
+      // A boss that died at 0 HP is the one outcome `types.ts` says never
+      // happens. Refusing loudly beats a silently immortal-then-suddenly-dead
+      // boss, and beats a caller assuming this worked.
+      console.warn(
+        `[monster] refused to kill '${this.id}': the boss phase has not resolved. ` +
+          `Only BossPhaseChanged { isFinalPhase: true } opens the gate.`
+      );
+      return;
+    }
+    this.die();
+  }
+
+  /**
+   * The single death path for anything that is not the combat resolver.
+   *
+   * `MonsterSystem` starts a corpse timer from `EntityKilled` and from nothing
+   * else, and its other removal path skips dead monsters outright — so a
+   * monster killed here without publishing the event is never despawned. It
+   * keeps ticking, keeps holding its `Object3D` and its pooled
+   * `ICharacterInstance`, and keeps being published to combat and to the HUD,
+   * for the rest of the session. The same event is what tells a running boss
+   * encounter that one of its minions died.
+   */
+  private die(): void {
+    if (this.brain.isDead) return;
     this.brain.onKilled();
+    this.bus.emit('EntityKilled', {
+      entityId: this.id,
+      entityType: 'monster',
+      faction: 'monster',
+      position: {
+        x: this.brain.position.x,
+        y: this.brain.position.y,
+        z: this.brain.position.z,
+      },
+      intent: 'normal',
+      threatTier: this.archetype.threatTier,
+      specId: this.archetype.id,
+      rewardPoints: this.archetype.rewardPoints,
+    });
   }
 
   /* ---------------------------------------------------------------------- */

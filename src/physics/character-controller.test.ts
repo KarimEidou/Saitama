@@ -4,21 +4,24 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
-import { EventBus } from '@/util';
-import type { PlayerLandedEvent } from '@/types';
+import { DEG2RAD, EventBus } from '@/util';
+import type { PhysicsLayer, PlayerLandedEvent } from '@/types';
 import {
   CharacterController,
   DASH_SPEED,
+  DEFAULT_COLLISION_MATRIX,
   FIXED_STEP,
   GRAVITY_Y,
   GROUND_SLAM_FALL_HEIGHT,
   JUMP_APEX_HEIGHT,
   JUMP_SPEED,
+  LAYER_BIT,
   PhysicsWorld,
   RUN_SPEED,
   STEP_HEIGHT,
   apexHeightForSpeed,
   initPhysics,
+  layerMask,
 } from './index';
 import { makeGround } from './test-support';
 
@@ -154,6 +157,123 @@ describe('CharacterController', () => {
     // …and stopped at the tall wall rather than climbing it.
     expect(player.translation.z).toBeGreaterThan(-9);
     world.dispose();
+  });
+
+  it('sweeps against its declared filter instead of everything in the world', () => {
+    const walkInto = (obstacle: { layer: PhysicsLayer; isSensor?: boolean }): number => {
+      const world = new PhysicsWorld();
+      makeGround(world);
+      world.createBody({
+        type: 'fixed',
+        shape: { kind: 'box', halfExtents: new THREE.Vector3(3, 2, 0.3) },
+        position: new THREE.Vector3(0, 1, -3),
+        layer: obstacle.layer,
+        collidesWith: ['world', 'player', 'monster', 'debris'],
+        ...(obstacle.isSensor === true ? { isSensor: true } : {}),
+      });
+      const player = new CharacterController(world, {
+        position: new THREE.Vector3(0, 1.0, 0),
+        // Deliberately narrow: only the world may stop the player.
+        collidesWith: ['world'],
+      });
+      for (let i = 0; i < 120; i++) {
+        player.moveInDirection(new THREE.Vector3(0, 0, -1), FIXED_STEP);
+        world.step(FIXED_STEP, 1);
+      }
+      const travelled = -player.translation.z;
+      world.dispose();
+      return travelled;
+    };
+
+    // The body is kinematic and is moved to the ALREADY RESOLVED position, so
+    // the sweep is the only thing that can honour the filter.
+    expect(walkInto({ layer: 'world' })).toBeLessThan(3);
+    // A layer the player does not collide with must not stop it…
+    expect(walkInto({ layer: 'ragdoll' })).toBeGreaterThan(10);
+    // …and neither must a sensor, whose entire job is to report overlaps.
+    expect(walkInto({ layer: 'world', isSensor: true })).toBeGreaterThan(10);
+  });
+
+  it('defaults its collision filter from the shared matrix', () => {
+    const world = new PhysicsWorld();
+    const player = new CharacterController(world, { position: new THREE.Vector3(0, 1, 0) });
+    // Rapier's pair test is symmetric: a hand-written default that dropped
+    // 'ragdoll' meant corpses fell straight through the player, because the
+    // ragdoll's own groups declare 'player' but the player's did not reciprocate.
+    expect(player.body.collider!.collisionGroups() >>> 16).toBe(LAYER_BIT.player);
+    expect(player.body.collider!.collisionGroups() & 0xffff).toBe(
+      layerMask(DEFAULT_COLLISION_MATRIX.player)
+    );
+    world.dispose();
+  });
+
+  // Both are declared MUTABLE by `ICharacterController`, and Rapier's controller
+  // keeps whatever it was configured with — so a plain field reads back changed
+  // while the character carries on behaving exactly as before. Both of these
+  // measure the behaviour, not the property.
+  it('applies a raised stepHeight to the autostep', () => {
+    const travel = (stepHeight: number | undefined): number => {
+      const world = new PhysicsWorld();
+      makeGround(world);
+      // A 0.8 m ledge: well above the default 0.5 m autostep, under 1.2.
+      world.createBody({
+        type: 'fixed',
+        shape: { kind: 'box', halfExtents: new THREE.Vector3(3, 0.4, 3) },
+        position: new THREE.Vector3(0, 0.4, -5),
+        layer: 'world',
+        collidesWith: ['player'],
+      });
+      const player = new CharacterController(world, { position: new THREE.Vector3(0, 1.0, 0) });
+      if (stepHeight !== undefined) {
+        player.stepHeight = stepHeight;
+        expect(player.stepHeight).toBe(stepHeight);
+      }
+      for (let i = 0; i < 120; i++) {
+        player.moveInDirection(new THREE.Vector3(0, 0, -1), FIXED_STEP);
+        world.step(FIXED_STEP, 1);
+      }
+      const travelled = -player.translation.z;
+      world.dispose();
+      return travelled;
+    };
+
+    // Stopped dead at the ledge…
+    expect(travel(undefined)).toBeLessThan(3);
+    // …and stepping straight over it once the ability raises the limit.
+    expect(travel(1.2)).toBeGreaterThan(10);
+  });
+
+  it('applies a raised maxSlopeAngle to the climb limit', () => {
+    // A 58 degree ramp: steeper than the default 50 degree climb limit.
+    const angle = 58 * DEG2RAD;
+    const climb = (maxSlopeAngle: number | undefined): number => {
+      const world = new PhysicsWorld();
+      makeGround(world);
+      world.createBody({
+        type: 'fixed',
+        shape: { kind: 'box', halfExtents: new THREE.Vector3(4, 0.5, 6) },
+        position: new THREE.Vector3(0, 4.823, -5.603),
+        rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), angle),
+        layer: 'world',
+        collidesWith: ['player'],
+      });
+      const player = new CharacterController(world, { position: new THREE.Vector3(0, 1.0, 0) });
+      const startY = player.translation.y;
+      if (maxSlopeAngle !== undefined) {
+        player.maxSlopeAngle = maxSlopeAngle;
+        expect(player.maxSlopeAngle).toBeCloseTo(maxSlopeAngle, 9);
+      }
+      for (let i = 0; i < 180; i++) {
+        player.moveInDirection(new THREE.Vector3(0, 0, -1), FIXED_STEP);
+        world.step(FIXED_STEP, 1);
+      }
+      const gained = player.translation.y - startY;
+      world.dispose();
+      return gained;
+    };
+
+    expect(climb(undefined)).toBeLessThan(1);
+    expect(climb(70 * DEG2RAD)).toBeGreaterThan(3);
   });
 
   it('emits PlayerLanded with createsCrater for a fall past the slam threshold', () => {

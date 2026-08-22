@@ -106,7 +106,13 @@ describe('universal voice invariants', () => {
   it('produces a fingerprint that accounts for all of its energy', () => {
     for (const key of SOUND_KEYS) {
       const total = suite.get(key).fingerprint.reduce((a, b) => a + b, 0);
-      expect(total, `${key} fingerprint sum`).toBeGreaterThan(0.9);
+      // The sum is structurally SHORT of 1, and by a voice-dependent amount:
+      // the bands run 10 Hz to 20 kHz while the divisor is the whole spectrum,
+      // so whatever lands in the DC bin is counted against the voice but never
+      // into a band. For a bass-heavy bed that is real — the crowd's traffic
+      // layer is brown noise through a 180 Hz lowpass and leaves ~10 % there.
+      // The floor is set to catch a grossly incomplete fingerprint, not that.
+      expect(total, `${key} fingerprint sum`).toBeGreaterThan(0.88);
       expect(total, `${key} fingerprint sum`).toBeLessThan(1.0001);
     }
   });
@@ -526,8 +532,14 @@ describe('music', () => {
     expect(bored.activeRms).toBeGreaterThan(0.01);
     // A sustained tone: essentially no high-frequency content and a fixed
     // spectral centre.
+    //
+    // Both reducers return 0 for a zero-power input, so "the fraction is small"
+    // and "the spread is small" are BOTH satisfied by total silence. The
+    // liveness checks above and the non-zero centroid below are what stop this
+    // from passing on a drone that never sounded at all.
     for (const h of bored.highOverTime) expect(h).toBeLessThan(0.01);
     const c = bored.centroidOverTime;
+    for (const value of c) expect(value).toBeGreaterThan(0);
     expect(Math.max(...c) - Math.min(...c)).toBeLessThan(20);
     // And far fewer events than any playing layer.
     expect(bored.onsetCount).toBeLessThan(suite.get('music.combat').onsetCount / 4);
@@ -537,9 +549,21 @@ describe('music', () => {
     const m = suite.get('music.boredomCollapse');
     expect(m.extras.partsBefore).toBe(6);
     expect(m.extras.partsAfter).toBe(1);
-    // The tail of the render is the drone alone: much simpler than the start.
-    expect(m.centroidOverTime[3]!).toBeLessThan(m.centroidOverTime[0]! * 0.5);
+    // Liveness first: "almost no high content" is also true of silence, so
+    // without this the collapse could be total and the test would not notice.
+    expect(m.activeRms).toBeGreaterThan(0.01);
+    expect(m.centroidOverTime[3]!).toBeGreaterThan(0);
+    // The tail of the render is the drone alone: nothing above 1 kHz is left,
+    // where the combat arrangement at the start has hats, a snare and a stab.
     expect(m.highOverTime[3]!).toBeLessThan(0.005);
+    expect(m.highOverTime[0]!).toBeGreaterThan(m.highOverTime[3]! * 4);
+    // And it sounds in the BORED layer — root A2, 110 Hz — not in whatever
+    // layer the collapse happened to interrupt. Resolving the root from
+    // `currentState` put the "single sustained tone" an octave lower, at 55 Hz,
+    // where a phone speaker reproduces almost none of it. Centroid, not pitch
+    // detection: one lowpassed sine plus a bare fifth sits just above its root.
+    expect(m.centroidOverTime[3]!).toBeGreaterThan(90);
+    expect(m.centroidOverTime[3]!).toBeLessThan(180);
   });
 });
 
@@ -661,6 +685,9 @@ describe('reverb', () => {
     // energy must still be the punch itself: the transient is untouched, and
     // what is left after it is 55 dB down.
     expect(wet.peak).toBeCloseTo(dry.peak, 2);
+    // `wetRatio` is defined as 0 for a silent render, so the exact-zero
+    // assertion below needs a signal to be about anything at all.
+    expect(dry.peak, 'the dry punch must have rendered').toBeGreaterThan(0.05);
     expect(dry.extras.wetRatio, 'anechoic punch must be exactly dry').toBe(0);
     expect(wet.extras.wetRatio, 'punch room content').toBeLessThan(0.002);
     // Even in the most reverberant space in the game it stays a punch.
@@ -692,6 +719,8 @@ describe('reverb', () => {
   it('keeps the interface out of the world entirely', () => {
     // UI sends zero, so no environment may touch it at all.
     const dry = suite.get('env.ui.tap@none');
+    // Same trap as the punch: every one of these is satisfied by silence.
+    expect(dry.peak, 'the dry tap must have rendered').toBeGreaterThan(0.03);
     for (const preset of ['openStreet', 'crater']) {
       const m = suite.get(`env.ui.tap@${preset}`);
       expect(m.activeDuration, preset).toBeCloseTo(dry.activeDuration, 3);

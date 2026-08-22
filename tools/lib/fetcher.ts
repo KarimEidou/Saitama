@@ -137,6 +137,8 @@ export class Fetcher {
    *  sockets to api.polyhaven.com the moment the run starts. */
   private readonly apiLimiter: Limiter;
   private readonly warnings: string[] = [];
+  /** Set by `fetchPlan` on the first failure; read by every queued `acquire`. */
+  private cancelled = false;
 
   constructor(private readonly options: IFetcherOptions) {
     this.limiter = new Limiter(options.concurrency);
@@ -171,12 +173,23 @@ export class Fetcher {
     // Flatten every {url, size, md5} the API published for this asset, including
     // the nested `include` maps on glTF entries, and index it by URL. Matching
     // on URL sidesteps the shape differences between textures, models and HDRIs.
-    const byUrl = new Map<string, { md5: string; size: number }>();
+    //
+    // `size` is guarded exactly as hard as `url` and `md5`: a missing or
+    // non-numeric one used to coerce to NaN, and NaN poisons everything it
+    // touches — `NaN !== bytes` reports a fresh manifest as STALE, `totalBytes`
+    // becomes NaN so the whole progress line reads `?`, and the size check in
+    // `downloadToFile` fails a perfect download three times before the build
+    // dies quoting "manifest declares NaN".
+    const byUrl = new Map<string, { md5: string; size: number | undefined }>();
     const walk = (node: unknown): void => {
       if (!node || typeof node !== 'object') return;
       const record = node as Record<string, unknown>;
       if (typeof record.url === 'string' && typeof record.md5 === 'string') {
-        byUrl.set(record.url, { md5: record.md5, size: Number(record.size) });
+        const size = Number(record.size);
+        byUrl.set(record.url, {
+          md5: record.md5,
+          size: Number.isFinite(size) && size > 0 ? size : undefined,
+        });
       }
       for (const value of Object.values(record)) walk(value);
     };
@@ -191,15 +204,22 @@ export class Fetcher {
         );
         return { file, apiMd5: file.md5, apiBytes: file.bytes, drifted: false };
       }
-      const drifted = published.md5 !== file.md5 || published.size !== file.bytes;
+      if (published.size === undefined) {
+        this.warnings.push(
+          `${entry.id}: ${file.key} — the API published no usable size for ${file.url}; ` +
+            `using the manifest's ${file.bytes} bytes. The md5 still comes from the API.`
+        );
+      }
+      const apiBytes = published.size ?? file.bytes;
+      const drifted = published.md5 !== file.md5 || apiBytes !== file.bytes;
       if (drifted) {
         this.warnings.push(
           `${entry.id}: ${file.key} — MANIFEST IS STALE. api md5=${published.md5} ` +
-            `bytes=${published.size}, manifest md5=${file.md5} bytes=${file.bytes}. ` +
+            `bytes=${apiBytes}, manifest md5=${file.md5} bytes=${file.bytes}. ` +
             `The API value wins; regenerate the manifest.`
         );
       }
-      return { file, apiMd5: published.md5, apiBytes: published.size, drifted };
+      return { file, apiMd5: published.md5, apiBytes, drifted };
     });
   }
 
@@ -255,9 +275,42 @@ export class Fetcher {
     const label = path.basename(file.path);
     const log = this.options.logger;
     const cache = this.options.cache;
+
+    // An earlier file already failed the run. Everything still queued behind it
+    // is wasted bandwidth whose bookkeeping would land after the caller has
+    // saved the cache index, so it never starts.
+    if (this.cancelled) {
+      throw new Error(`${entryId}: ${label} was not started — an earlier file failed`);
+    }
     progress.start(label);
 
     const known = cache.lookup(file.url);
+
+    // `--dry-run` reports; it does not write. This has to sit AHEAD of the
+    // cache fast path below, which materialises files, rewrites the index and
+    // can evict a blob — none of which belongs in a run whose banner says
+    // "nothing will be transferred". `checkBlob` is read-only, so the report
+    // stays honest about what is and is not already cached.
+    if (this.options.dryRun) {
+      let cached = false;
+      if (known && known.md5 === apiMd5) {
+        const check = await cache.checkBlob(known.sha256, known.bytes, {
+          deep: this.options.verify,
+          expectedMtimeMs: known.mtimeMs,
+        });
+        cached = check.state === 'ok';
+      }
+      progress.finish(label, apiBytes, cached);
+      return {
+        file,
+        sha256: cached && known ? known.sha256 : `dry-run:${apiMd5}`,
+        md5: apiMd5,
+        bytes: cached && known ? known.bytes : apiBytes,
+        cached,
+        transferred: 0,
+      };
+    }
+
     if (known && known.md5 === apiMd5) {
       const check = await cache.checkBlob(known.sha256, known.bytes, {
         deep: this.options.verify,
@@ -286,17 +339,13 @@ export class Fetcher {
       await cache.evict(known.sha256);
     }
 
-    if (this.options.dryRun) {
-      progress.finish(label, apiBytes, false);
-      return {
-        file,
-        sha256: `dry-run:${apiMd5}`,
-        md5: apiMd5,
-        bytes: apiBytes,
-        cached: false,
-        transferred: 0,
-      };
-    }
+    // The scratch name is keyed on the FILE, not on its content. Two entries
+    // may legitimately declare the same URL — Poly Haven serves one `.bin` for
+    // every resolution of a model — and an md5-keyed name would have both
+    // downloads streaming into the same `.part`, interleaving two byte streams
+    // and surfacing as a bogus md5 mismatch or an ENOENT rename. It still has
+    // to be STABLE across runs, or the Range resume never finds its partial.
+    const scratch = sha256Of(`${entryId}::${file.path}`).slice(0, 32);
 
     // Download, verify, and on a mismatch destroy the evidence and try once
     // more — a single retry distinguishes a flaky transfer from a genuinely
@@ -304,9 +353,15 @@ export class Fetcher {
     let lastError: Error | undefined;
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       await mkdir(TEMP_DIR, { recursive: true });
-      const temp = path.join(TEMP_DIR, `${apiMd5}-${attempt}.part`);
+      const temp = path.join(TEMP_DIR, `${scratch}-${attempt}.part`);
       const result = await downloadToFile(file.url, temp, {
         expectedBytes: apiBytes,
+        // The retry exists because the bytes were WRONG, and when the first
+        // attempt resumed a partial left by an earlier run the bad bytes may
+        // be in that retained prefix. Scratch partials now survive a failed
+        // run (that is what makes resume work at all), so the retry has to
+        // refuse them or it reproduces the same mismatch forever.
+        resume: attempt > 1 ? false : undefined,
         onProgress: (delta) => progress.advance(delta),
         onRetry: (n, delay, error) =>
           log.warn(
@@ -382,13 +437,44 @@ export class Fetcher {
    *
    * All files queue on ONE shared limiter rather than one per entry: 84
    * entries x 6 would otherwise open ~500 sockets and collapse throughput.
+   *
+   * ── A FAILURE ENDS THE RUN, NOT JUST THE REPORT ─────────────────────────
+   * Every task is submitted up front, so a bare `Promise.all` would reject on
+   * the first bad file while ~370 queued transfers carried on behind it. By
+   * then the caller's `finally` has already saved the cache index and cleaned
+   * the scratch directory, so those late downloads re-create the directory
+   * that was just removed, land as blobs the index never records (making the
+   * next run re-transfer every byte of them), and keep repainting a progress
+   * bar underneath the error message. So the first rejection trips
+   * `cancelled` — which every not-yet-started `acquire()` observes — and this
+   * method does not resolve or reject until every task has settled.
    */
   async fetchPlan(plan: IResolvedPlan, progress: ProgressTracker): Promise<IFetchedEntry[]> {
+    this.cancelled = false;
+    let failure: { error: unknown } | undefined;
+
+    const submitted = plan.entries.map(({ entry, files }) => ({
+      entry,
+      tasks: files.map((resolved) =>
+        this.limiter.run(async () => {
+          try {
+            return await this.acquire(entry.id, resolved, progress);
+          } catch (error) {
+            // Keep the FIRST failure: it is the one that explains the run.
+            failure ??= { error };
+            this.cancelled = true;
+            throw error;
+          }
+        })
+      ),
+    }));
+
+    await Promise.allSettled(submitted.flatMap((item) => item.tasks));
+    if (failure) throw failure.error;
+
     return Promise.all(
-      plan.entries.map(async ({ entry, files }) => {
-        const fetched = await Promise.all(
-          files.map((r) => this.limiter.run(() => this.acquire(entry.id, r, progress)))
-        );
+      submitted.map(async ({ entry, tasks }) => {
+        const fetched = await Promise.all(tasks);
         return {
           entry,
           files: fetched,
@@ -399,7 +485,13 @@ export class Fetcher {
     );
   }
 
-  /** Remove the temp scratch directory. */
+  /**
+   * Remove the temp scratch directory.
+   *
+   * Only safe on a SUCCESSFUL run: the `.part` files in here are what the
+   * Range resume in `downloadToFile` continues from, so wiping them after a
+   * failed run re-pulls the 80 MB that already made it across the wire.
+   */
   static async cleanTemp(): Promise<void> {
     await rm(TEMP_DIR, { recursive: true, force: true });
   }

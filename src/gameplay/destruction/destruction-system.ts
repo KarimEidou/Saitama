@@ -31,7 +31,9 @@
  * — and none of them import this directory, exactly as
  * `src/gameplay/combat/structures.ts` promises. The system also ACCEPTS
  * `ChunkDetached` from elsewhere (scripted set-pieces, replay), which is safe
- * because every detach path is idempotent.
+ * because every detach path is idempotent AND a foreign detach is applied
+ * silently — the event is already on the bus, so echoing it would make every
+ * other subscriber count the piece twice.
  *
  * ── ALLOCATION ─────────────────────────────────────────────────────────────
  * Zero per detach in the steady state. Scratch vectors, the event payload, the
@@ -226,6 +228,17 @@ export class DestructionSystem {
 
   private emittingDetach = false;
 
+  /**
+   * True once `update()` has closed the frame's detach window.
+   *
+   * `chunksDestroyedThisFrame` has to survive being read on BOTH sides of the
+   * update: a blast lands between updates and a debug HUD reads the counter
+   * after `update()`, so zeroing it at the top of `update()` guarantees the one
+   * number that shows a punch's cost never shows it. Instead the window is
+   * closed here and cleared lazily by the first detach that opens the next one.
+   */
+  private frameWindowClosed = true;
+
   private readonly stats: IMutableStats = {
     structures: 0,
     damagedStructures: 0,
@@ -335,9 +348,12 @@ export class DestructionSystem {
 
     const saved = this.ledger.get(structure.id);
     if (saved !== undefined) {
+      // The exact ledger is a state the live model really reached, so it is
+      // already settled: whatever was standing when it streamed out stands now.
       this.stats.restoredChunks += structure.restoreFrom(saved);
     } else if (this.restoreFromMask && this.damage !== undefined && structure.damageChunk >= 0) {
       this.stats.restoredChunks += this.restoreFromBitmask(structure);
+      this.stats.restoredChunks += this.settleRestoredCollapse(structure);
     }
     if (structure.destroyedCount > 0) this.recountDamaged();
     return structure;
@@ -381,7 +397,6 @@ export class DestructionSystem {
     this.clock += dt;
     this.frameIndex++;
     this.stats.frame = this.frameIndex;
-    this.stats.chunksDestroyedThisFrame = 0;
 
     // Collapse waves come due here, so a collapse queued by a punch on frame n
     // spreads over n, n+1, n+2 — never all inside the punch's own frame.
@@ -393,6 +408,13 @@ export class DestructionSystem {
       this.shapes.reclaim(this.debris);
       this.stats.debrisLive = this.debris.count;
     }
+
+    // The frame's window closes AFTER the drain, so a reader here sees the
+    // blast that landed between updates plus the collapse wave it triggered.
+    // A frame in which nothing detached at all still reports zero, because the
+    // window was already closed when this update began.
+    if (this.frameWindowClosed) this.stats.chunksDestroyedThisFrame = 0;
+    this.frameWindowClosed = true;
   }
 
   /** Bound once; passing `this.drainCollapse` allocates no closure per frame. */
@@ -419,7 +441,6 @@ export class DestructionSystem {
   /* ------------------------------------------------------------------ */
 
   private onShockwaveFired(event: GameEventOf<'ShockwaveFired'>): void {
-    this.rememberImpact(event.origin, event.power);
     this.applyShockwave(
       event.origin,
       event.direction,
@@ -448,6 +469,13 @@ export class DestructionSystem {
     if (this.disposed) return 0;
     if ((INTENT_RANK[intent] ?? 0) < this.minimumIntentRank) return 0;
     if (range <= 0) return 0;
+
+    // Recorded HERE, past the gates, and not in the bus handler: all three
+    // entry points then agree on what counts as an impact. A pulled punch does
+    // not leave one (`constants.ts` — restraint leaves the city alone, and it
+    // should not launch bodies either), and a set-piece that calls this
+    // directly gets the same ragdolls the bus path would have thrown.
+    this.rememberImpact(origin, power);
 
     normaliseInto(this.axis, direction.x, direction.y, direction.z);
     const ax = this.axis[0]!;
@@ -540,6 +568,14 @@ export class DestructionSystem {
     this.blastOriginZ = origin.z;
     this.blastRange = radius;
     this.blastScale = (INTENT_BLAST_SCALE[intent] ?? 1) * (0.55 + 0.45 * magnitude);
+    // A crater has NO axis, and the detach velocity is written by the same
+    // `'blast'` branch a cone punch uses. Leaving the previous punch's axis in
+    // place sends 70% of every rim piece off in that direction — a crater that
+    // was punched sideways rather than stamped — and it only shows up after the
+    // session's first cone, since the initial axis is already zero.
+    this.axis[0] = 0;
+    this.axis[1] = 0;
+    this.axis[2] = 0;
 
     let detached = 0;
     for (let s = 0; s < this.ordered.length; s++) {
@@ -611,8 +647,9 @@ export class DestructionSystem {
    *
    * The whole pipeline in order: mark the geometry (one `fill`), record the
    * persistent bit, hand mass/centroid/AABB to the debris pool if the budget
-   * allows, and emit `ChunkDetached`. Idempotent — a chunk already gone
-   * returns false and does nothing.
+   * allows, and emit `ChunkDetached` — unless `cause` is `'external'`, which
+   * says the event that caused this detach is already on the bus. Idempotent —
+   * a chunk already gone returns false and does nothing.
    */
   detachChunk(structure: RegisteredStructure, chunkIndex: number, cause: DetachCause): boolean {
     const chunk = structure.layout.chunks[chunkIndex];
@@ -629,6 +666,11 @@ export class DestructionSystem {
     }
 
     this.stats.chunksDestroyed++;
+    // First detach since the last `update()` opens a new frame window.
+    if (this.frameWindowClosed) {
+      this.stats.chunksDestroyedThisFrame = 0;
+      this.frameWindowClosed = false;
+    }
     this.stats.chunksDestroyedThisFrame++;
     this.stats.destroyedMassKg += chunk.mass;
 
@@ -648,7 +690,14 @@ export class DestructionSystem {
 
     const collateral = chunk.mass * structure.collateralPerKg;
     this.stats.collateralTotal += collateral;
-    this.emitDetached(structure, chunkIndex, wx, wy, wz, chunk.mass, ix, iy, iz, collateral);
+    // `external` means the event for this piece is ALREADY on the bus — that is
+    // where the detach came from. Echoing it would bill every other subscriber
+    // twice for one slab (double collateral, two dust bursts, two impacts, a
+    // replay that diverges from its own recording), and `ChunkDetached` is
+    // contractually emitted once per piece.
+    if (cause !== 'external') {
+      this.emitDetached(structure, chunkIndex, wx, wy, wz, chunk.mass, ix, iy, iz, collateral);
+    }
     return true;
   }
 
@@ -847,16 +896,72 @@ export class DestructionSystem {
 
     const floors = this.collapsingFloorsFn(structure.layout, structure.isChunkDestroyed);
     if (floors.length === 0) return;
+
+    // `floors` is the whole failing set, not the increment: a cascade extended
+    // downward (floor 5 went first, a later punch takes floor 2) returns
+    // [2..11] again, and adding its length would report 17 collapsed storeys
+    // for a 12-storey building. Count what this call actually starts.
+    let newFloors = 0;
+    for (let i = 0; i < floors.length; i++) {
+      const floorIndex = floors[i]!;
+      if (
+        structure.collapsed[floorIndex] !== 1 &&
+        structure.layout.floors[floorIndex] !== undefined
+      ) {
+        newFloors++;
+      }
+    }
+    let cascadeInProgress = false;
+    for (let f = 0; f < structure.floorCount; f++) {
+      if (structure.collapsed[f] === 1) {
+        cascadeInProgress = true;
+        break;
+      }
+    }
+
     // `frameIndex + 1`: a shockwave is handled BETWEEN updates, so the first
     // wave belongs to the next frame. Enqueueing against the current index
     // would make waves 0 and 1 come due on the same `update`, and a collapse
     // that arrives in two beats instead of three is visibly closer to a pop.
     const queued = this.scheduler.enqueue(structure, floors, this.frameIndex + 1);
     if (queued > 0) {
-      this.stats.collapsesTriggered++;
-      this.stats.floorsCollapsed += floors.length;
+      // `collapsesTriggered` counts cascades STARTED, so a building that folds
+      // further later is one collapse, not two.
+      if (!cascadeInProgress) this.stats.collapsesTriggered++;
+      this.stats.floorsCollapsed += newFloors;
       this.stats.pendingCollapseChunks = this.scheduler.pending;
     }
+  }
+
+  /**
+   * Finish a collapse the coarse bitmask restore implies but never ran.
+   *
+   * `restoreFromBitmask` is an OVER-approximation — band granularity, so one
+   * scraped quadrant on three storeys of the same band can come back as three
+   * quadrants gone on all three. That can leave a floor below
+   * `collapseSupportRatio`, a state the live model would never have left
+   * standing: the tower balances on a 75%-missing storey until the next chunk
+   * anywhere on it detaches, and then twelve storeys arrive at once with no
+   * visible cause.
+   *
+   * So the cascade is applied here, silently: no debris, no events, no
+   * scheduler wave. Like the rest of the restore, this is re-establishing a
+   * state, not new damage happening.
+   */
+  private settleRestoredCollapse(structure: RegisteredStructure): number {
+    const floors = this.collapsingFloorsFn(structure.layout, structure.isChunkDestroyed);
+    let settled = 0;
+    for (let i = 0; i < floors.length; i++) {
+      const floorIndex = floors[i]!;
+      const floor = structure.layout.floors[floorIndex];
+      if (floor === undefined) continue;
+      structure.collapsed[floorIndex] = 1;
+      const members = floor.chunks;
+      for (let c = 0; c < members.length; c++) {
+        if (structure.markDestroyed(members[c]!)) settled++;
+      }
+    }
+    return settled;
   }
 
   /* ------------------------------------------------------------------ */
@@ -1006,13 +1111,23 @@ export class DestructionSystem {
     return restored;
   }
 
-  /** Snapshot of the exact ledger, for save files and tests. */
+  /**
+   * Snapshot of the exact destroyed set, for save files and tests.
+   *
+   * A COPY, and read-only in both directions. Handing out the ledger's own
+   * array lets a caller that reuses it as scratch rewrite the record, and
+   * writing THROUGH this accessor made a save routine that walks every
+   * resident structure evict — at the 8192-entry ceiling, one per call — the
+   * very damage records it was walking the city to write down.
+   */
   ledgerFor(structureId: string): Uint8Array | undefined {
     const live = this.byId.get(structureId);
     if (live !== undefined && live.destroyedCount > 0) {
-      this.saveToLedger(live);
+      const snapshot = new Uint8Array(live.chunkCount);
+      live.snapshotInto(snapshot);
+      return snapshot;
     }
-    return this.ledger.get(structureId);
+    return this.ledger.get(structureId)?.slice();
   }
 
   get ledgerSize(): number {
@@ -1036,13 +1151,22 @@ export class DestructionSystem {
 
   /** Drop every structure and queued collapse. Damage records are kept. */
   clear(): void {
+    // Record the pending ranges FIRST: the flush list holds strong references
+    // to the structures (and through them the baked layout and the block mesh),
+    // and after `dispose()` no `update()` will ever come along to null them.
+    this.flushUploads();
     for (const structure of this.ordered) {
       if (structure.destroyedCount > 0) this.saveToLedger(structure);
     }
     this.scheduler.clear();
     this.byId.clear();
     this.ordered.length = 0;
-    this.shapes.releaseAll();
+    // NOT `shapes.releaseAll()`. `clear()` is a mission restart or a fast
+    // travel, not a shutdown, and the debris pieces borrowing those boxes are
+    // still mid-flight: handing the slots back would let the next detach resize
+    // a box under a piece that is still on screen — the exact hazard
+    // `debris-shapes.ts` refuses a ring buffer over. `reclaim()` retires them
+    // as the pieces fade; `dispose()` tears the pool down outright.
     this.stats.structures = 0;
     this.stats.damagedStructures = 0;
   }

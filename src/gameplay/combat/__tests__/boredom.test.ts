@@ -248,6 +248,52 @@ describe('idle rise and baseline decay', () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* Two meters, one number                                                     */
+/* -------------------------------------------------------------------------- */
+
+describe('the meter and the bus agree on one value', () => {
+  it('adopts a boredom value another system published', () => {
+    // Combat is the authority on boredom RISING, but it is not the only
+    // writer: progression publishes its own heroism ledger and a restored
+    // save through `BoredomChanged`. A meter that never listens overwrites
+    // that value with its own stale number on the very next kill.
+    const h = meter(TUNING.boredomBaseline);
+    h.bus.emit('BoredomChanged', { value: 0.18, previous: 0.55, reason: 'civilianSaved' });
+    expect(h.meter.value).toBeCloseTo(0.18, 9);
+
+    kill(h.bus, 'wolf');
+    const events = h.bus.ofType('BoredomChanged');
+    const last = events[events.length - 1]!;
+    expect(last.reason).toBe('trivialVictory');
+    // Reported FROM the adopted value, not from the meter's own stale 0.55.
+    expect(last.previous).toBeCloseTo(0.18, 9);
+    expect(h.meter.value).toBeCloseTo(0.18 + TUNING.boredomPerTrivialKill, 9);
+  });
+
+  it('ignores the echo of its own emission', () => {
+    // The meter subscribes to the event it emits, so the guard is what stops
+    // one kill being applied twice — or looping forever.
+    const h = meter(0.4);
+    kill(h.bus, 'wolf');
+    expect(h.meter.value).toBeCloseTo(0.4 + TUNING.boredomPerTrivialKill, 9);
+    expect(h.bus.ofType('BoredomChanged')).toHaveLength(1);
+  });
+
+  it('drifts a forced value below the baseline back up again', () => {
+    // `set` is the save-loading door. Relief must still fade, or a restored
+    // contentment buys permanent relief — the one thing the meter exists to
+    // prevent.
+    const h = meter(TUNING.boredomBaseline);
+    h.meter.set(0.2, 'civilianSaved');
+    expect(h.meter.value).toBeCloseTo(0.2, 9);
+
+    for (let i = 0; i < 60 * 600; i++) h.meter.update(1 / 60, true);
+    expect(h.meter.value).toBeCloseTo(TUNING.boredomBaseline, 5);
+    expect(h.bus.ofType('BoredomChanged').some((e) => e.reason === 'decay')).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Through the whole system                                                   */
 /* -------------------------------------------------------------------------- */
 

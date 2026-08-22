@@ -45,6 +45,12 @@ import { averageIrradiance, projectEquirectToSH9 } from './sh9';
 
 const log = createLogger('engine.ibl');
 
+/**
+ * Equirect width the SH-9 projection runs at. Diffuse irradiance is a band-2
+ * signal; anything finer is integrated away, and the cost is linear in texels.
+ */
+const SH_PROJECTION_WIDTH = 256;
+
 /** Which IBL path is in use. Mirrors `RenderTierProfile.ibl`. */
 export type IBLMode = 'pmrem' | 'sh9';
 
@@ -130,6 +136,28 @@ export class EnvironmentLighting implements IDisposable {
    * Without it, metals sample a nonexistent environment and render black.
    */
   private readonly fallbackAmbient: THREE.HemisphereLight;
+  /** Canvas the context-restore listener is attached to, when there is one. */
+  private readonly contextTarget: EventTarget | undefined;
+
+  /**
+   * Rebuild the environment after a WebGL context restore.
+   *
+   * The pre-filtered radiance map is a pure GPU product. three's own restore
+   * path throws `WebGLProperties`/`WebGLTextures` away and re-uploads anything
+   * that still has CPU-side data — but a render-target texture has none, so it
+   * comes back freshly allocated and uninitialised. Without this, an Android
+   * task switch leaves `scene.environment` pointing at an EMPTY cube-UV map:
+   * ambient and environment lighting vanish and every metal renders black, and
+   * on the `sh9` path the generator was already disposed so nothing would ever
+   * rebuild it. `sourceTexture` is retained precisely so this can.
+   */
+  private readonly onContextRestored = (): void => {
+    if (this.disposed) return;
+    const source = this.sourceTexture;
+    if (!source) return;
+    log.warn('WebGL context restored; rebuilding the environment map');
+    this.setEnvironment(source);
+  };
 
   constructor(
     renderer: THREE.WebGLRenderer,
@@ -149,8 +177,22 @@ export class EnvironmentLighting implements IDisposable {
     this.fallbackAmbient = new THREE.HemisphereLight(0x9dbdf0, 0x3a3128, 0);
     this.fallbackAmbient.name = 'ibl.fallbackAmbient';
     this.scene.add(this.fallbackAmbient);
+
+    // three registers its own `webglcontextrestored` listener on this canvas in
+    // the WebGLRenderer constructor, so it re-initialises the GL context before
+    // this one runs and the rebuild lands on a live context.
+    const target: EventTarget | undefined = renderer.domElement;
+    if (target && typeof target.addEventListener === 'function') {
+      this.contextTarget = target;
+      target.addEventListener('webglcontextrestored', this.onContextRestored, false);
+    }
   }
 
+  /**
+   * The IBL path currently IN EFFECT. A requested `sh9` reads back as `pmrem`
+   * after a fallback, so this and `getStats().mode` never claim a path the
+   * device is not actually paying for.
+   */
   get mode(): IBLMode {
     return this.modeValue;
   }
@@ -273,6 +315,12 @@ export class EnvironmentLighting implements IDisposable {
   /* ---------------------------------------------------------------------- */
 
   private buildPmrem(texture: THREE.Texture): void {
+    // `modeValue` is the path IN EFFECT, not the one that was requested: the SH
+    // path falls through to here whenever the source's pixels are unreadable
+    // (compressed KTX2, DOM image), and leaving it reading 'sh9' means
+    // `getStats()` reports a few hundred KB while the device is actually
+    // carrying the multi-MB radiance map the tier was chosen to avoid.
+    this.modeValue = 'pmrem';
     this.setSpecularOnly(false);
     this.pmrem ??= new THREE.PMREMGenerator(this.renderer);
     // Compiling the equirect shader up front keeps the compile out of the
@@ -297,7 +345,17 @@ export class EnvironmentLighting implements IDisposable {
   }
 
   private buildSphericalHarmonics(texture: THREE.Texture): void {
-    const sh = projectEquirectToSH9(texture);
+    // Project a SMALL copy, never the source. `projectEquirectToSH9` walks every
+    // texel of whatever it is handed, and a real 4096x2048 HDRI is 8.4M
+    // iterations of normalize + getBasisAt + 27 multiply-adds — seconds of a
+    // frozen main thread on the very device this "cheap" path exists to protect.
+    // SH-9 is a band-2 signal, so a box-filtered 256x128 copy (~32k samples, the
+    // size sh9.ts documents) is indistinguishable from the full projection.
+    // Returns null when the source is already small enough or unreadable, and
+    // the unreadable case still lands on the PMREM fallback below.
+    const small = downsampleEquirect(texture, SH_PROJECTION_WIDTH);
+    const sh = projectEquirectToSH9(small ?? texture);
+    small?.dispose();
     if (!sh) {
       // Unreadable source (compressed / DOM image). PMREM is the only way to
       // get ANY environment lighting out of it, so take the cost rather than
@@ -426,6 +484,7 @@ export class EnvironmentLighting implements IDisposable {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.contextTarget?.removeEventListener('webglcontextrestored', this.onContextRestored);
     this.releaseDerived();
     // PMREMGenerator holds several internal materials — leaving it alive keeps
     // its shader programs resident, which the program budget notices.

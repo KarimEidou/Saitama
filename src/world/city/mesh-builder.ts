@@ -191,14 +191,19 @@ export class MeshBuilder {
       list.length - this.chunkSlotStart[i],
     ]);
     const area = this.chunkAreaSum;
+    // An empty chunk leaves the bounds sentinels untouched, and
+    // `(Infinity + -Infinity) * 0.5` is NaN — which flows into the fracture
+    // record and out as a NaN rigid-body translation. Same guard as `bounds`.
     const centroid: [number, number, number] =
       area > 1e-9
         ? [this.chunkMoment[0] / area, this.chunkMoment[1] / area, this.chunkMoment[2] / area]
-        : [
-            (this.chunkBounds[0] + this.chunkBounds[3]) * 0.5,
-            (this.chunkBounds[1] + this.chunkBounds[4]) * 0.5,
-            (this.chunkBounds[2] + this.chunkBounds[5]) * 0.5,
-          ];
+        : vertexCount
+          ? [
+              (this.chunkBounds[0] + this.chunkBounds[3]) * 0.5,
+              (this.chunkBounds[1] + this.chunkBounds[4]) * 0.5,
+              (this.chunkBounds[2] + this.chunkBounds[5]) * 0.5,
+            ]
+          : [0, 0, 0];
     const bounds: AABB6 = vertexCount
       ? [
           this.chunkBounds[0],
@@ -303,6 +308,10 @@ export class MeshBuilder {
     const z1 = cz + hz;
     const su = (v: number) => v * uvScale;
 
+    // UVs are world-planar, so each corner takes the texel of ITS OWN world
+    // coordinate: the pair follows the winding, which on +X, +Y and -Z runs
+    // backwards. Handing them over in min..max order mirrors the map on those
+    // three faces, and two boxes sharing a plane then fail to line up.
     if (faces & 0b000001) {
       this.quad(
         slot,
@@ -310,7 +319,7 @@ export class MeshBuilder {
         [x1, y0, z0],
         [x1, y1, z0],
         [x1, y1, z1],
-        [su(z0), su(y0), su(z1), su(y1)],
+        [su(z1), su(y0), su(z0), su(y1)],
         color
       );
     }
@@ -321,7 +330,7 @@ export class MeshBuilder {
         [x1, y1, z1],
         [x1, y1, z0],
         [x0, y1, z0],
-        [su(x0), su(z0), su(x1), su(z1)],
+        [su(x0), su(z1), su(x1), su(z0)],
         color
       );
     }
@@ -365,7 +374,7 @@ export class MeshBuilder {
         [x0, y0, z0],
         [x0, y1, z0],
         [x1, y1, z0],
-        [su(x0), su(y0), su(x1), su(y1)],
+        [su(x1), su(y0), su(x0), su(y1)],
         color
       );
     }
@@ -607,6 +616,14 @@ export interface IMergeOffsets {
 export interface IMergedGeometry {
   readonly buffers: IGeometryBuffers;
   readonly offsets: readonly IMergeOffsets[];
+  /**
+   * Index offset of each material slot inside the MERGED buffer, indexed by
+   * slot. This is the base a fracture layout rebased into this geometry must
+   * record, and it is not the same quantity as an entry's `slotIndexOffset`:
+   * that is where one SOURCE's run starts, this is where the slot starts.
+   * Confusing the two is only invisible while every geometry holds one source.
+   */
+  readonly slotBase: readonly number[];
 }
 
 /** Rigid placement applied to a source while merging: yaw, then translate. */
@@ -713,5 +730,6 @@ export function mergeGeometries(
       indexCount: totalIndices,
     },
     offsets,
+    slotBase,
   };
 }

@@ -98,6 +98,7 @@ export {
   condition,
   cooldown,
   effect,
+  fallthrough,
   guard,
   invert,
   selector,

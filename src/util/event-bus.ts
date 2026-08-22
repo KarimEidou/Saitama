@@ -27,6 +27,18 @@ import type {
   IEventBus,
   Vec3,
 } from '@/types';
+import { createLogger } from './logger';
+
+const log = createLogger('event-bus');
+
+/**
+ * Minimum gap between two logged handler failures OF THE SAME TYPE.
+ *
+ * A handler that throws every frame would otherwise serialise a stack trace 60
+ * times a second into a mobile WebView console, which costs more frame time
+ * than the bug being reported — the exact failure guarantee #2 rules out.
+ */
+const HANDLER_ERROR_LOG_INTERVAL_MS = 1000;
 
 /** Keys whose values are copied defensively when present on a payload. */
 const VECTOR_KEYS = [
@@ -60,7 +72,7 @@ export interface IEventBusOptions {
    * (a system re-subscribing without unsubscribing on dispose).
    */
   readonly leakThreshold?: number;
-  /** Called for handler exceptions. Defaults to `console.error`. */
+  /** Called for handler exceptions. Defaults to a rate-limited logger line. */
   readonly onError?: (error: unknown, type: GameEventType) => void;
 }
 
@@ -80,7 +92,12 @@ export class EventBus implements IEventBus {
     this.onError =
       options.onError ??
       ((error, type) => {
-        console.error(`[EventBus] handler for "${type}" threw:`, error);
+        log.throttle(
+          `handler-threw:${type}`,
+          HANDLER_ERROR_LOG_INTERVAL_MS,
+          `handler for "${type}" threw:`,
+          error
+        );
       });
   }
 
@@ -98,7 +115,12 @@ export class EventBus implements IEventBus {
       list = [];
       this.handlers.set(type, list);
     }
-    list.push({ handler, once });
+    // Hold the RECORD, not just the function. The same function may be
+    // registered more than once for a type — including once with `once: true`
+    // and once without — so removal has to target this exact registration or
+    // it silently deletes somebody else's subscription.
+    const registration: Registration = { handler, once };
+    list.push(registration);
 
     if (list.length > this.leakThreshold && !this.warned.has(type)) {
       this.warned.add(type);
@@ -112,18 +134,31 @@ export class EventBus implements IEventBus {
     return () => {
       if (removed) return;
       removed = true;
-      this.removeRegistration(type, handler);
+      this.removeRecord(type, registration);
     };
   }
 
+  /**
+   * Remove by FUNCTION identity.
+   *
+   * When the same function is registered more than once for a type this
+   * removes the oldest matching registration only, and cannot tell an `on`
+   * record from a `once` one. Prefer the unsubscribe function returned by
+   * `on`/`once`: it always removes exactly the registration it created.
+   */
   off<T extends GameEventType>(type: T, handler: EventHandler<T>): void {
-    this.removeRegistration(type, handler as (event: GameEvent) => void);
-  }
-
-  private removeRegistration(type: GameEventType, handler: (event: GameEvent) => void): void {
     const list = this.handlers.get(type);
     if (!list) return;
-    const index = list.findIndex((r) => r.handler === handler);
+    const index = list.findIndex((r) => r.handler === (handler as (event: GameEvent) => void));
+    if (index !== -1) list.splice(index, 1);
+    if (list.length === 0) this.handlers.delete(type);
+  }
+
+  /** Remove one exact registration record, leaving every other one alone. */
+  private removeRecord(type: GameEventType, registration: Registration): void {
+    const list = this.handlers.get(type);
+    if (!list) return;
+    const index = list.indexOf(registration);
     if (index !== -1) list.splice(index, 1);
     if (list.length === 0) this.handlers.delete(type);
   }
@@ -157,7 +192,7 @@ export class EventBus implements IEventBus {
       // Snapshot: handlers may subscribe/unsubscribe during dispatch.
       const snapshot = list.slice();
       for (const reg of snapshot) {
-        if (reg.once) this.removeRegistration(type, reg.handler);
+        if (reg.once) this.removeRecord(type, reg);
         try {
           reg.handler(finalEvent as GameEvent);
         } catch (error) {

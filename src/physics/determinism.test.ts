@@ -20,6 +20,7 @@ import {
   DebrisPool,
   FIXED_STEP,
   ImpulsePropagator,
+  type PhysicsBody,
   PhysicsWorld,
   RagdollManager,
   createReferenceRig,
@@ -36,6 +37,40 @@ import {
 beforeAll(async () => {
   await initPhysics();
 });
+
+const motionPosition = new THREE.Vector3();
+const motionRotation = new THREE.Quaternion();
+const motionVelocity = new THREE.Vector3();
+
+/**
+ * Transforms AND velocities. `snapshotPositions` alone would miss the thing a
+ * stray solver pass actually changes: a zero-length step moves nothing and
+ * re-solves everything.
+ */
+function snapshotMotion(bodies: readonly PhysicsBody[]): Float64Array {
+  const out = new Float64Array(bodies.length * 13);
+  for (let i = 0; i < bodies.length; i++) {
+    const body = bodies[i]!;
+    body.getTransform(motionPosition, motionRotation);
+    const base = i * 13;
+    out[base] = motionPosition.x;
+    out[base + 1] = motionPosition.y;
+    out[base + 2] = motionPosition.z;
+    out[base + 3] = motionRotation.x;
+    out[base + 4] = motionRotation.y;
+    out[base + 5] = motionRotation.z;
+    out[base + 6] = motionRotation.w;
+    body.getLinearVelocity(motionVelocity);
+    out[base + 7] = motionVelocity.x;
+    out[base + 8] = motionVelocity.y;
+    out[base + 9] = motionVelocity.z;
+    body.getAngularVelocity(motionVelocity);
+    out[base + 10] = motionVelocity.x;
+    out[base + 11] = motionVelocity.y;
+    out[base + 12] = motionVelocity.z;
+  }
+  return out;
+}
 
 /** Drop `count` debris pieces from `seed`, settle, and snapshot every body. */
 function runDebrisScenario(seed: string, count: number, steps: number): Float64Array {
@@ -179,8 +214,7 @@ describe('determinism', () => {
     expect(maxAbsDifference(a, b)).toBe(0);
   });
 
-  it('is unaffected by a query issued mid-simulation', () => {
-    // A query forces a BVH refresh; it must not perturb the simulation.
+  it('takes a mid-simulation query refresh without moving anything', () => {
     const plain = runDebrisScenario('query-seed', 40, 120);
 
     const world = new PhysicsWorld({ contactEvents: false });
@@ -199,17 +233,38 @@ describe('determinism', () => {
       impulse: 40,
     });
     for (const spec of specs) pool.spawn(spec.chunk, spec.matrix, spec.impulse);
+
+    const bodies = pool.pieces.map((piece) => world.getBody(piece.bodyHandle)!);
     for (let i = 0; i < 120; i++) {
       world.step(FIXED_STEP, 1);
       pool.update(FIXED_STEP);
-      if (i % 17 === 0) world.overlapSphere(new THREE.Vector3(0, 1, 0), 6, ['debris']);
+      if (i % 17 !== 0) continue;
+      // `stepOnce` clears the dirty flag and nothing in this loop spawns or
+      // recycles a piece, so without marking it the query takes no refresh at
+      // all and the assertions below guard nothing.
+      world.markQueriesDirty();
+      const before = snapshotMotion(bodies);
+      world.overlapSphere(new THREE.Vector3(0, 1, 0), 6, ['debris']);
+      // EXACT, on every refresh: the refresh runs a real `World.step()`, and
+      // unless the solver is switched off for it, that step re-solves every
+      // contact in the pile and writes the result back as velocity.
+      expect(maxAbsDifference(before, snapshotMotion(bodies))).toBe(0);
     }
-    const queried = snapshotPositions(pool.pieces.map((p) => world.getBody(p.bodyHandle)!));
+    expect(world.queryRefreshCount).toBe(8);
+
+    const queried = snapshotPositions(bodies);
     for (const spec of specs) spec.geometry.dispose();
     pool.dispose();
     world.dispose();
 
-    expect(maxAbsDifference(plain, queried)).toBe(0);
+    // End to end, a differing query schedule is NOT bit-exact and cannot be:
+    // Rapier 0.20 exposes no BVH-only rebuild, so the refresh has to take a
+    // step, and a step rewrites solver bookkeeping (warm-start impulses above
+    // all) that the JS API cannot save and restore. What the guard above buys
+    // is a settled pile that drifts by ~1 m over 120 chaotic steps instead of
+    // the ~4 m an unguarded refresh causes. Query schedules therefore belong in
+    // the deterministic script, not wherever gameplay happens to look.
+    expect(maxAbsDifference(plain, queried)).toBeLessThan(2);
   });
 
   it('keeps overlap ordering stable regardless of insertion order', () => {

@@ -226,7 +226,9 @@ function drawScope(state: InputState, pointerSamples: readonly PointerSample[]):
   ctx.fillStyle = '#0b0f17';
   ctx.fillRect(0, 0, w, h);
 
-  // Full-deflection ring and dead-zone ring, to scale.
+  // Full-deflection ring and dead-zone ring, to scale, in RAW THUMB-TRAVEL
+  // space: the outer ring is `stickFullDeflectionPx` of travel from the
+  // floating origin and the dashed one is `stickDeadZonePx`.
   const deadFraction =
     DEFAULT_INPUT_TUNING.stickDeadZonePx / DEFAULT_INPUT_TUNING.stickFullDeflectionPx;
   ctx.strokeStyle = 'rgba(255,210,48,0.35)';
@@ -269,17 +271,33 @@ function drawScope(state: InputState, pointerSamples: readonly PointerSample[]):
     ctx.stroke();
   }
 
-  // Move vector (gold) — drawn last so it is always readable.
+  /* Move vector (gold) — drawn last so it is always readable.
+
+     `state.move` is already dead-zoned and RENORMALISED by `radialDeflection`:
+     magnitude 0 is the dead-zone EDGE and 1 is full deflection. The two rings
+     above are in raw travel, so plotting the normalised magnitude straight
+     onto them draws a stick at 40% of its usable range INSIDE the dashed
+     dead-zone ring — a reader concludes the stick is producing no motion while
+     it is driving the character at 40% speed. Map it back to travel first, so
+     the knob and the rings are in the same space. */
+  const travelScale =
+    state.move.magnitude > 0
+      ? ((deadFraction + state.move.magnitude * (1 - deadFraction)) / state.move.magnitude) *
+        SCOPE_R
+      : 0;
+  const moveX = cx + state.move.x * travelScale;
+  const moveY = cy - state.move.y * travelScale;
+
   ctx.strokeStyle = '#ffd230';
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + state.move.x * SCOPE_R, cy - state.move.y * SCOPE_R);
+  ctx.lineTo(moveX, moveY);
   ctx.stroke();
 
   ctx.fillStyle = '#ffd230';
   ctx.beginPath();
-  ctx.arc(cx + state.move.x * SCOPE_R, cy - state.move.y * SCOPE_R, 6, 0, Math.PI * 2);
+  ctx.arc(moveX, moveY, 6, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -288,8 +306,13 @@ function drawScope(state: InputState, pointerSamples: readonly PointerSample[]):
 /* -------------------------------------------------------------------------- */
 
 let frameIndex = 0;
-let lastPointerSignature = '';
-let lastGestureSignature = ' ';
+/* Sentinels for the two "has this changed since the last render?" checks.
+   `null`, not a string: the EMPTY string is a real signature (no pointers
+   down, no gestures logged), so seeding with `''` skipped the first render
+   entirely and left the "no active pointers" placeholder and the pointer
+   count unwritten until something had been touched and released. */
+let lastPointerSignature: string | null = null;
+let lastGestureSignature: string | null = null;
 const frameWaiters: { target: number; resolve: (frame: number) => void }[] = [];
 
 function fmt(value: number, digits = 3): string {

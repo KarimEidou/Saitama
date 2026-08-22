@@ -32,6 +32,7 @@ import * as THREE from 'three';
 import type {
   Collider,
   KinematicCharacterController as RapierCharacterController,
+  QueryFilterFlags,
   RigidBody as RapierRigidBody,
 } from '@dimforge/rapier3d-compat';
 import type { EntityId, ICharacterController, LethalIntent, PhysicsLayer } from '@/types';
@@ -39,7 +40,7 @@ import { clamp, createRng, type IRandom } from '@/util';
 import { PhysicsBody } from './body';
 import { actorCapsuleDesc } from './colliders';
 import { applyRadialImpulse } from './impulse';
-import { groupsFor } from './layers';
+import { DEFAULT_COLLISION_MATRIX, groupsFor } from './layers';
 import type { PhysicsWorld } from './world';
 import {
   CHARACTER_SKIN,
@@ -102,9 +103,6 @@ export class CharacterController implements ICharacterController {
   readonly groundNormal = new THREE.Vector3(0, 1, 0);
   readonly velocity = new THREE.Vector3();
 
-  maxSlopeAngle = MAX_SLOPE_ANGLE;
-  stepHeight = STEP_HEIGHT;
-
   /** Horizontal ground speed used by `moveInDirection`. */
   runSpeed = RUN_SPEED;
   /** Horizontal speed while dashing. */
@@ -122,6 +120,20 @@ export class CharacterController implements ICharacterController {
   private readonly emitLandings: boolean;
   private readonly groundSlamShock: boolean;
   private readonly slamRng: IRandom;
+  /**
+   * Interaction groups the movement sweep filters with.
+   *
+   * The body is `kinematicPositionBased` and is moved to the ALREADY RESOLVED
+   * position, so the collider's own groups never get a second chance to matter:
+   * the sweep is the only thing that decides where the character ends up. Left
+   * out, the sweep runs with no group test at all and the declared filter is
+   * silently discarded.
+   */
+  private readonly sweepGroups: number;
+  /** Query flags for the sweep; sensors report overlaps, they are not walls. */
+  private readonly sweepFlags: QueryFilterFlags;
+  private slopeAngle = MAX_SLOPE_ANGLE;
+  private autostepHeight = STEP_HEIGHT;
   /** Bodies moved by the most recent ground slam. Diagnostics only. */
   private lastSlamAffected = 0;
 
@@ -141,7 +153,11 @@ export class CharacterController implements ICharacterController {
     const height = options.height ?? PLAYER_HEIGHT;
     const radius = options.radius ?? PLAYER_RADIUS;
     const layer = options.layer ?? 'player';
-    const collidesWith = options.collidesWith ?? ['world', 'monster', 'npc', 'debris', 'trigger'];
+    // Defaulted from the collision matrix rather than a hand-written list:
+    // Rapier's pair test is symmetric, so a bespoke default that dropped
+    // 'ragdoll' and 'projectile' meant corpses and thrown objects passed
+    // straight through the player even though the matrix says they collide.
+    const collidesWith = options.collidesWith ?? DEFAULT_COLLISION_MATRIX[layer];
     this.intent = options.intent ?? 'normal';
     this.emitLandings = options.emitLandingEvents ?? true;
     this.groundSlamShock = options.groundSlamShock ?? true;
@@ -155,7 +171,9 @@ export class CharacterController implements ICharacterController {
       )
     );
     const colliderDesc = actorCapsuleDesc(R, height, radius);
-    colliderDesc.setCollisionGroups(groupsFor(layer, collidesWith));
+    this.sweepGroups = groupsFor(layer, collidesWith);
+    this.sweepFlags = R.QueryFilterFlags.EXCLUDE_SENSORS;
+    colliderDesc.setCollisionGroups(this.sweepGroups);
     colliderDesc.setFriction(0);
     this.collider = world.raw.createCollider(colliderDesc, this.raw);
 
@@ -173,9 +191,8 @@ export class CharacterController implements ICharacterController {
 
     this.controller = world.raw.createCharacterController(CHARACTER_SKIN);
     this.controller.setUp({ x: 0, y: 1, z: 0 });
-    this.controller.setMaxSlopeClimbAngle(this.maxSlopeAngle);
-    this.controller.setMinSlopeSlideAngle(MIN_SLOPE_SLIDE_ANGLE);
-    this.controller.enableAutostep(this.stepHeight, STEP_MIN_WIDTH, true);
+    this.applySlopeAngles();
+    this.controller.enableAutostep(this.autostepHeight, STEP_MIN_WIDTH, true);
     this.controller.enableSnapToGround(GROUND_SNAP_DISTANCE);
     this.controller.setSlideEnabled(true);
     // Let the capsule shove debris out of the way instead of standing on it.
@@ -192,6 +209,32 @@ export class CharacterController implements ICharacterController {
 
   get isGrounded(): boolean {
     return this.grounded;
+  }
+
+  /**
+   * Steepest walkable slope, in radians.
+   *
+   * An accessor rather than a field: Rapier's controller keeps whatever it was
+   * configured with, so a plain field would read back changed while the
+   * character carried on behaving exactly as before.
+   */
+  get maxSlopeAngle(): number {
+    return this.slopeAngle;
+  }
+
+  set maxSlopeAngle(radians: number) {
+    this.slopeAngle = radians;
+    this.applySlopeAngles();
+  }
+
+  /** Maximum step height climbed without jumping, in metres. */
+  get stepHeight(): number {
+    return this.autostepHeight;
+  }
+
+  set stepHeight(metres: number) {
+    this.autostepHeight = metres;
+    this.controller.enableAutostep(metres, STEP_MIN_WIDTH, true);
   }
 
   /** Seconds airborne; 0 while grounded. */
@@ -259,7 +302,12 @@ export class CharacterController implements ICharacterController {
 
     tmpMove.set(displacement.x, this.velocity.y * dt + displacement.y, displacement.z);
 
-    this.controller.computeColliderMovement(this.collider, tmpMove);
+    this.controller.computeColliderMovement(
+      this.collider,
+      tmpMove,
+      this.sweepFlags,
+      this.sweepGroups
+    );
     const applied = this.controller.computedMovement();
     this.grounded = this.controller.computedGrounded();
 
@@ -329,6 +377,21 @@ export class CharacterController implements ICharacterController {
   /* ------------------------------------------------------------------ */
   /* Internals                                                          */
   /* ------------------------------------------------------------------ */
+
+  /**
+   * Push both slope angles into the controller.
+   *
+   * The slide angle is not independent: it has to stay above the climb angle or
+   * the character slides back down slopes it is allowed to walk up. The
+   * authored margin between the two constants is preserved as the climb angle
+   * moves.
+   */
+  private applySlopeAngles(): void {
+    this.controller.setMaxSlopeClimbAngle(this.slopeAngle);
+    this.controller.setMinSlopeSlideAngle(
+      this.slopeAngle + (MIN_SLOPE_SLIDE_ANGLE - MAX_SLOPE_ANGLE)
+    );
+  }
 
   private integrateGravity(dt: number): void {
     if (this.grounded && this.velocity.y <= 0) {

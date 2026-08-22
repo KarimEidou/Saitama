@@ -121,16 +121,29 @@ export interface IFractureLayout {
   readonly slotBase: readonly number[];
 }
 
-/** Rebase a layout onto a merged geometry. Pure; the input is not mutated. */
+/**
+ * Rebase a layout onto a merged geometry. Pure; the input is not mutated.
+ *
+ * `sourceRunBase[slot]` is where THIS source's slot run starts in the merged
+ * index buffer — `IMergeOffsets.slotIndexOffset`. `targetSlotBase[slot]` is
+ * where the SLOT starts in that same buffer — `IMergedGeometry.slotBase` — and
+ * is what the result records, because that is what `slotBase` means (see
+ * `IFractureLayout.slotBase`) and what a SECOND rebase has to subtract. They
+ * coincide only when the merge had a single source, which is why passing the
+ * run base for both looks correct right up until a block is batched with
+ * another block: every building after the first then lands on the first
+ * building's triangles.
+ */
 export function rebaseLayout(
   layout: IFractureLayout,
   vertexOffset: number,
-  mergedSlotBase: readonly number[]
+  sourceRunBase: readonly number[],
+  targetSlotBase: readonly number[] = sourceRunBase
 ): IFractureLayout {
   const chunks = layout.chunks.map((chunk) => {
     const parts = chunk.parts.map((p) => ({
       slot: p.slot,
-      start: p.start - layout.slotBase[p.slot] + mergedSlotBase[p.slot],
+      start: p.start - layout.slotBase[p.slot] + sourceRunBase[p.slot],
       count: p.count,
     }));
     const facade = parts.find((p) => p.slot === 0) ?? parts[0];
@@ -142,7 +155,7 @@ export function rebaseLayout(
       vertexStart: chunk.vertexStart + vertexOffset,
     };
   });
-  return { ...layout, chunks, slotBase: mergedSlotBase };
+  return { ...layout, chunks, slotBase: targetSlotBase };
 }
 
 /** Quadrants per floor. Fixed at four — see the chunking rule above. */

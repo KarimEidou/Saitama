@@ -44,6 +44,26 @@ export interface IChunkHost {
   requestBuild(chunk: StreamedChunk): void;
 }
 
+/** One outstanding `load()` call. */
+interface IPendingLoad {
+  readonly resolve: () => void;
+  readonly reject: (error: Error) => void;
+  /** Drops the caller's `abort` listener. See the note in `load`. */
+  readonly detach: () => void;
+}
+
+/**
+ * Conservative ceiling for a chunk's AABB before anything is built.
+ *
+ * The tallest thing the generator emits is a downtown tower at roughly 94 m
+ * plus its parapet, so one chunk edge covers it with room to spare. A zero
+ * height would be worse than a wrong one: `bounds` is contracted as covering
+ * all content in the chunk and is read from the moment `createChunk` runs, so a
+ * flat plate at y = 0 tells a frustum pre-pass or a spawn query that a tower
+ * block occupies no vertical space at all.
+ */
+const PROVISIONAL_CEILING = CHUNK_SIZE;
+
 export class StreamedChunk implements IChunk {
   readonly coord: IChunkCoord;
   readonly key: ChunkKey;
@@ -92,13 +112,15 @@ export class StreamedChunk implements IChunk {
   generationTimeMs = 0;
   /** Milliseconds the main thread spent uploading the resident build. */
   uploadTimeMs = 0;
+  /** Consecutive failed builds. Reset by a build that lands. */
+  buildFailures = 0;
 
   private readonly host: IChunkHost;
   private mesh: THREE.Mesh | undefined;
   private geometry: THREE.BufferGeometry | undefined;
   private bytes = 0;
   private inScene = false;
-  private pendingResolvers: (() => void)[] = [];
+  private pending: IPendingLoad[] = [];
 
   constructor(index: number, host: IChunkHost) {
     this.index = index;
@@ -115,9 +137,10 @@ export class StreamedChunk implements IChunk {
     this.root.position.set(0, 0, 0);
     this.root.updateMatrix();
 
+    // Conservative-but-valid until `applyBuild` tightens it to the real AABB.
     this.bounds = {
       min: new THREE.Vector3(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE),
-      max: new THREE.Vector3((cx + 1) * CHUNK_SIZE, 0, (cz + 1) * CHUNK_SIZE),
+      max: new THREE.Vector3((cx + 1) * CHUNK_SIZE, PROVISIONAL_CEILING, (cz + 1) * CHUNK_SIZE),
     };
   }
 
@@ -141,29 +164,45 @@ export class StreamedChunk implements IChunk {
   /* ------------------------------------------------------------------ */
 
   /**
-   * Ask the owner to build this chunk and resolve once it is 'ready'.
+   * Ask the owner to build this chunk and resolve once its geometry is
+   * actually resident.
+   *
+   * Resident, not `state === 'ready'`: 'ready' also covers "a worker result has
+   * arrived and is queued for upload", and a caller that awaited `load()`
+   * expects a chunk it can use, not one whose buffers have not been wrapped
+   * yet. The two coincide for every chunk that has been through `applyBuild`.
    *
    * The abort signal drops the caller's interest only; the build itself is not
    * cancelled here, because another caller may still want it and a half-built
    * chunk is not a thing the pool can produce.
    */
   load(signal?: AbortSignal): Promise<void> {
-    if (this.state === 'ready' || this.state === 'active') return Promise.resolve();
+    if (this.builtRing >= 0) return Promise.resolve();
     return new Promise<void>((resolve, reject) => {
       if (signal?.aborted === true) {
         reject(new Error(`chunk ${this.key}: aborted before load`));
         return;
       }
-      this.pendingResolvers.push(resolve);
-      signal?.addEventListener(
-        'abort',
-        () => {
-          this.pendingResolvers = this.pendingResolvers.filter((r) => r !== resolve);
-          reject(new Error(`chunk ${this.key}: load aborted`));
-        },
-        { once: true }
-      );
-      if (this.state !== 'loading') {
+      // The listener has to come off on the NORMAL path too. `{ once: true }`
+      // only detaches once the event fires, so a caller holding one long-lived
+      // controller for a whole fast-travel sequence would otherwise accumulate
+      // a listener per chunk on it — each closure retaining the chunk, its
+      // `root`, its colliders and its crowd long after the chunk was unloaded.
+      const onAbort = (): void => {
+        this.pending = this.pending.filter((p) => p.reject !== reject);
+        reject(new Error(`chunk ${this.key}: load aborted`));
+      };
+      this.pending.push({
+        resolve,
+        reject,
+        detach: (): void => signal?.removeEventListener('abort', onAbort),
+      });
+      signal?.addEventListener('abort', onAbort, { once: true });
+
+      // Only kick a build from a state where nothing is already pending: a
+      // chunk in 'ready' has a result waiting for upload, and asking for a
+      // second build of it would burn a worker slot on geometry already in hand.
+      if (this.state === 'unloaded' || this.state === 'error') {
         this.state = 'loading';
         this.host.requestBuild(this);
       }
@@ -212,7 +251,10 @@ export class StreamedChunk implements IChunk {
     this.builtRing = -1;
     this.state = 'unloaded';
     this.bytes = 0;
-    this.settlePending();
+    // REJECT, not resolve. A chunk that was torn down before its build landed
+    // has no mesh, no colliders and no crowd, and resolving handed that back to
+    // the caller as a success with no way to tell anything had gone wrong.
+    this.failPending(new Error(`chunk ${this.key}: unloaded before the load completed`));
   }
 
   /* ------------------------------------------------------------------ */
@@ -276,6 +318,7 @@ export class StreamedChunk implements IChunk {
     this.jobRing = -1;
     this.pendingRebuild = false;
     this.error = undefined;
+    this.buildFailures = 0;
     this.state = this.inScene ? 'active' : 'ready';
 
     this.bounds.min.set(result.bounds[0], result.bounds[1], result.bounds[2]);
@@ -290,7 +333,9 @@ export class StreamedChunk implements IChunk {
     this.error = message;
     this.state = 'error';
     this.jobId = -1;
-    this.settlePending();
+    this.jobRing = -1;
+    this.buildFailures++;
+    this.failPending(new Error(`chunk ${this.key}: ${message}`));
   }
 
   /** True when destruction should be simulated at the built ring. */
@@ -316,10 +361,25 @@ export class StreamedChunk implements IChunk {
     this.bytes = 0;
   }
 
+  /** Resolve every outstanding `load()`. Only ever called from `applyBuild`. */
   private settlePending(): void {
-    if (this.pendingResolvers.length === 0) return;
-    const resolvers = this.pendingResolvers;
-    this.pendingResolvers = [];
-    for (const resolve of resolvers) resolve();
+    if (this.pending.length === 0) return;
+    const waiting = this.pending;
+    this.pending = [];
+    for (const entry of waiting) {
+      entry.detach();
+      entry.resolve();
+    }
+  }
+
+  /** Reject every outstanding `load()`: the build will not arrive. */
+  private failPending(error: Error): void {
+    if (this.pending.length === 0) return;
+    const waiting = this.pending;
+    this.pending = [];
+    for (const entry of waiting) {
+      entry.detach();
+      entry.reject(error);
+    }
   }
 }

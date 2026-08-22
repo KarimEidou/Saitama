@@ -98,6 +98,17 @@ export interface IRagdollSegmentSpec {
    * capsule alignment happened to produce.
    */
   readonly hinge?: boolean;
+  /**
+   * Hinge axis for a `hinge` segment, in the PARENT SEGMENT's local frame.
+   *
+   * The plane the two bones span cannot be the definition of the axis. It does
+   * not exist at all for a straight limb — an exact T-pose, or any death pose
+   * with an extended arm — and for a limb bent a degree the WRONG way its
+   * normal points the wrong way, which mirrors the authored range and folds the
+   * corpse backwards. This anatomical reference fixes the direction instead: a
+   * positive rotation about it is flexion. The bone plane then only refines it.
+   */
+  readonly hingeAxis?: readonly [number, number, number];
 }
 
 const D = Math.PI / 180;
@@ -163,8 +174,11 @@ export const RAGDOLL_SEGMENTS: readonly IRagdollSegmentSpec[] = [
   },
   {
     // Elbow: a hinge. Tight on two axes, one-directional on the third.
+    // Flexion swings the hand toward the character's front, which is -X of the
+    // upper arm's own frame on both sides.
     name: 'leftForeArm',
     hinge: true,
+    hingeAxis: [-1, 0, 0],
     bone: 'LeftForeArm',
     tipBone: 'LeftHand',
     parent: 'leftUpperArm',
@@ -192,6 +206,7 @@ export const RAGDOLL_SEGMENTS: readonly IRagdollSegmentSpec[] = [
   {
     name: 'rightForeArm',
     hinge: true,
+    hingeAxis: [-1, 0, 0],
     bone: 'RightForeArm',
     tipBone: 'RightHand',
     parent: 'rightUpperArm',
@@ -218,9 +233,11 @@ export const RAGDOLL_SEGMENTS: readonly IRagdollSegmentSpec[] = [
     ],
   },
   {
-    // Knee: hinge, bends one way only.
+    // Knee: hinge, bends one way only — the heel swings BACKWARDS, which is the
+    // opposite world direction to an elbow and therefore +X of the thigh frame.
     name: 'leftShin',
     hinge: true,
+    hingeAxis: [1, 0, 0],
     bone: 'LeftLeg',
     tipBone: 'LeftFoot',
     parent: 'leftThigh',
@@ -261,6 +278,7 @@ export const RAGDOLL_SEGMENTS: readonly IRagdollSegmentSpec[] = [
   {
     name: 'rightShin',
     hinge: true,
+    hingeAxis: [1, 0, 0],
     bone: 'RightLeg',
     tipBone: 'RightFoot',
     parent: 'rightThigh',
@@ -337,6 +355,7 @@ const tmpMat = new THREE.Matrix4();
 const tmpMatB = new THREE.Matrix4();
 const REF_Z = new THREE.Vector3(0, 0, 1);
 const REF_X = new THREE.Vector3(1, 0, 0);
+const DOWN = new THREE.Vector3(0, -1, 0);
 
 let nextRagdollId = 1;
 
@@ -366,6 +385,8 @@ export class Ragdoll implements IRagdoll {
   private fadeElapsed = 0;
   private blendElapsed = 0;
   private poseTracked = false;
+  /** `dt` of the `update()` that last recorded `previousWorldPosition`. */
+  private lastTrackDt = 0;
   private disposed = false;
 
   constructor(
@@ -425,7 +446,9 @@ export class Ragdoll implements IRagdoll {
     for (const segment of this.segments) {
       this.placeBodyOnBone(segment);
       segment.body.setEnabled(true);
-      segment.body.raw.setBodyType(this.world.rapier.RigidBodyType.Dynamic, true);
+      // Through the wrapper, so `PhysicsBody.type` stays truthful after a
+      // freeze/activate cycle.
+      segment.body.setType('dynamic', this.world.rapier.RigidBodyType.Dynamic, true);
 
       // Capture the animated pose we are blending away from.
       if (segment.bone !== undefined) {
@@ -434,13 +457,19 @@ export class Ragdoll implements IRagdoll {
       }
     }
 
-    if (this.seedVelocities && this.poseTracked) {
+    // `previousWorldPosition` was recorded one `update()` ago, so the bone
+    // delta has to be divided by THAT frame's dt. Dividing by a hardcoded 1/60
+    // seeds half the momentum on a 120 Hz phone and double it at 30 fps, which
+    // is both wrong and frame-rate dependent — `update()` is driven with the
+    // render delta, not `FIXED_STEP`.
+    if (this.seedVelocities && this.poseTracked && this.lastTrackDt > 0) {
+      const inverseDt = 1 / this.lastTrackDt;
       for (const segment of this.segments) {
         if (segment.bone === undefined) continue;
         segment.bone.getWorldPosition(tmpA);
         // Velocity over the last tracked frame; clamped so a teleporting
         // animation cannot launch the ragdoll into orbit.
-        tmpB.subVectors(tmpA, segment.previousWorldPosition).multiplyScalar(60);
+        tmpB.subVectors(tmpA, segment.previousWorldPosition).multiplyScalar(inverseDt);
         if (tmpB.lengthSq() > 900) tmpB.setLength(30);
         segment.body.setLinearVelocity(tmpB);
       }
@@ -487,7 +516,7 @@ export class Ragdoll implements IRagdoll {
       segment.body.setLinearVelocity(tmpA.set(0, 0, 0));
       segment.body.setAngularVelocity(tmpA.set(0, 0, 0));
       // Fixed rather than disabled: the pose stays queryable and rendered.
-      segment.body.raw.setBodyType(this.world.rapier.RigidBodyType.Fixed, false);
+      segment.body.setType('fixed', this.world.rapier.RigidBodyType.Fixed, false);
     }
   }
 
@@ -495,18 +524,25 @@ export class Ragdoll implements IRagdoll {
   update(dt: number): void {
     if (this.disposed) return;
 
+    // The fade runs ahead of the activity check on purpose: a ragdoll frozen
+    // while it was never active (adopted ahead of time, or handed back to the
+    // animator) would otherwise never reach `expired`, and the manager would
+    // hold its 13 bodies and 12 joints for the rest of the session.
+    if (this.frozenFlag) {
+      this.fadeElapsed += dt;
+      this.fadeAlpha = clamp01(1 - this.fadeElapsed / RAGDOLL_FADE_SECONDS);
+    }
+
     if (!this.activeFlag) {
-      if (this.seedVelocities) this.trackPose();
+      if (this.seedVelocities) {
+        this.trackPose();
+        this.lastTrackDt = dt;
+      }
       return;
     }
 
     this.age += dt;
     if (this.blendElapsed < this.blendSeconds) this.blendElapsed += dt;
-
-    if (this.frozenFlag) {
-      this.fadeElapsed += dt;
-      this.fadeAlpha = clamp01(1 - this.fadeElapsed / RAGDOLL_FADE_SECONDS);
-    }
 
     if (this.driveSkeleton) this.syncToSkeleton();
   }
@@ -647,6 +683,8 @@ export function createRagdoll(
   const byName = new Map<RagdollSegmentName, IRagdollSegment>();
   /** Bone direction per segment, so a hinge child can see its parent's. */
   const directions = new Map<RagdollSegmentName, THREE.Vector3>();
+  /** Segment tip per segment, so a child missing its start bone can anchor. */
+  const segmentEnds = new Map<RagdollSegmentName, THREE.Vector3>();
 
   for (const spec of RAGDOLL_SEGMENTS) {
     const bone = rig.getBone(spec.bone);
@@ -655,18 +693,36 @@ export function createRagdoll(
     // Segment geometry: start at the bone, end at the tip bone.
     const start = new THREE.Vector3();
     const end = new THREE.Vector3();
-    if (bone !== undefined) bone.getWorldPosition(start);
+    if (bone !== undefined) {
+      bone.getWorldPosition(start);
+    } else {
+      // A missing START bone must not leave the segment at the world origin:
+      // the capsule would span from (0,0,0) to the character, and its joint
+      // anchor there would drag the whole ragdoll across the map on the first
+      // step. Anchor it on the parent's tip instead, which is where the bone
+      // would have been.
+      const parentEnd = spec.parent === undefined ? undefined : segmentEnds.get(spec.parent);
+      if (parentEnd !== undefined) {
+        start.copy(parentEnd);
+      } else if (tip !== undefined) {
+        tip.getWorldPosition(start);
+        start.y += spec.lengthScale * height;
+      } else {
+        rig.root.getWorldPosition(start);
+      }
+    }
     if (tip !== undefined) {
       tip.getWorldPosition(end);
     } else {
-      end.copy(start).addScaledVector(new THREE.Vector3(0, -1, 0), spec.lengthScale * height);
+      end.copy(start).addScaledVector(DOWN, spec.lengthScale * height);
     }
 
     let length = start.distanceTo(end);
     if (length < 1e-4) {
       length = spec.lengthScale * height;
-      end.copy(start).addScaledVector(new THREE.Vector3(0, -1, 0), length);
+      end.copy(start).addScaledVector(DOWN, length);
     }
+    segmentEnds.set(spec.name, end.clone());
     const radius = Math.max(0.02, spec.radiusScale * height);
     const halfHeight = Math.max(0.01, length * 0.5 - radius);
 
@@ -678,10 +734,14 @@ export function createRagdoll(
     const parentDirection = spec.parent === undefined ? undefined : directions.get(spec.parent);
     const parentSegmentForBasis = spec.parent === undefined ? undefined : byName.get(spec.parent);
     const rotation = segmentOrientation(spec, direction, parentDirection, parentSegmentForBasis);
-    /** Bind-pose bend at a hinge, in radians. 0 when the limb starts straight. */
+    /**
+     * Bind-pose bend at a hinge, in radians, SIGNED about the hinge axis the
+     * rotation above encodes (its local +X). 0 when the limb starts straight,
+     * negative when it starts hyperextended.
+     */
     const bindBend =
       spec.hinge === true && parentDirection !== undefined
-        ? Math.acos(clampCos(parentDirection.dot(direction)))
+        ? signedBend(parentDirection, direction, REF_X.clone().applyQuaternion(rotation))
         : 0;
 
     const bodyDesc = R.RigidBodyDesc.dynamic()
@@ -703,7 +763,13 @@ export function createRagdoll(
       .setCollisionGroups(groupsFor('ragdoll', ['world', 'debris', 'player', 'monster']));
     const collider = world.raw.createCollider(colliderDesc, raw);
 
-    const body = new PhysicsBody(raw, collider, 'dynamic', 'ragdoll', options.entityId, () => {
+    // Only the ROOT carries the entity id. `world.byEntity` is single-valued, so
+    // tagging all 13 would leave the last one registered — the right foot —
+    // answering `getBodyByEntity`, and a bus-routed `ImpulseApplied` would yank
+    // the corpse by one ankle instead of shoving it bodily. It also makes the
+    // mapping survive: removing any one limb no longer orphans the entity.
+    const segmentEntityId = spec.parent === undefined ? options.entityId : undefined;
+    const body = new PhysicsBody(raw, collider, 'dynamic', 'ragdoll', segmentEntityId, () => {
       /* ragdolls never take continuous forces */
     });
     world.register(body);
@@ -769,10 +835,14 @@ export function createRagdoll(
  *
  * The remaining roll is NOT arbitrary. Two rules:
  *
- *  • HINGES (elbows, knees) put local +X on the hinge axis — the normal of the
- *    plane the parent and child bones span, oriented so a positive rotation is
- *    more flexion. That is what makes "AngX in [-5, 125] degrees" mean
- *    "bends one way, does not hyperextend" rather than something arbitrary.
+ *  • HINGES (elbows, knees) put local +X on the hinge axis, oriented so a
+ *    positive rotation is more flexion. That is what makes "AngX in [-5, 125]
+ *    degrees" mean "bends one way, does not hyperextend" rather than something
+ *    arbitrary. The DIRECTION comes from `spec.hingeAxis`, an anatomical
+ *    reference in the parent's frame; the normal of the plane the two bones
+ *    span refines the exact axis, but only when it exists (the limb is bent)
+ *    and agrees with anatomy. Deriving the axis from the bend alone mirrors the
+ *    whole authored range for a straight or slightly hyperextended bind pose.
  *  • EVERYTHING ELSE picks a stable reference axis. `setFromUnitVectors(UP, d)`
  *    would be the obvious choice and is a trap: for a bone pointing straight
  *    DOWN — which is most of them — the source and target are antiparallel, the
@@ -789,21 +859,28 @@ function segmentOrientation(
   const x = new THREE.Vector3();
 
   let haveHinge = false;
-  if (spec.hinge === true && parentDirection !== undefined) {
-    x.copy(parentDirection).cross(y);
-    // Colinear bones (a straight limb in the bind pose) give no plane; fall
-    // back to the parent's own hinge frame so the axes still line up.
-    if (x.lengthSq() > 1e-4) {
-      x.normalize();
-      haveHinge = true;
+  if (spec.hinge === true) {
+    const anatomical = anatomicalHingeAxis(spec, parentSegment, y);
+    // Plane of the two bones: the exact hinge normal when the limb is bent, but
+    // with a sign that says nothing about which way flexion goes.
+    let bend: THREE.Vector3 | undefined;
+    if (parentDirection !== undefined) {
+      const candidate = new THREE.Vector3().crossVectors(parentDirection, y);
+      if (candidate.lengthSq() > 1e-4) bend = candidate.normalize();
     }
-  }
-  if (!haveHinge && parentSegment !== undefined && spec.hinge === true) {
-    const parentRotation = parentSegment.body.raw.rotation();
-    x.set(1, 0, 0).applyQuaternion(
-      new THREE.Quaternion(parentRotation.x, parentRotation.y, parentRotation.z, parentRotation.w)
-    );
-    haveHinge = x.lengthSq() > 1e-6;
+    if (bend !== undefined && (anatomical === undefined || bend.dot(anatomical) > 0)) {
+      x.copy(bend);
+      haveHinge = true;
+    } else if (anatomical !== undefined) {
+      x.copy(anatomical);
+      haveHinge = true;
+    } else if (parentSegment !== undefined) {
+      // Neither an authored axis nor a plane: inherit the parent's own frame so
+      // at least the two hinges line up with each other.
+      const r = parentSegment.body.raw.rotation();
+      x.copy(REF_X).applyQuaternion(new THREE.Quaternion(r.x, r.y, r.z, r.w));
+      haveHinge = x.lengthSq() > 1e-6;
+    }
   }
   if (!haveHinge) {
     // Any axis not nearly parallel to the bone works and stays continuous.
@@ -822,16 +899,50 @@ function segmentOrientation(
   return new THREE.Quaternion().setFromRotationMatrix(basis);
 }
 
+/**
+ * `spec.hingeAxis` in world space, made perpendicular to the segment it swings.
+ *
+ * Undefined when the segment declares no axis or has no parent body to read a
+ * frame from, which is the signal to fall back to the bone plane.
+ */
+function anatomicalHingeAxis(
+  spec: IRagdollSegmentSpec,
+  parentSegment: IRagdollSegment | undefined,
+  boneDirection: THREE.Vector3
+): THREE.Vector3 | undefined {
+  const axis = spec.hingeAxis;
+  if (axis === undefined || parentSegment === undefined) return undefined;
+  const r = parentSegment.body.raw.rotation();
+  const out = new THREE.Vector3(axis[0], axis[1], axis[2]).applyQuaternion(
+    new THREE.Quaternion(r.x, r.y, r.z, r.w)
+  );
+  out.addScaledVector(boneDirection, -out.dot(boneDirection));
+  return out.lengthSq() < 1e-8 ? undefined : out.normalize();
+}
+
 /** Clamp a dot product into acos's domain. */
 function clampCos(value: number): number {
   return value < -1 ? -1 : value > 1 ? 1 : value;
 }
 
 /**
+ * Angle from `a` to `b` measured about `axis`, in (-pi, pi].
+ *
+ * Signed, unlike `acos(a . b)`: a limb whose bind pose is bent the wrong way
+ * reports a NEGATIVE bend, and its authored limits shift the other way instead
+ * of being mirrored onto the hyperextension side.
+ */
+function signedBend(a: THREE.Vector3, b: THREE.Vector3, axis: THREE.Vector3): number {
+  const cross = new THREE.Vector3().crossVectors(a, b);
+  return Math.atan2(cross.dot(axis), clampCos(a.dot(b)));
+}
+
+/**
  * Spherical joint from `child` to `parentSegment`, re-based onto the bind pose
  * and limited on all three angular axes.
  *
- * `bindBend` is how far a hinge is already flexed in the bind pose. Hinge
+ * `bindBend` is how far a hinge is already flexed in the bind pose, signed
+ * about the hinge axis (negative for a hyperextended one). Hinge
  * limits are authored FROM STRAIGHT, so they are shifted by that amount here:
  * a knee bent 11 degrees in the death pose still gets its full "straighten to
  * 5 degrees of hyperextension, flex to 130" range rather than being locked
@@ -954,10 +1065,16 @@ export class RagdollManager {
     this.maxActive = maxActive;
   }
 
-  /** Ragdolls currently simulating (frozen ones do not count). */
+  /**
+   * Ragdolls currently simulating (frozen ones do not count).
+   *
+   * `active` matters as much as `frozen`: a ragdoll built ahead of a boss death
+   * or handed back to the animator costs the solver nothing, so it must neither
+   * consume budget nor be picked as a freeze victim.
+   */
   get activeCount(): number {
     let n = 0;
-    for (const ragdoll of this.live) if (!ragdoll.frozen) n++;
+    for (const ragdoll of this.live) if (ragdoll.active && !ragdoll.frozen) n++;
     return n;
   }
 
@@ -977,8 +1094,11 @@ export class RagdollManager {
     impulsePoint?: THREE.Vector3
   ): Ragdoll {
     const ragdoll = createRagdoll(this.world, rig, options);
-    this.adopt(ragdoll);
+    // Activate BEFORE adopting: the budget is counted over active ragdolls, so
+    // an inactive newcomer would not push the count over the cap and the oldest
+    // would never be frozen.
     ragdoll.activate(initialImpulse, impulsePoint);
+    this.adopt(ragdoll);
     return ragdoll;
   }
 
@@ -993,7 +1113,7 @@ export class RagdollManager {
     if (over <= 0) return;
     for (const ragdoll of this.live) {
       if (over <= 0) break;
-      if (ragdoll.frozen) continue;
+      if (!ragdoll.active || ragdoll.frozen) continue;
       ragdoll.freeze();
       over--;
     }

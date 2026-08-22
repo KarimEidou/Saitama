@@ -34,6 +34,13 @@ export interface IBuiltMaterial {
   /** Handles retained by this material; release on dispose. */
   readonly handles: readonly TextureHandle[];
   /**
+   * Textures this material OWNS outright: the per-material UV-repeat clones
+   * `withRepeat` makes. Nothing else references them and no handle covers
+   * them, so whoever disposes the material must dispose these too — three
+   * frees a GL texture only on an explicit `dispose()`.
+   */
+  readonly ownedTextures: readonly THREE.Texture[];
+  /**
    * Texture ids this material could not bind for real: not resident, OR
    * resolved to a handle that is itself a marked stand-in.
    */
@@ -119,6 +126,7 @@ export function buildMaterial(
   const spec = entry.spec;
   const material = instantiate(spec);
   const handles: TextureHandle[] = [];
+  const owned: THREE.Texture[] = [];
   const missing: string[] = [];
 
   /**
@@ -164,9 +172,20 @@ export function buildMaterial(
     if ((handle as { fallback?: boolean }).fallback === true) {
       missing.push(key);
       log.warn(`material "${spec.id}" bound texture "${key}", which is a marked stand-in`);
+      // Retained like any other bound texture, but NOT run through the slot
+      // settings below: that handle wraps the process-wide checker singleton
+      // (`fallback.ts`), so writing this material's colour space and
+      // anisotropy onto it re-stamps every other material already sharing it —
+      // the albedo slot flips it to sRGB, the next slot flips it back, and the
+      // module that promises it is never written to is written to ~123 times.
+      handles.push(handle.retain());
+      return handle.texture;
     }
     handles.push(handle.retain());
     const texture = withRepeat(handle.texture, spec.uvRepeat);
+    // `withRepeat` returns a CLONE for a non-unit repeat; only this material
+    // will ever reference it, so this material has to free it.
+    if (texture !== handle.texture) owned.push(texture);
     texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     texture.anisotropy = anisotropy;
     return texture;
@@ -219,7 +238,7 @@ export function buildMaterial(
   material.userData.missingTextures = [...missing];
   material.needsUpdate = true;
 
-  return { material, handles, missingTextures: missing, ormBound };
+  return { material, handles, ownedTextures: owned, missingTextures: missing, ormBound };
 }
 
 /**

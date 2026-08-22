@@ -140,6 +140,27 @@ export interface IMonsterCombatDescriptor {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Scripted minion budget                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Live minions `summon` will carry at once.
+ *
+ * Scripted monsters are invisible to the spawn director in both directions —
+ * they do not count against its budget and its recycler will not touch them —
+ * which is exactly right for the fourteen a phase places and a leak for the
+ * fourteen an ATTACK places every sixteen seconds. Mosquito Girl's `summon`
+ * competes with `dive` on weight for the length of her encounter, so a player
+ * who takes their time accumulates a hundred-plus permanent, inert entities,
+ * each one a full brain per frame, a combat target and a crowd threat.
+ *
+ * Twenty-eight is a phase's full swarm plus one volley on top of it. Past that
+ * a volley places what fits and no more: fewer mosquitoes is a tuning
+ * disappointment, unbounded mosquitoes is a frame-rate cliff.
+ */
+export const MAX_SCRIPTED_MINIONS = 28;
+
+/* -------------------------------------------------------------------------- */
 /* World view                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -169,6 +190,8 @@ export class MonsterSystem {
   private readonly unsubscribes: (() => void)[] = [];
 
   private readonly monsters = new Map<EntityId, Monster>();
+  /** Everything `summon` placed, so the script that owns them can release them. */
+  private readonly scriptedMinions = new Set<EntityId>();
   private readonly corpses = new Map<EntityId, number>();
   private readonly world = new WorldView();
   private readonly liveRefs: ILiveMonsterRef[] = [];
@@ -460,14 +483,19 @@ export class MonsterSystem {
    *
    * Scripted, so the spawn director neither counts them against its budget nor
    * culls them: a swarm that despawned because the director thought the
-   * district was busy would silently unblock its own phase gate.
+   * district was busy would silently unblock its own phase gate. That immunity
+   * is why the volley is capped here — nothing downstream of this call will
+   * ever retire one, so this is the only place a bound can live. See
+   * `MAX_SCRIPTED_MINIONS`.
    */
   summon(archetypeId: string, count: number, origin: Vec3): EntityId[] {
     const archetype = monsterArchetype(archetypeId);
     const rng = this.rng.derive(`summon:${archetypeId}:${this.serial}`);
     const ids: EntityId[] = [];
-    for (let i = 0; i < count; i++) {
-      const angle = (i / Math.max(1, count)) * Math.PI * 2 + rng.range(-0.25, 0.25);
+    const room = Math.max(0, MAX_SCRIPTED_MINIONS - this.scriptedMinions.size);
+    const wanted = Math.min(count, room);
+    for (let i = 0; i < wanted; i++) {
+      const angle = (i / Math.max(1, wanted)) * Math.PI * 2 + rng.range(-0.25, 0.25);
       const radius = rng.range(2.5, 7);
       const monster = this.spawn(
         archetype,
@@ -480,6 +508,7 @@ export class MonsterSystem {
         { scripted: true }
       );
       ids.push(monster.id);
+      this.scriptedMinions.add(monster.id);
     }
     return ids;
   }
@@ -491,8 +520,13 @@ export class MonsterSystem {
     this.onDespawned?.(monster);
     monster.dispose();
     this.monsters.delete(id);
+    this.scriptedMinions.delete(id);
     this.corpses.delete(id);
     this.waveOfMonster.delete(id);
+    // Never hand out a disposed body: `boss` is read by the HUD and the
+    // harness, and the corpse sweep disposes the boss `corpseSeconds` after a
+    // legitimate kill.
+    if (this.encounterBoss?.id === id) this.encounterBoss = undefined;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -512,6 +546,10 @@ export class MonsterSystem {
     position: Vec3,
     options: { readonly yaw?: number; readonly ally?: IEncounterAlly } = {}
   ): BossEncounter {
+    // Opening a second encounter over the top of a live one used to strand the
+    // first boss: gated for ever, invisible to the recycler, and no longer
+    // reachable by any hit that could re-open the gate.
+    this.closeEncounter();
     const script = bossScript(encounterId);
     const archetype = monsterArchetype(script.archetypeId);
     const boss = this.spawn(archetype, position, options.yaw ?? 0, { scripted: true });
@@ -534,8 +572,50 @@ export class MonsterSystem {
 
   /** Abandon the active encounter without a victory, e.g. on a fast travel. */
   abortEncounter(): void {
+    this.closeEncounter();
+  }
+
+  /**
+   * ══════════════════════════════════════════════════════════════════════
+   *  THE ONE TEARDOWN PATH — dropping the reference is not enough
+   * ══════════════════════════════════════════════════════════════════════
+   * A boss is spawned `scripted` and starts GATED, and both of those are
+   * written on the assumption that a script is running. Forgetting the script
+   * without undoing them leaves the worst object in the game behind: a boss
+   * with `phaseResolved === false`, so `describeForCombat` keeps telling the
+   * resolver to absorb every lethal punch; with nothing left to call
+   * `onBossHit`, so no hit can ever re-open the gate; and `scripted`, so the
+   * director will not recycle it and it has no corpse timer. It walks the city
+   * for the rest of the session emitting full-intent cones.
+   *
+   * So: release the gate, hand the boss back to the ordinary rules, and clear
+   * the minions the script — not the world — put there.
+   */
+  private closeEncounter(): void {
+    const encounter = this.encounter;
+    const boss = this.encounterBoss;
     this.encounter = undefined;
     this.encounterBoss = undefined;
+    if (encounter === undefined) return;
+
+    // The script placed these and the script is over. Nothing else can ever
+    // retire a scripted minion, and they have no corpse timer of their own.
+    for (const id of [...this.scriptedMinions]) this.despawn(id);
+    this.scriptedMinions.clear();
+
+    if (boss === undefined || boss.isDead || boss.brain.phaseResolved) return;
+    boss.scripted = false;
+    boss.brain.phaseResolved = true;
+    const finalPhase = Math.max(0, encounter.script.phases.length - 1);
+    this.bus.emit('BossPhaseChanged', {
+      entityId: boss.id,
+      specId: boss.archetype.id,
+      previousPhase: boss.bossPhaseIndex,
+      phase: finalPhase,
+      healthFraction: clamp01(boss.brain.health / Math.max(1, boss.archetype.maxHealth)),
+      isFinalPhase: true,
+    });
+    boss.bossPhaseIndex = finalPhase;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -593,10 +673,11 @@ export class MonsterSystem {
     const encounter = this.encounter;
     if (encounter === undefined) return;
     encounter.onEncounterEnded(event.encounterId);
-    if (encounter.finished) {
-      this.encounter = undefined;
-      this.encounterBoss = undefined;
-    }
+    // Whoever ended it and however it ended — victory, 'fled', 'aborted' —
+    // the same teardown runs. `EncounterEnded` carries an outcome this module
+    // is deliberately not authoritative on, and a boss left standing after a
+    // retreat must still be killable.
+    if (encounter.finished) this.closeEncounter();
   }
 
   /* ---------------------------------------------------------------------- */
@@ -611,6 +692,7 @@ export class MonsterSystem {
       monster.dispose();
     }
     this.monsters.clear();
+    this.scriptedMinions.clear();
     this.corpses.clear();
     this.waveOfMonster.clear();
     this.announcedWaves.clear();

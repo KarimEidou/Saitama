@@ -45,6 +45,15 @@ export interface IEnvironmentMeasurement {
   readonly id: string;
   /** Area-weighted mean luminance of the source HDRI. */
   readonly meanLuminance: number;
+  /**
+   * True when `meanLuminance` came from the manifest, false when it is the
+   * fallback. Provenance is tracked EXPLICITLY rather than inferred from the
+   * value: a pipeline that emits a mean of exactly 1.0 is measured, and — the
+   * case that matters — a pipeline that drops the mean but still writes `sh9`
+   * is not. Inferring it from "either field is present" makes the verification
+   * gate that exists to catch a missing mean unable to see one.
+   */
+  readonly meanLuminanceMeasured: boolean;
   /** Peak luminance of the source, BEFORE half-float conversion. */
   readonly maxLuminance: number;
   /**
@@ -96,13 +105,12 @@ export function parseEnvironmentMeasurements(manifest: unknown): EnvironmentMeas
   for (const key of Object.keys(SKY_ASSET_IDS) as SkyKey[]) {
     const id = SKY_ASSET_IDS[key];
     const raw = block[id];
-    const mean =
-      typeof raw?.meanLuminance === 'number' && raw.meanLuminance > 0
-        ? raw.meanLuminance
-        : FALLBACK_MEAN_LUMINANCE;
+    const rawMean = typeof raw?.meanLuminance === 'number' ? raw.meanLuminance : 0;
+    const measured = Number.isFinite(rawMean) && rawMean > 0;
     out[key] = {
       id,
-      meanLuminance: mean,
+      meanLuminance: measured ? rawMean : FALLBACK_MEAN_LUMINANCE,
+      meanLuminanceMeasured: measured,
       maxLuminance: typeof raw?.maxLuminance === 'number' ? raw.maxLuminance : 0,
       sh9: Array.isArray(raw?.sh9) && raw.sh9.length === 27 ? raw.sh9 : undefined,
     };
@@ -110,9 +118,18 @@ export function parseEnvironmentMeasurements(manifest: unknown): EnvironmentMeas
   return out as EnvironmentMeasurements;
 }
 
-/** True when a sky's measurement came from the manifest rather than the fallback. */
+/**
+ * True when a sky's MEAN LUMINANCE came from the manifest rather than the
+ * fallback — the one number this module normalises against.
+ *
+ * Baked SH is deliberately not part of the answer. The pipeline always writes
+ * `sh9`, so accepting it here reports "measured" for a sky whose mean went
+ * missing, and the verification gate that exists to catch exactly that
+ * ("sky X has no measured mean luminance") could never fire. The SH half is
+ * reported separately, as `hasBakedSH`.
+ */
 export function isMeasured(measurement: IEnvironmentMeasurement): boolean {
-  return measurement.meanLuminance !== FALLBACK_MEAN_LUMINANCE || measurement.sh9 !== undefined;
+  return measurement.meanLuminanceMeasured;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -80,15 +80,32 @@ describe('atlas bake', () => {
     expect(black / (maps.size * maps.size)).toBeLessThan(0.2);
   });
 
+  it('leaves no texel fully occluded and mirror-smooth', () => {
+    // An all-zero ORM is AO 0 and roughness 0 — a black texel with a sharp
+    // specular lobe. The gutter beyond the dilation ring is still inside a
+    // high mip's bilinear tap, so leaving it zeroed rims every limb with a
+    // dark sparkle. Neutral (AO 1, rough 1, metal 0) is inert wherever it
+    // bleeds.
+    const maps = bake(rosterEntry('chr.genos'));
+    let zeroed = 0;
+    for (let i = 0; i < maps.orm.length; i += 3) {
+      if (maps.orm[i]! === 0 && maps.orm[i + 1]! === 0 && maps.orm[i + 2]! === 0) zeroed++;
+    }
+    expect(zeroed).toBe(0);
+  });
+
   it('gives Genos metal that is genuinely metal, and Saitama none', () => {
     const genos = bake(rosterEntry('chr.genos'));
     const saitama = bake(rosterEntry('chr.saitama'));
 
+    // Uncovered gutter is detected from the ALBEDO, which is the only map left
+    // black there; the ORM background is deliberately neutral (AO 1, rough 1)
+    // so a high mip's bleed cannot read as a dark glossy fringe.
     const metalFraction = (maps: AtlasMaps, threshold: number): number => {
       let count = 0;
       let covered = 0;
       for (let i = 0; i < maps.orm.length; i += 3) {
-        if (maps.orm[i]! === 0 && maps.orm[i + 1]! === 0 && maps.orm[i + 2]! === 0) continue;
+        if (maps.albedo[i]! + maps.albedo[i + 1]! + maps.albedo[i + 2]! === 0) continue;
         covered++;
         if (maps.orm[i + 2]! > threshold) count++;
       }
@@ -112,18 +129,18 @@ describe('atlas bake', () => {
   });
 
   it('writes only canonical tint levels into the mask', () => {
+    // The mask is an INDEX map: the shader decodes it with band tests, so a
+    // value between two levels is not a blend, it is a DIFFERENT tint slot —
+    // a skin/cloth boundary averaging to 0.75 tints the seam with the trousers
+    // colour. Nothing, including the gutter dilation, may invent a level.
     const maps = bake(rosterEntry('chr.civilian'));
     const levels = new Set(Object.values(TINT_MASK_LEVEL).map((v) => Math.round(v * 255)));
     const seen = new Set<number>();
     for (const value of maps.mask) seen.add(value);
-    // Dilation blends neighbours, so allow anything within a couple of counts
-    // of a canonical level.
     for (const value of seen) {
-      const nearest = [...levels].reduce(
-        (best, level) => (Math.abs(level - value) < Math.abs(best - value) ? level : best),
-        0
+      expect(levels, `mask level ${value} is not one of ${[...levels].join(', ')}`).toContain(
+        value
       );
-      expect(Math.abs(nearest - value), `mask level ${value}`).toBeLessThanOrEqual(96);
     }
     expect(seen.size).toBeGreaterThan(1);
   });

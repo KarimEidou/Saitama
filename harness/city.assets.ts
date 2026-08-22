@@ -212,7 +212,17 @@ export class RealAssetLibrary {
     if (cached) return cached;
     const entry = this.byId.get(key);
     const output = entry?.outputs?.find((o) => o.tier === this.tier) ?? entry?.outputs?.[0];
-    if (!output) return undefined;
+    if (!output) {
+      // Recorded, not swallowed: a material that binds `map: null` renders as
+      // a flat vertex-tinted surface, and a readout claiming real Poly Haven
+      // textures over it is exactly the silent stand-in this file forbids.
+      this.failures.push(
+        entry
+          ? `${key}: no texture output in the runtime index (tier ${this.tier})`
+          : `${key}: not in the runtime index`
+      );
+      return undefined;
+    }
     const texture = await this.ktx2.loadAsync(`${this.baseUrl}/${output.file}`);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
@@ -240,6 +250,14 @@ export class RealAssetLibrary {
     const entry = this.byId.get(key);
     const output = entry?.outputs?.find((o) => o.tier === this.tier) ?? entry?.outputs?.[0];
     if (!output) {
+      // An id the pipeline stopped emitting — renamed, or dropped from a tier
+      // — must show up in the readout. Silently storing `undefined` sends the
+      // caller to the proxy library while the page still says "by manifest id".
+      this.failures.push(
+        entry
+          ? `${key}: no model output in the runtime index (tier ${this.tier})`
+          : `${key}: not in the runtime index`
+      );
       this.models.set(key, undefined);
       return;
     }
@@ -255,6 +273,7 @@ export class RealAssetLibrary {
         if ((child as THREE.Mesh).isMesh) parts.push(child as THREE.Mesh);
       });
       if (parts.length === 0) {
+        this.failures.push(`${key}: GLB carries no meshes`);
         this.models.set(key, undefined);
         return;
       }
@@ -298,6 +317,7 @@ export class RealAssetLibrary {
       }
 
       if (positions.length === 0) {
+        this.failures.push(`${key}: GLB meshes carry no position attribute`);
         this.models.set(key, undefined);
         return;
       }

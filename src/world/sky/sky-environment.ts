@@ -143,6 +143,17 @@ export class SkyEnvironment implements IDisposable {
   private radianceTarget: THREE.WebGLRenderTarget | undefined;
   private probe: THREE.LightProbe | undefined;
 
+  /**
+   * A restored GL context has valid render targets with empty contents, and
+   * nothing else in this module would notice. Handled here rather than through
+   * the engine's own handler, because the sky must not import the renderer
+   * workstream — `domElement` is three's own API.
+   */
+  private readonly onContextRestored = (): void => {
+    log.warn('WebGL context restored; rebuilding the radiance map');
+    this.invalidateRadiance();
+  };
+
   private loadedKeys: SkyKey[] = [];
   private lastBuiltSignature = Number.NaN;
   private rebuilds = 0;
@@ -192,6 +203,8 @@ export class SkyEnvironment implements IDisposable {
     this.blendQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.blendMaterial);
     this.blendQuad.frustumCulled = false;
     this.blendScene.add(this.blendQuad);
+
+    this.renderer.domElement?.addEventListener?.('webglcontextrestored', this.onContextRestored);
   }
 
   get mode(): SkyIBLMode {
@@ -246,15 +259,37 @@ export class SkyEnvironment implements IDisposable {
   update(blend: ISkyBlend, force = false): void {
     if (this.disposed) return;
 
-    const from = this.textureFor(blend.from);
-    const to = this.textureFor(blend.to) ?? from;
-    if (!from) return;
+    // The absolute scale of the moment is not a function of the textures, so
+    // it is written FIRST and unconditionally: a sky that failed to transcode
+    // must not freeze the exposure of the whole world at whatever it was when
+    // that stretch of the cycle began. `load()` promises a cycle with a gap,
+    // not a cycle that stops.
+    if (this.showBackground && this.scene.background === this.blendTarget.texture) {
+      this.scene.backgroundIntensity = blend.luminance;
+    }
+    this.scene.environmentIntensity = blend.luminance;
+    if (this.probe) this.probe.intensity = blend.luminance;
+
+    // Resolved SYMMETRICALLY. A missing `to` already degraded to `from`; a
+    // missing `from` used to take the whole function out, so a failed day map
+    // froze the visible sky on the last dawn blend for 40% of the cycle when
+    // the dusk map next door would have been a great deal closer. Only a pair
+    // with NOTHING loaded gives up.
+    const loadedFrom = this.textureFor(blend.from);
+    const loadedTo = this.textureFor(blend.to);
+    const from = loadedFrom ?? loadedTo;
+    const to = loadedTo ?? loadedFrom;
+    if (!from || !to) return;
 
     const uniforms = this.blendMaterial.uniforms;
     uniforms.tFrom!.value = from;
     uniforms.tTo!.value = to;
-    uniforms.uScaleFrom!.value = normalisationScale(this.measurements[blend.from]);
-    uniforms.uScaleTo!.value = normalisationScale(this.measurements[blend.to]);
+    uniforms.uScaleFrom!.value = normalisationScale(
+      this.measurements[loadedFrom ? blend.from : blend.to]
+    );
+    uniforms.uScaleTo!.value = normalisationScale(
+      this.measurements[loadedTo ? blend.to : blend.from]
+    );
     uniforms.uAlpha!.value = to === from ? 0 : blend.alpha;
 
     this.renderBlend(this.blendTarget);
@@ -263,7 +298,6 @@ export class SkyEnvironment implements IDisposable {
       this.scene.background = this.blendTarget.texture;
       this.scene.backgroundIntensity = blend.luminance;
     }
-    this.scene.environmentIntensity = blend.luminance;
 
     const signature = signatureOf(blend);
     if (
@@ -274,8 +308,22 @@ export class SkyEnvironment implements IDisposable {
       this.rebuildRadiance();
       this.lastBuiltSignature = signature;
     }
+  }
 
-    if (this.probe) this.probe.intensity = blend.luminance;
+  /**
+   * Forget that the radiance map was ever built, so the next `update()`
+   * rebuilds it.
+   *
+   * After a `webglcontextrestored` the render target objects survive but their
+   * CONTENTS are gone. The visible sky recovers on its own because the blend
+   * is re-rendered every frame; the pre-filtered radiance map is only rebuilt
+   * when the blend SIGNATURE moves, and the cycle sits on one sky for 0.32 of
+   * its length twice over — up to ~7.7 real minutes of a city lit by nothing
+   * but the key light. This is wired to the canvas event below, and is public
+   * so a composition root that owns its own context handling can call it too.
+   */
+  invalidateRadiance(): void {
+    this.lastBuiltSignature = Number.NaN;
   }
 
   /**
@@ -289,6 +337,10 @@ export class SkyEnvironment implements IDisposable {
       this.probe = new THREE.LightProbe(sh.clone(), intensity);
       this.probe.name = 'sky.sh9';
       this.scene.add(this.probe);
+      // The diffuse half now has a source, so the environment map really is
+      // specular-only. Re-evaluated here because the probe usually arrives
+      // AFTER the first rebuild.
+      if (this.radianceTarget) this.setSpecularOnly(true);
     } else {
       this.probe.sh.copy(sh);
       this.probe.intensity = intensity;
@@ -316,6 +368,7 @@ export class SkyEnvironment implements IDisposable {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.renderer.domElement?.removeEventListener?.('webglcontextrestored', this.onContextRestored);
     if (this.scene.background === this.blendTarget.texture) this.scene.background = null;
     if (this.radianceTarget && this.scene.environment === this.radianceTarget.texture) {
       this.scene.environment = null;
@@ -370,17 +423,31 @@ export class SkyEnvironment implements IDisposable {
 
     this.pmrem ??= new THREE.PMREMGenerator(this.renderer);
     this.pmrem.compileEquirectangularShader();
-    const next = this.pmrem.fromEquirectangular(source);
+    // REUSE the target. `fromEquirectangular(source)` with no second argument
+    // runs `renderTarget || this._allocateTargets()`, i.e. a fresh cube target
+    // with its whole mip chain allocated and the previous one disposed on
+    // EVERY rebuild — and the rebuild threshold is keyed on the cross-fade's
+    // alpha, so that is ~256 allocate/free pairs per cycle, all inside the
+    // 20% of it that cross-fades. The first call must still allocate: that is
+    // what sets up the generator's ping-pong target and LOD meshes.
+    const next = this.pmrem.fromEquirectangular(source, this.radianceTarget ?? null);
 
-    // Swap, then release the old one: disposing first would leave
-    // `scene.environment` pointing at freed GPU memory for the width of this
-    // function, which some drivers do not survive.
-    const previous = this.radianceTarget;
-    this.radianceTarget = next;
-    this.scene.environment = next.texture;
-    previous?.dispose();
+    if (next !== this.radianceTarget) {
+      // Swap, then release the old one: disposing first would leave
+      // `scene.environment` pointing at freed GPU memory for the width of this
+      // function, which some drivers do not survive.
+      const previous = this.radianceTarget;
+      this.radianceTarget = next;
+      this.scene.environment = next.texture;
+      previous?.dispose();
+    }
 
-    this.setSpecularOnly(this.modeValue === 'sh9');
+    // Specular-only is a statement about the DIFFUSE half being covered
+    // elsewhere, so it tracks the probe, not the mode. Announcing it from the
+    // mode alone tells a material layer to cancel its diffuse environment term
+    // in a composition that never installs a `LightProbe` — and then nothing
+    // supplies diffuse IBL at all and every unlit surface renders black.
+    this.setSpecularOnly(this.modeValue === 'sh9' && this.probe !== undefined);
     this.rebuilds++;
     this.lastRebuildMs = performance.now() - started;
   }

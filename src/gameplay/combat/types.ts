@@ -171,6 +171,27 @@ export interface ICombatHit extends Omit<
 export interface IPunchOutcome extends Omit<IPunchResult, 'punch' | 'hits'> {
   readonly punch: IPunchRequest;
   readonly hits: readonly ICombatHit[];
+  /**
+   * Forecast property value the punch's structural sweep destroyed, IN YEN.
+   *
+   * ╔══════════════════════════════════════════════════════════════════════╗
+   * ║  MAGNITUDE WARNING — THIS FIELD IS NOT IN THE SAME UNIT AS           ║
+   * ║  `EncounterEnded.collateralCost` / `IEncounterResult.collateralCost`  ║
+   * ║                                                                      ║
+   * ║  This is `swept mass x ZONING_YEN_PER_KG[district]` — of order 1e9   ║
+   * ║  to 1e10 for a single downtown block. The identically named field    ║
+   * ║  on the encounter side is the sum of the destruction system's own    ║
+   * ║  per-chunk `ChunkDetached.collateralCost` estimates, four orders of  ║
+   * ║  magnitude smaller.                                                  ║
+   * ║                                                                      ║
+   * ║  DO NOT accumulate this alongside per-chunk figures and do not feed  ║
+   * ║  it to a linear reputation or scoring consumer: the yen figure wins  ║
+   * ║  every comparison and saturates the penalty on the first serious     ║
+   * ║  punch of the game. For a bounded 0..1 read, take                    ║
+   * ║  `IEncounterResult.propertyDamageScore` at the end of the fight.     ║
+   * ╚══════════════════════════════════════════════════════════════════════╝
+   */
+  readonly collateralCost: number;
   /** Kill count, for the encounter tally. */
   readonly kills: number;
   /** Civilians killed by this punch. The number that should hurt. */

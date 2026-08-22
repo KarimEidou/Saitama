@@ -166,6 +166,30 @@ export function formatSeatDelta(seats: number): string {
   return seats > 0 ? `up ${seats}` : `down ${Math.abs(seats)}`;
 }
 
+/**
+ * Magnitude at or above which a seat movement is a CLASS SENTINEL.
+ *
+ * `HudStore.seatDelta` encodes a class change as ±1000 rather than as a seat
+ * count, because the HUD does not know the class sizes and must not invent
+ * them. Mirrored here rather than imported so the formatters stay a leaf
+ * module; the two only have to agree on an order of magnitude.
+ */
+export const CLASS_MOVE_SEATS = 900;
+
+/**
+ * A seat movement, with the class sentinel decoded.
+ *
+ * Every display site must go through this rather than testing the sentinel
+ * itself: the one-sided `seats > 900 ? 1 : seats` guard this replaces printed a
+ * correct "up 1" on promotion and a fabricated "down 1000" on demotion, which
+ * is the exact number `seatDelta` promises never to invent.
+ */
+export function formatSeatMove(seats: number): string {
+  if (seats >= CLASS_MOVE_SEATS) return 'up a class';
+  if (seats <= -CLASS_MOVE_SEATS) return 'down a class';
+  return formatSeatDelta(seats);
+}
+
 /* -------------------------------------------------------------------------- */
 /* World                                                                      */
 /* -------------------------------------------------------------------------- */

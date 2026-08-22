@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { ChunkDamageState, DAMAGE_TOTAL_BYTES, damageSlot } from '../damage-state';
 import { buildChunkGeometry } from '../chunk-geometry';
+import { layoutChunk } from '../chunk-layout';
 import {
   DAMAGE_BITS_PER_CHUNK,
   FRACTURE_PIECES_PER_BUILDING,
@@ -121,21 +122,47 @@ describe('damage survives a rebuild', () => {
     // And the coarse rings agree about what is gone.
     const coarse = buildChunkGeometry(SEED, -8, -8, 2, damage.cloneMask(chunk));
     expect(coarse.standingBuildings).toBe(first.standingBuildings);
+    expect(coarse.destroyedPieces).toBe(first.destroyedPieces);
+  });
+
+  it('reports the same destroyed-piece count at every ring', () => {
+    const damage = new ChunkDamageState();
+    // Chunk (-1, 0), dense index 135: a downtown block with nine towers.
+    const chunk = 135;
+    // Half of one tower: bands 2 and 3, slots 8..15.
+    for (let p = 8; p < 16; p++) damage.setDestroyed(chunk, damageSlot(0, p));
+
+    // The per-piece loop only runs at R0, so counting destroyed pieces as a
+    // side effect of emission made the total a function of how far away the
+    // player was standing: walk 250 m and the HUD says the damage was undone.
+    const counts = [0, 1, 2].map(
+      (ring) => buildChunkGeometry(SEED, -1, 0, ring, damage.cloneMask(chunk)).destroyedPieces
+    );
+    expect(counts).toEqual([8, 8, 8]);
   });
 
   it('shortens a building when only its upper bands are destroyed', () => {
     const damage = new ChunkDamageState();
     // Chunk (-1, 0), dense index 135: a downtown block with nine towers.
     const chunk = 135;
+    const layout = layoutChunk(SEED, -1, 0);
+    // `bounds[4]` is the maxY of the WHOLE chunk — the tallest of nine
+    // buildings. Damaging any other one leaves it untouched, and the assertion
+    // below would then pass with nothing having happened. Target the tallest,
+    // and only when it is unambiguously the tallest.
+    const tallest = layout.buildings.reduce((a, b) => (b.height > a.height ? b : a));
+    expect(layout.buildings.filter((b) => b.height === tallest.height).length).toBe(1);
+
     const full = buildChunkGeometry(SEED, -1, 0, 1, undefined);
     // Bands 2 and 3 are the top half: slots 8..15 of the building.
-    for (let p = 8; p < 16; p++) damage.setDestroyed(chunk, damageSlot(0, p));
+    for (let p = 8; p < 16; p++) damage.setDestroyed(chunk, damageSlot(tallest.index, p));
     const topped = buildChunkGeometry(SEED, -1, 0, 1, damage.cloneMask(chunk));
 
     expect(topped.standingBuildings).toBe(full.standingBuildings);
-    // The bounding box must have come down, because the tallest surviving band
-    // of that building is now half its original height.
-    expect(topped.bounds[4]).toBeLessThanOrEqual(full.bounds[4]);
+    // Strictly lower: the tallest building in the chunk is now half height, so
+    // the chunk's own ceiling has to have come down with it.
+    expect(topped.bounds[4]).toBeLessThan(full.bounds[4]);
+    expect(topped.destroyedPieces).toBe(8);
     expect(topped.contentHash).not.toBe(full.contentHash);
   });
 });

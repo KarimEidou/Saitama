@@ -235,6 +235,49 @@ describe('buildMaterial', () => {
     expect(isMissingAsset(material.map ?? undefined)).toBe(false);
   });
 
+  it('never writes to the shared stand-in it binds', () => {
+    // The singleton is one 16 KB instance for the whole process. Running it
+    // through the ordinary slot path set it to sRGB for the albedo slot and
+    // back to linear for the normal slot — on every material in the build at
+    // once, and ~123 times over.
+    disposeFallbacks();
+    const checker = missingTexture();
+    const before = { colorSpace: checker.colorSpace, anisotropy: checker.anisotropy };
+
+    const handles = new Map<string, ManagedTextureHandle>();
+    for (const key of requiredTextures(entry)) handles.set(key, fallbackHandleFor(key));
+    const built = buildMaterial(entry, (key) => handles.get(key), 16);
+
+    expect(isMissingAsset((built.material as THREE.MeshStandardMaterial).map ?? undefined)).toBe(
+      true
+    );
+    expect(checker.colorSpace).toBe(before.colorSpace);
+    expect(checker.anisotropy).toBe(before.anisotropy);
+  });
+
+  it('reports the UV-repeat clones it owns so they can be freed', () => {
+    // Nothing else references a `withRepeat` clone: the handle owns the
+    // original, and three frees a GL texture only on an explicit dispose().
+    const tiled = {
+      ...entry,
+      spec: { ...entry.spec, uvRepeat: [4, 4] as [number, number] },
+    } as IMaterialAsset;
+    const handles = new Map<string, TextureHandle>();
+    for (const key of requiredTextures(tiled)) handles.set(key, handleFor(key));
+
+    const built = buildMaterial(tiled, (key) => handles.get(key));
+    expect(built.ownedTextures).toHaveLength(3);
+    for (const texture of built.ownedTextures) {
+      expect(texture.repeat.x).toBe(4);
+      expect([...handles.values()].some((handle) => handle.texture === texture)).toBe(false);
+    }
+
+    // Nothing is owned when the repeat is the unit default, which is what all
+    // 41 shipped specs carry.
+    const plain = buildMaterial(entry, (key) => handles.get(key));
+    expect(plain.ownedTextures).toEqual([]);
+  });
+
   it('lists every texture the spec needs, including ones textureKeys forgot', () => {
     expect(requiredTextures(entry)).toEqual([
       'mat.road.asphalt.worn.albedo',

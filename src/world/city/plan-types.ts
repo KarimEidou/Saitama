@@ -45,8 +45,11 @@ export type RoadSurface = 'asphalt-worn' | 'asphalt-rough' | 'asphalt-clean' | '
 /**
  * One arterial or local road, as a polyline of control points.
  *
- * `curved` selects centripetal Catmull-Rom interpolation through the control
- * points; straight grid streets leave it false so their geometry is exact.
+ * `curved` is RESERVED — not read. It is meant to select the centripetal
+ * Catmull-Rom interpolation `resampleSpline` provides; today `ground.ts` and
+ * `chunk.ts` walk `points` as a raw polyline whatever it says, and every
+ * authored road is straight. Wire it through both walkers before authoring a
+ * curved road, or the markings and lamps will cut the corner.
  */
 export interface IPlanRoad {
   readonly id: string;
@@ -100,7 +103,12 @@ export type ZoneKind =
 
 /**
  * Generation parameters for a zone. These are the dials a designer actually
- * turns; every one of them is read by `block.ts` or `building.ts`.
+ * turns.
+ *
+ * Most are read by `block.ts` or `building.ts`; the ones that are NOT are
+ * marked RESERVED on the field itself. A dial that silently does nothing costs
+ * a designer an afternoon, so the ones that do nothing say so here rather than
+ * being discovered by grep.
  */
 export interface IPlanZoneParams {
   /** Storey count range, inclusive. */
@@ -133,18 +141,25 @@ export interface IPlanZoneParams {
   readonly panelWeights: Readonly<Record<string, number>>;
   /** Relative weights over facade panel kinds on the ground floor. */
   readonly groundWeights: Readonly<Record<string, number>>;
-  /** 0..1 probabilities for optional facade features. */
+  /**
+   * RESERVED — not read. Facade feature frequency is governed entirely by
+   * `panelWeights` / `groundWeights` (`balcony`, `fire_escape_anchor`,
+   * `ac_unit`); turning these does nothing. Wire them into `makeRecipe` before
+   * relying on them — note that doing so rerolls the panel mix of every
+   * building in the zone.
+   */
   readonly balconyChance: number;
   readonly fireEscapeChance: number;
   readonly acUnitChance: number;
+  /** 0..1 chance a bay carries a projecting sign. Read by `makeRecipe`. */
   readonly signageChance: number;
   /** 0..1 rooftop clutter density. */
   readonly rooftopClutter: number;
   /** Props scattered per 100 m of street frontage. */
   readonly propDensity: number;
-  /** NPC population multiplier. */
+  /** RESERVED — not read. NPC population multiplier for a future spawn pass. */
   readonly populationDensity: number;
-  /** Monster spawn multiplier. */
+  /** RESERVED — not read. Monster spawn multiplier for a future spawn pass. */
   readonly threatDensity: number;
   /** Ground surface inside the parcel, behind the sidewalk. */
   readonly lotSurface: 'concrete' | 'asphalt' | 'gravel' | 'dirt' | 'grass' | 'cobble';
@@ -216,7 +231,13 @@ export interface IPlanBlock {
   readonly density: number;
   /** Additive storey bias, in floors. */
   readonly heightBias: number;
-  /** Edges that face an arterial and therefore get the best frontage. */
+  /**
+   * Sides that face an arterial and therefore get the best frontage, indexed
+   * by COMPASS DIRECTION — `[west, south, east, north]`, exactly four flags.
+   * NOT by outline edge: `pushRun` in `block.ts` maps a lot's facing direction
+   * to one of those four indices, so a chamfered parcel's fifth flag would be
+   * ignored and its first four would be read as compass points.
+   */
   readonly frontage: readonly boolean[];
   /**
    * Sidewalk width in metres, measured outwards from the parcel outline to the

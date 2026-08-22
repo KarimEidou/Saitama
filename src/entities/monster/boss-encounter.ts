@@ -202,7 +202,12 @@ export class BossEncounter {
     return this.allySurvivedFlag;
   }
 
-  /** Pressure pulses this encounter has released. Diagnostics and tests. */
+  /**
+   * Pressure pulses this encounter has released. Diagnostics and tests.
+   *
+   * Encounter-long, as documented: `enterPhase` used to zero it, so it silently
+   * reported the current phase's count under an encounter's name.
+   */
   get pulseCount(): number {
     return this.pulses;
   }
@@ -325,7 +330,15 @@ export class BossEncounter {
     if (this.engagedSeconds < phase.durationSeconds) return false;
     if (this.hitsThisPhase < phase.hitsToAdvance) return false;
     if (phase.requireSummonsCleared === true && this.summons.size > 0) return false;
-    if (phase.allyDownAtSeconds !== undefined && !this.allyBeatConsumed) return false;
+    // `ally` is optional and the host may legitimately open the Deep Sea King
+    // with no ally registered — `startBossEncounter`'s options bag defaults to
+    // `{}`. `tickAllyBeat` bails out on the same condition, so a beat that has
+    // nobody to resolve it can NEVER be consumed: without this guard phase 0
+    // dead-ends until the 240 s stall guard, which is four minutes of punching
+    // a boss that will not die and is the exact "gate stuck CLOSED" failure
+    // this file exists to prevent.
+    if (phase.allyDownAtSeconds !== undefined && this.ally !== undefined && !this.allyBeatConsumed)
+      return false;
     return true;
   }
 
@@ -343,7 +356,17 @@ export class BossEncounter {
     this.engagedSeconds = 0;
     this.phaseSeconds = 0;
     this.hitsThisPhase = 0;
-    this.pulses = 0;
+
+    // The ally beat is PER PHASE, like every other accumulator above it. It was
+    // declared once and never re-armed, so a script with a second rescue beat
+    // would find it already consumed: no `AllyDowned`, no HUD countdown, and
+    // `canAdvance` waved straight through. Re-arming is guarded on the ally
+    // still being alive — somebody the hero-NPC system already downed cannot be
+    // downed a second time, and `allySurvived` is an encounter-long verdict.
+    if (this.allySurvivedFlag) {
+      this.allyBeatConsumed = false;
+      this.allyDownEmittedHere = false;
+    }
 
     const phase = this.script.phases[index]!;
     this.pulseTimer =

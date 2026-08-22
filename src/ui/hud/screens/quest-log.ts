@@ -24,8 +24,9 @@
  * and burying it in a description string would waste it.
  */
 
+import { CssNumber } from '../css-number';
 import { button, el } from '../dom';
-import { formatClock, formatCount } from '../format';
+import { formatCount } from '../format';
 import type { FrameWriter } from '../frame-writer';
 import { compareQuests, questUrgency, type IHudModel, type IQuestRow } from '../model';
 import { HudScreen, type HudScreenName } from '../screen';
@@ -44,8 +45,12 @@ export class QuestLogScreen extends HudScreen {
   private readonly summary: HTMLElement;
   private readonly onClose: () => void;
   private readonly onTrack: (questId: string) => void;
-  /** Live clock nodes, rebuilt whenever the list is rebuilt. */
-  private clocks: { readonly node: HTMLElement; readonly questId: string }[] = [];
+  /** Live clock readouts, rebuilt whenever the list is rebuilt. */
+  private clocks: {
+    readonly minutes: CssNumber;
+    readonly seconds: CssNumber;
+    readonly quest: IQuestRow;
+  }[] = [];
 
   constructor(doc: Document, options: IQuestLogOptions) {
     super(doc, 'hud-layer hud-layer--screen hud-screen hud-screen--centre', true);
@@ -133,14 +138,16 @@ export class QuestLogScreen extends HudScreen {
         })
       );
 
-    /* The clock. Its text is refreshed in `frame` through a counter-free path  */
-    /* — see below — so it is captured here rather than rebuilt each second.    */
-    const clock = el(this.doc, 'div', {
-      className: 'hud-row__value',
-      dataset: { urgency },
-      text: quest.timeRemaining === undefined ? '' : formatClock(quest.timeRemaining),
-    });
-    if (quest.timeRemaining !== undefined) this.clocks.push({ node: clock, questId: quest.id });
+    /* The clock. Its digits are CSS COUNTERS, exactly like the combat
+       tracker's, so `frame` can keep it running through the FrameWriter and
+       never touch a text node — see the note on `frame` below. */
+    const clock = el(this.doc, 'div', { className: 'hud-row__value', dataset: { urgency } });
+    if (quest.timeRemaining !== undefined) {
+      const minutes = new CssNumber(this.doc, { id: `${quest.id}-m` });
+      const seconds = new CssNumber(this.doc, { pad2: true, id: `${quest.id}-s` });
+      clock.append(minutes.element, el(this.doc, 'span', { text: ':' }), seconds.element);
+      this.clocks.push({ minutes, seconds, quest });
+    }
 
     const conflicts = (quest.conflictsWith ?? [])
       .map((id) => model.quests.find((q) => q.id === id)?.title ?? id)
@@ -198,21 +205,23 @@ export class QuestLogScreen extends HudScreen {
   }
 
   /**
-   * The log's clocks tick once a second, not once a frame.
+   * The log's clocks, on the 60 Hz path like every other clock in the HUD.
    *
-   * This screen is MODAL — the game is paused behind it, nothing is on fire,
-   * and the reason the combat HUD goes to such lengths to avoid text writes
-   * does not apply. Refreshing ten rows once a second while a menu is open
-   * costs nothing measurable, and a `CssNumber` per row would be five hundred
-   * lines of machinery for a screen that is not on the frame path at all.
+   * This screen is modal and could plausibly afford a text write — but the
+   * contract in `screen.ts` is stated over EVERY screen and the harness asserts
+   * it over the one screen it happens to measure, so a screen that quietly
+   * exempts itself makes the claim untrue rather than qualified. Counters cost
+   * one custom-property write per changed digit and no text node, and the row
+   * reference is captured in `render` so nothing is searched per frame either.
    */
-  override frame(model: IHudModel, _writer: FrameWriter): void {
-    if (this.clocks.length === 0) return;
-    for (const entry of this.clocks) {
-      const quest = model.quests.find((q) => q.id === entry.questId);
-      if (quest?.timeRemaining === undefined) continue;
-      const text = formatClock(quest.timeRemaining);
-      if (entry.node.textContent !== text) entry.node.textContent = text;
+  override frame(_model: IHudModel, writer: FrameWriter): void {
+    // Indexed, not `for…of`: an iterator per frame is still an allocation, and
+    // "step 3 never allocates" is the other half of the same contract.
+    for (let i = 0; i < this.clocks.length; i++) {
+      const entry = this.clocks[i]!;
+      const left = Math.max(0, entry.quest.timeRemaining ?? 0);
+      entry.minutes.write(writer, Math.floor(left / 60));
+      entry.seconds.write(writer, Math.floor(left % 60));
     }
   }
 

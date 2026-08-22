@@ -14,7 +14,9 @@ export class RingBuffer<T> implements Iterable<T> {
   private size = 0;
 
   constructor(readonly capacity: number) {
-    if (capacity <= 0) throw new Error('RingBuffer: capacity must be > 0');
+    if (!Number.isInteger(capacity) || capacity <= 0) {
+      throw new Error('RingBuffer: capacity must be a positive integer');
+    }
     this.buffer = new Array<T | undefined>(capacity);
   }
 
@@ -91,10 +93,14 @@ export class NumericRingBuffer {
   private readonly buffer: Float64Array;
   private head = 0;
   private size = 0;
-  private sum = 0;
 
   constructor(readonly capacity: number) {
-    if (capacity <= 0) throw new Error('NumericRingBuffer: capacity must be > 0');
+    // Integrality matters more here than in `RingBuffer<T>`: `new Array(2.5)`
+    // throws, but `new Float64Array(2.5)` silently truncates to 2 while
+    // `this.capacity` keeps 2.5 and drives every `% this.capacity` below.
+    if (!Number.isInteger(capacity) || capacity <= 0) {
+      throw new Error('NumericRingBuffer: capacity must be a positive integer');
+    }
     this.buffer = new Float64Array(capacity);
   }
 
@@ -104,14 +110,8 @@ export class NumericRingBuffer {
 
   /** Append, evicting the oldest sample when full. */
   push(value: number): void {
-    if (this.size === this.capacity) {
-      // Subtract the sample about to be overwritten to keep `sum` exact.
-      this.sum -= this.buffer[this.head]!;
-    } else {
-      this.size++;
-    }
+    if (this.size < this.capacity) this.size++;
     this.buffer[this.head] = value;
-    this.sum += value;
     this.head = (this.head + 1) % this.capacity;
   }
 
@@ -122,9 +122,21 @@ export class NumericRingBuffer {
     return this.buffer[(start + index) % this.capacity];
   }
 
-  /** Mean of retained samples; 0 when empty. */
+  /**
+   * Mean of retained samples; 0 when empty.
+   *
+   * Summed fresh each read rather than kept as a running total. A running sum
+   * cannot survive this buffer's own workload: one `NaN`/`Infinity` sample
+   * (`1 / dt` on a `performance.now()` tie) poisons it permanently because
+   * `NaN - NaN` is `NaN`, and one large outlier destroys it by cancellation
+   * (`1e17 + 1` is `1e17`, so evicting that sample subtracts more than was
+   * ever added). At a few hundred entries the loop costs less than the bugs.
+   */
   get average(): number {
-    return this.size === 0 ? 0 : this.sum / this.size;
+    if (this.size === 0) return 0;
+    let total = 0;
+    for (let i = 0; i < this.size; i++) total += this.buffer[i]!;
+    return total / this.size;
   }
 
   get min(): number {
@@ -164,6 +176,5 @@ export class NumericRingBuffer {
     this.buffer.fill(0);
     this.head = 0;
     this.size = 0;
-    this.sum = 0;
   }
 }

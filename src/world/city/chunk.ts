@@ -26,7 +26,7 @@ import type { DistrictType, IInstanceBatch } from '@/types';
 import { generateBlock, type IBlockBuild, type IBlockGenOptions, type IBlockSpawn } from './block';
 import { generateGround, type IGroundBuild } from './ground';
 import { generateLandmark } from './landmarks';
-import { mergeGeometries, MAT_SLOT_COUNT } from './mesh-builder';
+import { mergeGeometries, MAT_SLOT_COUNT, type AABB6, type IPlacement } from './mesh-builder';
 import { rebaseLayout, type IFractureLayout } from './fracture';
 import { CITY_MATERIALS } from './materials';
 import { batchProps, type IRawPlacement } from './props';
@@ -184,8 +184,33 @@ export function generateChunk(
 
   const x0 = cx * CHUNK_SIZE;
   const z0 = cz * CHUNK_SIZE;
+  // The 96 m square is the FLOOR of the chunk's AABB, not its ceiling: a
+  // landmark belongs to the chunk its origin lands in, and the shotengai
+  // arcade is 168 m long, so 72 m of its canopy hangs into the next chunk row.
+  // `IWorldChunk.bounds` is specified as covering all content in the chunk,
+  // and a culler working from the bare square drops that canopy while the
+  // player is standing under it.
+  let minX = x0;
+  let minZ = z0;
+  let maxX = x0 + CHUNK_SIZE;
+  let maxZ = z0 + CHUNK_SIZE;
   let maxY = 0;
-  for (const block of blocks) maxY = Math.max(maxY, block.bounds[4]);
+  for (const block of blocks) {
+    if (block.bounds[0] < minX) minX = block.bounds[0];
+    if (block.bounds[2] < minZ) minZ = block.bounds[2];
+    if (block.bounds[3] > maxX) maxX = block.bounds[3];
+    if (block.bounds[5] > maxZ) maxZ = block.bounds[5];
+    if (block.bounds[4] > maxY) maxY = block.bounds[4];
+  }
+  if (ground) {
+    // Zebra crossings run out to the junction radius, which can be outside the
+    // square this chunk owns.
+    if (ground.bounds[0] < minX) minX = ground.bounds[0];
+    if (ground.bounds[2] < minZ) minZ = ground.bounds[2];
+    if (ground.bounds[3] > maxX) maxX = ground.bounds[3];
+    if (ground.bounds[5] > maxZ) maxZ = ground.bounds[5];
+    if (ground.bounds[4] > maxY) maxY = ground.bounds[4];
+  }
 
   return {
     coord: { x: cx, z: cz },
@@ -197,7 +222,7 @@ export function generateChunk(
     ground,
     instances,
     spawns,
-    bounds: [x0, -8, z0, x0 + CHUNK_SIZE, Math.max(4, maxY), z0 + CHUNK_SIZE],
+    bounds: [minX, -8, minZ, maxX, Math.max(4, maxY), maxZ],
     triangles,
     drawCalls,
     generationTimeMs: now() - started,
@@ -231,13 +256,19 @@ function buildLandmarkBlock(
     fractures[built.buildings[i].id] = rebaseLayout(
       built.buildings[i].fracture,
       geometry.offsets[i].vertexOffset,
-      geometry.offsets[i].slotIndexOffset
+      geometry.offsets[i].slotIndexOffset,
+      geometry.slotBase
     );
   }
 
+  // The footprint is authored in the landmark's LOCAL frame, so it has to be
+  // yawed before it is translated — `mergeGeometries` yaws the geometry, and a
+  // published outline that skipped the rotation is simply the wrong polygon.
+  const cos = Math.cos(landmark.rotationY);
+  const sin = Math.sin(landmark.rotationY);
   const outline: Polygon = landmark.footprint.map((p) => [
-    p[0] + landmark.position[0],
-    p[1] + landmark.position[1],
+    p[0] * cos + p[1] * sin + landmark.position[0],
+    -p[0] * sin + p[1] * cos + landmark.position[1],
   ]);
   const b = polygonBounds(outline);
 
@@ -266,14 +297,7 @@ function buildLandmarkBlock(
       style: landmark.style,
       structureMaterial: built.structureMaterial,
       integrity: 4200,
-      bounds: [
-        building.bounds[0] + built.placements[i].x,
-        built.placements[i].y,
-        building.bounds[2] + built.placements[i].z,
-        building.bounds[3] + built.placements[i].x,
-        built.placements[i].y + building.bounds[4],
-        building.bounds[5] + built.placements[i].z,
-      ] as const,
+      bounds: placeBounds(building.bounds, built.placements[i]),
       triangles: building.triangles,
     })),
     props: [],
@@ -291,6 +315,44 @@ function buildLandmarkBlock(
     triangles: geometry.buffers.indexCount / 3,
     drawCalls: geometry.buffers.groups.length,
   };
+}
+
+/**
+ * Place a building's LOCAL AABB into world space.
+ *
+ * The yaw has to be applied to the corners before the translation, exactly as
+ * `mergeGeometries` applies it to the vertices. Translating alone reports an
+ * unrotated box for geometry that is rotated — up to sqrt(2) too narrow on
+ * both axes at 45 degrees.
+ */
+function placeBounds(bounds: AABB6, place: IPlacement): AABB6 {
+  const cos = Math.cos(place.rotationY);
+  const sin = Math.sin(place.rotationY);
+  let minX = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxZ = -Infinity;
+  for (const [x, z] of [
+    [bounds[0], bounds[2]],
+    [bounds[3], bounds[2]],
+    [bounds[3], bounds[5]],
+    [bounds[0], bounds[5]],
+  ]) {
+    const rx = x * cos + z * sin;
+    const rz = -x * sin + z * cos;
+    if (rx < minX) minX = rx;
+    if (rx > maxX) maxX = rx;
+    if (rz < minZ) minZ = rz;
+    if (rz > maxZ) maxZ = rz;
+  }
+  return [
+    minX + place.x,
+    place.y + bounds[1],
+    minZ + place.z,
+    maxX + place.x,
+    place.y + bounds[4],
+    maxZ + place.z,
+  ];
 }
 
 /* -------------------------------------------------------------------------- */

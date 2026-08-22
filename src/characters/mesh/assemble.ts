@@ -450,7 +450,6 @@ export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {
   }
 
   const topology = analyseTopology(geometry);
-  const box = geometry.boundingBox ?? new THREE.Box3();
 
   const stats: HumanoidStats = {
     lod: lod.level,
@@ -458,7 +457,11 @@ export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {
     triangles: (geometry.getIndex()?.count ?? 0) / 3,
     bones: rig.bones.length,
     components: topology.components,
-    height: box.max.y - box.min.y,
+    // The RIG's standing height, which is exact by construction — NOT the
+    // bounding box, which also contains hair, helmets and spikes. Callers read
+    // this as camera framing, capsule height and cover height, and Mumen
+    // Rider's helmet alone would make him 2.5 cm too tall.
+    height: rig.dims.standingHeight,
   };
 
   return { geometry, rig, regions, stats, profile, palette, shape, morphNames };

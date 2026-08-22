@@ -22,7 +22,15 @@
  * the renderer and a runtime tier change cannot turn it on. Only the LOW tier
  * wants it (it has no composer to antialias in), so a renderer intended to run
  * low is constructed from `RENDER_TIER_PROFILES.low`, whose `contextAntialias`
- * is true. MID/HIGH antialias inside the chain (composer MSAA / FXAA / SMAA).
+ * is true. HIGH antialiases inside the chain (`antialias: 'fxaa'`).
+ *
+ * MID ships DELIBERATELY UNANTIALIASED: `contextAntialias: false`,
+ * `post.antialias: 'none'`, `post.msaaSamples: 0`. It is the tier that ships to
+ * phones, and both remaining options cost what that tier has least of — FXAA is
+ * another full-screen program against a budget the profile comments are already
+ * spending carefully, and composer MSAA costs bandwidth and a resolve on a
+ * fragment-bound device. If shimmer on MID is being investigated, the answer is
+ * here in the profile, not in the composer chain.
  *
  * ── WHAT THIS CLASS DELIBERATELY DOES NOT DO ───────────────────────────────
  * No scene graph, no camera rig, no game loop. `IRenderer.render(scene, camera)`
@@ -54,7 +62,12 @@ export interface IRendererOptions {
   readonly tier?: IQualityTier;
   /** Full renderer-private profile. Overrides `tier`. */
   readonly profile?: RenderTierProfile;
-  /** Lighting source for exposure and fog. A neutral default is used otherwise. */
+  /**
+   * Lighting source for tone-mapping EXPOSURE. A neutral default is used
+   * otherwise. Fog is not read here: `scene.fog` is per-scene state and the
+   * renderer is handed a scene per `render()` call, so the day/night system
+   * owns it. `ILightingState.fogColor`/`fogDensity` are for that consumer.
+   */
   readonly lighting?: ILightingState;
   /**
    * Default-framebuffer MSAA. Fixed at context creation. Defaults to the
@@ -134,6 +147,13 @@ export class Renderer implements IRenderer {
   private readonly onContextRestored = (): void => {
     this.contextLost = false;
     log.warn('WebGL context restored; GPU resources are being re-uploaded');
+    // The context is new: extensions, limits and the unmasked renderer string
+    // were probed against the old one and may not hold.
+    this.capabilitiesCache = undefined;
+    // Drop the frame-time window with it. Whatever it holds was measured either
+    // before the loss or during it, and the first frames after a restore are
+    // dominated by re-uploads that will not repeat.
+    this.governor.reset(this.governor.scale);
     this.applyPipelineSettings();
     this.applyResolution();
   };
@@ -229,6 +249,18 @@ export class Renderer implements IRenderer {
     if (this.disposed) return;
 
     const now = performance.now();
+    if (this.contextLost) {
+      // Nothing below submits any GPU work while the context is down, so the
+      // frame times measured here are near-zero fiction. Feeding them to the
+      // governor would ratchet the scale up to 1.0 against a dead context —
+      // reallocating composer targets on the way — and the game would resume at
+      // several times the fragment cost it had already proven it could not
+      // afford. The clock still advances so the first restored frame is not
+      // charged for the whole outage.
+      this.lastFrameStartMs = now;
+      return;
+    }
+
     if (this.lastFrameStartMs > 0) {
       this.frameTimeMs = now - this.lastFrameStartMs;
       this.governor.sample(this.frameTimeMs);
@@ -237,8 +269,6 @@ export class Renderer implements IRenderer {
       this.smoothedFps = this.smoothedFps === 0 ? instant : this.smoothedFps * 0.9 + instant * 0.1;
     }
     this.lastFrameStartMs = now;
-
-    if (this.contextLost) return;
 
     this.raw.toneMappingExposure = this.lightingState.exposure;
 

@@ -17,6 +17,21 @@
  *    order, on any thread, and produce identical output.
  */
 
+/**
+ * A complete snapshot of a stream, for save/replay.
+ *
+ * It is deliberately NOT a bare number: `gaussian()` draws two samples at a
+ * time and caches the second, so a snapshot that carried only the core state
+ * would replay a different sequence whenever it was taken between the two
+ * halves of a Box-Muller pair. Plain JSON, so it can go straight into a save.
+ */
+export interface IRandomState {
+  /** The mulberry32 core state, a uint32. */
+  readonly state: number;
+  /** Pending second Box-Muller sample, when `gaussian()` has one cached. */
+  readonly spare?: number;
+}
+
 /** A deterministic pseudo-random stream. */
 export interface IRandom {
   /** The seed this stream was created from. */
@@ -54,10 +69,13 @@ export interface IRandom {
   derive(label: string | number): IRandom;
   /** Reset to the initial seed. */
   reset(): void;
-  /** Snapshot the internal state, for save/replay. */
-  getState(): number;
-  /** Restore a snapshot. */
-  setState(state: number): void;
+  /**
+   * Snapshot the FULL internal state, for save/replay. Restoring it reproduces
+   * the remaining stream exactly, `gaussian()`'s cached spare included.
+   */
+  getState(): IRandomState;
+  /** Restore a snapshot taken by `getState()`. */
+  setState(state: IRandomState): void;
 }
 
 /**
@@ -212,13 +230,19 @@ class Mulberry32 implements IRandom {
     this.spare = undefined;
   }
 
-  getState(): number {
-    return this.state;
+  getState(): IRandomState {
+    // `spare` is part of the state: dropping it makes the very next
+    // `gaussian()` after a restore return a different number.
+    return this.spare === undefined
+      ? { state: this.state }
+      : { state: this.state, spare: this.spare };
   }
 
-  setState(state: number): void {
-    this.state = state >>> 0;
-    this.spare = undefined;
+  setState(state: IRandomState): void {
+    this.state = state.state >>> 0;
+    // A snapshot that round-tripped through JSON may carry `null` or nothing
+    // at all for an absent spare; both mean "no pending sample".
+    this.spare = typeof state.spare === 'number' ? state.spare : undefined;
   }
 }
 

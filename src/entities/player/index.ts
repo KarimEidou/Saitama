@@ -51,6 +51,7 @@ export {
   DEFAULT_LOCOMOTION_TUNING,
   DEFAULT_CAMERA_TUNING,
   resolvePlayerTuning,
+  RISE_GRAVITY_MPS2,
   apexForLaunchSpeed,
   heldJumpSpeedCeiling,
   heldJumpApex,

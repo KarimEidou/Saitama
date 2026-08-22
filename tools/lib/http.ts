@@ -190,28 +190,68 @@ interface IRequestInit {
   readonly signal?: AbortSignal;
 }
 
+/** A live request: the response, plus the teardown for its abort plumbing. */
+interface IRequestHandle {
+  readonly response: Response;
+  /**
+   * Detach the caller's signal from this request. Call it once the body has
+   * been consumed, cancelled, or abandoned — never before.
+   */
+  readonly release: () => void;
+}
+
 /**
  * One `fetch` with a header-phase inactivity timeout. The returned body is
  * NOT yet consumed; the caller applies its own chunk watchdog.
+ *
+ * The caller's `signal` stays wired to the request until `release()` is
+ * called. Tearing it down when `fetch()` resolves would look right and be
+ * useless: `fetch` resolves on HEADERS, so the outer signal would be detached
+ * before a single body byte has moved and cancelling a 90 MB transfer would do
+ * nothing at all — the only part of a transfer anyone wants to cancel.
  */
-async function requestOnce(url: string, init: IRequestInit = {}): Promise<Response> {
+async function requestOnce(url: string, init: IRequestInit = {}): Promise<IRequestHandle> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error('header timeout')), TIMEOUT_MS);
   const onOuterAbort = (): void => controller.abort(init.signal?.reason);
   init.signal?.addEventListener('abort', onOuterAbort, { once: true });
+  const release = (): void => {
+    clearTimeout(timer);
+    init.signal?.removeEventListener('abort', onOuterAbort);
+  };
 
+  let response: Response;
   try {
-    return await fetch(url, {
+    response = await fetch(url, {
       headers: { 'user-agent': USER_AGENT, ...init.headers },
       signal: controller.signal,
       redirect: 'follow',
     });
   } catch (error) {
+    release();
     // Network-level failures share the retryable path with 5xx.
     throw new HttpError(url, 0, `network error: ${(error as Error).message}`);
-  } finally {
-    clearTimeout(timer);
-    init.signal?.removeEventListener('abort', onOuterAbort);
+  }
+  // Headers are in: the header-phase budget is spent, and the body gets the
+  // caller's own per-chunk watchdog instead.
+  clearTimeout(timer);
+  return { response, release };
+}
+
+/**
+ * Let go of a response nobody is going to read.
+ *
+ * An undici response whose body is never consumed pins its connection until
+ * the finalizer runs and prints `Response body not consumed` on the way. On a
+ * 503 stretch that is up to 252 abandoned bodies across the retry budget, all
+ * of it noise on top of the real error. Cancelling is best-effort by
+ * definition — the body may already be errored.
+ */
+async function discardBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    /* already errored or consumed — nothing to release */
   }
 }
 
@@ -221,11 +261,16 @@ export async function fetchJson<T = unknown>(
   options: IRetryOptions & IRequestInit = {}
 ): Promise<T> {
   return withRetry(async () => {
-    const response = await requestOnce(url, options);
-    if (!response.ok) {
-      throw new HttpError(url, response.status, `GET ${url} -> HTTP ${response.status}`);
+    const { response, release } = await requestOnce(url, options);
+    try {
+      if (!response.ok) {
+        await discardBody(response);
+        throw new HttpError(url, response.status, `GET ${url} -> HTTP ${response.status}`);
+      }
+      return (await response.json()) as T;
+    } finally {
+      release();
     }
-    return (await response.json()) as T;
   }, options);
 }
 
@@ -291,71 +336,77 @@ export async function downloadToFile(
     const headers: Record<string, string> = {};
     if (startAt > 0) headers.range = `bytes=${startAt}-`;
 
-    const response = await requestOnce(url, { headers, signal: options.signal });
-
-    if (response.status === 416) {
-      // Range unsatisfiable: our `.part` is stale. Wipe it and let retry redo it.
-      await rm(partPath, { force: true });
-      throw new HttpError(url, 416, `GET ${url} -> 416, discarded stale partial`);
-    }
-    if (!response.ok) {
-      throw new HttpError(url, response.status, `GET ${url} -> HTTP ${response.status}`);
-    }
-    if (!response.body) {
-      throw new HttpError(url, response.status, `GET ${url} -> empty body`);
-    }
-
-    // Asked to resume but the server ignored Range: the body is the WHOLE file,
-    // so the partial has to go or we would concatenate a prefix onto a full copy.
-    let appending = startAt > 0;
-    if (appending && response.status !== 206) {
-      await rm(partPath, { force: true });
-      appending = false;
-    }
-
-    let transferred = 0;
-    const source = Readable.fromWeb(response.body as WebReadableStream<Uint8Array>);
-    const sink = createWriteStream(partPath, { flags: appending ? 'a' : 'w' });
-
-    // Per-chunk inactivity watchdog: a socket that stops delivering data is
-    // killed after TIMEOUT_MS, no matter how long the transfer has been running.
-    let watchdog: NodeJS.Timeout | undefined;
-    const arm = (): void => {
-      clearTimeout(watchdog);
-      watchdog = setTimeout(() => {
-        source.destroy(new Error(`stalled for ${TIMEOUT_MS}ms`));
-      }, TIMEOUT_MS);
-    };
-    source.on('data', (chunk: Buffer) => {
-      transferred += chunk.length;
-      options.onProgress?.(chunk.length);
-      arm();
-    });
-    arm();
+    const { response, release } = await requestOnce(url, { headers, signal: options.signal });
 
     try {
-      await pipeline(source, sink);
-    } catch (error) {
-      throw new HttpError(url, 0, `transfer failed: ${(error as Error).message}`);
+      if (response.status === 416) {
+        // Range unsatisfiable: our `.part` is stale. Wipe it and let retry redo it.
+        await discardBody(response);
+        await rm(partPath, { force: true });
+        throw new HttpError(url, 416, `GET ${url} -> 416, discarded stale partial`);
+      }
+      if (!response.ok) {
+        await discardBody(response);
+        throw new HttpError(url, response.status, `GET ${url} -> HTTP ${response.status}`);
+      }
+      if (!response.body) {
+        throw new HttpError(url, response.status, `GET ${url} -> empty body`);
+      }
+
+      // Asked to resume but the server ignored Range: the body is the WHOLE file,
+      // so the partial has to go or we would concatenate a prefix onto a full copy.
+      let appending = startAt > 0;
+      if (appending && response.status !== 206) {
+        await rm(partPath, { force: true });
+        appending = false;
+      }
+
+      let transferred = 0;
+      const source = Readable.fromWeb(response.body as WebReadableStream<Uint8Array>);
+      const sink = createWriteStream(partPath, { flags: appending ? 'a' : 'w' });
+
+      // Per-chunk inactivity watchdog: a socket that stops delivering data is
+      // killed after TIMEOUT_MS, no matter how long the transfer has been running.
+      let watchdog: NodeJS.Timeout | undefined;
+      const arm = (): void => {
+        clearTimeout(watchdog);
+        watchdog = setTimeout(() => {
+          source.destroy(new Error(`stalled for ${TIMEOUT_MS}ms`));
+        }, TIMEOUT_MS);
+      };
+      source.on('data', (chunk: Buffer) => {
+        transferred += chunk.length;
+        options.onProgress?.(chunk.length);
+        arm();
+      });
+      arm();
+
+      try {
+        await pipeline(source, sink);
+      } catch (error) {
+        throw new HttpError(url, 0, `transfer failed: ${(error as Error).message}`);
+      } finally {
+        clearTimeout(watchdog);
+      }
+
+      const finalBytes = (await stat(partPath)).size;
+      if (options.expectedBytes !== undefined && finalBytes !== options.expectedBytes) {
+        // Truncated or over-long: never promote it, and never keep the partial —
+        // a wrong-length `.part` would poison the next resume attempt too.
+        await rm(partPath, { force: true });
+        throw new HttpError(
+          url,
+          0,
+          `size mismatch: got ${finalBytes} bytes, manifest declares ${options.expectedBytes}`
+        );
+      }
+
+      await rm(destPath, { force: true });
+      await rename(partPath, destPath);
+      return { bytes: finalBytes, transferred, resumed: appending };
     } finally {
-      clearTimeout(watchdog);
+      release();
     }
-
-    const finalBytes = (await stat(partPath)).size;
-    if (options.expectedBytes !== undefined && finalBytes !== options.expectedBytes) {
-      // Truncated or over-long: never promote it, and never keep the partial —
-      // a wrong-length `.part` would poison the next resume attempt too.
-      await rm(partPath, { force: true });
-      throw new HttpError(
-        url,
-        0,
-        `size mismatch: got ${finalBytes} bytes, manifest declares ${options.expectedBytes}`
-      );
-    }
-
-    await rm(destPath, { force: true });
-    await rename(partPath, destPath);
-    return { bytes: finalBytes, transferred, resumed: appending };
   }, options);
 }
 
@@ -364,9 +415,13 @@ export async function downloadToFile(
  * Poly Haven always does — but useful when wiring up a new provider.
  */
 export async function supportsRange(url: string): Promise<boolean> {
-  const response = await requestOnce(url, { headers: { range: 'bytes=0-0' } });
-  await response.body?.cancel();
-  return response.status === 206;
+  const { response, release } = await requestOnce(url, { headers: { range: 'bytes=0-0' } });
+  try {
+    await discardBody(response);
+    return response.status === 206;
+  } finally {
+    release();
+  }
 }
 
 /** Read a file's size, or undefined when it does not exist. */

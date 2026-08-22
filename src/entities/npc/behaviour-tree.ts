@@ -196,6 +196,27 @@ export function always<C>(child: BtNode<C>): BtNode<C> {
   };
 }
 
+/**
+ * Report failure whatever the child does, so a `selector` carries on to the
+ * next branch. The dual of `always`.
+ *
+ * This is what a branch that is a pure SIDE EFFECT needs — a callout, a taunt,
+ * a bit of characterisation that runs alongside combat rather than instead of
+ * it. Returning `'failure'` from the action itself would do the same job to
+ * the selector, but it also lies to any `cooldown` above it, which arms on
+ * success and would therefore never arm at all.
+ */
+export function fallthrough<C>(child: BtNode<C>): BtNode<C> {
+  return {
+    name: `fallthrough(${child.name})`,
+    tick(context, dt) {
+      child.tick(context, dt);
+      return 'failure';
+    },
+    reset: (context) => child.reset?.(context),
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Runner                                                                     */
 /* -------------------------------------------------------------------------- */

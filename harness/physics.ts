@@ -87,6 +87,15 @@ interface HarnessReport {
     poolUpdate: TimingSummary;
     awakeAtEnd: number;
     settledAtEnd: number;
+    /**
+     * Settled pieces the SOLVER put to sleep.
+     *
+     * `settledAtEnd` counts ballistic gravel too, and gravel sets its own
+     * settled flag the moment its single bounce is spent — so a threshold on
+     * `settledAtEnd / simulated` is satisfied in part by pieces the solver never
+     * touched, and reads as a much weaker bar than it claims to be.
+     */
+    settledSimulated: number;
     lowestY: number;
     highestY: number;
     /** Resting height range of the ballistic (non-simulated) pieces. */
@@ -280,7 +289,9 @@ function runDebrisScenario(container: THREE.Object3D): DebrisScene {
   let highestY = -Infinity;
   let ballisticLowestY = Infinity;
   let ballisticHighestY = -Infinity;
+  let settledSimulated = 0;
   for (const piece of pool.pieces) {
+    if (!piece.ballistic && piece.settled) settledSimulated++;
     if (piece.bodyHandle < 0) {
       // Ballistic pieces live only as meshes; read the mesh instead.
       ballisticLowestY = Math.min(ballisticLowestY, piece.mesh.position.y);
@@ -307,6 +318,7 @@ function runDebrisScenario(container: THREE.Object3D): DebrisScene {
       poolUpdate: summarise(poolSamples),
       awakeAtEnd: world.activeBodyCount,
       settledAtEnd: pool.settledCount,
+      settledSimulated,
       lowestY: round(lowestY, 3),
       highestY: round(highestY, 3),
       ballisticLowestY: round(ballisticLowestY, 3),

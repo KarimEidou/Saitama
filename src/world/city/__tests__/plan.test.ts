@@ -17,7 +17,7 @@ import { allCityMaterialKeys, verifyMaterialTable } from '../materials';
 import { allPropAssetKeys } from '../props';
 import { polygonArea, polygonBounds } from '../polygon';
 import { CHUNK_SIZE, chunkIndex } from '../../../spatial/constants';
-import { CITY_Z_PLAN } from './fixtures';
+import { CITY_Z_PLAN, SAMPLE_CHUNKS, makeGenerator } from './fixtures';
 
 interface IManifestEntry {
   readonly id: string;
@@ -135,6 +135,22 @@ describe('asset bindings', () => {
     }
   });
 
+  it('preloads every model the city actually emits', () => {
+    // `allPropAssetKeys()` IS `CityGenerator.requiredAssets().models`, and
+    // `buildChunkNodes` drops a whole instance batch without a word when its
+    // model is not resident — so an id the city emits but does not preload is
+    // a prop that silently never renders. The facade kit's attachments are the
+    // easy ones to miss: they come from `facade.ts`, not from a scatter table.
+    const known = new Set(allPropAssetKeys());
+    const generator = makeGenerator('box');
+    const emitted = new Set<string>();
+    for (const [cx, cz] of SAMPLE_CHUNKS) {
+      for (const batch of generator.generate(cx, cz).instances) emitted.add(batch.assetKey);
+    }
+    expect(emitted.size).toBeGreaterThan(5);
+    expect([...emitted].filter((key) => !known.has(key))).toEqual([]);
+  }, 30_000);
+
   it('binds only manifest material ids from the plan itself', () => {
     const known = new Set(textureEntries.map((e) => e.id));
     for (const zone of CITY_Z_PLAN.zones) {
@@ -184,5 +200,57 @@ describe('validation catches broken plans', () => {
 
   it('rejects a mismatched world size', () => {
     expect(validatePlan({ ...CITY_Z_PLAN, worldSize: 1024 }).join('\n')).toMatch(/worldSize/);
+  });
+
+  it('rejects a zone whose lot size would divide by zero', () => {
+    // `subdivideBlock` computes `round(runLength / lotWidth)`. At zero that is
+    // Infinity lots: several seconds of pushing into an array and then a
+    // RangeError inside the chunk generator, on the first chunk of the zone.
+    const zone = CITY_Z_PLAN.zones[0];
+    const broken = {
+      ...CITY_Z_PLAN,
+      zones: [{ ...zone, params: { ...zone.params, lotWidth: [0, 0] as const } }],
+    };
+    expect(validatePlan(broken).join('\n')).toMatch(/invalid lotWidth/);
+
+    const inverted = {
+      ...CITY_Z_PLAN,
+      zones: [{ ...zone, params: { ...zone.params, lotDepth: [30, 12] as const } }],
+    };
+    expect(validatePlan(inverted).join('\n')).toMatch(/invalid lotDepth/);
+  });
+
+  it('rejects a mistyped panel kind in a weight table', () => {
+    // `normaliseWeights` drops keys it does not recognise and falls back to a
+    // blank wall, so "windows" for "window" turns a whole zone windowless with
+    // no error anywhere.
+    const zone = CITY_Z_PLAN.zones[0];
+    const broken = {
+      ...CITY_Z_PLAN,
+      zones: [{ ...zone, params: { ...zone.params, panelWeights: { windows: 10 } } }],
+    };
+    expect(validatePlan(broken).join('\n')).toMatch(/unknown panel kind "windows"/);
+  });
+
+  it('rejects a clockwise landmark footprint', () => {
+    // Winding decides which way the walls face; a clockwise footprint renders
+    // the landmark inside-out and every existing test still passes.
+    const first = CITY_Z_PLAN.landmarks[0];
+    const broken = {
+      ...CITY_Z_PLAN,
+      landmarks: [{ ...first, footprint: [...first.footprint].reverse() }],
+    };
+    expect(validatePlan(broken).join('\n')).toMatch(/counter-clockwise/);
+  });
+
+  it('rejects a landmark on the exclusive world boundary', () => {
+    // The world is addressable on [-768, 768): a landmark at x = 768 maps to
+    // chunk 8, which `indexPlan` silently drops.
+    const first = CITY_Z_PLAN.landmarks[0];
+    const broken = {
+      ...CITY_Z_PLAN,
+      landmarks: [{ ...first, position: [768, 0] as const }],
+    };
+    expect(validatePlan(broken).join('\n')).toMatch(/outside the chunk grid/);
   });
 });

@@ -73,6 +73,7 @@ import {
   BehaviourTree,
   action,
   cooldown,
+  fallthrough,
   guard,
   selector,
   sequence,
@@ -229,6 +230,8 @@ export class HeroNpc implements IActor {
   private lastAttacker: EntityId | undefined;
   private disposed = false;
   private clipRequest: ClipName = 'idle';
+  /** Last base clip actually handed to the animator, so it is not restarted. */
+  private lastClip: ClipName | undefined;
 
   constructor(
     id: EntityId,
@@ -357,6 +360,8 @@ export class HeroNpc implements IActor {
     this.downTimer = Math.max(this.downTimer, seconds);
     this.stateMachine.transition('stagger', true);
     this.clipRequest = 'stagger';
+    // A fresh knockdown replays the clip even if they were already staggered.
+    this.lastClip = undefined;
   }
 
   private die(): void {
@@ -495,6 +500,17 @@ export class HeroNpc implements IActor {
       return;
     }
 
+    // Come back out of `attack`. `fireAttack` forces the transition in and
+    // `present` clears `clipRequest` on the following frame, but nothing else
+    // ever transitions out — so an ally that fired once reported `"attack"` to
+    // the HUD for the rest of its life, with `timeInState` growing for ever.
+    if (this.downTimer <= 0 && this.clipRequest !== 'attack' && this.clipRequest !== 'special') {
+      const speed = Math.sqrt(
+        this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z
+      );
+      this.stateMachine.transition(speed > 4 ? 'run' : speed > 0.4 ? 'walk' : 'idle');
+    }
+
     if (this.downTimer > 0) {
       this.downTimer -= dt;
       this.brake(dt);
@@ -529,28 +545,58 @@ export class HeroNpc implements IActor {
     );
   }
 
+  /**
+   * Drive the animator, issuing each base clip ONCE.
+   *
+   * `death` and `stagger` are non-looping, and `ProceduralAnimator.play`'s
+   * re-play guard deliberately does not cover non-looping clips — so calling
+   * `play('death')` unconditionally every frame rebuilds the layer at time 0
+   * sixty times a second and the clip never advances past its first 16 ms.
+   * `death` is a full-region clip, so the symptom is a destroyed ally standing
+   * upright forever instead of falling. `clipRequest` stays latched for the
+   * whole of both states, so the guard has to live here.
+   */
   private present(dt: number): void {
+    // Consume the one-shot swing BEFORE the animator check. It is state, not
+    // presentation: an ally built without a body (the harness, every headless
+    // test) would otherwise never clear it and would sit in `attack` for ever.
+    const additive =
+      this.clipRequest === 'attack' || this.clipRequest === 'special'
+        ? this.clipRequest
+        : undefined;
+    if (additive !== undefined) this.clipRequest = 'idle';
+
     if (this.animator === undefined) return;
     const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
     this.animator.setLocomotion({ speed, grounded: true });
     this.animator.setRoot(this.transform.position, this.transform.yaw);
-    if (this.clipRequest === 'death') {
-      this.animator.play('death', { fade: 0.12, loop: 'once', clampWhenFinished: true });
-    } else if (this.clipRequest === 'attack' || this.clipRequest === 'special') {
-      this.animator.playAdditive(this.clipRequest, { fade: 0.08 });
-      this.clipRequest = 'idle';
-    } else if (this.clipRequest === 'stagger') {
-      this.animator.play('stagger', { fade: 0.1 });
-    } else if (speed > 0.4) {
-      this.animator.play(speed > 4 ? 'run' : 'walk', { fade: 0.18 });
+    if (additive !== undefined) {
+      // Additive, one-shot, on its own layer: this one is meant to re-fire.
+      this.animator.playAdditive(additive, { fade: 0.08 });
     } else {
-      this.animator.play('idle', { fade: 0.2 });
+      let want: ClipName;
+      if (this.clipRequest === 'death') want = 'death';
+      else if (this.clipRequest === 'stagger') want = 'stagger';
+      else if (speed > 0.4) want = speed > 4 ? 'run' : 'walk';
+      else want = 'idle';
+
+      if (want !== this.lastClip) {
+        this.lastClip = want;
+        if (want === 'death') {
+          this.animator.play('death', { fade: 0.12, loop: 'once', clampWhenFinished: true });
+        } else if (want === 'stagger') {
+          this.animator.play('stagger', { fade: 0.1 });
+        } else {
+          this.animator.play(want, { fade: want === 'idle' ? 0.2 : 0.18 });
+        }
+      }
     }
     this.animator.update(dt);
   }
 
   playAnimation(clip: ClipName, fadeSeconds = 0.18): void {
     this.animator?.play(clip, { fade: fadeSeconds });
+    this.lastClip = clip;
   }
 
   dispose(): void {
@@ -565,6 +611,15 @@ export class HeroNpc implements IActor {
 /* -------------------------------------------------------------------------- */
 /* Trees                                                                      */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Metres of rubble a telekinetic can reach for.
+ *
+ * Deliberately generous — she is Tatsumaki, and the point of the branch is
+ * that she throws something absurd. It only has to be bounded, so that debris
+ * from a collapse at the other end of the city is not "in her hand".
+ */
+const TELEKINESIS_REACH = 80;
 
 function buildHeroTree(heroId: HeroNpcId): BtNode<HeroContext> {
   switch (heroId) {
@@ -594,21 +649,28 @@ function genosTree(): BtNode<HeroContext> {
       hasTarget,
       selector<HeroContext>('engaged-branches', [
         // Wounded: say so, on a long cooldown so it does not become chatter.
-        cooldown<HeroContext>(
-          'callout',
-          9,
-          guard<HeroContext>(
-            'hurt',
-            (c) => c.self.health < c.self.maxHealth * GENOS_CALLOUT_HEALTH,
-            action<HeroContext>('call-sensei', (c) => {
-              c.self.say(
-                c.self.health < c.self.maxHealth * 0.2
-                  ? 'Sensei — I cannot hold it. Where are you?'
-                  : 'Sensei! It is stronger than the report said!',
-                'genos.callout'
-              );
-              return 'success';
-            })
+        // Wrapped in `fallthrough` so the branch reports failure to this
+        // selector and `incinerate` still gets its tick — the callout fires
+        // WHILE he fights, which is the whole point of it sitting up here.
+        // The action itself still returns success, or the cooldown above it
+        // would never arm.
+        fallthrough(
+          cooldown<HeroContext>(
+            'callout',
+            9,
+            guard<HeroContext>(
+              'hurt',
+              (c) => c.self.health < c.self.maxHealth * GENOS_CALLOUT_HEALTH,
+              action<HeroContext>('call-sensei', (c) => {
+                c.self.say(
+                  c.self.health < c.self.maxHealth * 0.2
+                    ? 'Sensei — I cannot hold it. Where are you?'
+                    : 'Sensei! It is stronger than the report said!',
+                  'genos.callout'
+                );
+                return 'success';
+              })
+            )
           )
         ),
         // In range and loaded: fire.
@@ -740,27 +802,34 @@ function mumenTree(): BtNode<HeroContext> {
  */
 function tatsumakiTree(): BtNode<HeroContext> {
   return selector<HeroContext>('tatsumaki', [
-    // Never let go of the disdain, even mid-fight.
-    cooldown<HeroContext>(
-      'contempt',
-      17,
-      guard<HeroContext>(
-        'player-nearby',
-        (c) => {
-          const player = c.world.playerPosition();
-          if (player === undefined) return false;
-          const p = c.self.transform.position;
-          const dx = player.x - p.x;
-          const dz = player.z - p.z;
-          return dx * dx + dz * dz < 30 * 30;
-        },
-        action<HeroContext>('insult', (c) => {
-          c.self.say(
-            TATSUMAKI_LINES[c.self.reEngagements % TATSUMAKI_LINES.length]!,
-            'tatsumaki.contempt'
-          );
-          return 'failure';
-        })
+    // Never let go of the disdain, even mid-fight. `fallthrough` is what makes
+    // "above combat but not instead of combat" work: the branch always reports
+    // failure so the selector moves on, while the insult itself still returns
+    // success so the 17-second cooldown actually arms. Returning failure from
+    // the action instead would leave the gate permanently open and she would
+    // say the same line sixty times a second.
+    fallthrough(
+      cooldown<HeroContext>(
+        'contempt',
+        17,
+        guard<HeroContext>(
+          'player-nearby',
+          (c) => {
+            const player = c.world.playerPosition();
+            if (player === undefined) return false;
+            const p = c.self.transform.position;
+            const dx = player.x - p.x;
+            const dz = player.z - p.z;
+            return dx * dx + dz * dz < 30 * 30;
+          },
+          action<HeroContext>('insult', (c) => {
+            c.self.say(
+              TATSUMAKI_LINES[c.self.reEngagements % TATSUMAKI_LINES.length]!,
+              'tatsumaki.contempt'
+            );
+            return 'success';
+          })
+        )
       )
     ),
     guard<HeroContext>(
@@ -774,8 +843,25 @@ function tatsumakiTree(): BtNode<HeroContext> {
           'hurl-building',
           21,
           sequence<HeroContext>('big-throw', [
+            // Same range gate `hurl-debris` uses. Without it the branch fires
+            // at a monster 300 m away, burning both cooldowns and seeding a
+            // 96 m panic impulse for an attack that reaches nothing.
+            action<HeroContext>('in-range', (c) => {
+              const threat = c.self.nearestThreat();
+              if (threat === undefined) return 'failure';
+              return c.self.distanceTo(threat) <= c.self.spec.attackRange ? 'success' : 'failure';
+            }),
             action<HeroContext>('have-mass', (c) => {
-              const heavy = c.world.debris.find((d) => d.mass > 4000);
+              // Within reach, not merely somewhere in the city: `debris` is a
+              // 64-entry ring fed by every collapse in the world, so an
+              // unfiltered search picks up rubble from another district.
+              const p = c.self.transform.position;
+              const heavy = c.world.debris.find((d) => {
+                if (d.mass <= 4000) return false;
+                const dx = d.x - p.x;
+                const dz = d.z - p.z;
+                return dx * dx + dz * dz <= TELEKINESIS_REACH * TELEKINESIS_REACH;
+              });
               return heavy !== undefined ? 'success' : 'failure';
             }),
             action<HeroContext>('throw', (c) => {

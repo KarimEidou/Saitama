@@ -31,6 +31,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import type { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import type { IAssetLOD, IModelAsset } from '@/types';
 import { createLogger } from '@/util';
+import { isMissingAsset } from './fallback';
 
 const log = createLogger('assets:models');
 
@@ -100,6 +101,18 @@ function countTriangles(object: THREE.Object3D): number {
 }
 
 /**
+ * Level-alternative child, e.g. `LOD0` — or `LOD0_17` once `GLTFLoader` has
+ * made a duplicated name unique.
+ *
+ * The pipeline emits the SAME three child names in every part of a model, and
+ * `GLTFLoader.createUniqueName` appends `_<n>` to each repeat. Matching only
+ * the bare form found the first part's levels and silently dropped every other
+ * part's — which put all three levels of 191 of a facade's 192 parts on screen
+ * at once, coincident and z-fighting, at every distance.
+ */
+const LOD_CHILD_NAME = /^LOD(\d+)(?:_\d+)?$/;
+
+/**
  * Find every `__LOD` node in a loaded scene.
  *
  * Matches on the node-name suffix the pipeline emits AND on the presence of
@@ -115,12 +128,14 @@ export function extractLodGroups(
   for (const lod of manifestLods) distances.set(lod.level, lod.screenDistance ?? 0);
 
   root.traverse((node) => {
-    if (!node.name.endsWith('__LOD')) return;
+    // The loader uniquifies the group name too (`part__LOD_3`), so the suffix
+    // is matched anywhere in the tail rather than only at the very end.
+    if (!/__LOD(?:_\d+)?$/.test(node.name)) return;
     const levels: IModelLodLevel[] = [];
     const extras = node.userData as ILodExtras;
 
     for (const child of node.children) {
-      const match = /^LOD(\d+)$/.exec(child.name);
+      const match = LOD_CHILD_NAME.exec(child.name);
       if (match === null) continue;
       const level = Number(match[1]);
       const declared = extras.lod?.levels?.find((entry) => entry.level === level);
@@ -204,6 +219,14 @@ class LoadedModel implements ILoadedModel {
     const lod = new THREE.LOD();
     lod.name = `${this.key}:LOD`;
     const count = this.lodCount;
+    if (count === 0) {
+      // A model the pipeline never decimated (below `MIN_LOD_TRIANGLES`, or
+      // authored elsewhere) parses fine and has no groups. Returning an empty
+      // `THREE.LOD` for it makes the prop invisible at every distance instead
+      // — the same single-level treatment `parseModel` already applies.
+      lod.addLevel(this.scene.clone(true), 0);
+      return lod;
+    }
     for (let level = 0; level < count; level++) {
       const container = new THREE.Group();
       container.name = `${this.key}:L${level}`;
@@ -227,19 +250,71 @@ class LoadedModel implements ILoadedModel {
   }
 
   dispose(): void {
-    disposeSceneGraph(this.scene);
+    // A model GLB carries its own KTX2 textures, so it owns them: no
+    // `TextureHandle` covers them and nothing else would ever free them.
+    disposeSceneGraph(this.scene, { textures: true });
   }
 }
 
-/** Free geometries and materials under an object. Textures are registry-owned. */
-export function disposeSceneGraph(root: THREE.Object3D): void {
+/** Which resources `disposeSceneGraph` is allowed to free. */
+export interface IDisposeSceneOptions {
+  /**
+   * Also free the textures bound to the graph's materials.
+   *
+   * True for a graph that OWNS its textures — a model or character GLB, whose
+   * maps arrive as KTX2 inside the container (`KHR_texture_basisu`) and are
+   * therefore covered by no `TextureHandle` and charged to no LRU entry.
+   * False (the default) where the textures came from the registry and other
+   * materials are still drawing with them.
+   */
+  readonly textures?: boolean;
+}
+
+/**
+ * Free geometries and materials under an object.
+ *
+ * `THREE.Material.dispose()` does NOT touch textures, and three frees a GL
+ * texture only on an explicit `dispose()`. Without `{ textures: true }` on the
+ * graphs that own theirs, unloading a building freed its geometry, reported
+ * the texture bytes as reclaimed, and left every embedded KTX2 resident for
+ * the life of the context.
+ */
+export function disposeSceneGraph(root: THREE.Object3D, options: IDisposeSceneOptions = {}): void {
+  const seen = new Set<string>();
+  const disposeTextures = (material: THREE.Material): void => {
+    const pbr = material as THREE.MeshStandardMaterial;
+    for (const slot of [
+      'map',
+      'normalMap',
+      'roughnessMap',
+      'metalnessMap',
+      'aoMap',
+      'emissiveMap',
+      'alphaMap',
+      'lightMap',
+      'bumpMap',
+      'displacementMap',
+    ] as const) {
+      const texture = pbr[slot] as THREE.Texture | null | undefined;
+      if (!texture || seen.has(texture.uuid)) continue;
+      seen.add(texture.uuid);
+      // The missing-asset checker is a process-wide singleton: freeing it here
+      // would blank every other stand-in in the build.
+      if (isMissingAsset(texture)) continue;
+      texture.dispose();
+    }
+  };
+
   root.traverse((child) => {
     const mesh = child as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.geometry?.dispose();
     const material = mesh.material;
-    if (Array.isArray(material)) for (const entry of material) entry.dispose();
-    else material?.dispose();
+    const materials = Array.isArray(material) ? material : material ? [material] : [];
+    for (const entry of materials) {
+      if (options.textures === true) disposeTextures(entry);
+      entry.dispose();
+    }
   });
 }
 

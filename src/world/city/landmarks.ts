@@ -21,6 +21,7 @@
 import { createRng } from '@/util';
 import type { StructureMaterial } from '@/types';
 import { generateBuilding, type BuildingDetail, type IBuildingBuild } from './building';
+import { STRUCTURE_DENSITY } from './fracture';
 import { MatSlot, MeshBuilder, type IPlacement } from './mesh-builder';
 import { CITY_MATERIALS, shadeTint, tintToRgb, uvScaleFor } from './materials';
 import { landmarkSeed } from './plan';
@@ -202,6 +203,9 @@ function scaleFootprint(footprint: Polygon, factor: number): Polygon {
 /* Shotengai — the covered shopping arcade                                    */
 /* -------------------------------------------------------------------------- */
 
+/** The canopy is a painted steel frame, and its mass comes from that. */
+const ARCADE_STRUCTURE: StructureMaterial = 'metal';
+
 /**
  * The arcade is a canopy, not a building: a translucent gabled roof spanning
  * the street on paired columns, with hanging signage down both sides.
@@ -238,6 +242,10 @@ function buildArcade(
   const ridge = 7.6;
   const bays = Math.max(4, Math.round(length / 6));
   const bayLength = length / bays;
+  /** Rafter run from eaves to ridge, in metres. Both a UV span and a length. */
+  const slope = Math.hypot(halfSpan, ridge - eaves);
+  /** Nominal panel thickness, for the mass estimate. */
+  const panelThickness = 0.02;
 
   builder.beginChunk();
   for (let i = 0; i < bays; i++) {
@@ -253,14 +261,22 @@ function buildArcade(
         [side * halfSpan, eaves, side > 0 ? z0 : z1],
         [0, ridge, side > 0 ? z0 : z1],
         [0, ridge, side > 0 ? z1 : z0],
-        [0, z0 * glassUv, halfSpan * glassUv, z1 * glassUv],
+        // U runs along the street (corner a -> b), V up the slope (a -> d),
+        // both in real metres over the tile size. Feeding the span of one axis
+        // to the other transposes the panel texture and misses its density by
+        // half again in each direction.
+        [(side > 0 ? z1 : z0) * glassUv, 0, (side > 0 ? z0 : z1) * glassUv, slope * glassUv],
         [0.62 * shade, 0.66 * shade, 0.68 * shade]
       );
-      // Rafter under the panel.
+      builder.addVolume(slope * bayLength * panelThickness);
+      // Collar tie across the bay, just under the eaves line. It is horizontal,
+      // so it has to sit at eaves height: at the mid-height of the roof it
+      // stood 0.87 m PROUD of the panel out at the eaves and hung 1.15 m below
+      // it at the ridge — 56 dark bars floating over the canopy.
       builder.box(
         MatSlot.Facade,
         (side * halfSpan) / 2,
-        (eaves + ridge) / 2 - 0.14,
+        eaves - 0.14,
         z0,
         halfSpan / 2,
         0.09,
@@ -268,6 +284,7 @@ function buildArcade(
         facadeUv,
         shadeTint(tint, 0.7)
       );
+      builder.addVolume(halfSpan * 0.18 * 0.18);
     }
 
     // Columns, both sides.
@@ -283,6 +300,7 @@ function buildArcade(
         facadeUv,
         shadeTint(tint, 0.9)
       );
+      builder.addVolume(0.32 * eaves * 0.32);
       // Hanging shop banner: the vertical signage that makes a shotengai read.
       const banner = BANNER_TINTS[rng.int(0, BANNER_TINTS.length - 1)];
       builder.box(
@@ -310,6 +328,7 @@ function buildArcade(
     facadeUv,
     shadeTint(tint, 0.8)
   );
+  builder.addVolume(0.28 * 0.28 * length);
   const span = builder.endChunk();
   const buffers = builder.build();
 
@@ -317,6 +336,14 @@ function buildArcade(
   const parts = span.slotRanges
     .map((range, slot) => ({ slot, start: range[0] + slotBase[slot], count: range[1] }))
     .filter((p) => p.count > 0);
+
+  // Mass from the volume the members actually swept, at the density of the
+  // material the layout declares. The literal it replaced was 620 — the
+  // density of WOOD, applied to a `span.volume` that was always 0 because
+  // nothing here called `addVolume`, so an 18 x 168 m steel canopy detached as
+  // a single 620 kg body and sailed away like a sheet of paper.
+  const volume = Math.max(1, span.volume);
+  const mass = volume * STRUCTURE_DENSITY[ARCADE_STRUCTURE];
 
   const build: IBuildingBuild = {
     id: landmark.id,
@@ -333,8 +360,8 @@ function buildArcade(
           vertexStart: span.vertexStart,
           vertexCount: span.vertexCount,
           centroid: span.centroid,
-          volume: Math.max(1, span.volume),
-          mass: Math.max(1, span.volume) * 620,
+          volume,
+          mass,
           aabb: span.bounds,
           grounded: true,
           neighbours: [],
@@ -342,8 +369,8 @@ function buildArcade(
         },
       ],
       floors: [{ floor: 0, y0: 0, y1: ridge, chunks: [0], totalSupport: 1 }],
-      structureMaterial: 'metal',
-      totalMass: Math.max(1, span.volume) * 620,
+      structureMaterial: ARCADE_STRUCTURE,
+      totalMass: mass,
       collapseSupportRatio: 0.4,
       slotBase,
     },
@@ -364,7 +391,7 @@ function buildArcade(
     placements: [
       { x: landmark.position[0], y: 0, z: landmark.position[1], rotationY: landmark.rotationY },
     ],
-    structureMaterial: 'metal',
+    structureMaterial: ARCADE_STRUCTURE,
     exclusionRadius: landmark.exclusionRadius,
     height: ridge,
   };

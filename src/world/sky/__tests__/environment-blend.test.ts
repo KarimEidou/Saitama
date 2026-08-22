@@ -107,6 +107,30 @@ describe('parseEnvironmentMeasurements', () => {
     }
   });
 
+  it('reports a sky with baked SH but NO mean luminance as unmeasured', () => {
+    // The pipeline always writes `sh9`, so "either field is present" reports
+    // every sky as measured and the verification gate that exists to catch a
+    // dropped mean luminance ("sky X has no measured mean luminance") can
+    // never fire — while the sky silently renders 27% dim against its
+    // siblings because it is normalising by 1.0.
+    const m = parseEnvironmentMeasurements({
+      environments: {
+        'hdri.sky.day': { sh9: fill(2.5, 27), maxLuminance: 136998.2976 },
+        'hdri.sky.night': { meanLuminance: 0, sh9: fill(2.35, 27) },
+      },
+    });
+    expect(m.day.sh9).toHaveLength(27);
+    expect(isMeasured(m.day)).toBe(false);
+    expect(isMeasured(m.night)).toBe(false);
+    expect(normalisationScale(m.day)).toBe(1);
+
+    const rows = describeNormalisation(m);
+    const day = rows.find((r) => r.sky === 'day')!;
+    expect(day.measured).toBe(false);
+    // The SH half is reported separately and is still there.
+    expect(day.hasBakedSH).toBe(true);
+  });
+
   it('survives a malformed manifest', () => {
     for (const junk of [
       null,

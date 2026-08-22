@@ -24,6 +24,7 @@ import { createRng } from '@/util';
 import { BossEncounter, PHASE_STALL_SECONDS } from '../boss-encounter';
 import { BOSS_SCRIPTS, bossScript } from '../boss-scripts';
 import { makeBrain, mirrorOf, mirrorPunch, recordingBus } from './fixtures';
+import type { IBossPhase, IBossScript } from '../types';
 
 const ORIGIN = { x: 0, y: 0, z: 0 };
 
@@ -402,6 +403,25 @@ describe('Deep Sea King: the ally branch', () => {
     expect(remaining!).toBeLessThan(13);
   });
 
+  it('reaches the finisher when the host registered NO ally at all', () => {
+    // `ally` is optional, and `MonsterSystem.startBossEncounter` defaults its
+    // options bag to `{}`. `tickAllyBeat` bails out immediately with no ally,
+    // so the phase-0 beat could never be consumed and `canAdvance` returned
+    // false for ever: the encounter pinned at phase 0, the gate stuck CLOSED,
+    // and the player left punching an immortal boss until the 240 s stall
+    // guard force-advanced it. Four minutes is not a fallback, it is the bug.
+    const { encounter, recorder } = scene('boss.deepSeaKing');
+    encounter.begin(0);
+    driveToFinisher(encounter);
+
+    expect(encounter.phaseResolved).toBe(true);
+    expect(encounter.currentPhaseIndex).toBe(encounter.script.phases.length - 1);
+    expect(encounter.stallTrips).toBe(0);
+    expect(encounter.duration).toBeLessThan(PHASE_STALL_SECONDS);
+    expect(recorder.ofType('AllyDowned')).toHaveLength(0);
+    expect(encounter.state().allyDownIn).toBeUndefined();
+  });
+
   it('runs the ally clock on WALL time, not on engaged time', () => {
     // The whole point: standing 400 m away does not pause somebody else's
     // death. Every other phase condition pauses; this one does not.
@@ -412,6 +432,86 @@ describe('Deep Sea King: the ally branch', () => {
     encounter.begin(0);
     run(encounter, 20, { x: 900, y: 0, z: 900 });
     expect(recorder.ofType('AllyDowned')).toHaveLength(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The ally beat is per phase                                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('a script with more than one ally beat', () => {
+  /** A phase row, for scripts that exist only in this file. */
+  function rescue(id: string, downAt: number): IBossPhase {
+    return {
+      id,
+      kind: 'rescue',
+      title: id,
+      durationSeconds: 0,
+      hitsToAdvance: 0,
+      engageRadiusMetres: 500,
+      pulsePeriodSeconds: 0,
+      pulseRangeMetres: 0,
+      pulseHalfAngleRad: Math.PI,
+      pulsePower: 0,
+      allyDownAtSeconds: downAt,
+      allyRescueRadiusMetres: 14,
+    };
+  }
+
+  const TWO_BEATS: IBossScript = Object.freeze({
+    encounterId: 'test.twoRescues',
+    archetypeId: 'boss.deepSeaKing',
+    title: 'Two Rescues',
+    arenaRadiusMetres: 90,
+    tests: 'Two ally beats in one script — the per-phase reset.',
+    phases: Object.freeze([
+      rescue('first', 5),
+      rescue('second', 5),
+      rescue('third', 5),
+      { ...rescue('done', 5), kind: 'finisher' as const, allyDownAtSeconds: undefined },
+    ]),
+  });
+
+  it('re-arms a resolved beat for the next phase, but never for a fallen ally', () => {
+    // `allyBeatConsumed` was declared once and reset nowhere, unlike every
+    // other per-phase accumulator. The moment a script carried a second rescue
+    // beat it would be silently pre-consumed: no `AllyDowned`, no HUD
+    // countdown, and `canAdvance` waving straight through a phase that was
+    // supposed to be about somebody's life. The module advertises exactly this
+    // kind of data-only edit as safe.
+    const recorder = recordingBus();
+    const ally = { id: 'mumen-rider', displayName: 'Mumen Rider', position: { x: 30, y: 0, z: 0 } };
+    const boss = makeBrain(TWO_BEATS.archetypeId, recorder.bus, ORIGIN, 'boss#1');
+    const encounter = new BossEncounter({
+      bus: recorder.bus,
+      script: TWO_BEATS,
+      boss,
+      rng: createRng('two-beats'),
+      ally,
+    });
+    encounter.begin(0);
+
+    // Phase 0: the player is standing on the ally, so the beat resolves as a
+    // RESCUE on the first frame and the phase (0 s, 0 hits) advances.
+    encounter.update(1 / 60, { x: 28, y: 0, z: 0 });
+    expect(encounter.currentPhaseIndex).toBe(1);
+    expect(encounter.allySurvived).toBe(true);
+
+    // Phase 1 carries its own beat, and it must be pending again — this is the
+    // assertion the un-reset flag failed.
+    expect(encounter.state().allyDownIn).toBeGreaterThan(0);
+    run(encounter, 6, { x: -300, y: 0, z: 0 });
+    expect(recorder.ofType('AllyDowned')).toHaveLength(1);
+    expect(encounter.allySurvived).toBe(false);
+
+    // Phase 2 carries one too — but Mumen Rider is already down and a fallen
+    // ally cannot fall twice, so it resolves on entry and the script runs on
+    // instead of arming a beat nobody is left to lose.
+    run(encounter, 20, { x: -300, y: 0, z: 0 });
+    expect(recorder.ofType('AllyDowned')).toHaveLength(1);
+    expect(encounter.allySurvived).toBe(false);
+    expect(encounter.currentPhaseIndex).toBe(TWO_BEATS.phases.length - 1);
+    expect(encounter.phaseResolved).toBe(true);
   });
 });
 

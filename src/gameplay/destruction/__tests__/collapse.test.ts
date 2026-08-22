@@ -180,6 +180,38 @@ describe('structural collapse', () => {
     system.dispose();
   });
 
+  it('counts a storey once however often the cascade is extended downward', () => {
+    const { bus, system, structure } = setup(12);
+    const gut = (floor: number): void => {
+      // Three of the four quadrants: 25% support left, below the 0.4 floor.
+      for (let quadrant = 0; quadrant < 3; quadrant++) {
+        bus.emit('ChunkDetached', {
+          structureId: 'tower',
+          chunkIndex: floor * 4 + quadrant,
+          position: { x: 0, y: 0, z: 0 },
+          mass: 1,
+          impulse: { x: 0, y: 0, z: 0 },
+          material: 'concrete',
+          collateralCost: 0,
+        });
+      }
+    };
+
+    // Floor 5 goes first: it and everything above it, seven storeys.
+    gut(5);
+    expect(system.diagnostics.collapsesTriggered).toBe(1);
+    expect(system.diagnostics.floorsCollapsed).toBe(7);
+
+    // Now floor 2 fails. The failing SET is [2..11] again, but only floors 2,
+    // 3 and 4 are new, and the building is still coming down once.
+    gut(2);
+    expect(system.diagnostics.collapsesTriggered).toBe(1);
+    expect(system.diagnostics.floorsCollapsed).toBe(10);
+    // A twelve-storey building can never report more than twelve.
+    expect(system.diagnostics.floorsCollapsed).toBeLessThanOrEqual(structure.floorCount);
+    system.dispose();
+  });
+
   it('a restrained punch leaves the city alone', () => {
     const { bus, system, structure } = setup(8);
     bus.emit('ShockwaveFired', {

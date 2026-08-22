@@ -133,6 +133,17 @@ describe('GroundBVH raycasts vs THREE.Raycaster', () => {
     expect(hits).toBeGreaterThan(150);
   });
 
+  it('orients the hit normal against the ray, as documented', () => {
+    // `IGroundHit.normal` is the shading normal flipped to face the caster, not
+    // the normal as authored: the mesh is double-sided, so a ray coming up from
+    // below hits the same upward-facing triangles and gets a downward normal.
+    const upward = createGroundHit();
+    origin.set(0, -100, 0);
+    direction.set(0, 1, 0);
+    expect(bvh.raycastFirst(origin, direction, 500, upward)).toBe(true);
+    expect(upward.normal.y).toBeLessThan(0);
+  });
+
   it('misses cleanly when aimed away from the ground', () => {
     origin.set(0, 100, 0);
     direction.set(0, 1, 0);
@@ -180,6 +191,21 @@ describe('GroundBVH gameplay queries', () => {
     expect(normal.y).toBeGreaterThan(0.5);
   });
 
+  it('probes the same volume for the normal as for the height', () => {
+    // `sampleNormal` used to derive its reach from `fromY` while `sampleHeight`
+    // took it as an argument, so from a low sample origin the pair disagreed:
+    // a height came back for ground whose normal did not.
+    const normal = new THREE.Vector3();
+    // A trough of the fixture's relief: roughly -10 m.
+    const x = -157;
+    const z = 242;
+    const height = bvh.sampleHeight(x, z, 2);
+    expect(height).toBeDefined();
+    expect(height!).toBeLessThan(-8);
+    expect(bvh.sampleNormal(x, z, normal, 2)).toBe(true);
+    expect(normal.y).toBeGreaterThan(0.5);
+  });
+
   it('finds the closest surface point to an arbitrary position', () => {
     const target = new THREE.Vector3();
     const probe = new THREE.Vector3(12, 60, -34);
@@ -195,6 +221,55 @@ describe('GroundBVH gameplay queries', () => {
     const above = new THREE.Box3(new THREE.Vector3(-5, 500, -5), new THREE.Vector3(5, 520, 5));
     expect(bvh.intersectsBox(above)).toBe(false);
     expect(bvh.intersectsSphere(new THREE.Sphere(new THREE.Vector3(0, 0, 0), 40))).toBe(true);
+  });
+
+  it('answers world-space queries under a world transform', () => {
+    // The documented use for `matrixWorld`: a mesh not baked into world
+    // coordinates. Every public query is documented as world-space, but
+    // `intersectsSphere` and `closestPoint` used to go straight to the BVH,
+    // which works in the mesh's own frame.
+    const moved = new GroundBVH(geometry, {
+      matrixWorld: new THREE.Matrix4().makeTranslation(0, 0, 200),
+    });
+
+    const probe = new THREE.Vector3(12, 60, 166);
+    const basis = new THREE.Vector3(12, 60, -34);
+    const target = new THREE.Vector3();
+    const baseTarget = new THREE.Vector3();
+    const baseDistance = bvh.closestPoint(basis, baseTarget);
+    const distance = moved.closestPoint(probe, target);
+    expect(distance).toBeCloseTo(baseDistance, 3);
+    expect(target.x).toBeCloseTo(baseTarget.x, 3);
+    expect(target.z).toBeCloseTo(baseTarget.z + 200, 3);
+    // The contract the character push-out relies on.
+    expect(target.distanceTo(probe)).toBeCloseTo(distance, 4);
+
+    // The translated mesh covers world z in [-568, 968].
+    expect(moved.intersectsSphere(new THREE.Sphere(new THREE.Vector3(0, 0, 900), 40))).toBe(true);
+    expect(moved.intersectsSphere(new THREE.Sphere(new THREE.Vector3(0, 0, -700), 40))).toBe(false);
+  });
+
+  it('measures maxDistance in world metres under a scaled transform', () => {
+    // 0.1 scale: 1000 local units are only 100 world metres, so passing the
+    // caller's world distance straight through truncated every cast.
+    const scaled = new GroundBVH(geometry, {
+      matrixWorld: new THREE.Matrix4().makeScale(0.1, 0.1, 0.1),
+    });
+    const hit = createGroundHit();
+    const origin = new THREE.Vector3(0, 50, 0);
+    const down = new THREE.Vector3(0, -1, 0);
+
+    // Surface under the origin: 0.1 * (sin 0 * 6 + cos 0 * 4) = 0.4 m.
+    expect(scaled.raycastFirst(origin, down, 60, hit)).toBe(true);
+    expect(hit.point.y).toBeCloseTo(0.4, 3);
+    expect(hit.distance).toBeCloseTo(49.6, 2);
+    // Still bounded: the surface really is 49.6 m away.
+    expect(scaled.raycastFirst(origin, down, 40, hit)).toBe(false);
+
+    const hits: IGroundHit[] = [];
+    expect(scaled.raycastAll(origin, down, 60, hits)).toBeGreaterThanOrEqual(1);
+    expect(hits[0]!.distance).toBeCloseTo(49.6, 2);
+    scaled.releaseHits(hits);
   });
 
   it('pools multi-hit records', () => {

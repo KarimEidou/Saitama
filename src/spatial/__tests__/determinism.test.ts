@@ -16,10 +16,10 @@ import { SpatialIndex } from '../spatial-index';
 import { Quadtree } from '../quadtree';
 import { Frustum, composeViewProjection } from '../frustum';
 import { IndexList } from '../index-list';
-import { buildPvs } from '../pvs';
+import { buildPvs, PvsTable } from '../pvs';
 import { DynamicEntityGrid } from '../entity-grid';
 import { generateSyntheticCity, sampleStreetCameras } from '../synthetic-city';
-import { CHUNK_COUNT, CHUNK_SIZE, chunkIndexAt } from '../constants';
+import { CHUNK_COUNT, CHUNK_SIZE, PVS_MASK_WORDS, chunkIndexAt } from '../constants';
 import { createRng } from '@/util';
 import { randomBoxes, randomPoses, poseMatrix, MOBILE_PORTRAIT_LENS } from './fixtures';
 
@@ -237,6 +237,48 @@ describe('SpatialIndex facade', () => {
 
     index.dispose();
     expect(index.getStats().staticInstances).toBe(0);
+  });
+
+  it('reports a chunk whose contents overhang it even when the PVS hides it', () => {
+    // The quadtree walk refuses a PVS rejection when a chunk's contents spill
+    // past its own cell, because the bit only speaks for the cell's footprint.
+    // The chunk pass had no such guard, so one cull produced two disagreeing
+    // outputs: instances emitted from a chunk `visibleChunks` had dropped.
+    const index = new SpatialIndex({ quadtree: { initialCapacity: 8 } });
+    // A prop straddling the x = 0 chunk boundary, centred just east of it.
+    const overhanging = index.insertStatic(-0.25, 0, 100, 0.75, 6, 101, 'kerbside');
+    // A building wholly inside its own chunk, two chunks further along.
+    const contained = index.insertStatic(20, 0, 200, 30, 20, 210, 'block');
+
+    const overhangChunk = chunkIndexAt(0.25, 100.5);
+    const containedChunk = chunkIndexAt(25, 205);
+    const eyeChunk = chunkIndexAt(10, 10);
+    expect(new Set([overhangChunk, containedChunk, eyeChunk]).size).toBe(3);
+
+    // A table that hides both chunks from the camera's chunk.
+    const table = PvsTable.everythingVisible();
+    for (const hidden of [overhangChunk, containedChunk]) {
+      const word = eyeChunk * PVS_MASK_WORDS + (hidden >>> 5);
+      table.masks[word] = table.masks[word]! & ~(1 << (hidden & 31));
+    }
+    index.setPvs(table);
+
+    const matrix = new Float64Array(16);
+    // Looking down +Z from the camera's chunk, so both boxes are ahead.
+    composeViewProjection(matrix, 10, 2, 10, Math.PI, 0, (60 * Math.PI) / 180, 1, 0.3, 400);
+    index.cullFromViewProjection(matrix, 10, 10);
+    expect(index.currentChunk).toBe(eyeChunk);
+
+    const instances = index.visibleInstances.toArray();
+    const chunks = index.visibleChunks.toArray();
+    // The prop survives the walk, so the chunk it lives in must be reported
+    // too — the streaming system must not release a chunk this same pass is
+    // still drawing instances from.
+    expect(instances).toContain(overhanging);
+    expect(chunks).toContain(overhangChunk);
+    // The bit is still honoured where it speaks for the whole chunk.
+    expect(contained).toBeGreaterThanOrEqual(0);
+    expect(chunks).not.toContain(containedChunk);
   });
 
   it('keeps every chunk visible when no PVS is installed', () => {

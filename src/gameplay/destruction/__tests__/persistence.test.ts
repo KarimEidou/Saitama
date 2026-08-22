@@ -25,7 +25,7 @@
 import { describe, expect, it } from 'vitest';
 import { ChunkDamageState, damageSlot as streamingDamageSlot } from '@/world/streaming';
 import { collapsingFloors as cityCollapsingFloors } from '@/world/city';
-import { createEventBus } from '@/util';
+import { createEventBus, muteNamespace, unmuteNamespace } from '@/util';
 import { DestructionSystem } from '../destruction-system';
 import { damageSlot, pieceForChunk } from '../damage-address';
 import { makeTower } from './fixtures';
@@ -309,6 +309,196 @@ describe('stream out and back in', () => {
     expect(rebuilt.attribute.visibleCount()).toBe(rebuilt.vertexCount);
     expect(system.ledgerSize).toBe(0);
     system.dispose();
+  });
+});
+
+describe('a coarse restore leaves a settled building', () => {
+  /**
+   * The mask is band granularity, so a scratch on three storeys of the same
+   * band comes back as three quadrants gone on all three — an
+   * OVER-approximation, and one the collapse model would never have left
+   * standing. The building has to arrive in a state the live model could have
+   * produced, not balanced on a storey that is 75% missing until the next
+   * chunk anywhere on it detaches and twelve storeys arrive at once.
+   */
+  it('finishes a collapse the bitmask implies', () => {
+    const damage = new ChunkDamageState();
+    // Quadrant 0 off floor 0, quadrant 1 off floor 1, quadrant 2 off floor 2 —
+    // 75% of each storey still standing, so nothing collapsed when it happened.
+    for (const [floor, quadrant] of [
+      [0, 0],
+      [1, 1],
+      [2, 2],
+    ]) {
+      const piece = pieceForChunk(floor!, quadrant!, 12);
+      expect(damage.setDestroyed(CHUNK_INDEX, damageSlot(BUILDING_INDEX, piece))).toBe(true);
+    }
+
+    const bus = createEventBus();
+    const detached: number[] = [];
+    bus.on('ChunkDetached', (event) => detached.push(event.chunkIndex));
+    const system = new DestructionSystem({
+      bus,
+      damage,
+      collapsingFloors: cityCollapsingFloors,
+      seed: 'coarse-restore',
+    });
+
+    const tower = makeTower({ floors: 12 });
+    const structure = system.register({
+      id: 'block.b5',
+      layout: tower.layout,
+      target: { destroyed: tower.attribute },
+      position: { x: 0, y: 0, z: 0 },
+      chunkIndex: CHUNK_INDEX,
+      buildingIndex: BUILDING_INDEX,
+    });
+
+    // Three bits set on band 0 take three quadrants off each of floors 0, 1
+    // and 2 — every one of them below the 0.4 support floor.
+    expect(structure.destroyedCount).toBeGreaterThan(9);
+
+    // Nothing the support model says has failed is left standing.
+    const failing = cityCollapsingFloors(tower.layout, structure.isChunkDestroyed);
+    for (const floor of failing) {
+      for (const chunkIndex of tower.layout.floors[floor]!.chunks) {
+        expect(structure.destroyed[chunkIndex]).toBe(1);
+      }
+    }
+    // In this case that means the whole tower: floor 0 could not carry it.
+    expect(structure.destroyedCount).toBe(tower.layout.chunks.length);
+
+    // Still a restore, not new damage: no dust, no invoice, no scorecard.
+    expect(detached).toEqual([]);
+    expect(system.diagnostics.collapsesTriggered).toBe(0);
+    expect(system.diagnostics.pendingCollapseChunks).toBe(0);
+    expect(system.diagnostics.collateralTotal).toBe(0);
+    expect(system.diagnostics.restoredChunks).toBe(structure.destroyedCount);
+    system.dispose();
+  });
+
+  it('leaves a building the mask barely scratched standing', () => {
+    const damage = new ChunkDamageState();
+    // One band-3 piece: the top storeys lose a single quadrant and hold.
+    const piece = pieceForChunk(11, 0, 12);
+    damage.setDestroyed(CHUNK_INDEX, damageSlot(BUILDING_INDEX, piece));
+
+    const { system } = punchedSystem(damage);
+    const tower = makeTower({ floors: 12 });
+    const structure = system.register({
+      id: 'block.b6',
+      layout: tower.layout,
+      target: { destroyed: tower.attribute },
+      position: { x: 0, y: 0, z: 0 },
+      chunkIndex: CHUNK_INDEX,
+      buildingIndex: BUILDING_INDEX,
+    });
+
+    expect(structure.destroyedCount).toBeGreaterThan(0);
+    expect(structure.destroyedCount).toBeLessThan(tower.layout.chunks.length);
+    expect(cityCollapsingFloors(tower.layout, structure.isChunkDestroyed)).toEqual([]);
+    system.dispose();
+  });
+});
+
+describe('the exact ledger accessor', () => {
+  it('hands out a copy and evicts nothing', () => {
+    const damage = new ChunkDamageState();
+    const { bus, system } = punchedSystem(damage);
+    const tower = makeTower({ floors: 12 });
+    system.register({
+      id: 'block.b7',
+      layout: tower.layout,
+      target: { destroyed: tower.attribute },
+      position: { x: 0, y: 0, z: 0 },
+      chunkIndex: CHUNK_INDEX,
+      buildingIndex: BUILDING_INDEX,
+    });
+    bus.emit('ShockwaveFired', {
+      origin: { x: -30, y: 22, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 4e5,
+      range: 60,
+      angle: 0.12,
+      intent: 'serious',
+      punchKind: 'serious',
+    });
+    for (let frame = 0; frame < 8; frame++) system.update(1 / 60);
+
+    const first = system.ledgerFor('block.b7');
+    expect(first).toBeDefined();
+    expect(first!.some((flag) => flag === 1)).toBe(true);
+
+    // A caller that reuses the buffer as scratch must not be rewriting the
+    // record it just read.
+    first!.fill(0);
+    const second = system.ledgerFor('block.b7')!;
+    expect([...second]).not.toEqual([...first!]);
+    expect(second.some((flag) => flag === 1)).toBe(true);
+
+    // ...and reading is not writing: a save routine walking the city cannot
+    // push somebody else's damage out of the ledger to make room.
+    expect(system.ledgerSize).toBe(0);
+
+    system.unregister('block.b7');
+    expect(system.ledgerSize).toBe(1);
+    const saved = system.ledgerFor('block.b7')!;
+    expect([...saved]).toEqual([...second]);
+    saved.fill(0);
+    expect([...system.ledgerFor('block.b7')!]).toEqual([...second]);
+    system.dispose();
+  });
+});
+
+describe('the damage address is one address in two fields', () => {
+  it('refuses to persist a structure whose building half is missing or out of range', () => {
+    muteNamespace('destruction');
+    try {
+      const damage = new ChunkDamageState();
+      const { bus, system } = punchedSystem(damage);
+
+      const orphan = makeTower({ floors: 12 });
+      const noBuilding = system.register({
+        id: 'orphan',
+        layout: orphan.layout,
+        target: { destroyed: orphan.attribute },
+        position: { x: 0, y: 0, z: 0 },
+        chunkIndex: CHUNK_INDEX,
+      });
+      const past = makeTower({ floors: 12 });
+      const outOfRange = system.register({
+        id: 'past-the-end',
+        layout: past.layout,
+        target: { destroyed: past.attribute },
+        position: { x: 60, y: 0, z: 0 },
+        chunkIndex: CHUNK_INDEX,
+        buildingIndex: 20,
+      });
+
+      // Aliasing building slot 0 would reload as a hole in every building of
+      // the chunk that forgot the field; slot 336 is past the mask's 256 bits
+      // and records nothing at all. Both opt out instead.
+      expect(noBuilding.damageChunk).toBe(-1);
+      expect(outOfRange.damageChunk).toBe(-1);
+
+      bus.emit('ShockwaveFired', {
+        origin: { x: -30, y: 2, z: 0 },
+        direction: { x: 1, y: 0, z: 0 },
+        power: 2.5e6,
+        range: 200,
+        angle: 0.6,
+        intent: 'full',
+        punchKind: 'serious',
+      });
+      for (let frame = 0; frame < 8; frame++) system.update(1 / 60);
+
+      expect(system.diagnostics.chunksDestroyed).toBeGreaterThan(0);
+      expect(system.diagnostics.persistedPieces).toBe(0);
+      expect(damage.isChunkDamaged(CHUNK_INDEX)).toBe(false);
+      system.dispose();
+    } finally {
+      unmuteNamespace('destruction');
+    }
   });
 });
 

@@ -8,7 +8,10 @@
  *   const progression = new ProgressionCoordinator({ bus, time: dayNight });
  *   progression.witnesses.register('civ.14', 'civilian', position);
  *   progression.quests.accept('quest.rescue.tunnel');
- *   progression.update(dt);
+ *   progression.update(dt, player.position);
+ *
+ * The player position is not optional in practice: 'reach' objectives have no
+ * other source, and six of the ten quests lead with one.
  *
  * ── THE ONE THING TO KNOW BEFORE CHANGING ANYTHING HERE ────────────────────
  * Rank does not move on kills. `POINTS_PER_KILL` is 0 and it is load-bearing:

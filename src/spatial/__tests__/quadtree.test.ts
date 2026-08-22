@@ -90,6 +90,56 @@ describe('Quadtree geometry', () => {
     expect(out.toArray()).toEqual([handle]);
     expect(tree.getChunk(handle)).toBe(-1);
   });
+
+  it('indexes the deepest level of a deeper-than-default tree', () => {
+    // The root-to-node path scratch used to be sized from the module constant
+    // rather than from the instance depth, so in a tree deeper than 7 the last
+    // level fell off the end of the path: its subtree counts stayed 0, `pack`
+    // skipped it and every query short-circuited past items the tree still
+    // counted as present.
+    const tree = new Quadtree({ depth: 8, initialCapacity: 512 });
+    const rng = createRng('deep-quadtree');
+    const handles: number[] = [];
+    for (let i = 0; i < 200; i++) {
+      const x = rng.range(WORLD_MIN + 20, -WORLD_MIN - 20);
+      const z = rng.range(WORLD_MIN + 20, -WORLD_MIN - 20);
+      handles.push(tree.insert(x - 0.5, 0, z - 0.5, x + 0.5, 4, z + 0.5, i));
+    }
+    tree.pack();
+
+    // 6 m cells at depth 8, so a 1 m box reaches the bottom.
+    expect(tree.describe().itemsAtDepth[8]).toBeGreaterThan(150);
+    expect(tree.getNodeTotal(0)).toBe(200);
+
+    const out = new IndexList();
+    expect(tree.queryBox(-1e5, -1e5, -1e5, 1e5, 1e5, 1e5, out)).toBe(200);
+    expect(sortedList(out)).toEqual(handles.slice().sort((a, b) => a - b));
+  });
+
+  it('parks a degenerate AABB instead of corrupting the counts', () => {
+    // An un-populated THREE.Box3 arrives as min +Inf / max -Inf, which makes
+    // the placement centre NaN. The descent must fail its containment test and
+    // park the item at the root; letting NaN through produced `node = NaN`,
+    // which inflated the root count by one per level, filed the item under a
+    // phantom bucket and made `remove` evict an unrelated live item.
+    const tree = new Quadtree({ initialCapacity: 16 });
+    const a = tree.insert(5000, 0, 5000, 5010, 10, 5010, 'A');
+    const b = tree.insert(5020, 0, 5020, 5030, 10, 5030, 'B');
+    const empty = tree.insert(Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity, 'bad');
+
+    expect(tree.getChunk(empty)).toBe(-1);
+    // One increment per item, not one per level.
+    expect(tree.getNodeTotal(0)).toBe(3);
+
+    expect(tree.remove(empty)).toBe(true);
+    expect(tree.count).toBe(2);
+    expect(tree.getNodeTotal(0)).toBe(2);
+
+    // Both live items must survive the degenerate one's removal.
+    const out = new IndexList();
+    tree.queryBox(4990, -10, 4990, 5040, 20, 5040, out);
+    expect(sortedList(out)).toEqual([a, b].sort((x, y) => x - y));
+  });
 });
 
 describe('Quadtree insert and remove', () => {

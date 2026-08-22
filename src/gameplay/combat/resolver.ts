@@ -57,6 +57,7 @@ import { normalise, sphereInCone, sphereInSphere } from './cone';
 import { forecastYen, StructureIndex } from './structures';
 import { TargetRegistry } from './targets';
 import { isLethalIntent, tierScalar, type ICombatTuning } from './tuning';
+import { isTargetAlive } from './types';
 import type {
   ICombatBroadPhase,
   ICombatHit,
@@ -100,7 +101,7 @@ const HIT_SOCKETS: readonly string[] = Object.freeze([
   'pelvis',
 ]);
 
-/** Scratch reused across a resolve, so a punch allocates no vectors. */
+/** One accepted candidate, carried from the narrow phase into resolution. */
 interface IScratchHit {
   target: ICombatTarget;
   distance: number;
@@ -121,9 +122,6 @@ export class HitResolver {
 
   /** Monotonic punch counter. Seeds the per-punch random stream. */
   private sequence = 0;
-
-  private readonly candidateIds: EntityId[] = [];
-  private readonly scratch: IScratchHit[] = [];
 
   /** Punches resolved since construction. Diagnostics. */
   get punchCount(): number {
@@ -191,25 +189,48 @@ export class HitResolver {
     });
 
     /* ---- 2. candidates ------------------------------------------------- */
-    if (radial) {
-      this.broadPhase.queryRadius(punch.origin, lethalRange, this.candidateIds);
-    } else {
-      this.broadPhase.queryCone(
-        punch.origin,
-        { x: axis.x, y: axis.y, z: axis.z },
-        lethalRange,
-        halfAngle,
-        this.candidateIds
-      );
-    }
+    /* The buffers are PER CALL, not instance fields. Every emission below is
+       synchronous, and combat throws a punch from a bus handler
+       (`PlayerLanded` -> `groundSlam` -> here), so a handler that lands the
+       player re-enters this method mid-iteration. Shared scratch would mean
+       the outer punch resolving the inner punch's victims with the outer
+       punch's intent, range and knockback — and skipping its own. */
+    const candidateIds: EntityId[] = [];
+    // `queryCone`/`queryRadius` return THE NUMBER WRITTEN, which is the
+    // fill-in-place idiom the interface documents: a conforming adapter may
+    // write `out[i]` for `i < n` and leave whatever was there beyond it. The
+    // buffer is fresh here, but reading past the count would still be reading
+    // an implementation's private tail, so the count is what bounds the scan.
+    const written = radial
+      ? this.broadPhase.queryRadius(punch.origin, lethalRange, candidateIds)
+      : this.broadPhase.queryCone(
+          punch.origin,
+          { x: axis.x, y: axis.y, z: axis.z },
+          lethalRange,
+          halfAngle,
+          candidateIds
+        );
+    const count = Math.max(0, Math.min(written, candidateIds.length));
 
     /* ---- 3. narrow phase ----------------------------------------------- */
-    this.scratch.length = 0;
-    for (const id of this.candidateIds) {
+    // The broad phase is allowed to over-report (`ICombatBroadPhase`), and an
+    // entity registered in two grid cells over-reports by REPEATING an id.
+    // Resolving the same victim twice would emit `EntityKilled` twice for one
+    // entity, double the ragdoll impulse and double-count the scorecard, so
+    // the candidate list is reduced to a set before anything is resolved.
+    const seen = new Set<EntityId>();
+    const scratch: IScratchHit[] = [];
+    for (let i = 0; i < count; i++) {
+      const id = candidateIds[i]!;
       if (id === punch.sourceId) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
       const target = this.registry.get(id);
       if (target === undefined) continue;
-      if (target.dead || target.invulnerable === true) continue;
+      // `isTargetAlive` rather than `dead` alone: liveness is defined as
+      // `!dead && health > 0` everywhere else in this module, and letting the
+      // narrow phase use a narrower rule is how the two definitions drift.
+      if (!isTargetAlive(target) || target.invulnerable === true) continue;
 
       const dx = target.position.x - punch.origin.x;
       const dy = target.position.y - punch.origin.y;
@@ -221,7 +242,7 @@ export class HitResolver {
       if (!inside) continue;
 
       const centreDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      this.scratch.push({
+      scratch.push({
         target,
         // Surface distance: what the player sees as "how far away was it".
         distance: Math.max(0, centreDistance - target.radius),
@@ -229,21 +250,21 @@ export class HitResolver {
     }
 
     // Deterministic ordering, independent of how the broad phase enumerated.
-    this.scratch.sort(
+    scratch.sort(
       (a, b) =>
         a.distance - b.distance ||
         (a.target.id < b.target.id ? -1 : a.target.id > b.target.id ? 1 : 0)
     );
 
     const limit = punch.maxTargets ?? Number.MAX_SAFE_INTEGER;
-    if (this.scratch.length > limit) this.scratch.length = limit;
+    if (scratch.length > limit) scratch.length = limit;
 
     /* ---- 4. resolve each victim ---------------------------------------- */
     const hits: ICombatHit[] = [];
     let kills = 0;
     let civiliansKilled = 0;
 
-    for (const entry of this.scratch) {
+    for (const entry of scratch) {
       const hit = this.resolveOne(punch, entry, axis, lethalRange, knockback, punchRng);
       hits.push(hit);
       if (hit.killed) {
@@ -277,6 +298,8 @@ export class HitResolver {
       destructiblesHit,
       whiffed: hits.length === 0 && destructiblesHit.length === 0,
       cameraShake: cameraShakeFor(punch.power, punch.chainIndex ?? 1, this.tuning),
+      // IN YEN, and NOT in the unit `EncounterEnded.collateralCost` carries —
+      // see the magnitude warning on `IPunchOutcome.collateralCost`.
       collateralCost: structural ? forecastYen(swept) : 0,
       kills,
       civiliansKilled,

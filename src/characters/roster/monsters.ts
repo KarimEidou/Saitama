@@ -582,12 +582,26 @@ const TIERS: Readonly<Record<ThreatTier, TierSpec>> = {
 /** Every threat tier, weakest first. */
 export const THREAT_TIERS: readonly ThreatTier[] = ['wolf', 'tiger', 'demon', 'dragon', 'god'];
 
+/** The seed whose mook is the one `tierMooks()` publishes, and bakes, per tier. */
+export function canonicalMookSeed(tier: ThreatTier): number {
+  return 900 + THREAT_TIERS.indexOf(tier);
+}
+
 /**
  * A deterministic anonymous monster.
  *
  * Same `(tier, seed)` always produces the same creature, on every device and
- * in every run — the spawner can therefore reconstruct a monster from an id
- * instead of serialising its appearance.
+ * in every run, so a spawner can rebuild one from `(tier, seed)` instead of
+ * serialising its appearance.
+ *
+ * ── THE SEED IS NOT PART OF THE ID ────────────────────────────────────────
+ * `id` is `chr.mook.<tier>`, and the id alone keys the atlas directory, every
+ * map asset and `rosterEntry()`. Only `canonicalMookSeed(tier)` — the seed
+ * `tierMooks()` uses — has a bake behind that id. Any other seed produces a
+ * creature with different proportions and, through `rng.pick(spec.palettes)`,
+ * possibly a different colour triple, all still claiming the canonical id: use
+ * it as an asset key and the body wears an atlas painted for someone else.
+ * Non-canonical seeds are for geometry that renders from vertex colours.
  */
 export function mookEntry(tier: ThreatTier, seed: number): RosterEntry {
   const spec = TIERS[tier];
@@ -714,9 +728,9 @@ export function namedMonsters(): RosterEntry[] {
   return [mosquitoGirl(), vaccineMan(), deepSeaKing(), boros()];
 }
 
-/** One representative mook per threat tier. */
+/** One representative mook per threat tier — the seeds that have a bake. */
 export function tierMooks(): RosterEntry[] {
-  return THREAT_TIERS.map((tier, index) => mookEntry(tier, 900 + index));
+  return THREAT_TIERS.map((tier) => mookEntry(tier, canonicalMookSeed(tier)));
 }
 
 /** Recipe for a monster without going through the roster registry. */

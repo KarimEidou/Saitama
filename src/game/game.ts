@@ -115,7 +115,7 @@ import { ProgressionCoordinator } from '@/gameplay/progression';
 
 import { VFXSystem } from '@/vfx';
 import { AudioSystem } from '@/audio';
-import { DEFAULT_INPUT_TUNING, createInputManager, type IInputManager } from '@/ui/input';
+import { createInputManager, type IInputManager } from '@/ui/input';
 import { HudManager, type IHudSettings } from '@/ui/hud';
 
 import {
@@ -165,6 +165,15 @@ const BLOOM_STRENGTH = 0.3;
  * where it is applied for the arithmetic.
  */
 const BLOOM_THRESHOLD = 2.2;
+
+/**
+ * Consecutive throwing frames between console reports.
+ *
+ * Sixty, so a frame loop that is failing every time says so about once a second
+ * instead of sixty times. The diagnostics array de-duplicates separately, in
+ * `recordError`.
+ */
+const FRAME_FAILURE_LOG_INTERVAL = 60;
 
 export interface IBootOptions {
   readonly canvas: HTMLCanvasElement;
@@ -264,6 +273,8 @@ export class Game {
   private rafHandle = 0;
   private running = false;
   private disposed = false;
+  private started = false;
+  private frameFailures = 0;
   private frameIndex = 0;
   private lastRawDelta = FIXED_STEP;
   private witnessTimer = 0;
@@ -437,6 +448,14 @@ export class Game {
       // 6.5 s of a 12 s boot on software GL.
       pmrem: false,
     });
+    // The manifest fetch and the registry open are ASSET time, and charged here
+    // rather than left to run into the next mark. `PhaseTimer.mark` measures
+    // from the previous mark, so without this the whole asset phase landed in
+    // `boot.physics` — which then reported manifest + registry + KTX2 transcoder
+    // setup + the Rapier wasm as one number, and a boot regression on a cold
+    // mobile cache read as "physics: 4200 ms". The rest of the phase (the tail
+    // of `preloadCore`, adoption and the sky wait) is ADDED to this below.
+    t.mark(diagnostics.boot, 'assets');
 
     // ══════════════════════════════════════════════════════════════════════
     //  THE PROTAGONIST'S FACE, STARTED NOW AND AWAITED LATER
@@ -658,8 +677,17 @@ export class Game {
       // bodies against `high`'s full set, and the crowd already degrades along
       // exactly this axis. They fall back to the generator's vertex colours,
       // which is what every tier shipped before the bake was wired in.
-      skinNearCivilian:
-        renderTier === 'high' ? (build, seed) => skinCivilian(roster, build, seed) : undefined,
+      //
+      // The hook is always INSTALLED and asks the renderer for the live tier
+      // when a body is promoted, rather than being decided once from the probed
+      // one. `CrowdSystem` takes it as a constructor option with no setter, so a
+      // hook chosen at boot is frozen for the session — and the probe never
+      // returns `high` on mobile, which left a player who raised quality to
+      // `high` with untextured near civilians for the rest of the session, and a
+      // player who dropped to `low` still binding the variant the drop was meant
+      // to shed. Below `high` this costs one enum comparison per promotion.
+      skinNearCivilian: (build, seed) =>
+        renderer.tier === 'high' ? skinCivilian(roster, build, seed) : undefined,
     });
     t.mark(diagnostics.boot, 'crowd');
 
@@ -698,7 +726,9 @@ export class Game {
       recordError(diagnostics, 'sky', error);
       scene.background ??= new THREE.Color(0x8fa9c4);
     }
-    t.mark(diagnostics.boot, 'assets');
+    // ADDED, not assigned: the phase started back at the manifest and was marked
+    // there, and the two halves are the same phase interleaved with the world.
+    t.add(diagnostics.boot, 'assets');
 
     /* ---- 6. SYSTEMS ---------------------------------------------------- */
     step(0.76, 'Waking Saitama');
@@ -731,6 +761,12 @@ export class Game {
       options: { proximityFade?: boolean } = {}
     ): void => {
       if (body.material !== undefined) return;
+      // NOT filtered against `roster.failed`, tempting as it looks: `load()`
+      // records a failure but does not memoise it, and `loadRemainingCharacters`
+      // deliberately re-asks for `chr.saitama` precisely so a boot-time fetch
+      // that failed gets a second chance. A body dropped from this list here
+      // would keep its stand-in even when that retry succeeds. What keeps the
+      // list bounded is the despawn sweep in `upgradeCharacterSkins()`.
       deferredSkins.push({ id: body.entry.id, root, faceRect: body.faceRect, options });
     };
     deferIfUnskinned(saitama.body, saitama.parts.root, { proximityFade: true });
@@ -1001,6 +1037,28 @@ export class Game {
     this.hud.show('hud');
     this.clock.resync();
 
+    // Everything below is ONCE PER GAME, not once per start: `stop()` only
+    // parks the loop, and a `stop()`/`start()` pair that re-ran this block would
+    // leave two Escape handlers popping two HUD screens per press, two back
+    // buttons, and two background load chains racing each other over the same
+    // registry. Resuming the loop is all a restart has to do.
+    if (!this.started) {
+      this.started = true;
+      this.registerWindowListeners();
+      void this.bindNativeBackButton();
+      // The rest of the cast BEFORE the city's 51 MB of KTX2: an ally standing
+      // four metres away with no face is more obviously wrong than a wall with a
+      // stand-in albedo, and the civilian sheet is needed the moment the first
+      // pedestrian is promoted to the near tier.
+      void this.loadRemainingCharacters().then(() => this.loadRemainingMaterials());
+    }
+
+    this.onResize();
+    this.rafHandle = requestAnimationFrame(this.tick);
+  }
+
+  /** The window-level wiring, and the removers that make `dispose()` complete. */
+  private registerWindowListeners(): void {
     window.addEventListener('resize', this.onResize, { passive: true });
     window.addEventListener('orientationchange', this.onResize, { passive: true });
     this.disposers.push(() => {
@@ -1010,11 +1068,22 @@ export class Game {
 
     // The Web Audio context cannot start without a gesture, and asking for one
     // that never comes must not stop the game from running.
+    //
+    // `{ once: true }` removes only the listener that FIRED, so the other one
+    // outlives the gesture — and, without a remover on `disposers`, outlives
+    // `dispose()` too, holding this `Game`, its scene and every system it owns
+    // reachable through the closure. Both are taken down by hand instead.
     const unlock = (): void => {
+      removeUnlock();
       void this.audio.unlock();
+    };
+    const removeUnlock = (): void => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
     };
     window.addEventListener('pointerdown', unlock, { once: true, passive: true });
     window.addEventListener('keydown', unlock, { once: true, passive: true });
+    this.disposers.push(removeUnlock);
 
     // The Android back button. `handleBack` pops one HUD screen and returns
     // false when there is nothing left to pop, which is the point at which the
@@ -1024,15 +1093,6 @@ export class Game {
     };
     window.addEventListener('keydown', onKey);
     this.disposers.push(() => window.removeEventListener('keydown', onKey));
-    void this.bindNativeBackButton();
-
-    this.onResize();
-    // The rest of the cast BEFORE the city's 51 MB of KTX2: an ally standing
-    // four metres away with no face is more obviously wrong than a wall with a
-    // stand-in albedo, and the civilian sheet is needed the moment the first
-    // pedestrian is promoted to the near tier.
-    void this.loadRemainingCharacters().then(() => this.loadRemainingMaterials());
-    this.rafHandle = requestAnimationFrame(this.tick);
   }
 
   /**
@@ -1119,6 +1179,15 @@ export class Game {
   private upgradeCharacterSkins(): void {
     for (let i = this.deferredSkins.length - 1; i >= 0; i--) {
       const pending = this.deferredSkins[i]!;
+      // A body that has left the scene graph is a despawned monster:
+      // `Monster.dispose()` detaches its instance, and nothing else in this
+      // list is ever unparented. Dropping it here is what keeps the list bounded
+      // by the LIVE cast rather than by total spawns — every entry holds a whole
+      // character subtree alive, and every pass traverses all of them.
+      if (pending.root.parent === null) {
+        this.deferredSkins.splice(i, 1);
+        continue;
+      }
       const replaced = new Set<THREE.Material>();
       pending.root.traverse((node) => {
         const mesh = node as THREE.Mesh;
@@ -1247,14 +1316,46 @@ export class Game {
         this.crowd.setQuality(tier);
         this.cityStreamer.setQuality(tier);
         this.diagnostics.quality = tier;
+        // The shared civilian sheet is only fetched at boot when the PROBED tier
+        // was `high` — and on mobile the probe never says `high`. A player who
+        // raises quality here is asking for the near-tier civilians the crowd's
+        // `skinNearCivilian` hook now agrees to dress, so the 18 MB it needs is
+        // pulled in behind the running game. Idempotent, and never on the boot
+        // path.
+        if (tier === 'high' && !this.roster.isResident('chr.civilian')) {
+          void this.roster.load('chr.civilian');
+        }
       }
+      // ══════════════════════════════════════════════════════════════════════
+      //  THE PLAYER'S SCALE GOES UNDERNEATH THE TIER CAP, NOT OVER IT
+      // ══════════════════════════════════════════════════════════════════════
+      // `Renderer.setPixelRatio` stores this as its BASE ratio and then clamps
+      // it to `maxPixelRatio` (1 / 1.5 / 2 by tier) before the governor scales
+      // it. Handing it `devicePixelRatio * scale` therefore does nothing at all
+      // on any device whose DPR already exceeds the cap — which is every phone
+      // this ships to: at DPR 3 on `medium`, 1.0 and 0.5 both clamp to 1.5, and
+      // the player drags the slider to half and watches the frame rate not
+      // move. Clamping FIRST and scaling after makes the knob mean what it says.
+      // Read back off the renderer, so this is the SAME number `applyResolution`
+      // clamps with — including after the tier change just above.
+      const maxRatio = this.renderer.qualitySettings.maxPixelRatio;
       this.renderer.setPixelRatio(
-        (window.devicePixelRatio || 1) * Math.max(0.5, settings.resolutionScale)
+        Math.min(window.devicePixelRatio || 1, maxRatio) * Math.max(0.5, settings.resolutionScale)
       );
       this.input.setTuning({
-        lookFullRateDegPerSec:
-          DEFAULT_INPUT_TUNING.lookFullRateDegPerSec * settings.lookSensitivity,
+        // `lookSensitivity` is the GAIN. `lookFullRateDegPerSec` is the
+        // denominator that normalises degrees/second into the -1..1 look rate
+        // AND a shared contract constant that `IPlayerTuning.camera` mirrors at
+        // 220 — so scaling it here divided the touch turn rate by the setting
+        // (2.0x turned the camera at HALF speed) and did nothing whatsoever for
+        // keyboard and gamepad, which emit a normalised rate and never see it.
+        lookSensitivity: settings.lookSensitivity,
         invertLookY: settings.invertLookY,
+        // Both have a live target in `IInputTuning` and neither was ever
+        // written: haptics stayed on after the player turned them off, and the
+        // stick layout control moved nothing.
+        hapticsEnabled: settings.hapticsEnabled,
+        floatingStick: settings.stickLayout === 'floating',
       });
     } catch (error) {
       recordError(this.diagnostics, 'settings', error);
@@ -1308,11 +1409,18 @@ export class Game {
     this.rafHandle = requestAnimationFrame(this.tick);
     try {
       this.frame(nowMs);
+      this.frameFailures = 0;
     } catch (error) {
       recordError(this.diagnostics, 'frame', error);
-      log.error('frame failed', error);
       // One bad frame must not take the loop down: the next one may be fine and
-      // a dead rAF is a black screen with no way back.
+      // a dead rAF is a black screen with no way back. But a DETERMINISTIC
+      // per-frame throw is sixty console lines a second, and the console is the
+      // one place the first occurrence could still be read — so the loop keeps
+      // running and the log thins out to roughly once a second.
+      if (this.frameFailures % FRAME_FAILURE_LOG_INTERVAL === 0) {
+        log.error(`frame failed (${this.frameFailures + 1} in a row)`, error);
+      }
+      this.frameFailures++;
     }
   };
 
@@ -1400,7 +1508,7 @@ export class Game {
     this.player.postPhysics(input, dt);
     this.tickAnimators(dt);
     this.vfx.update(dt);
-    this.applyCameraShake();
+    this.applyCameraShake(dt);
     this.camera.updateMatrixWorld();
     this.shadows.update();
     this.spatial.cull(this.camera);
@@ -1445,8 +1553,17 @@ export class Game {
     }
 
     /* ---- HOUSEKEEPING -------------------------------------------------- */
+    // ══════════════════════════════════════════════════════════════════════
+    //  NEVER AUTOSAVE IN MID-AIR
+    // ══════════════════════════════════════════════════════════════════════
+    // The save carries the raw capsule `y`, and `CharacterController.setPosition`
+    // seeds `apexY` from the restored height — so a save taken at the top of a
+    // 28 m leap reloads into a free fall that lands over `GROUND_SLAM_FALL_HEIGHT`
+    // and opens the session with a crater, a shockwave and a `PlayerLanded` the
+    // player did not cause. The timer is NOT reset here, so the save happens on
+    // the first grounded frame after it comes due rather than a minute later.
     this.autosaveTimer += rawDt;
-    if (this.autosaveTimer >= AUTOSAVE_INTERVAL) {
+    if (this.autosaveTimer >= AUTOSAVE_INTERVAL && this.player.controller.isGrounded) {
       this.autosaveTimer = 0;
       void this.save();
     }
@@ -1593,11 +1710,31 @@ export class Game {
 
     let downedEvents = 0;
     let waves = 0;
+    const sampledOrigins: { x: number; z: number; range: number; power: number; intent: string }[] =
+      [];
+
+    // A Harbinger: `crush` carries 120 000 units of pressure, which is `full`
+    // intent, which is 1.7x lethality — one hit ends Mumen Rider and three end
+    // Genos. The table refuses to spawn one downtown on its own, and that is
+    // the correct table; this is a scripted proof, not a spawn rule.
+    //
+    // SPAWNED BEFORE THE SUBSCRIPTIONS. `monsterArchetype` throws on an unknown
+    // id and `MonsterSystem.spawn` can refuse a spawn; taken first, either throw
+    // would propagate past the `finally` below — which has not been entered yet
+    // — and leave two permanent handlers on a bus only `dispose()` ever clears,
+    // one of them calling `monsters.get()` on every shockwave for the rest of
+    // the session. Neither event can fire during the spawn itself.
+    const anchor = mumen?.transform.position ?? this.player.controller.position;
+    const monster = this.monsters.spawn(
+      monsterArchetype('mob.god.harbinger'),
+      { x: anchor.x + 5, y: 0, z: anchor.z + 2 },
+      Math.PI,
+      { scripted: true }
+    );
+
     const offDowned = this.bus.on('AllyDowned', () => {
       downedEvents++;
     });
-    const sampledOrigins: { x: number; z: number; range: number; power: number; intent: string }[] =
-      [];
     const offWave = this.bus.on('ShockwaveFired', (event) => {
       if (event.sourceId === undefined || this.monsters.get(event.sourceId) === undefined) return;
       waves++;
@@ -1611,18 +1748,6 @@ export class Game {
         });
       }
     });
-
-    // A Harbinger: `crush` carries 120 000 units of pressure, which is `full`
-    // intent, which is 1.7x lethality — one hit ends Mumen Rider and three end
-    // Genos. The table refuses to spawn one downtown on its own, and that is
-    // the correct table; this is a scripted proof, not a spawn rule.
-    const anchor = mumen?.transform.position ?? this.player.controller.position;
-    const monster = this.monsters.spawn(
-      monsterArchetype('mob.god.harbinger'),
-      { x: anchor.x + 5, y: 0, z: anchor.z + 2 },
-      Math.PI,
-      { scripted: true }
-    );
 
     const distanceOf = (
       hero: { transform: { position: { x: number; z: number } } } | undefined
@@ -1730,6 +1855,13 @@ export class Game {
       );
       this.player.controller.setPosition(at);
       this.player.controller.yaw = save.playerYaw;
+      // The CAMERA's yaw as well, exactly as the two scripted `faceNearest*`
+      // helpers do it. The rig seeds its yaw once, at construction, and nothing
+      // re-syncs it — and that yaw is also the movement basis (`move` arrives in
+      // camera space), so a body turned east behind a camera still facing the
+      // spawn direction both looks wrong and walks the wrong way on the first
+      // stick push, which immediately overwrites the restored value.
+      this.player.camera.yaw = save.playerYaw;
       this.dayNight.setTimeOfDay(save.timeOfDay);
       this.cityStreamer.setFocus(at.x, at.z);
       this.cityStreamer.buildImmediate(0);
@@ -1842,7 +1974,20 @@ export class Game {
     }
   }
 
-  private applyCameraShake(): void {
+  /**
+   * Add the shake on top of the transform the camera rig just authored.
+   *
+   * ADDITIVE, and therefore only correct on a frame the rig actually ran.
+   * `CameraRig.update` returns immediately at `dt <= 0` and so does the shake's
+   * own decay, so on a modal-paused frame — `dt` is forced to 0 while a screen
+   * is open — nothing re-bases the camera and nothing shrinks the offset: the
+   * same half-metre vector would be added sixty times a second, translating the
+   * camera at ~30 m/s and rolling it at ~3 rad/s for as long as the pause menu
+   * is up (and dragging the audio listener along with it). The rig's own guard
+   * is the right one to mirror.
+   */
+  private applyCameraShake(dt: number): void {
+    if (dt <= 0) return;
     const shake = this.vfx.shake as { offset?: THREE.Vector3; roll?: number };
     if (shake.offset === undefined) return;
     this.camera.position.add(shake.offset);
@@ -1980,6 +2125,20 @@ class PhaseTimer {
   mark(into: IBootTimings, key: keyof IBootTimings): void {
     const now = performance.now();
     into[key] = Math.round(now - this.last);
+    this.last = now;
+  }
+
+  /**
+   * Charge this span to a phase that was already marked.
+   *
+   * The asset phase is the one that is not contiguous: the manifest and the
+   * registry open happen before physics and the world, and the tail of
+   * `preloadCore` after them. Both are assets, so both are added to the same
+   * number rather than one of them overwriting the other.
+   */
+  add(into: IBootTimings, key: keyof IBootTimings): void {
+    const now = performance.now();
+    into[key] += Math.round(now - this.last);
     this.last = now;
   }
 }

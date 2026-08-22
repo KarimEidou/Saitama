@@ -388,8 +388,10 @@ const jumpClip: ClipFn = (ctx, t, pose) => {
 const fallClip: ClipFn = (ctx, t, pose) => {
   const { rig, params } = ctx;
   const flutter = Math.sin(TAU * (t + params.phaseOffset) * 1.4);
-  posePelvis(pose, rig, 0, rig.metrics.hipHeight, 0, -0.12, flutter * 0.05, flutter * 0.03);
-  poseSpine(pose, rig, { bend: -0.14, twist: flutter * 0.06, side: 0 });
+  // Pelvis and chest both pitch FORWARD (positive), per the docstring; the
+  // head holds a level gaze by pitching back against them.
+  posePelvis(pose, rig, 0, rig.metrics.hipHeight, 0, 0.12, flutter * 0.05, flutter * 0.03);
+  poseSpine(pose, rig, { bend: 0.14, twist: flutter * 0.06, side: 0 });
   poseHead(pose, rig, -0.2, flutter * 0.1, 0);
   for (const side of SIDES) {
     poseArm(pose, rig, side, {
@@ -979,9 +981,13 @@ export function hasClip(slot: ClipName, variant: ClipVariant = 'default'): boole
 /**
  * Clip duration for a specific body, in seconds.
  *
- * For a locomotive slot this is the GAIT CYCLE PERIOD, taken from the same
- * solver the runtime uses, so a style overlay keyed to normalised clip time
- * stays locked to the stride instead of drifting against it.
+ * For a locomotive slot this is the gait cycle period AT THE CLIP'S AUTHORED
+ * REFERENCE SPEED — the right answer for the offline bake, which simulates the
+ * clip at exactly that speed, and the wrong one for the runtime, which is at
+ * whatever speed the caller commanded. The animator therefore does NOT time a
+ * locomotive layer with this; it takes the solver's live cycle phase directly,
+ * which is the only thing a style overlay can key to without drifting against
+ * the stride.
  */
 export function clipDuration(entry: ClipEntry, rig: AnimRig): number {
   if (entry.def.locomotive) {

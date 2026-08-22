@@ -38,7 +38,7 @@ import { ShockwaveLayer } from './shockwave-layer';
 import { SpriteLayer, createSpriteParams, type ISpriteParams } from './sprite-layer';
 
 /** Linear-space RGB triples, converted once from the authored sRGB hexes. */
-interface LinearColor {
+export interface LinearColor {
   r: number;
   g: number;
   b: number;
@@ -57,6 +57,10 @@ export class EffectEmitters {
   private readonly decal: IDecalParams = createDecalParams();
   private readonly scratchColor = new THREE.Color();
   private readonly scratchVector = new THREE.Vector3();
+
+  /** Output of `sampleDisc`: `IRandom.insideCircle` returns a fresh tuple. */
+  private sampleX = 0;
+  private sampleZ = 0;
 
   private readonly dustColor: LinearColor = { r: 0, g: 0, b: 0 };
   private readonly dustDark: LinearColor = { r: 0, g: 0, b: 0 };
@@ -81,6 +85,22 @@ export class EffectEmitters {
   count(base: number): number {
     if (base <= 0) return 0;
     return Math.max(1, Math.round(base * this.profile.particleScale));
+  }
+
+  /**
+   * `IRandom.insideCircle` without the tuple, into `sampleX` / `sampleZ`.
+   *
+   * Same two draws in the same order, so the stream — and therefore every
+   * determinism check — is unchanged. It is inlined only because the tuple is a
+   * fresh array per particle, and a serious punch at HIGH tier asks for a
+   * couple of hundred of them on the frame the impact freeze is holding.
+   */
+  private sampleDisc(rng: IRandom, radius: number): void {
+    // sqrt keeps the distribution uniform by AREA rather than by radius.
+    const r = radius * Math.sqrt(rng.next());
+    const a = rng.next() * Math.PI * 2;
+    this.sampleX = Math.cos(a) * r;
+    this.sampleZ = Math.sin(a) * r;
   }
 
   /* ------------------------------------------------------------------ */
@@ -115,7 +135,9 @@ export class EffectEmitters {
 
     for (let i = 0; i < n; i++) {
       const heavy = i % 3 !== 0;
-      const [ox, oz] = rng.insideCircle(radius);
+      this.sampleDisc(rng, radius);
+      const ox = this.sampleX;
+      const oz = this.sampleZ;
       const oy = rng.range(0, radius * 0.4);
       const outward = Math.hypot(ox, oz) || 1;
       const speed = (2.5 + 16 * power) * rng.range(0.35, 1);
@@ -269,7 +291,9 @@ export class EffectEmitters {
 
     for (let i = 0; i < n; i++) {
       const t = i / Math.max(1, n - 1);
-      const [ox, oz] = rng.insideCircle(radius * (0.35 + t * 0.9));
+      this.sampleDisc(rng, radius * (0.35 + t * 0.9));
+      const ox = this.sampleX;
+      const oz = this.sampleZ;
       p.x = x + ox;
       p.y = y + 1 + Math.pow(t, 0.8) * height * 0.55;
       p.z = z + oz;
@@ -317,9 +341,21 @@ export class EffectEmitters {
    * `fadeIn` is a couple of per cent and the life is a fifth of a second, so
    * the held frame catches the flash at full strength rather than catching its
    * tail.
+   *
+   * @param tint Overrides the default arc-white. Supplied by a caller that
+   *             passed `IVFXSpawnOptions.color`; the gains are kept so a tinted
+   *             flash still blows out its core rather than reading as a decal.
    */
-  impactFlash(rng: IRandom, x: number, y: number, z: number, power: number): void {
+  impactFlash(
+    rng: IRandom,
+    x: number,
+    y: number,
+    z: number,
+    power: number,
+    tint?: LinearColor
+  ): void {
     const p = this.sprite;
+    const color = tint ?? this.shockColor;
     // METRES. This is a contact flash on a fist, not a nuclear fireball: at 20+
     // metres across it stops being a flash and becomes a light bulb parked in
     // front of the camera, and everything behind it — the wave, the dust, the
@@ -352,7 +388,7 @@ export class EffectEmitters {
     p.style = 0;
     p.aspect = 1;
     p.seed = rng.next();
-    this.tint(p, this.shockColor, 1.5 + power * 1.5);
+    this.tint(p, color, 1.5 + power * 1.5);
     this.sprites.emit(p);
 
     // Soft bloom halo behind it.
@@ -364,7 +400,7 @@ export class EffectEmitters {
     p.alpha = 0.55;
     p.erode = 0.3;
     p.seed = rng.next();
-    this.tint(p, this.shockColor, 0.55 + power * 0.7);
+    this.tint(p, color, 0.55 + power * 0.7);
     this.sprites.emit(p);
 
     // BACKLIGHT. A big, faint, slow additive glow sitting at the contact point.
@@ -382,7 +418,7 @@ export class EffectEmitters {
     p.erode = 0.25;
     p.fadeIn = 0.03;
     p.seed = rng.next();
-    this.tint(p, this.shockColor, 0.45 + power * 0.45);
+    this.tint(p, color, 0.45 + power * 0.45);
     this.sprites.emit(p);
 
     // Expanding ring pop — the small, fast read that says "contact".
@@ -398,7 +434,7 @@ export class EffectEmitters {
     p.erode = 1.05;
     p.rot = rng.range(0, Math.PI * 2);
     p.seed = rng.next();
-    this.tint(p, this.shockColor, 0.9 + power * 1.1);
+    this.tint(p, color, 0.9 + power * 1.1);
     this.sprites.emit(p);
   }
 
@@ -408,6 +444,10 @@ export class EffectEmitters {
    * Gravity and drag are both high on purpose. Sparks that fly straight and
    * evenly read as a firework; sparks that arc, decelerate and die at
    * different times read as material being torn off something.
+   *
+   * @param tint Overrides the default warm spall colour — this is what makes
+   *             `spawn('bloodSpray', { color })` produce blood rather than
+   *             sparks.
    */
   hitSparks(
     rng: IRandom,
@@ -418,10 +458,12 @@ export class EffectEmitters {
     dirY: number,
     dirZ: number,
     power: number,
-    total: number
+    total: number,
+    tint?: LinearColor
   ): void {
     const p = this.sprite;
     const n = this.count(total);
+    const color = tint ?? this.sparkColor;
     const length = Math.hypot(dirX, dirY, dirZ) || 1;
     const nx = dirX / length;
     const ny = dirY / length;
@@ -465,17 +507,20 @@ export class EffectEmitters {
       p.style = 0;
       p.aspect = 1;
       p.seed = rng.next();
-      this.tint(p, this.sparkColor, rng.range(1.4, 3.2));
+      this.tint(p, color, rng.range(1.4, 3.2));
       if (!this.sprites.emit(p)) break;
     }
   }
 
   /**
-   * Chips of concrete thrown out of an impact, each dragging a streak.
+   * Chips of concrete thrown out of an impact.
    *
-   * Two sprites per chip: a dark shard silhouette that reads against the dust,
-   * and a faint additive streak behind it. The silhouette is what makes the
-   * dust look like it has depth — there is something solid inside it.
+   * ONE sprite per chip: a dark shard silhouette that reads against the dust.
+   * The silhouette is what makes the dust look like it has depth — there is
+   * something solid inside it — and one quad per chip is what keeps `total`
+   * costing what the caller thinks it costs against the sprite budget. Chips
+   * that need a motion smear get it from `trailStep`, which is a separate
+   * emitter with its own budget rather than a hidden second sprite here.
    */
   debrisChips(
     rng: IRandom,
@@ -643,25 +688,60 @@ export class EffectEmitters {
     d.alpha = 0.85 + power * 0.15;
     if (this.decals.emit(d)) placed++;
 
-    // Branches racing outward.
+    // Branches racing outward, IN THE SURFACE'S OWN PLANE.
+    //
+    // The fan used to be built in world XZ with `rotation = atan2(-dirZ, dirX)`,
+    // which is the correct inverse of the shader's tangent frame for exactly one
+    // normal: +Y. Cracking a wall (`normal = +X`) then threw half the branches
+    // several metres out in front of it and buried the other half inside it. The
+    // frame below is the shader's own — same reference-vector rule — so the +Y
+    // case reduces to precisely the old placement and every other normal now
+    // works too.
+    // A degenerate normal falls back to +Y, which is the same guard the surface
+    // branch of SPRITE_VERTEX applies — so the quad and its placement agree.
+    const nl = Math.hypot(normalX, normalY, normalZ);
+    const usable = nl > 1e-6;
+    const nX = usable ? normalX / nl : 0;
+    const nY = usable ? normalY / nl : 1;
+    const nZ = usable ? normalZ / nl : 0;
+    // ref = |n.y| > 0.95 ? +X : +Y — matching SPRITE_VERTEX exactly.
+    const refX = Math.abs(nY) > 0.95 ? 1 : 0;
+    const refY = Math.abs(nY) > 0.95 ? 0 : 1;
+    // tangent = normalize(cross(ref, n)); ref has no Z component.
+    let tX = refY * nZ;
+    let tY = -refX * nZ;
+    let tZ = refX * nY - refY * nX;
+    const tl = Math.hypot(tX, tY, tZ) || 1;
+    tX /= tl;
+    tY /= tl;
+    tZ /= tl;
+    // bitangent = cross(n, tangent).
+    const bX = nY * tZ - nZ * tY;
+    const bY = nZ * tX - nX * tZ;
+    const bZ = nX * tY - nY * tX;
+
     const n = Math.max(0, Math.round(branches));
     for (let i = 0; i < n; i++) {
       const angle = (i / Math.max(1, n)) * Math.PI * 2 + rng.range(-0.25, 0.25);
-      const dirX = Math.cos(angle);
-      const dirZ = Math.sin(angle);
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      // In-plane fan direction. For n = +Y this is (cos, 0, sin), as before.
+      const dirX = bX * cosA + tX * sinA;
+      const dirY = bY * cosA + tY * sinA;
+      const dirZ = bZ * cosA + tZ * sinA;
       const size = radius * rng.range(0.55, 1.15);
       const aspect = rng.range(2.1, 3.8);
       const half = size * aspect * 0.5;
 
       d.x = x + dirX * (half + radius * 0.35);
-      d.y = y;
+      d.y = y + dirY * (half + radius * 0.35);
       d.z = z + dirZ * (half + radius * 0.35);
       d.size = size;
       d.aspect = aspect;
-      // See the surface-quad frame in SPRITE_VERTEX: at rotation 0 the tile's
-      // +v axis points along world +X, so this is the rotation that makes the
-      // crack run in the direction it was placed.
-      d.rotation = Math.atan2(-dirZ, dirX);
+      // The tile's long (+v) axis is `-tangent*sin(r) + bitangent*cos(r)`, so
+      // `r = -angle` points the crack exactly along the direction it was placed
+      // in — for the +Y normal that is the old `atan2(-dirZ, dirX)`.
+      d.rotation = -angle;
       d.tile = rng.bool() ? CrackTile.BranchA : CrackTile.BranchB;
       d.r = 0.055;
       d.g = 0.052;

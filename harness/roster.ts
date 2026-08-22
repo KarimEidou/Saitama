@@ -179,6 +179,11 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.92;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
+// `render()` resets `info` on entry while `autoReset` is true, so a mode that
+// draws several scissored panels would publish only its LAST panel's counters.
+// Every read below explicitly `reset()`s first, so nothing accumulates across
+// modes; what changes is that a multi-render frame now sums.
+renderer.info.autoReset = false;
 
 const scene = new THREE.Scene();
 
@@ -418,6 +423,11 @@ interface FrameStats {
   readonly meanLuma: number;
 }
 
+/** True for the missing-texture checker's magenta, allowing for tone mapping. */
+function isMagenta(r: number, g: number, b: number): boolean {
+  return r > 190 && b > 190 && g < 90;
+}
+
 function inspectFrame(): FrameStats {
   const scratch = document.createElement('canvas');
   scratch.width = 240;
@@ -431,7 +441,6 @@ function inspectFrame(): FrameStats {
   const colors = new Set<number>();
   let sum = 0;
   let sumSq = 0;
-  let magenta = 0;
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i]!;
     const g = data[i + 1]!;
@@ -440,16 +449,40 @@ function inspectFrame(): FrameStats {
     const luma = 0.299 * r + 0.587 * g + 0.114 * b;
     sum += luma;
     sumSq += luma * luma;
-    if (r > 190 && b > 190 && g < 90) magenta++;
   }
   const n = data.length / 4;
   const mean = sum / n;
   return {
     distinctColors: colors.size,
     stdDev: Math.sqrt(Math.max(0, sumSq / n - mean * mean)),
-    magentaPixels: magenta,
+    magentaPixels: countMagenta(),
     meanLuma: mean,
   };
+}
+
+/**
+ * Magenta at NATIVE resolution.
+ *
+ * The colour and variance statistics above come from a 240x160 downsample,
+ * which averages 40-50 source pixels into every sample — a single
+ * missing-texture texel, a thin seam, or one small patch on a face atlas is
+ * blended with its neighbours and lands nowhere near the threshold. The driver
+ * promises to reject "a single magenta missing-texture pixel", so this pass
+ * reads the drawing buffer 1:1.
+ */
+function countMagenta(): number {
+  const scratch = document.createElement('canvas');
+  scratch.width = canvas.width;
+  scratch.height = canvas.height;
+  const context = scratch.getContext('2d', { willReadFrequently: true });
+  if (context === null) return 0;
+  context.drawImage(canvas, 0, 0);
+  const data = context.getImageData(0, 0, scratch.width, scratch.height).data;
+  let magenta = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (isMagenta(data[i]!, data[i + 1]!, data[i + 2]!)) magenta++;
+  }
+  return magenta;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -635,6 +668,8 @@ async function runFace(): Promise<Record<string, unknown>> {
   };
   renderer.info.reset();
   redraw();
+  // All three panels, captured before anything else touches the counters.
+  const drawCalls = renderer.info.render.calls;
 
   for (let i = 0; i < strip.length; i++) {
     const character = strip[i]!;
@@ -668,7 +703,7 @@ async function runFace(): Promise<Record<string, unknown>> {
         headHalfWidth: Number(region.headHalfWidth.toFixed(4)),
       };
     })(),
-    drawCalls: renderer.info.render.calls,
+    drawCalls,
     proximityFade: {
       armCollapseRatio: COLLAPSE_RATIO,
       coverage: getProximityFade(faded.material),
@@ -729,6 +764,8 @@ async function runMetal(): Promise<Record<string, unknown>> {
   };
   renderer.info.reset();
   redraw();
+  // Both panels, captured before anything else touches the counters.
+  const drawCalls = renderer.info.render.calls;
 
   panelTitle(40, HEIGHT - 46, 'Genos · three-quarter');
   panelTitle(WIDTH / 2 + 40, HEIGHT - 46, 'Genos · left forearm, metalness 1.0');
@@ -740,7 +777,7 @@ async function runMetal(): Promise<Record<string, unknown>> {
     mode: 'metal',
     characters: [describe(character)],
     metalness,
-    drawCalls: renderer.info.render.calls,
+    drawCalls,
   };
 }
 

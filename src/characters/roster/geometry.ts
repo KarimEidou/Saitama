@@ -34,6 +34,9 @@
 import type * as THREE from 'three';
 import type { HumanoidBuild, MeshRegionInfo, UVRect, UVRegionName } from '@/characters/mesh';
 import { HEAD_LANDMARK_V, UV_REGIONS } from '@/characters/mesh';
+import { createLogger } from '@/util';
+
+const log = createLogger('roster:geometry');
 
 /** Rectangles a displaced island may be re-fitted into, in preference order. */
 const SPARE_RECTS: readonly UVRegionName[] = ['cloth', 'panel', 'hair', 'trim', 'extremity'];
@@ -64,6 +67,17 @@ export interface PreparedGeometry {
   readonly clean: boolean;
   /** Regions that had to be split apart because they shared a rectangle. */
   readonly split: readonly string[];
+  /**
+   * Regions this build wanted split but the supplied plan does not cover.
+   *
+   * Always empty when no plan was supplied. A non-empty list means the atlas
+   * cannot serve this build faithfully: the bake was rasterised from the LOD0
+   * layout, and these regions would have to sample texels that layout never
+   * painted. They are left where the plan put them — the least wrong of the
+   * two answers — and reported so the bake can fail loudly instead of shipping
+   * a boot's colour on a collar.
+   */
+  readonly unplanned: readonly string[];
 }
 
 function contains(rect: UVRect, u0: number, v0: number, u1: number, v1: number): boolean {
@@ -112,12 +126,6 @@ export function rectContaining(
   return undefined;
 }
 
-/**
- * Re-fit displaced islands and report the atlas layout.
- *
- * Mutates `build.geometry`'s uv attribute in place. Idempotent: a build whose
- * islands are already inside named rectangles is left untouched.
- */
 /**
  * Appearance signature of one region.
  *
@@ -174,11 +182,43 @@ function subdivide(rect: UVRect, count: number): UVRect[] {
   return cells;
 }
 
+/** What a geometry remembers about the preparation it already went through. */
+interface PreparedRecord {
+  readonly source: AtlasPlan | undefined;
+  readonly result: PreparedGeometry;
+}
+
+/**
+ * Re-fit displaced islands and report the atlas layout.
+ *
+ * Mutates `build.geometry`'s uv attribute in place, and records what it did on
+ * `geometry.userData` so a second call is a no-op.
+ *
+ * That memory is load-bearing, not a cache. The split pass keys off vertex
+ * COLOUR, which a UV move does not change, and it always maps from the full
+ * named rectangle — so re-running it on an already-split build would subdivide
+ * `trim` again and squeeze each quarter-sized island into a quarter of a
+ * quarter, leaving the collar wearing a smear of the boot cell.
+ *
+ * With a `plan`, the plan is AUTHORITATIVE: the atlas was rasterised from the
+ * LOD0 layout, so a lower LOD may not invent moves of its own. Anything this
+ * build would have split but the plan does not name is left alone and reported
+ * in `unplanned`.
+ */
 export function prepareRosterGeometry(build: HumanoidBuild, plan?: AtlasPlan): PreparedGeometry {
   const geometry = build.geometry;
   const index = geometry.getIndex();
   const uv = geometry.getAttribute('uv') as THREE.BufferAttribute;
   if (index === null) throw new Error('roster: geometry must be indexed');
+
+  const store = geometry.userData as { rosterPrepared?: PreparedRecord };
+  const previous = store.rosterPrepared;
+  if (previous !== undefined) {
+    if (plan !== undefined && plan !== previous.source) {
+      log.warn('geometry was already prepared; the plan passed to this call is ignored');
+    }
+    return previous.result;
+  }
 
   const used = new Set<UVRegionName>();
   const displaced: MeshRegionInfo[] = [];
@@ -200,10 +240,12 @@ export function prepareRosterGeometry(build: HumanoidBuild, plan?: AtlasPlan): P
   const moves = new Map<string, RegionMove>(plan?.moves ?? []);
   const remapped: string[] = [];
   const split: string[] = [];
+  const unplanned: string[] = [];
 
   // --- islands the generator left outside every rectangle (the cape) --------
   for (const region of displaced) {
     if (!moves.has(region.name)) {
+      if (plan !== undefined) unplanned.push(region.name);
       const free = SPARE_RECTS.find((name) => !used.has(name));
       // Nothing free: share the cloth rectangle rather than leave the island
       // straddling the whole sheet, which is strictly worse.
@@ -230,6 +272,14 @@ export function prepareRosterGeometry(build: HumanoidBuild, plan?: AtlasPlan): P
     const cells = subdivide(UV_REGIONS[name], signatures.length);
     for (const region of regions) {
       if (moves.has(region.name)) continue;
+      if (plan !== undefined) {
+        // The signature is a QUANTISED mean vertex colour, so decimation can
+        // push a region across a bucket edge and make a rectangle look shared
+        // at LOD1 that was not at LOD0. Splitting here would send this island
+        // into a sub-cell the baked sheet never painted.
+        unplanned.push(region.name);
+        continue;
+      }
       const group = groupOf.get(regionSignature(geometry, region))!;
       moves.set(region.name, { src: UV_REGIONS[name], dest: cells[group]! });
       split.push(region.name);
@@ -268,12 +318,15 @@ export function prepareRosterGeometry(build: HumanoidBuild, plan?: AtlasPlan): P
     else used.add(rect);
   }
 
-  return {
+  const result: PreparedGeometry = {
     plan: { moves, used: [...used].sort() },
     remapped,
     clean,
     split,
+    unplanned,
   };
+  store.rosterPrepared = { source: plan, result };
+  return result;
 }
 
 /**
@@ -300,9 +353,13 @@ export function findPaintCollisions(build: HumanoidBuild): string[] {
       const overlapU = Math.min(a.bounds.u1, b.bounds.u1) - Math.max(a.bounds.u0, b.bounds.u0);
       const overlapV = Math.min(a.bounds.v1, b.bounds.v1) - Math.max(a.bounds.v0, b.bounds.v0);
       if (overlapU <= 1e-4 || overlapV <= 1e-4) continue;
-      // Ignore hairline touches from the shared gutter.
+      // Ignore hairline touches from the shared gutter — but measure against
+      // the SMALLER island. `a` is whichever region came first in the build,
+      // and a nose patch buried whole inside the body rectangle is 100% lost
+      // while covering barely 2% of its burier.
       const areaA = (a.bounds.u1 - a.bounds.u0) * (a.bounds.v1 - a.bounds.v0);
-      if ((overlapU * overlapV) / Math.max(areaA, 1e-9) < 0.02) continue;
+      const areaB = (b.bounds.u1 - b.bounds.u0) * (b.bounds.v1 - b.bounds.v0);
+      if ((overlapU * overlapV) / Math.max(Math.min(areaA, areaB), 1e-9) < 0.02) continue;
       collisions.push(`${a.name} ↔ ${b.name}`);
     }
   }

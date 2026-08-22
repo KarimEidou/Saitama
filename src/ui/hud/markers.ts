@@ -20,6 +20,13 @@
  * write happens, by a library, on elements that are `position:absolute` inside
  * an `overflow:hidden` container and therefore cannot reflow anything else.
  *
+ * That list is exhaustive only because `sortObjects` is turned OFF in the
+ * constructor. Left at its default it adds a third per-frame write nobody
+ * declared: `render` ends with `zOrder(scene)`, which flattens the scene into a
+ * FRESH ARRAY, sorts it, and assigns `element.style.zIndex` directly on every
+ * marker — with hundreds of markers, hundreds of direct CSSOM writes per frame,
+ * of exactly the kind a `setProperty`-only probe cannot see.
+ *
  * It performs NO layout reads per frame — the viewport size comes from
  * `setSize`, which the resize handler calls. That is the property that matters
  * for the forced-reflow assertion, and it is why the addon is usable here at
@@ -31,6 +38,22 @@
  * object is removed from the scene entirely rather than merely hidden, because
  * a hidden CSS2DObject still costs a matrix multiply and a style write every
  * frame, and there can be hundreds.
+ *
+ * ── AND WHY THERE IS NO SCREEN-SPACE CULLING ───────────────────────────────
+ * `THUMB_RESERVE_PX` and `STICK_RESERVE_PX` (`tokens.ts`) reserve the two lower
+ * corners for the hands, and every piece of HUD CHROME obeys them. A marker
+ * does NOT, deliberately: it is not laid out. Its position is a world point
+ * projected through the camera, so the only way to keep a pin out of a thumb's
+ * quadrant is to detach it from the thing it points at — which is worse than
+ * drawing it under a hand, because a pin that lies about where the monster is
+ * is not a pin. The reserves scope their claim to chrome, and
+ * `harness/hud.verify.ts` scopes the thumb-corner assertion the same way
+ * (`panel.kind === 'marker'` is exempt, the way the charge arc is).
+ *
+ * What markers DO obey is the safe area, and by paint rather than by layout:
+ * `.hud-markers` carries a `clip-path` inset to the safe box, so a pin cannot
+ * draw under a cutout even though its rect is unchanged. The harness intersects
+ * a marker's rect with that clip before measuring it, for the same reason.
  */
 
 import * as THREE from 'three';
@@ -99,6 +122,11 @@ export class MarkerLayer {
     });
     this.element.appendChild(host);
     this.renderer = new CSS2DRenderer({ element: host });
+    // No depth sorting. The marker scene is flat, the elements are
+    // `position:absolute` siblings, and DOM order already gives a stable
+    // stacking — so the per-frame allocate + sort + `style.zIndex` pass this
+    // buys costs everything and settles nothing. See the header.
+    this.renderer.sortObjects = false;
     // `CSS2DRenderer` sets `overflow:hidden` on its element and positions
     // children absolutely; the size is only ever read from `setSize`.
     this.renderer.setSize(1, 1);

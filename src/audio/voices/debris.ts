@@ -156,7 +156,13 @@ export const DEBRIS_MATERIALS = Object.keys(MATERIALS);
 export function resolveMaterial(name: string | undefined): string {
   if (!name) return 'concrete';
   const key = name.trim();
-  if (MATERIALS[key]) return key;
+  // OWN properties only. `MATERIALS` is a plain object literal, so a plain
+  // `MATERIALS[key]` truthiness test also accepts every inherited
+  // `Object.prototype` member: `resolveMaterial('constructor')` returned
+  // `'constructor'`, `MATERIALS['constructor'].densityScale` was `undefined`,
+  // and the grain count came out NaN — a completely silent debris burst, which
+  // is the one outcome the fallback below exists to prevent.
+  if (Object.prototype.hasOwnProperty.call(MATERIALS, key)) return key;
   const lower = key.toLowerCase();
   for (const known of Object.keys(MATERIALS)) {
     if (known.toLowerCase() === lower) return known;

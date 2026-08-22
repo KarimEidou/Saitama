@@ -5,14 +5,28 @@
 # not hold (100 MB per file, no git-lfs here) -- so CI regenerates them from the
 # committed manifest and lockfile, then serves the result.
 #
+# Two jobs stand in front of the deploy:
+#   `checks`  the cheap gate -- typecheck, lint, tests, binary guard, attribution.
+#             No asset fetch, no build. Runs on every push and every pull request.
+#   `build`   the expensive publish path. `needs: checks`, and only runs for the
+#             repository's default branch or a manual dispatch.
+#
 # Trigger it from the Actions tab (including the GitHub mobile app), or let it
-# run on a push to the game branch.
+# run on a push to the default branch.
 name: Deploy to Pages
 
 on:
   push:
-    branches: [claude/one-punch-man-mobile-game-3e1w4v]
+    # Every branch: the point of a push run is the `checks` gate, and work here
+    # happens on long-lived feature branches. Publishing is gated separately by
+    # the `build` job's `if:`, so a feature branch is checked without
+    # republishing the site.
+    #
+    # Markdown-only pushes still skip the workflow, as they always have; a
+    # pull_request run (unfiltered, below) covers documentation changes.
+    branches: ['**']
     paths-ignore: ['**/*.md', 'docs/**']
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -21,13 +35,63 @@ permissions:
   id-token: write
 
 # Never let two deploys race; let a newer one supersede a queued older one, but
-# do not kill a run that is already publishing.
+# do not kill a run that is already publishing. Scoped per ref: only the default
+# branch auto-publishes, so every publishing run still lands in one group, while
+# a 90-minute publish cannot hold the two-minute gate on another branch behind it.
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  # Nothing here needs the 1.65 GB asset fetch, so this is minutes rather than
+  # the build job's 90-minute budget. It exists because the workflow used to be
+  # publish-only: a push that broke the type-checker, the lint gate or the unit
+  # tests deployed anyway, and `tools/attribution.ts --check` -- which README.md,
+  # docs/asset-pipeline.md and ATTRIBUTION.md's own header all describe as a CI
+  # gate -- ran nowhere.
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      # Refuses tracked binary game assets outside docs/screenshots/, and any
+      # tracked file over 5 MB. Needs the git metadata actions/checkout leaves.
+      - name: Binary guard
+        run: npm run guard
+
+      # ATTRIBUTION.md is generated, never hand-written: --check regenerates it
+      # in memory and diffs, exiting 1 on drift.
+      - name: Attribution up to date
+        run: npx tsx tools/attribution.ts --check
+
   build:
+    needs: checks
+    # Only the default branch publishes. The trigger used to hardcode a branch
+    # name that development had already moved off, so every push was a silent
+    # no-op and the Pages site served whatever that branch last produced;
+    # deriving the name from the repository means it cannot go stale again.
+    # A manual dispatch publishes whatever ref it was fired from.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -104,6 +168,7 @@ jobs:
           path: dist
 
   deploy:
+    # `build` is skipped on a non-publishing ref, which skips this job too.
     needs: build
     runs-on: ubuntu-latest
     environment:

@@ -232,15 +232,12 @@ export class ReverbSend {
       const damp = ctx.createBiquadFilter();
       damp.type = 'lowpass';
       damp.frequency.value = 3800;
-      // Q MUST be 0 here, and that is not a "no resonance" spelling of 0.707.
-      //
-      // For `lowpass` and `highpass` the Web Audio specification defines Q as a
-      // RESONANCE IN DECIBELS, not as a quality factor. Any positive value
-      // therefore puts a peak above unity gain into the filter — and this
-      // filter sits inside the feedback loop, so a peak of a fraction of a dB
-      // makes the whole network self-oscillate. The offline probe caught it as
-      // an "alley" whose tail decayed to -53 dB and then climbed back to
-      // +22 dB over the following five seconds.
+      // Q MUST BE NEGATIVE here — see the `DAMPING_Q` doc block, which carries
+      // the full reasoning. In particular Q = 0 is NOT the neutral setting it
+      // looks like: for `lowpass` the specification reads Q as a resonance in
+      // dB, so 0 dB is a traditional quality factor of 1, whose response peaks
+      // +1.25 dB above unity. Inside this feedback loop that is an oscillator,
+      // not a colouration.
       damp.Q.value = DAMPING_Q;
       const fb = ctx.createGain();
       fb.gain.value = 0;

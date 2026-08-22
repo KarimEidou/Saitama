@@ -364,6 +364,24 @@ export class MonsterBrain {
     return this.suppressedFor > 0 ? this.suppressedId : undefined;
   }
 
+  /**
+   * Seconds until this monster may swing again — 0 while ANY attack is ready.
+   *
+   * `IMonster.attackCooldownRemaining` is documented in exactly those terms,
+   * and the answer lives in the per-attack timers rather than in
+   * `archetype.attackCooldown`, which is the set's shortest cooldown as a
+   * constant and never counts down.
+   */
+  get attackCooldownRemaining(): number {
+    let soonest = Number.POSITIVE_INFINITY;
+    for (const attack of this.archetype.attacks) {
+      const remaining = this.cooldowns.get(attack.id) ?? 0;
+      if (remaining <= 0) return 0;
+      if (remaining < soonest) soonest = remaining;
+    }
+    return Number.isFinite(soonest) ? soonest : 0;
+  }
+
   /** Animation slot this monster wants played right now. */
   get clip(): ClipName {
     switch (this.fsm.current) {
@@ -451,7 +469,6 @@ export class MonsterBrain {
    */
   private perceive(world: IMonsterWorld): void {
     const a = this.archetype;
-    const keepRange = this.targetId === undefined ? a.aggroRadius : a.loseAggroMetres;
     const proximity = a.radiusMetres + PROXIMITY_MARGIN_METRES;
     // Someone who can be hurt is noticed from any angle inside this radius.
     // Someone who cannot — the protagonist — still has to be seen.
@@ -484,7 +501,15 @@ export class MonsterBrain {
       const dy = target.position.y - this.position.y;
       const dz = target.position.z - this.position.z;
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (distance > keepRange) continue;
+      // `loseAggroMetres` is a RETENTION radius — "how far a target it already
+      // has may get before it is finally given up on" — and it belongs to the
+      // incumbent alone. Applied to every candidate it silently became the
+      // ACQUISITION radius of any monster that had picked anything at all,
+      // which is `aggroRadius * 1.8` by default: a howler fighting a civilian
+      // at 20 m would notice, and walk to, an ally 90 m away that it could
+      // never have seen while idle.
+      const range = target.id === this.targetId ? a.loseAggroMetres : a.aggroRadius;
+      if (distance > range) continue;
 
       const harmable = target.harmable ?? true;
 
@@ -537,6 +562,16 @@ export class MonsterBrain {
         this.lastKnown.z = bestZ;
       } else {
         this.secondsSinceSeen += this.thinkInterval;
+        // MEMORY EXPIRES HERE TOO, and this is the arm that matters.
+        //
+        // The incumbent skips both the "noticed" test and the line-of-sight
+        // test above, so a target standing behind a building anywhere inside
+        // `loseAggroMetres` stayed the selected candidate for ever: this
+        // counter grew and was compared against nothing, the `pursue` watchdog
+        // was petted on every think, and the director's cull skips an engaged
+        // monster. The result was a permanent lock — a monster swinging at the
+        // spot it last saw somebody, for the rest of the session.
+        if (this.secondsSinceSeen > this.archetype.memorySeconds) this.forgetTarget();
       }
     } else if (this.targetId !== undefined) {
       // Remembered, not seen. The monster keeps walking to where it last saw
@@ -697,7 +732,20 @@ export class MonsterBrain {
 
       case 'alerted': {
         if (this.targetId === undefined) {
-          if (this.fsm.timeInState >= this.archetype.memorySeconds) this.fsm.transition('idle');
+          if (this.fsm.timeInState >= this.archetype.memorySeconds) {
+            this.fsm.transition('idle');
+            return;
+          }
+          // Waiting out `memorySeconds` is WORK, not a stall, and the brain can
+          // prove it: it knows why it is here and exactly when it will leave.
+          // Eight of fourteen archetypes remember for longer than the `alerted`
+          // watchdog allows — Boros for a minute — so without this heartbeat
+          // every distant explosion parks a stalker, a leviathan or a boss in
+          // `alerted` with no target and the watchdog rescues it at 8 s. That
+          // silently truncates the advertised memory AND poisons
+          // `watchdogTrips`, the counter whose whole job is to surface a real
+          // brain bug rather than a monster standing very still.
+          this.fsm.heartbeat();
           return;
         }
         if (this.fsm.timeInState < ALERT_ORIENT_SECONDS) return;

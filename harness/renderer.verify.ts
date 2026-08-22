@@ -514,7 +514,16 @@ async function verifyTier(
 
       const withProbeShot = path.join(OUT_DIR, 'renderer-metal-with-probe.png');
       await page.screenshot({ path: withProbeShot, type: 'png', clip: toClip(SPHERE_GRID_CROP) });
-      const withProbe = await analyseRegion(shotPath, METAL_SPHERE_CROP);
+      /* A DEDICATED full-frame capture, taken after the freeze. `shotPath` was
+         captured while the camera was still orbiting, several presented frames
+         earlier — analysing it would put the two halves of the A/B at
+         different camera poses, and `METAL_SPHERE_CROP` is barely larger than
+         the sphere, so the pose decides how much dark background lands in the
+         crop. Both halves must come from the same frozen pose. */
+      const probeFull = path.join(OUT_DIR, 'renderer-low-with-specular.tmp.png');
+      await page.screenshot({ path: probeFull, type: 'png' });
+      const withProbe = await analyseRegion(probeFull, METAL_SPHERE_CROP);
+      await rm(probeFull, { force: true });
 
       await page.evaluate(() => window.__RENDER_HARNESS__?.setSpecularProbe(false));
       await waitFrames(page, 3);

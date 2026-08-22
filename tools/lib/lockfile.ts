@@ -24,17 +24,45 @@ import type { IAssetLockFile, IFetchedEntry, ILockAssetRecord, ILockFileRecord }
 
 export const LOCKFILE_VERSION = 1;
 
-/** Read the committed lockfile, or undefined when there is not one yet. */
+/**
+ * Read the committed lockfile, or undefined when there is not one yet.
+ *
+ * ONLY "there is no lockfile" is undefined. A lockfile that exists but cannot
+ * be understood — conflict markers left by a merge, a truncated write, a
+ * version from a newer pipeline — throws instead, because the caller's answer
+ * to `undefined` is to overwrite the file with whatever this machine happened
+ * to fetch. That would destroy the project's only record of 376 sha256
+ * anchors, and `--frozen` would meanwhile report "does not exist" about a file
+ * sitting right there.
+ */
 export async function readLockFile(
   filePath: string = LOCKFILE
 ): Promise<IAssetLockFile | undefined> {
+  let raw: string;
   try {
-    const parsed = JSON.parse(await readFile(filePath, 'utf8')) as IAssetLockFile;
-    if (parsed.version !== LOCKFILE_VERSION) return undefined;
-    return parsed;
-  } catch {
-    return undefined;
+    raw = await readFile(filePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw new Error(`${filePath}: cannot be read — ${(error as Error).message}`, { cause: error });
   }
+
+  let parsed: IAssetLockFile;
+  try {
+    parsed = JSON.parse(raw) as IAssetLockFile;
+  } catch (error) {
+    throw new Error(
+      `${filePath}: is not valid JSON (${(error as Error).message}). Refusing to overwrite a ` +
+        `lockfile that cannot be read — fix or delete it first.`,
+      { cause: error }
+    );
+  }
+  if (parsed?.version !== LOCKFILE_VERSION) {
+    throw new Error(
+      `${filePath}: lockfile version ${JSON.stringify(parsed?.version)} is not supported ` +
+        `(this pipeline writes version ${LOCKFILE_VERSION}). Refusing to overwrite it.`
+    );
+  }
+  return parsed;
 }
 
 /** Build a lockfile from fetch results. Pure — takes no I/O and no clock
@@ -45,7 +73,6 @@ export function buildLockFile(
 ): IAssetLockFile {
   const files: Record<string, ILockFileRecord> = {};
   const assets: Record<string, ILockAssetRecord> = {};
-  let totalBytes = 0;
 
   for (const result of fetched) {
     const urls: string[] = [];
@@ -59,7 +86,6 @@ export function buildLockFile(
         path: member.file.path,
       };
       urls.push(member.file.url);
-      totalBytes += member.bytes;
     }
     assets[result.entry.id] = {
       provider: result.entry.provider,
@@ -71,16 +97,22 @@ export function buildLockFile(
     };
   }
 
+  const sortedFiles = sortKeys(files);
   return {
     version: LOCKFILE_VERSION,
     generatedAt: options.generatedAt ?? new Date().toISOString(),
     generator: options.generator ?? 'tools/fetch-assets.ts',
-    files: sortKeys(files),
+    files: sortedFiles,
     assets: sortKeys(assets),
     totals: {
       entries: Object.keys(assets).length,
-      files: Object.keys(files).length,
-      bytes: totalBytes,
+      // Counted over the DE-DUPLICATED file map, exactly like `totals.files`
+      // beside it and exactly like `mergeLockFiles` — two entries that share a
+      // URL are one row and one set of bytes. Summing per member instead made
+      // a full run and a subset run of the same tree disagree about their own
+      // totals.
+      files: Object.keys(sortedFiles).length,
+      bytes: Object.values(sortedFiles).reduce((sum, f) => sum + f.bytes, 0),
     },
   };
 }
@@ -106,14 +138,26 @@ export function mergeLockFiles(
 
   const files = { ...previous.files };
   const assets = { ...previous.assets };
+  Object.assign(assets, next.assets);
+
   // Drop stale file rows belonging to entries this run refreshed, so a
   // material that swapped a map does not keep the old map's row forever.
-  const refreshed = new Set(Object.keys(next.assets));
-  for (const [url, record] of Object.entries(files)) {
-    if (refreshed.has(record.assetId)) delete files[url];
+  //
+  // Pruned by "no surviving entry lists this URL any more", NOT by the row's
+  // single `assetId` back-reference: a URL can be shared by several entries
+  // (Poly Haven serves one `.bin` for every resolution of a model) while the
+  // row records only whichever entry wrote it last. Pruning on that reference
+  // deletes rows that other, untouched entries still list, leaving an
+  // `assets.<id>.files` URL with no `files` row — a dangling lockfile that
+  // then fails the next `--frozen` CI run and blames the manifest for it.
+  const referenced = new Set<string>();
+  for (const record of Object.values(assets)) {
+    for (const url of record.files) referenced.add(url);
+  }
+  for (const url of Object.keys(files)) {
+    if (!referenced.has(url)) delete files[url];
   }
   Object.assign(files, next.files);
-  Object.assign(assets, next.assets);
 
   const sortedFiles = sortKeys(files);
   return {

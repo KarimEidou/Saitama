@@ -109,8 +109,16 @@ void main() {
   } else {
     /* Surface-oriented quad — the ground cracks. The tangent frame is built in
        LOCAL space and only then transformed: building it in view space would
-       make the decal spin as the camera orbits. */
-    vec3 n = normalize(iMotion.xyz);
+       make the decal spin as the camera orbits.
+
+       iMotion.xyz is the surface NORMAL for this mode (the decal layer writes
+       it there); the sprite layer writes VELOCITY into the same slots, so a
+       stationary sprite-layer quad in this mode would hand normalize() a zero
+       vector and put NaN into every vertex of the quad. Falling back to +Y
+       keeps that to a flat, visible decal instead of a driver-dependent smear
+       across the framebuffer. */
+    float axisLength = length(iMotion.xyz);
+    vec3 n = axisLength > 1e-4 ? iMotion.xyz / axisLength : vec3(0.0, 1.0, 0.0);
     vec3 ref = abs(n.y) > 0.95 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
     vec3 tangent = normalize(cross(ref, n));
     vec3 bitangent = cross(n, tangent);

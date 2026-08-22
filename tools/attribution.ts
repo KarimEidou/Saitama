@@ -15,11 +15,14 @@
  *   tools/manifest/hdris.json        4 environment entries
  *   tools/manifest/characters.json  14 generated character entries
  *   assets/assets.lock.json         every downloaded file: url, md5, sha256
- *   package.json + package-lock.json + node_modules/<pkg>/package.json
+ *   package.json + package-lock.json  declared set, resolved versions, licences
  *
- * — so the document cannot say anything the repository does not already
- * record. If a claim in `ATTRIBUTION.md` is wrong, the fix is to correct the
- * manifest and re-run, never to edit the markdown.
+ * — every one of them committed, so the document cannot say anything the
+ * repository does not already record. `node_modules` is read as well, but only
+ * to compare against the lockfile: nothing it says reaches the document, or
+ * `--check` would be a function of a gitignored directory. If a claim in
+ * `ATTRIBUTION.md` is wrong, the fix is to correct the manifest and re-run,
+ * never to edit the markdown.
  *
  * ── THE LOAD-BEARING CLAIM ─────────────────────────────────────────────────
  * This project asserts that NO third-party character or monster asset exists
@@ -166,6 +169,34 @@ const LICENSES: Readonly<Record<string, ILicenseFacts>> = {
     requiresAttribution: false,
     requiresNotice: false,
   },
+  'AGPL-3.0-or-later': {
+    name: 'GNU Affero General Public License v3.0 or later',
+    url: 'https://www.gnu.org/licenses/agpl-3.0.html',
+    copyleft: 'strong',
+    requiresAttribution: false,
+    requiresNotice: true,
+  },
+  'CDDL-1.0': {
+    name: 'Common Development and Distribution License 1.0',
+    url: 'https://spdx.org/licenses/CDDL-1.0.html',
+    copyleft: 'weak',
+    requiresAttribution: false,
+    requiresNotice: true,
+  },
+  'EPL-2.0': {
+    name: 'Eclipse Public License 2.0',
+    url: 'https://www.eclipse.org/legal/epl-2.0/',
+    copyleft: 'weak',
+    requiresAttribution: false,
+    requiresNotice: true,
+  },
+  'GPL-2.0-or-later': {
+    name: 'GNU General Public License v2.0 or later',
+    url: 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.html',
+    copyleft: 'strong',
+    requiresAttribution: false,
+    requiresNotice: true,
+  },
   'GPL-3.0-or-later': {
     name: 'GNU General Public License v3.0 or later',
     url: 'https://www.gnu.org/licenses/gpl-3.0.html',
@@ -177,6 +208,13 @@ const LICENSES: Readonly<Record<string, ILicenseFacts>> = {
     name: 'ISC License',
     url: 'https://spdx.org/licenses/ISC.html',
     copyleft: null,
+    requiresAttribution: false,
+    requiresNotice: true,
+  },
+  'LGPL-2.1-or-later': {
+    name: 'GNU Lesser General Public License v2.1 or later',
+    url: 'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html',
+    copyleft: 'weak',
     requiresAttribution: false,
     requiresNotice: true,
   },
@@ -216,6 +254,33 @@ const LICENSES: Readonly<Record<string, ILicenseFacts>> = {
     requiresNotice: false,
   },
 };
+
+/**
+ * Ids that mean a licence the catalogue already reviews.
+ *
+ * npm packages still declare the deprecated short forms (`GPL-3.0`) and the
+ * `-only` variants, and a lookup that misses them would call a reciprocal
+ * licence unreviewed — or, worse, silently permissive. The `-only` / `-or-later`
+ * distinction changes nothing this audit decides: both are reciprocal, and
+ * neither is on the asset allowlist.
+ */
+const SPDX_ALIASES: Readonly<Record<string, string>> = {
+  'AGPL-3.0': 'AGPL-3.0-or-later',
+  'AGPL-3.0-only': 'AGPL-3.0-or-later',
+  'GPL-2.0': 'GPL-2.0-or-later',
+  'GPL-2.0-only': 'GPL-2.0-or-later',
+  'GPL-3.0': 'GPL-3.0-or-later',
+  'GPL-3.0-only': 'GPL-3.0-or-later',
+  'LGPL-2.1': 'LGPL-2.1-or-later',
+  'LGPL-2.1-only': 'LGPL-2.1-or-later',
+  'LGPL-3.0': 'LGPL-3.0-or-later',
+  'LGPL-3.0-only': 'LGPL-3.0-or-later',
+};
+
+/** The reviewed facts for an SPDX id, or `undefined` if it is unreviewed. */
+function licenseFacts(id: string): ILicenseFacts | undefined {
+  return LICENSES[SPDX_ALIASES[id] ?? id];
+}
 
 /**
  * Licences an ASSET may carry and still be bundled into the shipped APK.
@@ -437,6 +502,8 @@ interface ICharacterEntry {
   readonly attribution?: IAttributionBlock;
   readonly sourceUrl?: string;
   readonly files?: readonly ISourceFileRow[];
+  /** CC0 city materials this character's atlas bakes in as fine detail. */
+  readonly cc0Textures?: readonly string[];
 }
 
 interface ICharacterManifestFile {
@@ -626,6 +693,12 @@ interface IInputs {
   readonly tree: readonly ITreeLicenseRow[];
   /** Packages in the tree carrying a reciprocal licence. */
   readonly copyleftInTree: readonly { name: string; license: string; runtime: boolean }[];
+  /**
+   * Observations about THIS machine (an installed tree that disagrees with the
+   * lockfile). Printed, never rendered: the document must stay a function of
+   * the committed inputs alone.
+   */
+  readonly diagnostics: readonly string[];
 }
 
 async function loadInputs(problems: IProblem[]): Promise<IInputs> {
@@ -655,7 +728,8 @@ async function loadInputs(problems: IProblem[]): Promise<IInputs> {
     }
   }
 
-  const npm = await loadNpmPackages(pkg, lockedPackages, problems);
+  const diagnostics: string[] = [];
+  const npm = await loadNpmPackages(pkg, lockedPackages, problems, diagnostics);
 
   // The upstream-contents table is hand-verified prose. Anchor it: a note
   // about a package nobody depends on any more is a claim about a phantom,
@@ -674,22 +748,36 @@ async function loadInputs(problems: IProblem[]): Promise<IInputs> {
   }
 
   const { tree, copyleft } = summariseTree(lockedPackages, problems);
-  return { manifests, characters, lock, pkg, lockedPackages, npm, tree, copyleftInTree: copyleft };
+  return {
+    manifests,
+    characters,
+    lock,
+    pkg,
+    lockedPackages,
+    npm,
+    tree,
+    copyleftInTree: copyleft,
+    diagnostics,
+  };
 }
 
 /**
  * Resolve every DECLARED dependency to a version and a licence.
  *
- * The declared set comes from `package.json` — committed, sorted, identical on
- * every machine — while the version and licence come from the installed
- * `node_modules/<name>/package.json`, which is the artefact that actually gets
- * used. `package-lock.json` is the fallback so this runs before `npm install`,
- * which is precisely when a licence question tends to be asked.
+ * BOTH inputs are committed: the declared set from `package.json`, the resolved
+ * version and licence from `package-lock.json`. `node_modules` is read too, but
+ * only to compare — nothing it says reaches the document. That is what makes
+ * `--check` a function of the repository: reading the installed tree instead
+ * would make the output depend on a gitignored directory, so a developer on an
+ * older checkout, or one machine where an optional platform build failed to
+ * install, would see spurious drift and "fix" it by committing a document that
+ * contradicts the lockfile CI installs from.
  */
 async function loadNpmPackages(
   pkg: IPackageJson,
   locked: IPackageLock['packages'],
-  problems: IProblem[]
+  problems: IProblem[],
+  diagnostics: string[]
 ): Promise<INpmPackage[]> {
   const declared: { name: string; range: string; runtime: boolean }[] = [
     ...Object.entries(pkg.dependencies ?? {}).map(([name, range]) => ({
@@ -710,17 +798,17 @@ async function loadNpmPackages(
       path.join(NODE_MODULES, name, 'package.json')
     );
     const lockRow = locked?.[`node_modules/${name}`];
-    const version = installed?.version ?? lockRow?.version ?? '';
-    const license = (installed ? licenseOf(installed) : '') || lockRow?.license || '';
-    const source: INpmPackage['source'] = installed ? 'node_modules' : 'package-lock';
+    const version = lockRow?.version ?? '';
+    const license = lockRow?.license ?? '';
+    const source: INpmPackage['source'] = 'package-lock';
 
     if (!license) {
       problems.push({
         severity: 'error',
         subject: name,
-        message: 'npm package declares no licence in package.json or package-lock.json',
+        message: 'npm package declares no licence in package-lock.json',
       });
-    } else if (!LICENSES[license]) {
+    } else if (!licenseFacts(license)) {
       problems.push({
         severity: 'warn',
         subject: name,
@@ -731,15 +819,25 @@ async function loadNpmPackages(
       problems.push({
         severity: 'warn',
         subject: name,
-        message: 'no resolved version found — run `npm install` for an exact record',
+        message: 'no version in package-lock.json — run `npm install` to refresh the lockfile',
       });
     }
+
+    // Console-only. A disagreement between the installed tree and the lockfile
+    // is a fact about THIS MACHINE, so it must not reach the document: putting
+    // it there would make `ATTRIBUTION.md` — and therefore the `--check` diff —
+    // depend on a gitignored directory.
     if (installed && lockRow?.version && installed.version !== lockRow.version) {
-      problems.push({
-        severity: 'warn',
-        subject: name,
-        message: `installed ${installed.version} but package-lock.json pins ${lockRow.version}`,
-      });
+      diagnostics.push(
+        `${name}: installed ${installed.version} but package-lock.json pins ${lockRow.version}`
+      );
+    }
+    const installedLicense = installed ? licenseOf(installed) : '';
+    if (installedLicense && license && installedLicense !== license) {
+      diagnostics.push(
+        `${name}: installed licence "${installedLicense}" but package-lock.json ` +
+          `records "${license}"`
+      );
     }
     out.push({ name, range, version, license: license || '(unknown)', runtime, source });
   }
@@ -786,7 +884,25 @@ function summariseTree(
     // Split composite expressions ("Apache-2.0 AND LGPL-3.0-or-later") so a
     // reciprocal term hiding inside one is still caught.
     const terms = license.split(/\s+(?:AND|OR)\s+/i).map((t) => t.replace(/[()]/g, '').trim());
-    const reciprocal = terms.some((t) => LICENSES[t]?.copyleft);
+    const reciprocal = terms.some((t) => licenseFacts(t)?.copyleft);
+
+    // An id outside the catalogue is UNREVIEWED, and an unreviewed licence is
+    // not a permissive one. Leaving it falsy here is the inversion this file
+    // warns against at the top: it is exactly how an "AGPL-3.0-only" or a row
+    // with no `license` field at all would be waved through as permissive and
+    // then published as "all permissive" in the summary table.
+    const unreviewed = terms.filter((t) => !licenseFacts(t));
+    if (unreviewed.length > 0) {
+      problems.push({
+        severity: runtime ? 'error' : 'warn',
+        subject: name,
+        message: row.license?.trim()
+          ? `licence "${license}" is not in the reviewed licence catalogue — an ` +
+            `unrecognised licence is an unreviewed one${runtime ? ', and it ships' : ''}`
+          : `declares no licence in package-lock.json${runtime ? ', and it ships' : ''}`,
+      });
+    }
+
     if (reciprocal) {
       copyleft.push({ name: `${name}@${row.version ?? '?'}`, license, runtime });
       if (runtime) {
@@ -901,6 +1017,11 @@ function creditEntry(
           message: `file host "${host}" is not one this provider is allowed to serve from`,
         });
       }
+      // The document states that every downloaded file is recorded with a
+      // provider-published md5 AND a locally computed sha256. Both halves are
+      // checked here, and a MISSING record is a failure rather than a skip: a
+      // one-sided md5 comparison turns a lost integrity record into a pass,
+      // which is precisely the claim the reader cannot check for themselves.
       const row = lock.files?.[file.url];
       if (!row) {
         problems.push({
@@ -908,12 +1029,38 @@ function creditEntry(
           subject: id,
           message: `no assets.lock.json record for ${file.url}`,
         });
-      } else if (row.md5 && file.md5 && row.md5 !== file.md5) {
-        problems.push({
-          severity: 'error',
-          subject: id,
-          message: `md5 disagreement between manifest and lockfile for ${file.url}`,
-        });
+      } else {
+        if (!row.sha256) {
+          problems.push({
+            severity: 'error',
+            subject: id,
+            message: `assets.lock.json records no sha256 for ${file.url}`,
+          });
+        }
+        if (!row.md5 || !file.md5) {
+          problems.push({
+            severity: 'error',
+            subject: id,
+            message:
+              `no md5 to compare for ${file.url} — ` +
+              `${row.md5 ? 'the manifest' : 'assets.lock.json'} declares none`,
+          });
+        } else if (row.md5 !== file.md5) {
+          problems.push({
+            severity: 'error',
+            subject: id,
+            message: `md5 disagreement between manifest and lockfile for ${file.url}`,
+          });
+        }
+        if (row.bytes !== undefined && file.bytes !== undefined && row.bytes !== file.bytes) {
+          problems.push({
+            severity: 'error',
+            subject: id,
+            message:
+              `byte-count disagreement for ${file.url}: manifest ${file.bytes}, ` +
+              `lockfile ${row.bytes}`,
+          });
+        }
       }
     }
   } else if (files.length > 0) {
@@ -958,24 +1105,43 @@ function creditEntry(
  * anyone else.
  *
  * Nine checks, chosen so that no single mistake can pass all of them. Checks
- * 1-3 read the character manifest; 4-6 read the download lockfile, which is
- * written by the fetcher and records what actually crossed the network; 7
- * ties the two together; 8 catches a manifest that lies about itself; 9
- * catches a character with no generator behind it.
+ * 1-2 read the character manifest; 3 scans every credited input for a link to a
+ * character-asset marketplace; 4-6 read the download lockfile, which is written
+ * by the fetcher and records what actually crossed the network; 7 ties the
+ * character manifest to the texture manifest; 8 catches a manifest that lies
+ * about itself; 9 catches a character with no generator behind it.
  *
  * The lockfile checks are the ones that matter. A manifest is a statement of
  * intent and can be edited to say anything; the lockfile is evidence, and it
  * contains 376 files from exactly one host, none of them a character.
+ *
+ * No check may pass on an empty population. Each one is gated on the thing it
+ * inspects being non-empty and states that size in its evidence, so a truncated
+ * manifest or an emptied lockfile fails the audit instead of "proving" the
+ * claim over nothing.
  */
 function auditCharacters(
   characters: ICharacterManifestFile,
   lock: ILockFile,
-  textures: ISourceManifestFile,
+  manifests: ReadonlyMap<string, ISourceManifestFile>,
   problems: IProblem[]
 ): ICharacterAudit {
+  const textures = manifests.get('textures.json') ?? {};
   const entries = [...(characters.entries ?? [])].sort(byKey((e) => e.id ?? ''));
   const checks: ICheck[] = [];
   const thirdParty: string[] = [];
+
+  /*
+   * PRECONDITION, not a check of its own: every check below is of the form
+   * "this derived list is empty", and an empty list derived from an empty
+   * population is not evidence of anything. A truncated manifest or a lockfile
+   * emptied by a bad merge would otherwise let all nine report PASS and the
+   * document certify the claim across zero characters. So each check is gated
+   * on its own population being non-empty, and each pass-side evidence string
+   * states the size of what it inspected.
+   */
+  const populated = entries.length > 0;
+  const emptyRoster = 'the character manifest declares no entries — nothing was inspected';
 
   const push = (name: string, passed: boolean, detail: string): void => {
     checks.push({ name, passed, detail });
@@ -989,13 +1155,21 @@ function auditCharacters(
     const facts = e.provider ? PROVIDERS[e.provider] : undefined;
     return Boolean(e.provider) && (!facts || !facts.firstParty);
   });
+  const firstPartyProvider = entries.filter((e) => e.provider && PROVIDERS[e.provider]?.firstParty);
   for (const e of withProvider) thirdParty.push(e.id ?? '(no id)');
   push(
     'no character entry declares a third-party provider',
-    withProvider.length === 0,
-    withProvider.length === 0
-      ? `${entries.length} entries checked, none carries a provider field`
-      : `third-party providers on: ${withProvider.map((e) => e.id).join(', ')}`
+    populated && withProvider.length === 0,
+    !populated
+      ? emptyRoster
+      : withProvider.length === 0
+        ? // Say what was measured. The predicate ALLOWS a first-party provider,
+          // so "none carries a provider field" would become a lie the moment
+          // the baker stamped `provider: "procedural"` on each entry.
+          `${plural(entries.length, 'entry', 'entries')} checked; ` +
+          `${firstPartyProvider.length} declare a first-party provider, ` +
+          `0 declare a third-party one`
+        : `third-party providers on: ${withProvider.map((e) => e.id).join(', ')}`
   );
 
   /* 2 — no character declares a downloadable file ------------------------- */
@@ -1003,42 +1177,82 @@ function auditCharacters(
   for (const e of withFiles) thirdParty.push(e.id ?? '(no id)');
   push(
     'no character entry declares a downloadable file',
-    withFiles.length === 0,
-    withFiles.length === 0
-      ? 'every entry has an empty file list — nothing is fetched for a character'
-      : `files declared by: ${withFiles.map((e) => e.id).join(', ')}`
+    populated && withFiles.length === 0,
+    !populated
+      ? emptyRoster
+      : withFiles.length === 0
+        ? `all ${plural(entries.length, 'entry', 'entries')} have an empty file list — ` +
+          'nothing is fetched for a character'
+        : `files declared by: ${withFiles.map((e) => e.id).join(', ')}`
   );
 
-  /* 3 — no character mentions a known character-asset marketplace --------- */
+  /* 3 — nothing mentions a known character-asset marketplace -------------- */
+  const marketplace = (url: string): boolean => {
+    const host = hostOf(url);
+    return CHARACTER_ASSET_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  };
   const tainted: string[] = [];
+  let urlsScanned = 0;
   for (const entry of entries) {
-    for (const url of urlsIn(entry)) {
-      const host = hostOf(url);
-      if (CHARACTER_ASSET_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) {
-        tainted.push(`${entry.id} -> ${host}`);
+    const urls = urlsIn(entry);
+    urlsScanned += urls.length;
+    for (const url of urls) {
+      if (marketplace(url)) {
+        tainted.push(`${entry.id} -> ${hostOf(url)}`);
+        thirdParty.push(entry.id ?? '(no id)');
       }
     }
   }
-  for (const t of tainted) thirdParty.push(t.split(' ')[0] ?? t);
+  // The rendered claim is about the repository, not about 14 rows: a
+  // marketplace URL on a reused CC0 map, or on any credited material, would put
+  // third-party character art in the bundle just as effectively. So scan every
+  // loaded input — the character manifest minus the entries already covered
+  // above (`undefined` fields are dropped by JSON.stringify), plus each source
+  // manifest — rather than the entries alone.
+  const scanned: readonly (readonly [string, unknown])[] = [
+    [`tools/manifest/${CHARACTER_MANIFEST}`, { ...characters, entries: undefined }],
+    ...[...manifests].map(([file, m]) => [`tools/manifest/${file}`, m] as const),
+  ];
+  for (const [subject, value] of scanned) {
+    const urls = urlsIn(value);
+    urlsScanned += urls.length;
+    for (const url of urls) {
+      if (marketplace(url)) tainted.push(`${subject} -> ${hostOf(url)}`);
+    }
+  }
   push(
-    'no character entry references a character-asset marketplace',
-    tainted.length === 0,
-    tainted.length === 0
-      ? `${CHARACTER_ASSET_HOSTS.length} known humanoid-asset hosts checked, zero references`
-      : `references found: ${tainted.join(', ')}`
+    'no credited input references a character-asset marketplace',
+    populated && tainted.length === 0,
+    !populated
+      ? emptyRoster
+      : tainted.length === 0
+        ? `${CHARACTER_ASSET_HOSTS.length} known humanoid-asset hosts checked against ` +
+          `${plural(urlsScanned, 'URL')} across the character manifest and ` +
+          `${plural(manifests.size, 'source manifest')}, zero references`
+        : `references found: ${tainted.join(', ')}`
   );
 
   /* 4 — no character id appears in the download lockfile ------------------ */
   const ids = new Set(entries.map((e) => e.id).filter(Boolean) as string[]);
   const lockedIds = Object.keys(lock.assets ?? {}).sort();
+  const lockedFiles = Object.keys(lock.files ?? {});
+  // Checks 4-6 are the ones that matter precisely BECAUSE the lockfile is
+  // evidence rather than a statement of intent. An empty lockfile is no
+  // evidence, so it fails them rather than passing all three in silence.
+  const lockPopulated = lockedIds.length > 0 && lockedFiles.length > 0;
+  const emptyLock =
+    `assets.lock.json records ${plural(lockedIds.length, 'entry', 'entries')} and ` +
+    `${plural(lockedFiles.length, 'file')} — there is no download evidence to read`;
   const downloadedCharacters = lockedIds.filter((id) => ids.has(id) || id.startsWith('chr.'));
   for (const id of downloadedCharacters) thirdParty.push(id);
   push(
     'no character id appears in assets.lock.json',
-    downloadedCharacters.length === 0,
-    downloadedCharacters.length === 0
-      ? `${lockedIds.length} downloaded entries, none of them a character`
-      : `downloaded: ${downloadedCharacters.join(', ')}`
+    lockPopulated && downloadedCharacters.length === 0,
+    !lockPopulated
+      ? emptyLock
+      : downloadedCharacters.length === 0
+        ? `${lockedIds.length} downloaded entries, none of them a character`
+        : `downloaded: ${downloadedCharacters.join(', ')}`
   );
 
   /* 5 — the lockfile contains no character-kind entry --------------------- */
@@ -1054,18 +1268,20 @@ function auditCharacters(
   }
   push(
     'assets.lock.json contains no entry of kind "character"',
-    characterKinds.length === 0,
-    characterKinds.length === 0
-      ? `downloaded kinds: ${[...kindTally.entries()]
-          .sort(byKey(([k]) => k))
-          .map(([k, n]) => `${k} x${n}`)
-          .join(', ')}`
-      : `character-kind entries: ${characterKinds.join(', ')}`
+    lockPopulated && characterKinds.length === 0,
+    !lockPopulated
+      ? emptyLock
+      : characterKinds.length === 0
+        ? `downloaded kinds: ${[...kindTally.entries()]
+            .sort(byKey(([k]) => k))
+            .map(([k, n]) => `${k} x${n}`)
+            .join(', ')}`
+        : `character-kind entries: ${characterKinds.join(', ')}`
   );
 
   /* 6 — every downloaded byte came from an allow-listed provider host ----- */
   const hosts = new Map<string, number>();
-  for (const url of Object.keys(lock.files ?? {})) {
+  for (const url of lockedFiles) {
     const host = hostOf(url);
     hosts.set(host, (hosts.get(host) ?? 0) + 1);
   }
@@ -1073,73 +1289,122 @@ function auditCharacters(
   const strangers = [...hosts.keys()].filter((h) => !allowed.has(h)).sort();
   push(
     'every downloaded file came from an allow-listed provider host',
-    strangers.length === 0,
-    strangers.length === 0
-      ? `${plural(
-          [...hosts.values()].reduce((a, b) => a + b, 0),
-          'file'
-        )} from ${[...hosts.entries()]
-          .sort(byKey(([h]) => h))
-          .map(([h, n]) => `${h} (${n})`)
-          .join(', ')}`
-      : `unexpected hosts: ${strangers.join(', ')}`
+    lockPopulated && strangers.length === 0,
+    !lockPopulated
+      ? emptyLock
+      : strangers.length === 0
+        ? `${plural(
+            [...hosts.values()].reduce((a, b) => a + b, 0),
+            'file'
+          )} from ${[...hosts.entries()]
+            .sort(byKey(([h]) => h))
+            .map(([h, n]) => `${h} (${n})`)
+            .join(', ')}`
+        : `unexpected hosts: ${strangers.join(', ')}`
   );
 
   /* 7 — reused CC0 detail maps are city materials already credited -------- */
-  const reused = Object.keys(characters.cc0Attribution ?? {}).sort();
+  // The set under test is what the ENTRIES declare they reuse, not the credit
+  // block: auditing `cc0Attribution` against itself passes vacuously, so an id
+  // silently dropped from the credits (or the whole block deleted) would be
+  // reported as "0 reused maps, each resolving to an identical entry" — a pass,
+  // with ten Poly Haven authors uncredited underneath it.
+  const reused = [...new Set(entries.flatMap((e) => e.cc0Textures ?? []))].sort();
+  const credited = Object.keys(characters.cc0Attribution ?? {}).sort();
   const textureById = new Map((textures.entries ?? []).map((e) => [e.id ?? '', e]));
   const unmatched: string[] = [];
   for (const id of reused) {
     const declared = characters.cc0Attribution?.[id];
     const texture = textureById.get(id);
+    if (!declared) {
+      unmatched.push(`${id} (used by the roster but absent from cc0Attribution)`);
+      continue;
+    }
     if (!texture) {
       unmatched.push(`${id} (no such material)`);
       continue;
     }
-    if (JSON.stringify(texture.attribution ?? {}) !== JSON.stringify(declared ?? {})) {
+    if (JSON.stringify(texture.attribution ?? {}) !== JSON.stringify(declared)) {
       unmatched.push(`${id} (attribution disagrees with textures.json)`);
     }
   }
+  // A credit for a map nothing uses is drift in the other direction, and it
+  // inflates the count this document publishes.
+  for (const id of credited) {
+    if (!reused.includes(id)) unmatched.push(`${id} (credited but used by no entry)`);
+  }
   push(
     'every CC0 map the roster reuses is a city material already credited',
-    unmatched.length === 0,
-    unmatched.length === 0
-      ? `${reused.length} reused maps, each resolving to an identical entry in textures.json`
-      : `unresolved: ${unmatched.join(', ')}`
+    populated && unmatched.length === 0,
+    !populated
+      ? emptyRoster
+      : unmatched.length === 0
+        ? `${plural(entries.length, 'entry', 'entries')} reuse ${plural(reused.length, 'map')}, ` +
+          `each credited in characters.json and resolving to an identical entry in textures.json`
+        : `unresolved: ${unmatched.join(', ')}`
   );
 
   /* 8 — the manifest's own count agrees with the computed one ------------- */
+  // Only checks 1-5 push into `thirdParty`; 6 and 7 corroborate the claim but
+  // count no character assets, and saying "checks 1-7" in a published document
+  // would overstate how broad the corroboration is.
   const unique = [...new Set(thirdParty)].sort();
   push(
     'the manifest’s declared third-party character count is correct',
     characters.thirdPartyCharacterAssets === unique.length,
     `manifest declares ${characters.thirdPartyCharacterAssets ?? '(absent)'}, ` +
-      `checks 1-7 found ${unique.length}`
+      `checks 1-5 found ${unique.length}`
   );
 
   /* 9 — every character names an in-repo generator ------------------------ */
   const ungenerated = entries.filter((e) => !e.generator?.startsWith('tools/'));
   push(
     'every character names an in-repo generator',
-    ungenerated.length === 0,
-    ungenerated.length === 0
-      ? `all ${entries.length} generated by ${[
-          ...new Set(entries.map((e) => e.generator ?? '')),
-        ].join(', ')}`
-      : `no in-repo generator: ${ungenerated.map((e) => e.id).join(', ')}`
+    populated && ungenerated.length === 0,
+    !populated
+      ? emptyRoster
+      : ungenerated.length === 0
+        ? `all ${entries.length} generated by ${[
+            ...new Set(entries.map((e) => e.generator ?? '')),
+          ].join(', ')}`
+        : `no in-repo generator: ${ungenerated.map((e) => e.id).join(', ')}`
   );
 
   /* Attribution completeness on the character entries themselves ---------- */
+  // The same three licence tests `creditEntry` applies to every other asset.
+  // Characters were the one category checked for PRESENCE only, which is how a
+  // character entry could carry "GPL-3.0-or-later" — the module header's
+  // headline error condition — through all nine checks and into the summary
+  // table of a document that exits 0.
   for (const entry of entries) {
     const id = entry.id ?? '(character with no id)';
-    if (!entry.attribution?.license) {
+    const license = entry.attribution?.license?.trim() ?? '';
+    if (!license) {
       problems.push({ severity: 'error', subject: id, message: 'attribution.license is missing' });
+    } else if (!licenseFacts(license)) {
+      problems.push({
+        severity: 'error',
+        subject: id,
+        message: `licence "${license}" is not a reviewed SPDX identifier`,
+      });
+    } else if (!ASSET_LICENSE_ALLOWLIST.has(license)) {
+      problems.push({
+        severity: 'error',
+        subject: id,
+        message: `licence "${license}" is not permitted for a bundled asset`,
+      });
     }
     if (!entry.attribution?.author) {
       problems.push({ severity: 'error', subject: id, message: 'attribution.author is missing' });
     }
     const sourceUrl = entry.attribution?.sourceUrl ?? entry.sourceUrl ?? '';
-    if (sourceUrl && !sourceUrl.startsWith(PROVIDERS.procedural.url)) {
+    if (!sourceUrl) {
+      problems.push({
+        severity: 'error',
+        subject: id,
+        message: 'attribution.sourceUrl is missing',
+      });
+    } else if (!sourceUrl.startsWith(PROVIDERS.procedural.url)) {
       problems.push({
         severity: 'warn',
         subject: id,
@@ -1241,11 +1506,16 @@ function renderMarkdown(report: IReport): string {
           .join(', ') || '—'
       } |`
   );
-  w('| Third-party character or monster assets | **0** | — |');
+  w(`| Third-party character or monster assets | **${characters.thirdParty.length}** | — |`);
   w('| Audio files of any kind | **0** | — (synthesised at runtime) |');
+  // "all permissive" is a claim about the licences, so read them rather than
+  // assert it: a reciprocal or unreviewed runtime licence must not be published
+  // under a summary cell that says otherwise.
+  const runtimeLicenses = [...new Set(inputs.npm.filter((p) => p.runtime).map((p) => p.license))];
+  const allPermissive = runtimeLicenses.every((l) => licenseFacts(l)?.copyleft === null);
   w(
     `| Runtime npm packages | ${inputs.npm.filter((p) => p.runtime).length} declared | ` +
-      'all permissive |'
+      `${allPermissive ? 'all permissive' : runtimeLicenses.sort().join(', ')} |`
   );
   w(
     `| Build-only npm packages | ${inputs.npm.filter((p) => !p.runtime).length} declared | mixed |`
@@ -1322,7 +1592,8 @@ function renderMarkdown(report: IReport): string {
       '`LeftArm`, …) so that a rig from any standard humanoid pipeline can be ' +
       'retargeted onto it later. A naming convention is all that is shared: no ' +
       'Mixamo mesh, rig, animation or file is present in this repository, and ' +
-      'check 3 above verifies nothing here so much as links to that domain.'
+      'check 3 above verifies that no manifest here — character or material — ' +
+      'so much as links to that domain.'
   );
   w();
 
@@ -1330,11 +1601,24 @@ function renderMarkdown(report: IReport): string {
   w('## 2. Third-party assets');
   w();
   const usedProviders = new Set(thirdPartyAssets.map((a) => a.provider));
+  // Derived, not asserted. ambientCG is an allow-listed provider with real
+  // hosts, so a single material fetched from it would pass every check and sit
+  // under a hardcoded sentence crediting Poly Haven for it.
+  const usedProviderNames = [...usedProviders]
+    .map((key) => PROVIDERS[key]?.name ?? key)
+    .sort()
+    .map((name) => `**${name}**`);
+  const assetLicenses = [...new Set(thirdPartyAssets.map((a) => a.license))].sort();
+  const onlyCc0 = assetLicenses.length === 1 && assetLicenses[0] === 'CC0-1.0';
   w(
-    `All ${thirdPartyAssets.length} third-party assets come from **Poly Haven**, which releases ` +
-      'everything it publishes under CC0-1.0 — a dedication of the work to the ' +
-      'public domain. CC0 imposes no attribution requirement. Every author is ' +
-      'named below regardless, because they made the thing.'
+    `All ${thirdPartyAssets.length} third-party assets come from ` +
+      `${usedProviderNames.join(' and ') || '— no third-party provider —'}, and every one of ` +
+      `them is ${assetLicenses.join(', ') || '—'}.` +
+      (onlyCc0
+        ? ' CC0-1.0 is a dedication of the work to the public domain and imposes no ' +
+          'attribution requirement. Every author is named below regardless, because ' +
+          'they made the thing.'
+        : ' Every author is named below.')
   );
   w();
   w('| Source | Status | Assets | Why |');
@@ -1649,12 +1933,13 @@ function renderMarkdown(report: IReport): string {
     w('| --- | --- |');
     for (const [message, subjects] of [...grouped.entries()].sort(byKey(([m]) => m))) {
       const sorted = [...subjects].sort();
+      // Every subject, never a "including the first three" summary. Truncating
+      // made this section blind to its own drift: swapping the fifth subject of
+      // a group left the count and the first three unchanged, so the rendered
+      // bytes did not move and `--check` blessed a stale document.
+      const list = sorted.map((s) => `\`${s}\``).join(', ');
       const affected =
-        sorted.length > 4
-          ? `${plural(sorted.length, 'entry', 'entries')}, including \`${sorted
-              .slice(0, 3)
-              .join('`, `')}\``
-          : sorted.map((s) => `\`${s}\``).join(', ');
+        sorted.length > 4 ? `${plural(sorted.length, 'entry', 'entries')}: ${list}` : list;
       w(`| ${cell(affected)} | ${cell(message)} |`);
     }
   }
@@ -1717,17 +2002,35 @@ function renderMarkdown(report: IReport): string {
  * no-op on this file, so the only thing that can move it is a real change in
  * the manifests.
  *
- * Degrades to the unformatted text if Prettier is unavailable — this tool must
- * still run on a checkout with no dev dependencies installed.
+ * Degrades to the unformatted text if Prettier is not INSTALLED — this tool
+ * must still run on a checkout with no dev dependencies — but that degradation
+ * is recorded as a warning and disables `--check`. A silent fallback would
+ * overwrite the committed, padded file with unpadded markdown (a ~400-line diff
+ * across every table) and report success, or fail `--check` on a clean
+ * repository for a reason that has nothing to do with attribution.
  */
-async function prettify(markdown: string, filepath: string): Promise<string> {
+type Prettier = typeof import('prettier');
+
+async function loadPrettier(problems: IProblem[]): Promise<Prettier | null> {
   try {
-    const prettier = await import('prettier');
-    const config = await prettier.resolveConfig(filepath);
-    return await prettier.format(markdown, { ...config, filepath, parser: 'markdown' });
-  } catch {
-    return markdown;
+    return await import('prettier');
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ERR_MODULE_NOT_FOUND' && code !== 'MODULE_NOT_FOUND') throw error;
+    problems.push({
+      severity: 'warn',
+      subject: 'prettier',
+      message:
+        'not installed — the document was written unformatted; run `npm install` and ' +
+        'regenerate before committing it',
+    });
+    return null;
   }
+}
+
+async function prettify(prettier: Prettier, markdown: string, filepath: string): Promise<string> {
+  const config = await prettier.resolveConfig(filepath);
+  return await prettier.format(markdown, { ...config, filepath, parser: 'markdown' });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1846,9 +2149,36 @@ async function main(): Promise<number> {
         .join(', ')
   );
 
+  // The document quotes `lock.totals` for its headline "downloaded source
+  // material" figure while section 2.x sums the manifests independently. If the
+  // two ever disagree, one of the numbers in the document is wrong.
+  const lockedFileCount = Object.keys(inputs.lock.files ?? {}).length;
+  const manifestBytes = all.reduce((sum, a) => sum + a.bytes, 0);
+  const manifestFiles = all.reduce((sum, a) => sum + a.fileCount, 0);
+  if (inputs.lock.totals?.files !== undefined && inputs.lock.totals.files !== lockedFileCount) {
+    problems.push({
+      severity: 'error',
+      subject: 'assets/assets.lock.json',
+      message: `totals.files says ${inputs.lock.totals.files} but the file map has ${lockedFileCount}`,
+    });
+  }
+  if (inputs.lock.totals?.files !== undefined && inputs.lock.totals.files !== manifestFiles) {
+    problems.push({
+      severity: 'error',
+      subject: 'assets/assets.lock.json',
+      message: `totals.files says ${inputs.lock.totals.files} but the manifests declare ${manifestFiles}`,
+    });
+  }
+  if (inputs.lock.totals?.bytes !== undefined && inputs.lock.totals.bytes !== manifestBytes) {
+    problems.push({
+      severity: 'error',
+      subject: 'assets/assets.lock.json',
+      message: `totals.bytes says ${inputs.lock.totals.bytes} but the manifests sum to ${manifestBytes}`,
+    });
+  }
+
   /* 3 — the load-bearing claim ------------------------------------------- */
-  const textures = inputs.manifests.get('textures.json') ?? {};
-  const characters = auditCharacters(inputs.characters, inputs.lock, textures, problems);
+  const characters = auditCharacters(inputs.characters, inputs.lock, inputs.manifests, problems);
 
   log.heading('third-party character assets');
   for (const check of characters.checks) {
@@ -1887,6 +2217,16 @@ async function main(): Promise<number> {
   }
 
   /* 5 — verdict ----------------------------------------------------------- */
+  // Prettier is resolved BEFORE the document is rendered so that "formatting
+  // was skipped" can be reported like any other problem — including in the
+  // document's own "Known gaps" section, which is rendered from `problems`.
+  const prettier = await loadPrettier(problems);
+
+  if (inputs.diagnostics.length > 0) {
+    log.heading(`${plural(inputs.diagnostics.length, 'local diagnostic')}`);
+    for (const note of [...inputs.diagnostics].sort()) log.warn(note);
+  }
+
   const errors = problems.filter((p) => p.severity === 'error');
   const warnings = problems.filter((p) => p.severity === 'warn');
 
@@ -1910,13 +2250,22 @@ async function main(): Promise<number> {
   }
 
   /* 6 — emit -------------------------------------------------------------- */
-  const markdown = await prettify(
-    renderMarkdown({ credited, characters, inputs, problems }),
-    options.out
-  );
+  const rendered = renderMarkdown({ credited, characters, inputs, problems });
+  const markdown = prettier === null ? rendered : await prettify(prettier, rendered, options.out);
 
   if (options.check) {
-    const existing = await readFile(options.out, 'utf8').catch(() => null);
+    // Unformatted output cannot be compared against a Prettier-canonical file:
+    // every table would differ by its padding and the gate would report drift
+    // that has nothing to do with attribution.
+    if (prettier === null) {
+      log.heading(`${rel(options.out)} could not be checked`);
+      log.error('prettier is not installed — run `npm install` and re-run --check');
+      return 1;
+    }
+    const existing = await readFile(options.out, 'utf8').catch((error: unknown) => {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw error;
+    });
     if (existing === markdown) {
       log.heading(`${rel(options.out)} is up to date`);
       return 0;

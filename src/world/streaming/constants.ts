@@ -53,11 +53,31 @@ import { CHUNK_SIZE } from '@/spatial/constants';
 export const STREAMING_WORKER_COUNT = 2;
 
 /**
- * Jobs allowed in flight across the whole pool. Held at 2x the worker count so
- * a worker never idles waiting for the next dispatch, while keeping the number
- * of results that can be orphaned by a sudden camera cut small.
+ * Jobs held in flight per worker. Two, so a worker never idles waiting for the
+ * next dispatch, while keeping the number of results that can be orphaned by a
+ * sudden camera cut small — and keeping the queue, not the pool, in charge.
  */
-export const MAX_IN_FLIGHT_JOBS = STREAMING_WORKER_COUNT * 2;
+export const JOBS_PER_WORKER = 2;
+
+/**
+ * Jobs allowed in flight across the whole pool at the DEFAULT worker count.
+ *
+ * A pool built with a different `workerCount` scales this itself and publishes
+ * the result as `ChunkWorkerPool.capacity`; gate dispatch on that, never on
+ * this constant, or the two numbers silently disagree.
+ */
+export const MAX_IN_FLIGHT_JOBS = STREAMING_WORKER_COUNT * JOBS_PER_WORKER;
+
+/**
+ * Build attempts a chunk gets before the streamer stops re-queuing it.
+ *
+ * A failed build must be retried — a worker dying under memory pressure is
+ * transient and the chunk is still wanted. A build that fails for a structural
+ * reason (an unregistered generator id) fails identically every time, and
+ * retrying it every frame for every chunk turns one bug into a console flood
+ * and a permanently saturated worker pool. Three attempts distinguishes them.
+ */
+export const MAX_BUILD_ATTEMPTS = 3;
 
 /* -------------------------------------------------------------------------- */
 /* The frame budget                                                           */
@@ -82,6 +102,25 @@ export const UNLOAD_BUDGET_MS = 2;
  * the cap a cap rather than an aspiration.
  */
 export const UPLOAD_COST_EMA_ALPHA = 0.25;
+
+/**
+ * What the admission-control average is an average OF: milliseconds per byte of
+ * payload, not milliseconds per chunk.
+ *
+ * Chunk upload cost spans two orders of magnitude here — a park R2 chunk emits
+ * ~46 quads, a downtown R0 chunk ~5 200 — so a per-chunk average is a number
+ * that describes no chunk in the queue. Every pending upload already carries
+ * its exact byte count, and cost is close to linear in it, so the average that
+ * predicts anything is the coefficient. The seed is ~64 KB per millisecond.
+ */
+export const UPLOAD_MS_PER_BYTE_SEED = 1 / (64 * 1024);
+
+/**
+ * Floor under the ms-per-byte estimate. `performance.now()` can report 0 for a
+ * small upload, and an average allowed to decay to zero predicts that
+ * everything fits — which is admission control that admits everything.
+ */
+export const UPLOAD_MS_PER_BYTE_FLOOR = 1 / (16 * 1024 * 1024);
 
 /* -------------------------------------------------------------------------- */
 /* LOD rings                                                                  */
@@ -144,6 +183,17 @@ export const RING_PRIORITY_STRIDE = 1e5;
  * what makes the city assemble in front of the player instead of around them.
  */
 export const ANGLE_PRIORITY_WEIGHT = 1.5;
+
+/**
+ * Score handed to an explicitly requested chunk, and the amount its pending
+ * upload is advanced by.
+ *
+ * Larger than any achievable distance score by four orders of magnitude, so a
+ * pin is absolute in both stages of the pipeline. It has to be both: winning
+ * dispatch and then waiting a hundred frames for one of two upload slots is not
+ * what "load now, bypassing the distance heuristic" promises.
+ */
+export const REQUEST_PIN_SCORE = -1e9;
 
 /**
  * Effective-distance multiplier for a chunk the cached PVS says cannot be seen

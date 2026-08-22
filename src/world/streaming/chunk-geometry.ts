@@ -41,6 +41,7 @@ import {
 } from '@/spatial/constants';
 import {
   FRACTURE_HEIGHT_BANDS,
+  FRACTURE_PIECES_PER_BUILDING,
   RING_COLLIDER_MODE,
   RING_CROWD_MODE,
   RING_R0,
@@ -421,6 +422,18 @@ export function hashGeometry(buffers: IGeometryBuffers): number {
   for (let i = 0; i < positionWords.length; i++) {
     h = Math.imul(h ^ positionWords[i]!, 0x01000193) >>> 0;
   }
+  // Normals are part of the emitted geometry and must be part of the hash. A
+  // flipped face normal lights every building in the city wrong while leaving
+  // positions, colours and indices byte-identical — a whole class of regression
+  // the determinism assertions could not see.
+  const normalWords = new Uint32Array(
+    buffers.normals.buffer,
+    buffers.normals.byteOffset,
+    buffers.normals.length
+  );
+  for (let i = 0; i < normalWords.length; i++) {
+    h = Math.imul(h ^ normalWords[i]!, 0x01000193) >>> 0;
+  }
   const colors = buffers.colors;
   for (let i = 0; i < colors.length; i++) {
     h = Math.imul(h ^ colors[i]!, 0x01000193) >>> 0;
@@ -440,6 +453,16 @@ export function hashGeometry(buffers: IGeometryBuffers): number {
 function isPieceDestroyed(mask: Uint32Array | undefined, slot: number): boolean {
   if (mask === undefined) return false;
   return (mask[slot >>> 5]! & (1 << (slot & 31))) !== 0;
+}
+
+/** Fracture pieces of one building the mask has destroyed, 0..16. */
+function destroyedPieceCount(mask: Uint32Array | undefined, buildingIndex: number): number {
+  if (mask === undefined) return 0;
+  let count = 0;
+  for (let piece = 0; piece < FRACTURE_PIECES_PER_BUILDING; piece++) {
+    if (isPieceDestroyed(mask, damageSlot(buildingIndex, piece))) count++;
+  }
+  return count;
 }
 
 /**
@@ -681,11 +704,15 @@ export function buildChunkGeometry(
   let blockMaxY = 0;
 
   for (const building of layout.buildings) {
+    // Counted from the MASK, before branching on the ring. Counting it as a
+    // side effect of emission made the number a function of how far away the
+    // player was standing: only R0 walks the pieces, so a half-levelled tower
+    // reported 8 destroyed pieces up close and 0 from 250 m away, even though
+    // `survivingHeight` keeps it half-height at every ring.
+    destroyedPieces += destroyedPieceCount(damage, building.index);
+
     const aliveHeight = survivingHeight(building, damage);
-    if (aliveHeight <= 0) {
-      destroyedPieces += 16;
-      continue;
-    }
+    if (aliveHeight <= 0) continue;
     standingBuildings++;
 
     if (blockMinX > building.minX) blockMinX = building.minX;
@@ -697,10 +724,7 @@ export function buildChunkGeometry(
     if (ring === RING_R0) {
       const pieces = fracturePieces(building);
       for (const piece of pieces) {
-        if (isPieceDestroyed(damage, damageSlot(building.index, piece.piece))) {
-          destroyedPieces++;
-          continue;
-        }
+        if (isPieceDestroyed(damage, damageSlot(building.index, piece.piece))) continue;
         // Interior faces kept: a missing neighbour must reveal a wall, not a
         // hole. The bottom face is dropped only where it rests on the ground.
         out.addBox(
@@ -926,6 +950,14 @@ export function buildImpostorGeometry(seed: number): ImpostorBuildOutput {
 
   const buffers = out.finish();
   const ids = chunkIds.slice(0, out.vertexCount);
+  // Fold the chunk ids in too: they are the attribute the whole residency
+  // suppression mechanism runs on, so an off-by-one in `markChunk` suppresses
+  // the wrong chunk — punching a hole in the impostor in the wrong place and
+  // double-drawing elsewhere — with the geometry itself unchanged.
+  let contentHash = hashGeometry(buffers);
+  for (let i = 0; i < ids.length; i++) {
+    contentHash = Math.imul(contentHash ^ ids[i]!, 0x01000193) >>> 0;
+  }
   return {
     kind: 'impostor',
     seed,
@@ -939,7 +971,7 @@ export function buildImpostorGeometry(seed: number): ImpostorBuildOutput {
       buffers.colors.byteLength +
       buffers.indices.byteLength +
       ids.byteLength,
-    contentHash: hashGeometry(buffers),
+    contentHash,
   };
 }
 

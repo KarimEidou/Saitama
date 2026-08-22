@@ -131,15 +131,23 @@ describe('destruction', () => {
     expect(mesh.destroyed.version).toBeGreaterThan(0);
   });
 
-  it('repairs a block back to intact', () => {
+  it('repairs a block back to intact, CPU array and pending uploads alike', () => {
     const generator = makeGenerator('full');
     const block = generator.generate(0, 0).blocks.find((b) => b.buildings.length > 0)!;
     const mesh = buildBlockMesh(block, () => new THREE.MeshBasicMaterial());
     const buildingId = Object.keys(block.fractures).sort()[0];
     destroyFractureChunk(mesh, buildingId, 0);
     destroyFractureChunk(mesh, buildingId, 1);
+    expect(mesh.destroyed.updateRanges.length).toBe(2);
+
     repairBlock(mesh);
     expect((mesh.destroyed.array as Uint8Array).every((v) => v === 0)).toBe(true);
+    // Three uploads ONLY the listed ranges when the list is non-empty, so a
+    // repair that leaves a stale range behind re-sends one chunk's bytes and
+    // leaves every other destroyed chunk missing on the GPU for good — the CPU
+    // array now reads 0, so nothing will ever queue those ranges again.
+    expect(mesh.destroyed.updateRanges.length).toBe(0);
+    expect(mesh.destroyed.version).toBeGreaterThan(0);
   });
 
   it('extracts a debris geometry whose indices are in range', () => {

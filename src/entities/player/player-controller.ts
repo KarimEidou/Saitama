@@ -56,6 +56,7 @@ import type {
 } from '@/types';
 import { clamp, clamp01, smoothstep, wrapAngle } from '@/util';
 import {
+  isAirborneState,
   isRecoveryState,
   LocomotionStateMachine,
   resolveGroundState,
@@ -200,7 +201,12 @@ export class PlayerController {
   private moveMagnitude = 0;
 
   /* --- air / jump --- */
-  private timeSinceGrounded = 0;
+  /**
+   * Seconds since the last ground contact. `+Infinity` means "no contact has
+   * ever been observed", which is NOT the same as "just left the ground": at 0
+   * the coyote window would read full before a single frame has run.
+   */
+  private timeSinceGrounded = Number.POSITIVE_INFINITY;
   private jumpBuffer = 0;
   private jumpConsumed = false;
   private jumpHolding = false;
@@ -214,6 +220,8 @@ export class PlayerController {
   private groundY = 0;
   private previousY = 0;
   private previousVerticalSpeed = 0;
+  /** The `dt` the previous frame's rise was achieved over. See `updateJump()`. */
+  private previousDt = 1 / 60;
 
   /* --- landing --- */
   private recoveryRemaining = 0;
@@ -242,8 +250,13 @@ export class PlayerController {
     // Adopt the contact state the controller already has. Starting at `false`
     // costs the first frame of a standing start its ground acceleration, and
     // makes `coyoteRemaining` read full before anything has happened.
+    //
+    // A controller that has not stepped yet reports `false` whatever it is
+    // standing on, so the coyote clock only starts at 0 when contact is
+    // actually known — the same rule `setPosition()` applies to a teleport.
     this.grounded = this.controller.isGrounded;
     this.wasGrounded = this.grounded;
+    if (this.grounded) this.timeSinceGrounded = 0;
 
     // The ONLY cross-system wiring in this file, and it is inbound: physics
     // publishes the landing, this controller reacts to it.
@@ -417,6 +430,7 @@ export class PlayerController {
     /* ---- 6. hand the step to physics --------------------------------- */
     this.previousY = this.position.y;
     this.previousVerticalSpeed = this.controller.velocity.y;
+    this.previousDt = dt;
     tmpDisplacement.set(this.velocity.x * dt, 0, this.velocity.z * dt);
     this.controller.move(tmpDisplacement, dt);
 
@@ -459,7 +473,19 @@ export class PlayerController {
     /* ---- landing ----------------------------------------------------- */
     // Ordered so `onLanded()` still sees the pre-landing apex; `groundY` and
     // `apexY` are re-anchored to the contact point immediately afterwards.
-    if (this.grounded && !this.wasGrounded && !this.wasMicroAirborne()) this.onLanded();
+    //
+    // Two ways a landing is owed. The ordinary one is regaining contact. The
+    // second is having contact while the MACHINE still reads airborne, because
+    // `fall` and `jumpLaunch` have no edge to any ground state — the landing IS
+    // the only way out of them. Without that clause a teleport onto the ground,
+    // or a jump that never cleared it (a ceiling overhead), wedges the machine
+    // in `fall` forever and the character runs around in the falling clip.
+    // A genuine solver hiccup never reaches it: the grace window holds the
+    // ground state, so the machine is not airborne to begin with.
+    const machineAirborne = isAirborneState(this.stateMachine.current);
+    if (this.grounded && (machineAirborne || (!this.wasGrounded && !this.wasMicroAirborne()))) {
+      this.onLanded();
+    }
     this.landingFromBus = null;
     this.wasGrounded = this.grounded;
     if (this.grounded) {
@@ -629,7 +655,14 @@ export class PlayerController {
     const rising = this.controller.velocity.y > 0;
     // A ceiling strike (or any interruption of the ascent) ends the hold, so
     // the boost cannot grind the character against the underside of geometry.
-    const progressed = this.position.y - this.previousY > this.previousVerticalSpeed * dt * 0.3;
+    //
+    // Both sides of this comparison must describe the SAME interval: the rise
+    // is what the PREVIOUS frame achieved, so the expected rise it is measured
+    // against has to use the previous frame's `dt` too. Using the current
+    // frame's turns one long frame — a streaming hitch — into a phantom
+    // ceiling strike that silently truncates the leap.
+    const progressed =
+      this.position.y - this.previousY > this.previousVerticalSpeed * this.previousDt * 0.3;
     if (!held || !rising || this.jumpElapsed > loco.jumpHoldSeconds || !progressed) {
       this.jumpHolding = false;
       return;
@@ -649,7 +682,7 @@ export class PlayerController {
     const loco = this.tuning.locomotion;
     if (this.jumpConsumedThisFlight) return false;
     if (this.airborneAtTouchdown > loco.groundGraceSeconds) return false;
-    return Math.max(0, this.apexY - this.position.y) < 0.5;
+    return Math.max(0, this.apexY - this.position.y) < loco.microAirborneDropM;
   }
 
   private onLanded(): void {
@@ -768,15 +801,23 @@ export class PlayerController {
     // A teleport is not a ledge exit: no coyote time comes with it.
     this.timeSinceGrounded = Number.POSITIVE_INFINITY;
     this.airborneSeconds = 0;
+    this.airborneAtTouchdown = 0;
     this.jumpBuffer = 0;
     this.jumpConsumed = false;
+    this.jumpConsumedThisFlight = false;
     this.jumpHolding = false;
+    this.blockedFrames = 0;
     this.recoveryRemaining = 0;
     this.recoveryTotal = 0;
     this.pendingPostStep = false;
     this.grounded = false;
     this.wasGrounded = false;
-    if (this.stateMachine.transition('fall', true)) this.playClip('fall', 0);
+    // `idle`, NOT `fall`: a teleport does not know whether its target is on the
+    // ground, and `fall` is the one state the next `postStep()` cannot resolve
+    // out of on its own — its only exits are the landing edges. From `idle`
+    // both answers are legal, so the first solved frame decides: a target in
+    // the air becomes `fall`, a target on the ground stays a ground state.
+    if (this.stateMachine.transition('idle', true)) this.playClip('idle', 0);
     this.syncRoot();
   }
 

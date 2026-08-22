@@ -103,9 +103,30 @@ export function createPhysicsCameraProbe(
 ): ICameraProbe {
   const layers = options.layers ?? (['world'] as const);
   const exclude = options.exclude;
+  // Hoisted and mutated in place. `ICameraProbe.probe` promises not to allocate
+  // and this was the one path in the module that did — six options literals per
+  // frame, 360 a second, from the code that says it makes none. `origin` and
+  // `direction` are stored by REFERENCE: the rig passes its own scratch
+  // vectors and `raycast()` does not retain them.
+  const request: {
+    origin: THREE.Vector3;
+    direction: THREE.Vector3;
+    maxDistance: number;
+    layers: readonly PhysicsLayer[];
+    exclude: readonly BodyHandle[] | undefined;
+  } = {
+    origin: new THREE.Vector3(),
+    direction: new THREE.Vector3(),
+    maxDistance: 0,
+    layers,
+    exclude,
+  };
   return {
     probe(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number): number {
-      const hit = world.raycast({ origin, direction, maxDistance, layers, exclude });
+      request.origin = origin;
+      request.direction = direction;
+      request.maxDistance = maxDistance;
+      const hit = world.raycast(request);
       return hit === undefined ? Number.POSITIVE_INFINITY : hit.distance;
     },
   };
@@ -199,6 +220,7 @@ const tmpPerpA = new THREE.Vector3();
 const tmpPerpB = new THREE.Vector3();
 const tmpOrigin = new THREE.Vector3();
 const tmpLook = new THREE.Vector3();
+const tmpLagDir = new THREE.Vector3();
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const FALLBACK_PERP = new THREE.Vector3(1, 0, 0);
 
@@ -237,6 +259,12 @@ export class ThirdPersonCameraRig {
   private armSmoothed: number;
   private armActual: number;
   private occluded = false;
+  /**
+   * True while `armActual` is short BECAUSE of collision and has not caught up
+   * with `armSmoothed` again. Distinct from `occluded`, which only says whether
+   * something is in the way THIS frame — the recovery outlives the blocker.
+   */
+  private armCollisionHeld = false;
   private nearestBlocker = Number.POSITIVE_INFINITY;
   /** Player pinch bias on the resting arm length, 0.6..2.0. */
   private armBias = 1;
@@ -304,7 +332,7 @@ export class ThirdPersonCameraRig {
   diagnostics(): ICameraDiagnostics {
     return {
       yaw: this.yaw,
-      pitchDeg: (this.pitch + this.autoPitchOffset) / DEG2RAD,
+      pitchDeg: this.effectivePitch() / DEG2RAD,
       armTarget: this.armTarget,
       armSmoothed: this.armSmoothed,
       armActual: this.armActual,
@@ -395,12 +423,21 @@ export class ThirdPersonCameraRig {
     const apexBias = (cam.apexPitchDeg - cam.defaultPitchDeg) * DEG2RAD * this.apexFactor;
     this.autoPitchOffset = damp(this.autoPitchOffset, apexBias, cam.autoPitchSmoothing, dt);
 
-    const minPitch = cam.minPitchDeg * DEG2RAD;
-    const maxPitch = cam.maxPitchDeg * DEG2RAD;
-    this.pitch = clamp(
-      this.pitch,
-      minPitch - this.autoPitchOffset,
-      maxPitch - this.autoPitchOffset
+    // The AUTHORED pitch is clamped against the raw band, never against a band
+    // shifted by the bias: squeezing it by the offset would let a leap eat the
+    // player's angle permanently — the clamp takes 22 degrees off a steep
+    // downward view at apex and never gives them back on the way down. The
+    // TOTAL is kept inside the band by `effectivePitch()` instead.
+    this.pitch = clamp(this.pitch, cam.minPitchDeg * DEG2RAD, cam.maxPitchDeg * DEG2RAD);
+  }
+
+  /** Authored pitch plus the apex bias, clamped to the tuned band. Radians. */
+  private effectivePitch(): number {
+    const cam = this.tuning.camera;
+    return clamp(
+      this.pitch + this.autoPitchOffset,
+      cam.minPitchDeg * DEG2RAD,
+      cam.maxPitchDeg * DEG2RAD
     );
   }
 
@@ -491,14 +528,25 @@ export class ThirdPersonCameraRig {
       ? damp(this.armSmoothed, this.armTarget, cam.armExtendSmoothing, dt)
       : this.armTarget;
 
-    // Rate-limit only the RECOVERY from an occlusion; a design-driven change
-    // of length is shaped by the smoothing above and must not be throttled too.
+    // Rate-limit only the RECOVERY from a collision; a design-driven change of
+    // length is shaped by the smoothing above and must not be throttled too.
+    //
+    // The gate is `armCollisionHeld`, NOT `occluded`. `occluded` is last
+    // frame's sweep result at this point in the frame, and the sweep only
+    // reaches `armActual + clearance` — so a blocker that recedes drops out of
+    // range while the arm is still crushed, `occluded` clears, and the arm
+    // snapped the whole way back in a single frame (2.6 m at 156 m/s, 22x the
+    // cap this code exists to enforce). The recovery has to outlive the
+    // blocker: the cap now applies until the arm has actually caught up.
     if (!this.initialised) {
       this.armActual = this.armSmoothed;
-    } else if (this.occluded) {
+      this.armCollisionHeld = false;
+    } else if (this.armCollisionHeld && this.armSmoothed > this.armActual) {
       this.armActual = Math.min(this.armSmoothed, this.armActual + cam.armRecoverSpeedMps * dt);
+      if (this.armActual >= this.armSmoothed - 1e-6) this.armCollisionHeld = false;
     } else {
       this.armActual = this.armSmoothed;
+      this.armCollisionHeld = false;
     }
   }
 
@@ -515,7 +563,7 @@ export class ThirdPersonCameraRig {
   }
 
   private composeDesiredPosition(): void {
-    const pitch = this.pitch + this.autoPitchOffset;
+    const pitch = this.effectivePitch();
     const cosP = Math.cos(pitch);
     tmpArmDir.set(Math.sin(this.yaw) * cosP, Math.sin(pitch), Math.cos(this.yaw) * cosP);
     // Guard against a degenerate arm direction at ±90° pitch.
@@ -544,7 +592,12 @@ export class ThirdPersonCameraRig {
       return;
     }
 
-    const maxDistance = this.armActual + cam.probeClearanceM;
+    // Probe over the range the arm WANTS, not the one it currently has. Sweeping
+    // only `armActual` makes the rig structurally blind to the blocker it is
+    // recovering away from: the shorter the arm, the shorter the probe, so a
+    // receding wall vanishes from the sweep while it is still inside the length
+    // the arm is growing back into.
+    const maxDistance = this.armSmoothed + cam.probeClearanceM;
     if (maxDistance <= 1e-4) return;
 
     // Perpendicular basis for the cross pattern.
@@ -577,9 +630,11 @@ export class ThirdPersonCameraRig {
       // PULL IN INSTANTLY. Smoothing here is a frame of camera inside a wall.
       this.armActual = allowed;
       this.occluded = true;
+      this.armCollisionHeld = true;
       this.composeDesiredPosition();
     } else if (allowed < this.armSmoothed - 1e-4) {
       this.occluded = true;
+      this.armCollisionHeld = true;
     } else {
       this.occluded = false;
     }
@@ -624,6 +679,34 @@ export class ThirdPersonCameraRig {
     const index = (this.historyHead - 1 - back + this.history.length * 2) % this.history.length;
     const stale = this.history[index]!;
     this.camera.position.lerpVectors(this.desiredPosition, stale, this.impactLagStrength);
+    this.clampLaggedPosition();
+  }
+
+  /**
+   * Put the lagged camera back on the near side of any geometry.
+   *
+   * Both ends of the blend were collision-valid when they were computed, but
+   * the straight line between them never was: round a corner at dash speed and
+   * `lerpVectors` cuts it, parking the camera inside the wall it just cleared
+   * for up to 0.4 s — the exact failure the rest of this module exists to make
+   * impossible. One ray along the blended offset is enough to catch it, and it
+   * only runs on the frames the lag is actually blending.
+   */
+  private clampLaggedPosition(): void {
+    if (this.probeSource === null) return;
+    const cam = this.tuning.camera;
+
+    tmpLagDir.subVectors(this.camera.position, this.pivot);
+    const distance = tmpLagDir.length();
+    if (distance <= 1e-4) return;
+    tmpLagDir.multiplyScalar(1 / distance);
+
+    const hit = this.probeSource.probe(this.pivot, tmpLagDir, distance + cam.probeClearanceM);
+    if (!Number.isFinite(hit)) return;
+    // Same floor as the arm sweep: staying out of the wall beats honouring it.
+    const allowed = Math.max(cam.armLengthMinM, hit - cam.probeClearanceM);
+    if (allowed >= distance - 1e-4) return;
+    this.camera.position.copy(this.pivot).addScaledVector(tmpLagDir, allowed);
   }
 
   /* ------------------------------------------------------------------ */

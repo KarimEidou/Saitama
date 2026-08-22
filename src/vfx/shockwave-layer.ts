@@ -113,8 +113,18 @@ export class ShockwaveLayer {
   private readonly loft: Float32Array;
   private readonly start: Float32Array;
   private readonly seed: Float32Array;
-  /** Monotonic id per slot, so a stale handle can be detected after reuse. */
+  /**
+   * Identity of the shell currently occupying each slot.
+   *
+   * The stamp belongs to the SHELL, not to the slot: compaction moves live
+   * shells between slots, so a per-slot counter would be destroyed the moment
+   * an earlier shell died and this one was swapped down into its place. The id
+   * travels with the shell's data in `swapRemove`, and `indexOf` finds it
+   * wherever it landed.
+   */
   private readonly generation: Int32Array;
+  /** Never reused while anything can still be holding the previous value. */
+  private nextGeneration = 1;
 
   private readonly iOrigin: THREE.InstancedBufferAttribute;
   private readonly iAxis: THREE.InstancedBufferAttribute;
@@ -196,7 +206,9 @@ export class ShockwaveLayer {
    * Add a shell.
    *
    * @returns the slot index, or -1 when full. The caller keeps the index to
-   *          ask where the leading edge is while emitting the dust front.
+   *          ask where the leading edge is while emitting the dust front — and
+   *          pairs it with `generationOf`, because compaction can move the
+   *          shell to another slot before the next frame.
    */
   emit(p: IShockwaveParams): number {
     if (this.count >= this.capacity) return -1;
@@ -222,7 +234,10 @@ export class ShockwaveLayer {
     this.loft[i] = p.loft;
     this.start[i] = p.start;
     this.seed[i] = p.seed;
-    this.generation[i] = (this.generation[i]! + 1) & 0x3fff;
+    this.generation[i] = this.nextGeneration;
+    this.nextGeneration = (this.nextGeneration + 1) & 0x3fffffff;
+    // 0 means "no shell has ever occupied this slot", so it is never handed out.
+    if (this.nextGeneration === 0) this.nextGeneration = 1;
     return i;
   }
 
@@ -231,8 +246,24 @@ export class ShockwaveLayer {
     return index >= 0 && index < this.capacity ? this.generation[index]! : -1;
   }
 
+  /**
+   * Resolve a `(index, generation)` handle to the shell's CURRENT slot, or -1.
+   *
+   * The index a caller kept at emit time is only a HINT: `swapRemove` moves the
+   * last live shell into the vacated slot, so any shell can change index on any
+   * frame in which an older one expires. The stamp is globally unique, so the
+   * fallback scan can never match a different shell — which is exactly the
+   * aliasing a per-slot counter would allow.
+   */
+  indexOf(index: number, generation: number): number {
+    if (generation <= 0) return -1;
+    if (index >= 0 && index < this.count && this.generation[index] === generation) return index;
+    for (let i = 0; i < this.count; i++) if (this.generation[i] === generation) return i;
+    return -1;
+  }
+
   isAlive(index: number, generation: number): boolean {
-    return index >= 0 && index < this.count && this.generation[index] === generation;
+    return this.indexOf(index, generation) >= 0;
   }
 
   /** Life fraction 0..1 of a slot. */

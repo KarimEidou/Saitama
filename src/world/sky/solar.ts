@@ -180,10 +180,18 @@ export function moonPosition(
   let moonHourAngle = sunHourAngle - phase * Math.PI * 2;
   moonHourAngle = ((moonHourAngle + Math.PI) % (Math.PI * 2)) - Math.PI;
 
-  // The moon rides roughly the opposite declination band to the sun across a
-  // month; -0.85 keeps a summer full moon low in the south, which is correct
-  // and is what makes moonlit shadows long.
-  return horizonFrom(moonHourAngle, declination * -0.85, latitude);
+  // The moon rides the sun's declination band, but WHERE in it depends on the
+  // phase: a new moon sits beside the sun and shares its declination, a full
+  // moon is opposite the sun and takes the negative of it, and the quarters
+  // pass through zero. `cos(phase)` is that swing for one multiply — without
+  // it the declination is pinned at the full-moon value all month, and a
+  // first-quarter moon culminates 20° lower than it should, which is the one
+  // quantity this model exists to get right (how long moonlit shadows are).
+  //
+  // 0.85 damps the swing: it keeps a summer full moon low in the south,
+  // where it belongs, and is the factor the full-moon geometry was tuned at.
+  const declinationScale = 0.85 * Math.cos(phase * Math.PI * 2);
+  return horizonFrom(moonHourAngle, declination * declinationScale, latitude);
 }
 
 /**

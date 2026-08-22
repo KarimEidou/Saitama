@@ -21,6 +21,7 @@ import {
   measureHead,
   prepareRosterGeometry,
   rectContaining,
+  type AtlasPlan,
 } from '../geometry';
 import { buildRosterMesh, listRoster, rosterEntry } from '../roster';
 
@@ -63,23 +64,96 @@ describe('atlas packing', () => {
   });
 
   it('reuses one plan across all three LODs, so one texture serves them all', () => {
+    for (const entry of listRoster()) {
+      const lod0 = buildRosterMesh(entry, 0);
+      const plan = prepareRosterGeometry(lod0).plan;
+
+      for (const lod of LODS.slice(1)) {
+        const build = buildRosterMesh(entry, lod);
+        const prepared = prepareRosterGeometry(build, plan);
+        expect(prepared.clean).toBe(true);
+        // The atlas was rasterised from the LOD0 layout, so a lower LOD may not
+        // add moves of its own — decimation shifts a region's mean colour and
+        // can make a rectangle look shared that was not, which would squeeze
+        // the island into a sub-cell the sheet never painted.
+        expect(prepared.unplanned, `${entry.id} LOD${lod}`).toEqual([]);
+        expect(prepared.plan.moves.size, `${entry.id} LOD${lod}`).toBe(plan.moves.size);
+        // The cape must land in the same rectangle at every level, or the lower
+        // LODs would need their own atlas.
+        for (const [name, move] of prepared.plan.moves) {
+          const original = plan.moves.get(name);
+          expect(original, `${entry.id} LOD${lod} invented a move for ${name}`).toBeDefined();
+          expect(move.dest).toEqual(original!.dest);
+        }
+        build.geometry.dispose();
+      }
+      lod0.geometry.dispose();
+    }
+  });
+
+  it('never invents a move the supplied plan does not have', () => {
     const entry = rosterEntry('chr.saitama');
     const lod0 = buildRosterMesh(entry, 0);
     const plan = prepareRosterGeometry(lod0).plan;
+    expect(plan.moves.has('collar')).toBe(true);
 
-    for (const lod of LODS.slice(1)) {
-      const build = buildRosterMesh(entry, lod);
-      const prepared = prepareRosterGeometry(build, plan);
-      expect(prepared.clean).toBe(true);
-      // The cape must land in the same rectangle at every level, or the lower
-      // LODs would need their own atlas.
-      for (const [name, move] of prepared.plan.moves) {
-        const original = plan.moves.get(name);
-        if (original !== undefined) expect(move.dest).toEqual(original.dest);
-      }
-      build.geometry.dispose();
-    }
+    // A plan with one split dropped stands in for the real hazard: a lower LOD
+    // whose decimated vertex colours quantise into a different bucket and make
+    // a rectangle look shared. Either way the plan is what the atlas was baked
+    // against, so it wins — loudly, not silently.
+    const stripped: AtlasPlan = {
+      moves: new Map([...plan.moves].filter(([name]) => name !== 'collar')),
+      used: plan.used,
+    };
+    const build = buildRosterMesh(entry, 0);
+    const prepared = prepareRosterGeometry(build, stripped);
+
+    expect(prepared.plan.moves.has('collar')).toBe(false);
+    expect(prepared.unplanned).toContain('collar');
+    build.geometry.dispose();
     lod0.geometry.dispose();
+  });
+
+  it('is idempotent — a second preparation is a no-op, not a second split', () => {
+    // The split pass keys off vertex COLOUR, which a UV move does not change,
+    // and always maps from the full named rectangle. Re-running it would
+    // subdivide `trim` again and squeeze each quarter-sized island into a
+    // quarter of a quarter: a collar wearing a smear of the boot cell.
+    const build = buildRosterMesh(rosterEntry('chr.saitama'), 0);
+    const first = prepareRosterGeometry(build);
+    const uv = build.geometry.getAttribute('uv');
+    const before = Array.from(uv.array);
+
+    const second = prepareRosterGeometry(build);
+    expect(second).toBe(first);
+    expect(Array.from(uv.array)).toEqual(before);
+    expect(findPaintCollisions(build)).toEqual([]);
+    build.geometry.dispose();
+  });
+
+  it('reports a small island buried whole inside a large one', () => {
+    const build = buildRosterMesh(rosterEntry('chr.saitama'), 0);
+    prepareRosterGeometry(build);
+    expect(findPaintCollisions(build)).toEqual([]);
+
+    // Bury the collar inside the body rectangle. 100% of the collar is lost to
+    // whichever triangle rasterises last, but it covers well under 2% of its
+    // burier — so a rule that normalises by the first box's area sees nothing.
+    const collar = build.regions.find((region) => region.name === 'collar');
+    expect(collar).toBeDefined();
+    const body = UV_REGIONS.body;
+    const index = build.geometry.getIndex()!;
+    const uv = build.geometry.getAttribute('uv');
+    const width = (body.u1 - body.u0) * 0.05;
+    const height = (body.v1 - body.v0) * 0.05;
+    for (let i = collar!.indexStart; i < collar!.indexStart + collar!.indexCount; i++) {
+      const vertex = index.getX(i);
+      uv.setXY(vertex, body.u0 + width * (vertex % 2), body.v0 + height * (vertex % 2));
+    }
+
+    const collisions = findPaintCollisions(build);
+    expect(collisions.some((pair) => pair.includes('collar'))).toBe(true);
+    build.geometry.dispose();
   });
 
   it('moves the cape out of the full-sheet unwrap the generator gives it', () => {

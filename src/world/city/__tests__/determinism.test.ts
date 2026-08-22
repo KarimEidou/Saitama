@@ -22,9 +22,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateBuilding } from '../building';
+import { CityGenerator } from '../city';
 import { CITY_MATERIALS } from '../materials';
 import { blockSeed } from '../plan';
-import { makeGenerator, SAMPLE_CHUNKS } from './fixtures';
+import { CITY_Z_PLAN, makeGenerator, SAMPLE_CHUNKS } from './fixtures';
 import type { IGeometryBuffers } from '../mesh-builder';
 import type { ICityChunkBuild } from '../chunk';
 
@@ -136,15 +137,58 @@ describe('determinism', () => {
   });
 
   it('bumping the plan version rerolls procedural detail', () => {
-    const original = makeGenerator('full').generate(0, -4);
-    const bumped = makeGenerator('full');
-    // Simulate a plan-version bump by regenerating the same block with a
-    // different version through the block seed.
-    expect(blockSeed(original.blocks[0].seed, 'x')).not.toBe(
-      blockSeed(original.blocks[0].seed + 1, 'x')
+    // Actually bump it. The previous version of this test passed a block SEED
+    // as `planVersion` and the literal 'x' as the block id, so it asserted
+    // nothing about the property `planVersion` exists for — a `blockSeed` that
+    // ignored the version entirely would have passed it.
+    const original = makeGenerator('box').generate(0, -4);
+    const bumped = new CityGenerator(
+      { ...CITY_Z_PLAN, planVersion: CITY_Z_PLAN.planVersion + 1 },
+      { defaultDetail: 'box', includeProps: true }
+    ).generate(0, -4);
+
+    expect(bumped.blocks[0].id).toBe(original.blocks[0].id);
+    expect(bumped.blocks[0].seed).not.toBe(original.blocks[0].seed);
+    expect(
+      diffIndex(
+        bumped.blocks[0].geometry.buffers.positions,
+        original.blocks[0].geometry.buffers.positions
+      ),
+      'the same geometry came back from a different plan version'
+    ).not.toBe(-1);
+    // Ground and roads are not seeded from the plan version, so a bump must
+    // leave the street layout exactly where it was.
+    expectBuffersIdentical(bumped.ground!.buffers, original.ground!.buffers, 'ground');
+  }, 30_000);
+
+  it('rerolls one parcel, and only that parcel, when its salt changes', () => {
+    // The escape hatch `IPlanBlock.salt` documents: reroll a block a designer
+    // does not like without disturbing the other 255. It was inert.
+    const original = makeGenerator('box');
+    const target = CITY_Z_PLAN.blocks.find((b) => b.chunk[0] === 0 && b.chunk[1] === -4)!;
+    const salted = new CityGenerator(
+      {
+        ...CITY_Z_PLAN,
+        blocks: CITY_Z_PLAN.blocks.map((b) => (b.id === target.id ? { ...b, salt: 7 } : b)),
+      },
+      { defaultDetail: 'box', includeProps: true }
     );
-    expect(bumped.generate(0, -4).blocks[0].seed).toBe(original.blocks[0].seed);
-  });
+
+    const before = original.generate(0, -4);
+    const after = salted.generate(0, -4);
+    expect(after.blocks[0].id).toBe(target.id);
+    expect(after.blocks[0].seed).not.toBe(before.blocks[0].seed);
+    expect(
+      diffIndex(
+        after.blocks[0].geometry.buffers.positions,
+        before.blocks[0].geometry.buffers.positions
+      ),
+      'salting a parcel changed nothing'
+    ).not.toBe(-1);
+
+    // The neighbour is untouched: salt is folded into ONE block's seed.
+    expectChunksIdentical(salted.generate(0, -3), original.generate(0, -3));
+  }, 30_000);
 
   it('generates identical buildings from identical recipes', () => {
     const recipe = {

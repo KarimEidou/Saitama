@@ -10,7 +10,15 @@
  * Unlike `src/types/`, these are REAL runtime modules.
  */
 
-export { createRng, createChunkRng, hashString, hashCoord, mixSeeds, type IRandom } from './rng';
+export {
+  createRng,
+  createChunkRng,
+  hashString,
+  hashCoord,
+  mixSeeds,
+  type IRandom,
+  type IRandomState,
+} from './rng';
 
 export { EventBus, createEventBus, type IEventBusOptions } from './event-bus';
 

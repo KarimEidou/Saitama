@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { intentForPower, punchKindForAttack } from '../brain';
 import { monsterArchetype } from '../archetypes';
+import { MONSTER_STATE_TIMEOUT_SECONDS } from '../fsm';
 import { makeBrain, makeTarget, recordingBus } from './fixtures';
 import type { IMonsterWorld } from '../types';
 
@@ -148,6 +149,58 @@ describe('perception and states', () => {
     expect(brain.state).toBe('idle');
   });
 
+  it('forgets a target it cannot see, even while it is still well inside range', () => {
+    // The incumbent skips both the "noticed" test and the line-of-sight test,
+    // so a target behind a building anywhere inside `loseAggroMetres` stayed
+    // the selected candidate for ever and the memory clock was compared
+    // against nothing. `perceive` pets the `pursue` watchdog on every think and
+    // the director never culls an engaged monster, so the lock was permanent:
+    // a monster swinging at the spot it last saw somebody, all session.
+    const { bus } = recordingBus();
+    const brain = makeBrain('mob.wolf.thug', bus, { x: 0, y: 0, z: 0 }, 'thug#blocked');
+    const player = makeTarget('player', 0, 12);
+    let visible = true;
+    const view: IMonsterWorld = { time: 0, targets: [player], lineOfSight: () => visible };
+
+    tick(brain, view, 2);
+    expect(brain.currentTargetId).toBe('player');
+
+    // He steps behind a building at 20 m — half the 39.6 m retention radius,
+    // so the scan still offers him every think.
+    visible = false;
+    player.position.z = 20;
+    expect(20).toBeLessThan(brain.archetype.loseAggroMetres);
+
+    tick(brain, view, brain.archetype.memorySeconds + 2);
+    expect(brain.currentTargetId).toBeUndefined();
+    expect(brain.state).not.toBe('pursue');
+    expect(brain.fsm.watchdogTrips).toBe(0);
+  });
+
+  it('waits out its whole memory in `alerted` without tripping the watchdog', () => {
+    // `notice` is how a shockwave wakes a district, and it produces an
+    // `alerted` monster with NO target. Eight of the fourteen archetypes then
+    // wait longer than the 8 s `alerted` watchdog allows, so every distant
+    // explosion used to force-transition a stalker, a leviathan or a boss —
+    // truncating the archetype's advertised memory AND poisoning
+    // `watchdogTrips`, whose whole job is to surface a real brain bug.
+    const { bus } = recordingBus();
+    const brain = makeBrain('mob.tiger.stalker', bus, { x: 0, y: 0, z: 0 }, 'stalker#alerted');
+    const memory = brain.archetype.memorySeconds;
+    expect(memory).toBeGreaterThan(MONSTER_STATE_TIMEOUT_SECONDS.alerted);
+
+    brain.notice(0, 0, 30, 1);
+    expect(brain.state).toBe('alerted');
+
+    tick(brain, world([]), memory - 1);
+    expect(brain.state).toBe('alerted');
+    expect(brain.fsm.watchdogTrips).toBe(0);
+
+    tick(brain, world([]), 2);
+    expect(brain.state).toBe('idle');
+    expect(brain.fsm.watchdogTrips).toBe(0);
+  });
+
   it('turns toward a noise it could not have seen', () => {
     const { bus } = recordingBus();
     const brain = makeBrain('mob.demon.howler', bus);
@@ -196,6 +249,22 @@ describe('attacks', () => {
     expect(waves).toBeLessThan(12);
   });
 
+  it('lets the summoned swarm reach a target on the ground', () => {
+    // The whole archetype was inert. `bite` reached 1.1 m while the movement
+    // profile parks a mosquito at `hover ± bob` — 2.3 m to 4.5 m above someone
+    // standing on the pavement — and attack legality is tested against the 3-D
+    // distance, so its only attack failed every candidate check on every frame,
+    // for every one of the fourteen a Mosquito Girl phase releases.
+    const recorder = recordingBus();
+    const brain = makeBrain('mob.swarm.mosquito', recorder.bus, { x: 0, y: 0, z: 0 }, 'swarm#bite');
+    const view = world([makeTarget('civ-1', 0, 7, { faction: 'civilian', priority: 1 })]);
+    tick(brain, view, 10);
+
+    // Still a flyer — the fix is reach, not altitude.
+    expect(brain.position.y).toBeGreaterThan(2);
+    expect(recorder.ofType('ShockwaveFired').length).toBeGreaterThan(0);
+  });
+
   it('never releases a summon without a callback to service it', () => {
     const recorder = recordingBus();
     const summoned: { archetypeId: string; count: number }[] = [];
@@ -225,6 +294,33 @@ describe('damage', () => {
     expect(brain.state).toBe('stagger');
 
     tick(brain, view, archetype.staggerSeconds + 0.5);
+    expect(brain.state).not.toBe('stagger');
+  });
+
+  it('restarts the stagger on a second interrupting hit', () => {
+    // Two heavy blows 0.3 s apart. The second is an interrupting hit by the
+    // archetype's own threshold, so it must buy the full `staggerSeconds` —
+    // the FSM used to refuse the self-transition, `onDamaged` discarded the
+    // refusal, and the monster recovered 0.3 s early on the first hit's clock
+    // while the second read to the player as having done nothing at all.
+    const { bus } = recordingBus();
+    const brain = makeBrain('mob.demon.carapace', bus, { x: 0, y: 0, z: 0 }, 'carapace#restagger');
+    const view = world([makeTarget('player', 0, 28)]);
+    tick(brain, view, 2);
+
+    const archetype = brain.archetype;
+    const heavy = archetype.maxHealth * archetype.staggerFraction + 1;
+    brain.onDamaged(archetype.maxHealth - heavy, heavy);
+    expect(brain.state).toBe('stagger');
+
+    tick(brain, view, 0.3);
+    brain.onDamaged(archetype.maxHealth - heavy * 2, heavy);
+    expect(brain.state).toBe('stagger');
+    expect(brain.fsm.timeInState).toBe(0);
+
+    tick(brain, view, archetype.staggerSeconds - 0.4);
+    expect(brain.state).toBe('stagger');
+    tick(brain, view, 0.6);
     expect(brain.state).not.toBe('stagger');
   });
 

@@ -227,7 +227,8 @@ export class Quadtree {
   private packDirty = false;
 
   /* ---- scratch (never allocated during a query) ---- */
-  private readonly pathScratch = new Int32Array(QUADTREE_DEPTH + 2);
+  /** Root-to-node path from `locate`; sized from THIS tree's depth. */
+  private readonly pathScratch: Int32Array;
   private pathLength = 0;
   /** Frustum walk stack: interleaved (node, mask). */
   private readonly cullStack: Int32Array;
@@ -268,6 +269,12 @@ export class Quadtree {
     this.nodeCentreExtent = new Float32Array(this.nodeCount * 6);
     this.packStart = new Int32Array(this.nodeCount);
     this.nodeOwnCount = new Int32Array(this.nodeCount);
+
+    // `locate` writes the root plus one node per level, so the path holds at
+    // most `depth + 1` entries. Sized from the INSTANCE depth, not the module
+    // constant: a deeper tree would otherwise drop its lowest levels from
+    // every path, silently losing their subtree counts.
+    this.pathScratch = new Int32Array(this.depth + 2);
 
     // A depth-first walk of a 4-ary tree holds at most 3 siblings per level.
     this.cullStack = new Int32Array((3 * (this.depth + 1) + 4) * 2);
@@ -720,8 +727,11 @@ export class Quadtree {
       const gx = Math.floor((centreX - this.originX) * inv);
       const gz = Math.floor((centreZ - this.originZ) * inv);
       // Outside the root cell: park it at the current node, which keeps the
-      // item queryable instead of dropping it.
-      if (gx < 0 || gx >= childDim || gz < 0 || gz >= childDim) break;
+      // item queryable instead of dropping it. Written as a POSITIVE
+      // containment test so a NaN centre — an empty or non-finite AABB — fails
+      // it and parks too; the negated form lets NaN through and produces
+      // `node = NaN`, which corrupts the path, the bucket key and the counts.
+      if (!(gx >= 0 && gx < childDim && gz >= 0 && gz < childDim)) break;
 
       node = this.levelOffset(d + 1) + gz * childDim + gx;
       path[len++] = node;
@@ -736,7 +746,10 @@ export class Quadtree {
     const cell = this.size / CHUNK_GRID;
     const cx = Math.floor(((minX + maxX) * 0.5 - this.originX) / cell);
     const cz = Math.floor(((minZ + maxZ) * 0.5 - this.originZ) / cell);
-    if (cx < 0 || cx >= CHUNK_GRID || cz < 0 || cz >= CHUNK_GRID) return -1;
+    // Positive containment test, for the same reason as in `locate`: a NaN
+    // centre must report "no chunk" rather than slip through and be truncated
+    // to chunk 0 by the Int32Array store.
+    if (!(cx >= 0 && cx < CHUNK_GRID && cz >= 0 && cz < CHUNK_GRID)) return -1;
     return cz * CHUNK_GRID + cx;
   }
 

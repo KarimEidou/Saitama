@@ -30,9 +30,20 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-/** Inverse lerp: where `value` sits between `a` and `b`, as 0..1. */
+/**
+ * Inverse lerp: where `value` sits between `a` and `b`, as 0..1.
+ *
+ * Returns 0 for a degenerate range. The tolerance is RELATIVE to the magnitude
+ * of the endpoints, with no absolute floor, because the units here are
+ * arbitrary. An absolute `EPSILON` collapses a legitimate `[0, 1e-7]` band —
+ * fog density is quoted in `1/metres` and lives around `1e-6` — to `a` for
+ * every input, silently and with nothing thrown. `<=` rather than `<` so a
+ * genuinely zero range at the origin returns 0 instead of `0 / 0`.
+ */
 export function inverseLerp(a: number, b: number, value: number): number {
-  return Math.abs(b - a) < EPSILON ? 0 : (value - a) / (b - a);
+  const range = b - a;
+  const tolerance = EPSILON * Math.max(Math.abs(a), Math.abs(b));
+  return Math.abs(range) <= tolerance ? 0 : (value - a) / range;
 }
 
 /** Remap from one range to another, without clamping. */
@@ -93,7 +104,14 @@ export function mod(a: number, n: number): number {
   return ((a % n) + n) % n;
 }
 
-/** Wrap an angle to (-PI, PI]. */
+/**
+ * Wrap an angle to [-PI, PI).
+ *
+ * Half-open at the TOP: `mod` returns [0, TAU), so the exact antipode comes
+ * back as `-PI`, never `+PI`. Both are the same direction, but code that tests
+ * the sign of `angleDelta` to pick a turn direction turns clockwise at exactly
+ * 180 degrees away.
+ */
 export function wrapAngle(radians: number): number {
   return mod(radians + Math.PI, TAU) - Math.PI;
 }
@@ -140,15 +158,35 @@ export function distanceSq3(
   return dx * dx + dy * dy + dz * dz;
 }
 
-/** True when `value` is a power of two. */
+/**
+ * True when `value` is a positive integral power of two.
+ *
+ * The bit test alone is not enough: `&` coerces through `ToInt32`, which
+ * truncates fractions and wraps past 2^32, so `1024.7` and `2^32 + 1` would
+ * both report true — and the natural caller is a texture-dimension guard whose
+ * whole job is to catch exactly those.
+ */
 export function isPowerOfTwo(value: number): boolean {
-  return value > 0 && (value & (value - 1)) === 0;
+  if (!Number.isInteger(value) || value <= 0) return false;
+  if (value <= 2 ** 31) return (value & (value - 1)) === 0;
+  return 2 ** Math.round(Math.log2(value)) === value;
 }
 
-/** Smallest power of two >= `value`. */
+/**
+ * Smallest power of two >= `value`.
+ *
+ * Not the `1 << (32 - clz32(v - 1))` bit trick: that truncates fractional
+ * inputs (returning a power of two BELOW the argument, e.g. 1 for 1.5) and
+ * shifts modulo 32 above 2^30, returning a negative number.
+ */
 export function nextPowerOfTwo(value: number): number {
-  if (value <= 1) return 1;
-  return 1 << (32 - Math.clz32(value - 1));
+  if (!Number.isFinite(value) || value <= 1) return 1;
+  let p = 2 ** Math.ceil(Math.log2(value));
+  // `Math.log2` is not required to be exactly rounded, so nudge the boundary
+  // rather than trusting it for exact powers of two.
+  if (p < value) p *= 2;
+  else if (p / 2 >= value) p /= 2;
+  return p;
 }
 
 /**
@@ -169,13 +207,20 @@ export function applyDeadZone(magnitude: number, deadZone: number): number {
 }
 
 /**
- * Attenuation from 0 at `maxDistance` to 1 at the origin, falling off with the
- * inverse square and smoothed at the edge. Used for shockwave falloff, camera
- * shake attenuation and audio-adjacent effects.
+ * Attenuation from 1 at the origin to 0 at `maxDistance`: a quadratic ease-out
+ * with FINITE support, `(1 - d/r)^2`. Used for shockwave falloff, camera shake
+ * attenuation and audio-adjacent effects.
+ *
+ * NOT inverse-square (`1/d^2`): this curve is bounded at the origin, is 0.25 at
+ * half range, and reaches exactly 0 at the edge, which is what a gameplay
+ * radius wants. Do not reach for it when a physical distance model is needed —
+ * for 3D audio gain, configure the Web Audio panner instead.
  */
 export function falloff(distance: number, maxDistance: number): number {
-  if (distance >= maxDistance) return 0;
+  // Origin first: with `maxDistance <= 0` the range test alone would attenuate
+  // the epicentre of a zero-radius shockwave to nothing.
   if (distance <= 0) return 1;
+  if (distance >= maxDistance) return 0;
   const t = 1 - distance / maxDistance;
   return t * t;
 }

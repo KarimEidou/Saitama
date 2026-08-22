@@ -142,6 +142,94 @@ describe('DebrisPool', () => {
     world.dispose();
   });
 
+  it('saves the single bounce for a ballistic piece spawned at ground level', () => {
+    const world = new PhysicsWorld();
+    const pool = new DebrisPool(world, { capacity: 4, groundY: 0, restSeconds: 1e6 });
+
+    // Gravel off the base of a wall at street level: the centroid starts BELOW
+    // its own resting height, so a bounce test on position alone fires on the
+    // very first frame, before the piece has travelled anywhere.
+    const chunk = makeChunk(0, new THREE.Vector3(0.03, 0.08, 0.03), boxGeometry);
+    const matrix = new THREE.Matrix4().makeTranslation(0, 0.02, 0);
+    const piece = pool.spawn(chunk, matrix, new THREE.Vector3(8, 4, 0))!;
+    expect(piece.ballistic).toBe(true);
+
+    let peak = -Infinity;
+    for (let i = 0; i < 300 && !piece.settled; i++) {
+      pool.update(FIXED_STEP);
+      peak = Math.max(peak, piece.mesh.position.y);
+    }
+
+    // ~2.5 m/s of launch reaches ~0.22 m; spending the bounce on frame one
+    // caps it at ~0.10 m and costs 55% of the horizontal speed as well.
+    expect(peak).toBeGreaterThan(0.18);
+    expect(Math.abs(piece.mesh.position.x)).toBeGreaterThan(1);
+    // The bounce is still there to spend on the way down.
+    expect(piece.settled).toBe(true);
+    pool.dispose();
+    world.dispose();
+  });
+
+  it('gives a pooled body its live collider so contacts can be located', () => {
+    const world = new PhysicsWorld();
+    const pool = new DebrisPool(world, { capacity: 2 });
+    const piece = pool.spawn(bigChunk(0), identity, noImpulse)!;
+
+    const body = world.getBody(piece.bodyHandle)!;
+    // `PhysicsBody.collider` exists for exactly this case; leaving it undefined
+    // makes the world skip the contact-point read and hand out a stale one.
+    expect(body.collider).toBeDefined();
+    expect(body.colliderHandle).toBeGreaterThanOrEqual(0);
+    expect(world.layerOfCollider(body.collider!)).toBe('debris');
+
+    pool.release(piece.id);
+    expect(body.collider).toBeUndefined();
+    expect(body.colliderHandle).toBe(-1);
+    pool.dispose();
+    world.dispose();
+  });
+
+  it('reports pooled debris contacts only when the world asks for them', () => {
+    const collide = (debrisContactEvents: boolean): number => {
+      const world = new PhysicsWorld({ debrisContactEvents, contactForceThreshold: 1 });
+      makeGround(world);
+      const pool = new DebrisPool(world, { capacity: 4, restSeconds: 1e6 });
+      const resting = pool.spawn(
+        bigChunk(0),
+        new THREE.Matrix4().makeTranslation(0, 0.2, 0),
+        noImpulse
+      )!;
+      const falling = pool.spawn(
+        bigChunk(1),
+        new THREE.Matrix4().makeTranslation(0, 4, 0),
+        noImpulse
+      )!;
+      const debris = new Set([resting.bodyHandle, falling.bodyHandle]);
+
+      let seen = 0;
+      const off = world.onContact(0, (contact) => {
+        // Debris against the static ground already reports through the GROUND's
+        // active events, so only the debris-vs-debris pair proves anything.
+        if (debris.has(contact.bodyA) && debris.has(contact.bodyB)) seen++;
+      });
+      for (let i = 0; i < 180; i++) {
+        world.step(FIXED_STEP, 1);
+        pool.update(FIXED_STEP);
+      }
+      off();
+      pool.dispose();
+      world.dispose();
+      return seen;
+    };
+
+    // Off by default: 300 pieces of rubble grinding is the most expensive
+    // optional feature in the step.
+    expect(collide(false)).toBe(0);
+    // On when asked. The pool builds its own colliders, so it has to apply the
+    // world's policy or the flag is a switch that does nothing at all.
+    expect(collide(true)).toBeGreaterThan(0);
+  });
+
   it('fades a piece out over the fade window before recycling it', () => {
     const world = new PhysicsWorld();
     makeGround(world);

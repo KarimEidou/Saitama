@@ -28,6 +28,16 @@
  * Mirroring: reflecting across the YZ plane preserves rotations about X and
  * flips those about Y and Z. Every `sign` in this file is that rule and
  * nothing else.
+ *
+ * ── THE SAGITTAL SIGN ─────────────────────────────────────────────────────
+ * Every fore/aft control in this file reads POSITIVE = FORWARD, in the
+ * direction the character faces. A right-handed rotation about +X takes +Y to
+ * +Z, so a segment that points DOWN or FORWARD in the bind pose (thigh, foot,
+ * hanging arm) swings forward under a positive X rotation and takes the axis
+ * as-is, while a segment that points UP (pelvis, spine stack, neck, head)
+ * needs the axis negated to mean the same thing. That negation is the only
+ * reason `poseSpine`/`poseHead`/`posePelvis` differ from `poseLeg`/`poseArm`,
+ * and it is what makes `bend: 0.5` a slouch rather than a backward arch.
  */
 
 import * as THREE from 'three';
@@ -168,14 +178,20 @@ export function poseSpine(pose: Pose, rig: AnimRig, spine: SpinePose): void {
     const i = rig.index[name];
     if (i === undefined) continue;
     _q0.setFromAxisAngle(_Y, -twist * share);
-    _q1.setFromAxisAngle(_X, bend * share);
+    // A spine bone points UP, so folding the chest toward -Z (forward) is a
+    // NEGATIVE rotation about X. See "THE SAGITTAL SIGN" above.
+    _q1.setFromAxisAngle(_X, -bend * share);
     _q2.setFromAxisAngle(_Z, -side * share);
     _q0.multiply(_q1).multiply(_q2);
     setRotation(pose, i, _q0);
   }
 }
 
-/** Neck and head. Angles are the TOTAL, split between the two joints. */
+/**
+ * Neck and head. Angles are the TOTAL, split between the two joints.
+ *
+ * `pitch` is positive CHIN-DOWN, matching every other fore/aft control here.
+ */
 export function poseHead(
   pose: Pose,
   rig: AnimRig,
@@ -188,7 +204,7 @@ export function poseHead(
   const head = rig.index.Head;
   if (neck !== undefined) {
     _q0.setFromAxisAngle(_Y, -yaw * neckShare);
-    _q1.setFromAxisAngle(_X, pitch * neckShare);
+    _q1.setFromAxisAngle(_X, -pitch * neckShare);
     _q2.setFromAxisAngle(_Z, -roll * neckShare);
     _q0.multiply(_q1).multiply(_q2);
     setRotation(pose, neck, _q0);
@@ -196,14 +212,19 @@ export function poseHead(
   if (head !== undefined) {
     const share = 1 - neckShare;
     _q0.setFromAxisAngle(_Y, -yaw * share);
-    _q1.setFromAxisAngle(_X, pitch * share);
+    _q1.setFromAxisAngle(_X, -pitch * share);
     _q2.setFromAxisAngle(_Z, -roll * share);
     _q0.multiply(_q1).multiply(_q2);
     setRotation(pose, head, _q0);
   }
 }
 
-/** Root transform. `y` is the hip JOINT height; the bone offset is handled. */
+/**
+ * Root transform. `y` is the hip JOINT height; the bone offset is handled.
+ *
+ * `pitch` tips the WHOLE body and is positive forward, like every other
+ * fore/aft control here; a posterior pelvic tilt is therefore negative.
+ */
 export function posePelvis(
   pose: Pose,
   rig: AnimRig,
@@ -221,7 +242,7 @@ export function posePelvis(
   pose.pos[o + 1] = y - (rig.metrics.hipHeight - rig.rest.pos[o + 1]!);
   pose.pos[o + 2] = rig.rest.pos[o + 2]! + z;
   _q0.setFromAxisAngle(_Y, yaw);
-  _q1.setFromAxisAngle(_X, pitch);
+  _q1.setFromAxisAngle(_X, -pitch);
   _q2.setFromAxisAngle(_Z, roll);
   _q0.multiply(_q1).multiply(_q2);
   setRotation(pose, hips, _q0);

@@ -20,7 +20,9 @@ import * as THREE from 'three';
 import { EventBus } from '@/util';
 import { CrowdSystem } from '../crowd-system';
 import { CrowdSteering } from '../steering';
-import { MOOD_COMMUTE, MOOD_FLEE, MOOD_GAWK, TIER_NEAR } from '../crowd-agents';
+import { AlarmField } from '../alarm-field';
+import { FlowField } from '../flow-field';
+import { CrowdAgents, MOOD_COMMUTE, MOOD_FLEE, MOOD_GAWK, TIER_NEAR } from '../crowd-agents';
 import { gatherWitnesses, scoreOutcome, CrowdLedger } from '../witness';
 import { ObstacleField } from '../obstacles';
 import { timeToCollision } from '../steering';
@@ -94,6 +96,38 @@ describe('CrowdSystem population', () => {
     system.dispose();
   });
 
+  it('does not let one streamed chunk slot replace the open-ground spawn list', () => {
+    const system = makeSystem();
+    const findSlot = (): { x: number; z: number } | undefined => {
+      for (let x = 14; x <= 40; x += 2) {
+        for (let z = 14; z <= 40; z += 2) {
+          if (system.obstacles.isWalkable(x, z, 0.4)) return { x, z };
+        }
+      }
+      return undefined;
+    };
+    const slot = findSlot();
+    expect(slot).toBeDefined();
+
+    // Streaming publishes a handful of slots per chunk for the two innermost
+    // rings — a few dozen points against a 250-agent cap. Treating that as
+    // "the streamer is providing spawn points now" walks the cursor round the
+    // same points over and over and erupts a pile of civilians out of one.
+    system.setChunkCrowd(42, 'instanced', [{ x: slot!.x, y: 0, z: slot!.z, rotationY: 0 }]);
+    run(system, 6);
+    expect(system.lastStats.total).toBe(MID_CAP);
+
+    let nearSlot = 0;
+    for (let i = 0; i < system.agents.extent; i++) {
+      if (system.agents.active[i] === 0) continue;
+      const dx = system.agents.posX[i]! - slot!.x;
+      const dz = system.agents.posZ[i]! - slot!.z;
+      if (dx * dx + dz * dz < 100) nearSlot++;
+    }
+    expect(nearSlot).toBeLessThan(MID_CAP / 4);
+    system.dispose();
+  });
+
   it('reports a far-tier population from open ground rather than inventing one', () => {
     const system = makeSystem();
     run(system, 2);
@@ -114,11 +148,17 @@ describe('CrowdSystem physical constraints', () => {
     ]);
 
     let worst = Infinity;
+    let pairs = 0;
     for (let f = 0; f < 600; f++) {
       system.update(1 / 60);
       const separation = system.steering.lastReport.minSeparation;
+      pairs += system.steering.lastReport.measuredPairs;
       if (separation < worst) worst = separation;
     }
+    // The bound is only worth anything if pairs were actually compared: the
+    // measurement only looks within `2 * MIN_SEPARATION`, so a crowd nobody
+    // shares a street with satisfies it vacuously.
+    expect(pairs).toBeGreaterThan(0);
     // Separation and containment are competing constraints and containment
     // wins, so a civilian crushed against a façade can end a frame overlapping
     // a neighbour slightly. The guarantee is a BOUND on that, not its absence:
@@ -167,6 +207,85 @@ describe('CrowdSystem physical constraints', () => {
     expect(Math.sqrt(dx * dx + dz * dz)).toBeGreaterThan(AGENT_RADIUS);
     void steering;
     system.dispose();
+  });
+
+  it('penalises a candidate that closes on a neighbour, not one that leaves', () => {
+    // Two agents and one grid. `avoid` reads the grid `update` built, so the
+    // pair is placed, stepped once to build it, and put back exactly where it
+    // was — the grid and the agent arrays then agree to the metre.
+    const pair = (bx: number, bz: number): { steering: CrowdSteering; agents: CrowdAgents } => {
+      const agents = new CrowdAgents();
+      const obstacles = new ObstacleField();
+      obstacles.rebuild([]);
+      const flow = new FlowField();
+      flow.rebuild(obstacles, []);
+      const alarm = new AlarmField();
+      const steering = new CrowdSteering();
+      const a = agents.spawn(11, 0, 0, 0, TIER_NEAR);
+      const b = agents.spawn(22, bx, bz, 0, TIER_NEAR);
+      const place = (): void => {
+        agents.posX[a] = 0;
+        agents.posZ[a] = 0;
+        agents.posX[b] = bx;
+        agents.posZ[b] = bz;
+        agents.velX[a] = 0;
+        agents.velZ[a] = 0;
+        agents.velX[b] = 0;
+        agents.velZ[b] = 0;
+      };
+      place();
+      steering.update(agents, 1 / 60, alarm, flow, obstacles, []);
+      place();
+      return { steering, agents };
+    };
+
+    const out: [number, number] = [0, 0];
+    // Walking straight at somebody standing 1.5 m ahead: the preferred
+    // velocity has to be rejected.
+    const ahead = pair(1.5, 0);
+    expect(ahead.steering.avoid(ahead.agents, 0, [1.35, 0], out)).toBe(true);
+
+    // Walking AWAY from somebody standing a metre behind: nothing to avoid,
+    // and swerving off the pavement to dodge them is the bug.
+    const behind = pair(-1, 0);
+    expect(behind.steering.avoid(behind.agents, 0, [1.35, 0], out)).toBe(false);
+    expect(out).toEqual([1.35, 0]);
+  });
+
+  it('scores the nearest neighbours, not the first ones the grid happened to list', () => {
+    // Sixteen people loosely queued BEHIND this agent, and one standing right
+    // in front of them. The grid appends in cell-scan order, which is agent
+    // slot order — so slicing the head of the list keeps the sixteen who are
+    // no threat to anybody and drops the only one on a collision course.
+    const agents = new CrowdAgents();
+    const obstacles = new ObstacleField();
+    obstacles.rebuild([]);
+    const flow = new FlowField();
+    flow.rebuild(obstacles, []);
+    const alarm = new AlarmField();
+    const steering = new CrowdSteering();
+
+    const spots: { x: number; z: number }[] = [{ x: 0, z: 0 }];
+    for (const x of [-1, -1.6, -2.2, -2.8]) {
+      for (const z of [-1.2, -0.4, 0.4, 1.2]) spots.push({ x, z });
+    }
+    spots.push({ x: 1.2, z: 0 });
+    for (const spot of spots) agents.spawn(1, spot.x, spot.z, 0, TIER_NEAR);
+
+    const place = (): void => {
+      for (let i = 0; i < spots.length; i++) {
+        agents.posX[i] = spots[i]!.x;
+        agents.posZ[i] = spots[i]!.z;
+        agents.velX[i] = 0;
+        agents.velZ[i] = 0;
+      }
+    };
+    place();
+    steering.update(agents, 1 / 60, alarm, flow, obstacles, []);
+    place();
+
+    const out: [number, number] = [0, 0];
+    expect(steering.avoid(agents, 0, [1.35, 0], out)).toBe(true);
   });
 
   it('computes time to collision only for closing pairs', () => {
@@ -301,6 +420,57 @@ describe('CrowdSystem accounting', () => {
     system.dispose();
   });
 
+  it('stops billing the player for deaths once the collateral window has passed', () => {
+    const bus = new EventBus();
+    const lost: { byPlayer: boolean; delta: number }[] = [];
+    bus.on('CivilianLost', (e) =>
+      lost.push({ byPlayer: e.causedByPlayer, delta: e.reputationDelta })
+    );
+    const system = makeSystem(bus);
+    run(system, 5);
+
+    // Restrained intent: everybody in the cone is scratched and nobody dies.
+    // That is the mode's whole purpose, so it must not silently mark the
+    // street as the player's for the rest of the session.
+    bus.emit('ShockwaveFired', {
+      origin: { x: 0, y: 1, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 500000,
+      range: 90,
+      angle: Math.PI,
+      intent: 'restrained',
+      punchKind: 'normal',
+      sourceId: 'player',
+    });
+    run(system, 1);
+    expect(lost.length).toBe(0);
+
+    const scratched: number[] = [];
+    for (let i = 0; i < system.agents.extent; i++) {
+      if (system.agents.active[i] === 0 || system.agents.health[i]! <= 0) continue;
+      if (system.agents.health[i]! < system.agents.maxHealth[i]!) scratched.push(i);
+    }
+    expect(scratched.length).toBeGreaterThan(1);
+
+    // Inside the window, a monster finishing off somebody the player softened
+    // up is still on the player.
+    system.damageAgent(scratched[0]!, 100, false);
+    expect(lost.length).toBe(1);
+    expect(lost[0]!.byPlayer).toBe(true);
+
+    // Well outside it, it is not.
+    run(system, 8);
+    const survivor = scratched.find(
+      (i) => system.agents.active[i] === 1 && system.agents.health[i]! > 0
+    );
+    expect(survivor).toBeDefined();
+    system.damageAgent(survivor!, 100, false);
+    expect(lost.length).toBe(2);
+    expect(lost[1]!.byPlayer).toBe(false);
+    expect(lost[1]!.delta).toBeGreaterThan(lost[0]!.delta);
+    system.dispose();
+  });
+
   it('credits saves once the danger has passed, and marks the witnessed ones', () => {
     const bus = new EventBus();
     const saves: { byPlayer: boolean; delta: number }[] = [];
@@ -362,12 +532,12 @@ describe('CrowdSystem accounting', () => {
     );
     expect(scoreOutcome('saved', true, unseen)).toBe(REP_SAVED_BY_PLAYER);
     // A death is never discounted for happening off camera — that would be a
-    // straightforward exploit.
+    // straightforward exploit. Both witness multipliers are ABOVE one, so
+    // scaling a loss makes the unwitnessed one the cheap one; losses are
+    // therefore not scaled at all, seen or unseen.
     expect(scoreOutcome('lost', true, unseen)).toBe(REP_LOST_BY_PLAYER);
-    expect(scoreOutcome('lost', true, seen)).toBeCloseTo(
-      REP_LOST_BY_PLAYER * WITNESS_MULTIPLIER,
-      5
-    );
+    expect(scoreOutcome('lost', true, seen)).toBe(REP_LOST_BY_PLAYER);
+    expect(scoreOutcome('lost', false, seen)).toBe(scoreOutcome('lost', false, unseen));
   });
 
   it('counts witnesses through open ground and not through buildings', () => {
@@ -545,15 +715,49 @@ describe('CrowdSystem allies', () => {
     const bus = new EventBus();
     const system = makeSystem(bus);
     run(system, 3);
-    const genos = system.addHero('genos', 6, 0);
-    system.setThreats([
-      { id: 'm', position: new THREE.Vector3(20, 0, 0), intensity: 0.9, tier: 'tiger' },
-    ]);
-    const before = system.alarm.impulseCount;
-    run(system, 3);
-    expect(genos.attackCooldownRemaining).toBeGreaterThanOrEqual(0);
-    expect(system.alarm.peakAlarm).toBeGreaterThan(0);
-    expect(system.alarm.impulseCount + before).toBeGreaterThanOrEqual(0);
+    // No threat registered, so the alarm field has no source of its own and
+    // everything below is attributable to the ally alone. Without that the
+    // assertions hold whether or not `fireAttack` ever seeds anything.
+    const genos = system.addHero('genos', 90, 0);
+    expect(system.alarm.sample(90, 0)).toBe(0);
+
+    const seeds = system.alarm.impulseCount;
+    genos.fireAttack({ id: 'm', position: new THREE.Vector3(96, 0, 0), intensity: 1 });
+    expect(system.alarm.impulseCount).toBeGreaterThan(seeds);
+    expect(genos.attackCooldownRemaining).toBeGreaterThan(0);
+
+    run(system, 1);
+    expect(system.alarm.sample(90, 0)).toBeGreaterThan(0.1);
+    system.dispose();
+  });
+
+  it('does not let one ally shockwave another', () => {
+    const bus = new EventBus();
+    const downed: string[] = [];
+    bus.on('AllyDowned', (e) => downed.push(e.displayName));
+    const system = makeSystem(bus);
+    // Mumen parks himself on the monster, which is dead centre of Genos's cone.
+    const mumen = system.addHero('mumenRider', 3, 0);
+    const genos = system.addHero('genos', -3, 0);
+    run(system, 1);
+
+    for (let i = 0; i < 8; i++) {
+      bus.emit('ShockwaveFired', {
+        origin: { x: -3, y: 2, z: 0 },
+        direction: { x: 1, y: 0, z: 0 },
+        power: 9000,
+        range: 60,
+        angle: Math.PI,
+        intent: 'serious',
+        punchKind: 'heavy',
+        sourceId: 'hero-genos',
+      });
+      run(system, 0.2);
+    }
+    expect(mumen.health).toBe(mumen.maxHealth);
+    expect(mumen.isDown).toBe(false);
+    expect(genos.health).toBe(genos.maxHealth);
+    expect(downed).toEqual([]);
     system.dispose();
   });
 });

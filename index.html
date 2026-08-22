@@ -64,13 +64,19 @@
         -webkit-tap-highlight-color: transparent;
       }
 
-      /* Fullscreen render surface. Uses dvh so mobile URL-bar collapse
-         does not letterbox the scene. */
+      /* Fullscreen render surface.
+
+         Sized by `inset: 0` alone — deliberately NOT `100dvh`. The renderer
+         sizes its drawing buffer and camera aspect from `window.innerHeight`
+         and never writes inline canvas styles, and #ui-root below is the fixed
+         viewport too. A `dvh` height here would make the canvas's displayed box
+         a third, different height, so the buffer would be scaled to fit it and
+         the scene would render vertically squashed while the HUD's bottom-
+         anchored controls sat at a different screen y than the ground they
+         overlay. One definition of "the viewport", used everywhere. */
       #app {
         position: fixed;
         inset: 0;
-        width: 100%;
-        height: 100dvh;
         background: var(--bg);
       }
 

@@ -233,6 +233,24 @@ describe('ManagedTextureHandle', () => {
     expect(handle.refCount).toBe(0);
   });
 
+  it('hands out an INERT handle once disposed, keeping retain/release symmetric', () => {
+    // Returning the live handle without incrementing made the caller's own
+    // matching release() land at refCount 0 and trip the double-release
+    // warning against a caller that did nothing wrong — and, being warnOnce
+    // per key, swallow the next real double-release on that key.
+    const handle = makeHandle();
+    handle.dispose();
+
+    const dead = handle.retain();
+    expect(dead).not.toBe(handle);
+    expect(dead.refCount).toBe(0);
+    expect(dead.key).toBe(handle.key);
+    expect(dead.retain()).toBe(dead);
+    expect(() => dead.release()).not.toThrow();
+    // The live handle's own count is untouched by any of that.
+    expect(handle.refCount).toBe(0);
+  });
+
   it('reports the GPU format and compression state', () => {
     const handle = makeHandle();
     expect(handle.compressed).toBe(true);

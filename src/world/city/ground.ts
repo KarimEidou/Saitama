@@ -26,9 +26,9 @@
  * those four draw calls.
  */
 
-import { createRng, type IRandom } from '@/util';
+import { createRng, hashString, type IRandom } from '@/util';
 import { CHUNK_SIZE } from '@/spatial/constants';
-import { MeshBuilder, mergeGeometries, type IGeometryBuffers } from './mesh-builder';
+import { MeshBuilder, mergeGeometries, type AABB6, type IGeometryBuffers } from './mesh-builder';
 import { CITY_MATERIALS, shadeTint, uvScaleFor } from './materials';
 import { offsetPolygon, triangulate, type Polygon } from './polygon';
 import type { ICityPlan, IPlanBlock, IPlanCrater, IPlanRoad, IPlanZone } from './plan-types';
@@ -59,6 +59,12 @@ export const KERB_HEIGHT = 0.15;
 export interface IGroundBuild {
   readonly buffers: IGeometryBuffers;
   readonly materials: IGroundMaterials;
+  /**
+   * World AABB of the geometry actually emitted. It is NOT the chunk square:
+   * a zebra crossing reaches up to the junction radius past the boundary, so
+   * the chunk's own bounds have to fold this in to stay honest.
+   */
+  readonly bounds: AABB6;
   readonly triangles: number;
   readonly drawCalls: number;
 }
@@ -110,13 +116,14 @@ export function generateGround(ctx: IGroundContext): IGroundBuild {
     emitParcel(builder, ctx.blocks[i], ctx.zones[i], ctx.sidewalkWidth, pavingUv, lotUv);
   }
   emitMarkings(builder, ctx, x0, z0);
-  for (const crater of ctx.craters) emitCrater(builder, crater, x0, z0, lotUv, rng);
+  for (const crater of ctx.craters) emitCrater(builder, crater, x0, z0, lotUv);
 
-  builder.endChunk();
+  const span = builder.endChunk();
   const buffers = builder.build();
   return {
     buffers,
     materials,
+    bounds: span.bounds,
     triangles: buffers.indexCount / 3,
     drawCalls: buffers.groups.length,
   };
@@ -148,8 +155,12 @@ function emitCarriageway(
       const bx = ax + cell;
       const bz = az + cell;
       if (covers.some((poly) => rectInsidePolygon(poly, ax, az, bx, bz))) continue;
-      // Any cell the crater reaches is dropped, not just fully-enclosed ones:
-      // a half-covered cell leaves a shelf of asphalt hanging over the bowl.
+      // A cell whose CENTRE is inside the crater is dropped. Not "any cell the
+      // crater reaches": the bowl only covers the disc, so dropping every cell
+      // that overlaps it would leave a ragged band of missing ground up to a
+      // full 12 m cell wide outside the rim — a hole you fall through rather
+      // than a shelf you stand on. The half-cell of asphalt that can overhang
+      // the bowl is the deliberate lesser evil.
       const mx = (ax + bx) * 0.5;
       const mz = (az + bz) * 0.5;
       if (ctx.craters.some((c) => Math.hypot(mx - c.centre[0], mz - c.centre[1]) < c.radius)) {
@@ -281,9 +292,7 @@ function emitMarkings(builder: MeshBuilder, ctx: IGroundContext, x0: number, z0:
           const sz = a[1] + dz * t + nz * lateral;
           const ex = a[0] + dx * (t + seg) + nx * lateral;
           const ez = a[1] + dz * (t + seg) + nz * lateral;
-          if (segmentTouchesRect(sx, sz, ex, ez, x0, z0, x1, z1)) {
-            stripe(builder, sx, sz, ex, ez, 0.14, uv);
-          }
+          clippedStripe(builder, sx, sz, ex, ez, 0.14, uv, x0, z0, x1, z1);
           t += seg + gap;
         }
       }
@@ -296,9 +305,7 @@ function emitMarkings(builder: MeshBuilder, ctx: IGroundContext, x0: number, z0:
           const sz = a[1] + nz * side;
           const ex = b[0] + nx * side;
           const ez = b[1] + nz * side;
-          if (segmentTouchesRect(sx, sz, ex, ez, x0, z0, x1, z1)) {
-            stripe(builder, sx, sz, ex, ez, 0.12, uv);
-          }
+          clippedStripe(builder, sx, sz, ex, ez, 0.12, uv, x0, z0, x1, z1);
         }
       }
     }
@@ -337,6 +344,77 @@ function emitMarkings(builder: MeshBuilder, ctx: IGroundContext, x0: number, z0:
       }
     }
   }
+}
+
+/**
+ * A stripe clipped to the chunk it is being emitted into.
+ *
+ * `ctx.roads` holds every road whose padded bounding box touches this chunk,
+ * and the committed plan's road segments are 768 m long — so an unclipped
+ * stripe puts the WHOLE segment into each of the nine chunks the box spans:
+ * nine coincident copies, a ~800 m bounding sphere on the ground mesh that
+ * frustum culling can never reject, and a chunk AABB that no longer contains
+ * its own geometry. Clipping makes the per-chunk markings a partition.
+ *
+ * The rect is treated as half-open on its max edges so a stripe lying exactly
+ * on a chunk boundary belongs to one chunk rather than to both.
+ */
+function clippedStripe(
+  builder: MeshBuilder,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  width: number,
+  uv: number,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number
+): void {
+  const clipped = clipSegmentToRect(ax, az, bx, bz, x0, z0, x1 - EDGE_EPSILON, z1 - EDGE_EPSILON);
+  if (!clipped) return;
+  stripe(builder, clipped[0], clipped[1], clipped[2], clipped[3], width, uv);
+}
+
+/** Sub-millimetre inset that makes the chunk rect half-open on its max edges. */
+const EDGE_EPSILON = 1e-6;
+
+/**
+ * Liang–Barsky: the part of segment a->b inside the rect, or undefined when
+ * none of it is.
+ */
+function clipSegmentToRect(
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number
+): [number, number, number, number] | undefined {
+  const dx = bx - ax;
+  const dz = bz - az;
+  let t0 = 0;
+  let t1 = 1;
+  const accept = (p: number, q: number): boolean => {
+    if (p === 0) return q >= 0; // parallel to this edge: inside or wholly out
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+  if (!accept(-dx, ax - x0)) return undefined;
+  if (!accept(dx, x1 - ax)) return undefined;
+  if (!accept(-dz, az - z0)) return undefined;
+  if (!accept(dz, z1 - az)) return undefined;
+  return [ax + dx * t0, az + dz * t0, ax + dx * t1, az + dz * t1];
 }
 
 /** One painted stripe: a thin quad lying just above the asphalt. */
@@ -382,8 +460,7 @@ function emitCrater(
   crater: IPlanCrater,
   x0: number,
   z0: number,
-  uvScale: number,
-  rng: IRandom
+  uvScale: number
 ): void {
   const rings = 7;
   const segments = 28;
@@ -397,6 +474,28 @@ function emitCrater(
     const lip = crater.rim * Math.pow(t, 6);
     return bowl + lip + jitter;
   };
+
+  /**
+   * Rubble jitter, one value per LATTICE POINT.
+   *
+   * Drawing it per quad gives the two quads either side of an edge different
+   * heights for the same XZ position — a 0.6 m step at every one of the ~370
+   * internal seams, i.e. a bowl you can see through and a discontinuous
+   * physics proxy. It is seeded from the crater id rather than from the
+   * chunk's rng because the bowl spans several chunks and they have to agree
+   * on the vertices they share.
+   */
+  const jitterRng = createRng(hashString(`crater:${crater.id}`));
+  const jitter: number[][] = [];
+  for (let r = 0; r <= rings; r++) {
+    const row: number[] = [];
+    for (let s = 0; s < segments; s++) row.push(jitterRng.range(-0.35, 0.35) * crater.rubble);
+    // The centre ring is a single point; per-segment values there would spike
+    // the bowl floor into a needle.
+    if (r === 0) row.fill(row[0]);
+    jitter.push(row);
+  }
+  const at = (r: number, s: number) => height(r / rings, jitter[r][s % segments]);
 
   for (let r = 0; r < rings; r++) {
     const t0 = r / rings;
@@ -426,9 +525,6 @@ function emitCrater(
       if (!pts.some((p) => p[0] >= x0 - 2 && p[0] <= x1 + 2 && p[1] >= z0 - 2 && p[1] <= z1 + 2)) {
         continue;
       }
-      const jitter = () => rng.range(-0.35, 0.35) * crater.rubble;
-      const h0 = height(t0, jitter());
-      const h1 = height(t1, jitter());
       // Dark at the floor, bright at the blast rim: from directly above that
       // gradient is the only thing that says "hole" rather than "dirt patch".
       const shade = 0.42 + t1 * 0.72;
@@ -436,10 +532,10 @@ function emitCrater(
       // order gives a bowl you can only see from underneath.
       builder.quad(
         GroundSlot.Lot,
-        [pts[0][0], h0, pts[0][1]],
-        [pts[1][0], h0, pts[1][1]],
-        [pts[2][0], h1, pts[2][1]],
-        [pts[3][0], h1, pts[3][1]],
+        [pts[0][0], at(r, s), pts[0][1]],
+        [pts[1][0], at(r, s + 1), pts[1][1]],
+        [pts[2][0], at(r + 1, s + 1), pts[2][1]],
+        [pts[3][0], at(r + 1, s), pts[3][1]],
         [pts[0][0] * uvScale, pts[0][1] * uvScale, pts[2][0] * uvScale, pts[2][1] * uvScale],
         shadeTint([0.82, 0.78, 0.72], shade)
       );
@@ -452,8 +548,11 @@ function emitCrater(
 /* -------------------------------------------------------------------------- */
 
 function pickGroundMaterials(ctx: IGroundContext): IGroundMaterials {
-  // The busiest zone in the chunk decides the surfaces, so a chunk never has
-  // two competing asphalts.
+  // The FIRST block's zone decides the surfaces for the whole chunk, so a
+  // chunk never has two competing asphalts. The committed plan puts exactly
+  // one parcel in each chunk, which is what makes "first" and "dominant" the
+  // same thing; a chunk holding two parcels would take the plan-order one,
+  // and its sidewalk width, rather than the larger.
   const zone = ctx.zones[0];
   const kind = zone?.kind ?? 'residential';
   const surface = zone?.params.lotSurface ?? 'concrete';
@@ -540,23 +639,6 @@ function rectInsideCircle(
   return corners.every(([x, z]) => (x - cx) ** 2 + (z - cz) ** 2 <= r * r);
 }
 
-function segmentTouchesRect(
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number,
-  x0: number,
-  z0: number,
-  x1: number,
-  z1: number
-): boolean {
-  const minX = Math.min(ax, bx);
-  const maxX = Math.max(ax, bx);
-  const minZ = Math.min(az, bz);
-  const maxZ = Math.max(az, bz);
-  return maxX >= x0 && minX <= x1 && maxZ >= z0 && minZ <= z1;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Region merge                                                               */
 /* -------------------------------------------------------------------------- */
@@ -585,9 +667,18 @@ export function mergeChunkGrounds(builds: readonly IGroundBuild[]): IGroundBuild
       group.map((g) => g.buffers),
       GROUND_SLOT_COUNT
     );
+    const bounds: AABB6 = [
+      Math.min(...group.map((g) => g.bounds[0])),
+      Math.min(...group.map((g) => g.bounds[1])),
+      Math.min(...group.map((g) => g.bounds[2])),
+      Math.max(...group.map((g) => g.bounds[3])),
+      Math.max(...group.map((g) => g.bounds[4])),
+      Math.max(...group.map((g) => g.bounds[5])),
+    ];
     out.push({
       buffers: merged.buffers,
       materials: group[0].materials,
+      bounds,
       triangles: merged.buffers.indexCount / 3,
       drawCalls: merged.buffers.groups.length,
     });

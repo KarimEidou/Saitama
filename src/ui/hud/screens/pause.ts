@@ -41,9 +41,8 @@ export class PauseScreen extends HudScreen {
 
     this.element.appendChild(
       el(doc, 'div', {
-        className: 'hud-sheet',
+        className: 'hud-sheet hud-sheet--narrow',
         attrs: { 'data-screen': 'pause' },
-        vars: { 'max-width': '420px' },
         children: [
           el(doc, 'div', {
             className: 'hud-sheet__head',
@@ -56,7 +55,7 @@ export class PauseScreen extends HudScreen {
             className: 'hud-sheet__body',
             children: [
               el(doc, 'div', {
-                vars: { display: 'grid', gap: '8px' },
+                className: 'hud-menu',
                 children: [
                   button(doc, 'Resume', options.onResume, {
                     className: 'hud-btn--primary',

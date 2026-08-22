@@ -128,9 +128,10 @@ export function createHaptics(options: IHapticsOptions = {}): IHaptics {
       });
   }
 
-  function fire(pattern: HapticPattern): void {
+  /** @returns true when a plugin was actually there to buzz. */
+  function fire(pattern: HapticPattern): boolean {
     const target = plugin;
-    if (!target) return;
+    if (!target) return false;
     try {
       const impact = IMPACT_STYLE[pattern];
       const promise = impact
@@ -141,6 +142,7 @@ export function createHaptics(options: IHapticsOptions = {}): IHaptics {
     } catch {
       /* never let a buzz break a frame */
     }
+    return true;
   }
 
   return {
@@ -165,9 +167,12 @@ export function createHaptics(options: IHapticsOptions = {}): IHaptics {
       const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const last = lastFired.get(cue) ?? -Infinity;
       if (nowMs - last < CUE_COOLDOWN_MS[cue]) return;
-      lastFired.set(cue, nowMs);
       ensurePlugin();
-      fire(CUE_PATTERN[cue]);
+      // Stamp the cooldown only when something was actually FELT. Stamping
+      // before the plugin has landed spends the cooldown on a cue nobody felt,
+      // so a cold start drops every cue for a whole cooldown window (250 ms for
+      // `chargeComplete`) rather than just the one that kicked off the import.
+      if (fire(CUE_PATTERN[cue])) lastFired.set(cue, nowMs);
     },
 
     dispose(): void {

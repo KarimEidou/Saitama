@@ -155,13 +155,23 @@ export const DEFAULT_INPUT_TUNING: IInputTuning = Object.freeze({
 } satisfies IInputTuning);
 
 /**
- * Merge a partial override over the defaults, keeping `stickRadius` and
- * `stickFullDeflectionPx` in sync (they are the same distance expressed for
- * two different audiences, and drifting them apart is a classic bug).
+ * Merge a partial override over `base` (the shipping defaults unless told
+ * otherwise), keeping `stickRadius` and `stickFullDeflectionPx` in sync (they
+ * are the same distance expressed for two different audiences, and drifting
+ * them apart is a classic bug).
+ *
+ * `base` exists so a LIVE re-tune goes through the same mirroring: the sync
+ * below can only fire on fields absent from `patch`, so a caller that spreads
+ * the current tuning into the patch itself — every field then defined — would
+ * silently skip it and drift the two apart. Pass the current tuning as `base`
+ * and the incoming patch as `patch` instead.
  */
-export function resolveTuning(patch?: Partial<IInputTuning>): IInputTuning {
-  if (!patch) return DEFAULT_INPUT_TUNING;
-  const merged = { ...DEFAULT_INPUT_TUNING, ...patch };
+export function resolveTuning(
+  patch?: Partial<IInputTuning>,
+  base: IInputTuning = DEFAULT_INPUT_TUNING
+): IInputTuning {
+  if (!patch) return base;
+  const merged = { ...base, ...patch };
   if (patch.stickFullDeflectionPx !== undefined && patch.stickRadius === undefined) {
     merged.stickRadius = patch.stickFullDeflectionPx;
   } else if (patch.stickRadius !== undefined && patch.stickFullDeflectionPx === undefined) {

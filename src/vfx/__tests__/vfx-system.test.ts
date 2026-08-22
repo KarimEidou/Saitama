@@ -66,7 +66,11 @@ describe('VFXSystem', () => {
     expect(d.sprites).toBeGreaterThan(60);
     expect(d.decals).toBeGreaterThan(10);
     expect(d.speedlineIntensity).toBeGreaterThan(0.3);
-    expect(d.trauma).toBeGreaterThan(0.3);
+    // Attenuated from the CAMERA — 61 m from the impact against a 136 m
+    // falloff, so about a third of the raw trauma. This read 0.9 before the
+    // shake listener was wired up, because an unsynced listener sits at the
+    // world origin, which in this fixture is exactly where the punch lands.
+    expect(d.trauma).toBeGreaterThan(0.25);
     vfx.dispose();
   });
 
@@ -89,6 +93,199 @@ describe('VFXSystem', () => {
     const first = vfx.diagnostics().sprites;
     for (let i = 0; i < 10; i++) vfx.update(1 / 60);
     expect(vfx.diagnostics().sprites).toBeGreaterThan(first);
+    vfx.dispose();
+  });
+
+  it('keeps the dust front alive after the leading cone expires', () => {
+    // The three shells have different lives, and the one the dust front rides
+    // is the LONGEST. When the axial cone dies the layer compacts and the skirt
+    // moves to another slot — a handle that cannot survive that move silently
+    // ends the dust wall a fifth of the way from the end of its life, on every
+    // single punch.
+    const { vfx, bus } = makeSystem();
+    fireShockwave(bus);
+    // t = 0.55 s: the cone (life 0.52 s) is gone, the skirt (0.65 s) is not.
+    for (let i = 0; i < 33; i++) vfx.update(1 / 60);
+    expect(vfx.diagnostics().shockwaves).toBe(1);
+    const midway = vfx.diagnostics().sprites;
+
+    for (let i = 0; i < 5; i++) vfx.update(1 / 60);
+    expect(vfx.diagnostics().shockwaves).toBe(1);
+    expect(vfx.diagnostics().sprites).toBeGreaterThan(midway);
+    vfx.dispose();
+  });
+
+  it('builds a real wave when a shockwave is spawned directly', () => {
+    // `spawn` used to return a live handle for these three names and then draw
+    // nothing at all, while holding a priority-1 slot that nothing can evict.
+    const { vfx } = makeSystem();
+    const handle = vfx.spawn('shockwaveCone', {
+      position: new THREE.Vector3(),
+      direction: new THREE.Vector3(0, 0, 1),
+      scale: 60,
+      intensity: 0.9,
+      intent: 'serious',
+    });
+    vfx.update(1 / 60);
+    expect(handle?.alive).toBe(true);
+    const d = vfx.diagnostics();
+    expect(d.shockwaves).toBe(3);
+    expect(d.sprites).toBeGreaterThan(60);
+    expect(d.decals).toBeGreaterThan(10);
+    vfx.dispose();
+  });
+
+  it('tints an effect from the spawn colour', () => {
+    const { vfx } = makeSystem();
+    vfx.spawn('bloodSpray', {
+      position: new THREE.Vector3(),
+      color: 0x8b0000,
+      intensity: 1,
+    });
+    vfx.update(1 / 60);
+    const color = vfx.meshes[2]!.geometry.getAttribute('iColor').array as Float32Array;
+    const n = vfx.diagnostics().sprites;
+    expect(n).toBeGreaterThan(0);
+    for (let i = 0; i < n; i++) {
+      // Dark red: red only. The default spark colour is warm white and has
+      // substantial green and blue in it.
+      expect(color[i * 4]!).toBeGreaterThan(0);
+      expect(color[i * 4 + 1]!).toBe(0);
+      expect(color[i * 4 + 2]!).toBe(0);
+    }
+    vfx.dispose();
+  });
+
+  it('releases attached objects on clear', () => {
+    // A slot that keeps its `attachTo` after a fast travel pins the whole
+    // despawned subtree — meshes, geometries, materials, textures — for as long
+    // as the system lives, and `dispose()` goes through `clear()` too.
+    const { vfx } = makeSystem();
+    const monster = new THREE.Object3D();
+    vfx.spawn('punchImpact', { position: new THREE.Vector3(), attachTo: monster });
+    vfx.clear();
+    const slots = (vfx as unknown as { slots: { attach: THREE.Object3D | undefined }[] }).slots;
+    expect(slots.some((slot) => slot.attach !== undefined)).toBe(false);
+    vfx.dispose();
+  });
+
+  it('drops coalesced event bursts on an aborted encounter', () => {
+    // The chunks arrive in the same frame the encounter is abandoned, and
+    // `update()` flushes before anything else — so an accumulator that survives
+    // `clear()` spawns a ghost debris burst at the abandoned coordinates on the
+    // very next frame.
+    const { vfx, bus } = makeSystem();
+    for (let i = 0; i < 12; i++) {
+      bus.emit('ChunkDetached', {
+        structureId: 'tower',
+        chunkIndex: i,
+        position: { x: 300 + i, y: 20, z: -120 },
+        mass: 400,
+        impulse: { x: 2000, y: 6000, z: 0 },
+        material: 'concrete',
+        collateralCost: 10,
+      } as never);
+    }
+    bus.emit('EncounterEnded', {
+      encounterId: 'e1',
+      outcome: 'aborted',
+      duration: 12,
+      civiliansLost: 0,
+      collateralCost: 0,
+    } as never);
+    vfx.update(1 / 60);
+    expect(vfx.activeCount).toBe(0);
+    expect(vfx.diagnostics().sprites).toBe(0);
+    vfx.dispose();
+  });
+
+  it('cracks a wall in the wall plane rather than in world XZ', () => {
+    // The branch fan used to be laid out in world XZ whatever the normal was,
+    // so half of a wall's branches floated in front of it and half were buried
+    // inside it.
+    const { vfx } = makeSystem();
+    vfx.spawn('groundCrack', {
+      position: new THREE.Vector3(20, 4, 0),
+      direction: new THREE.Vector3(1, 0, 0),
+      scale: 3,
+    });
+    vfx.update(1 / 60);
+    const n = vfx.diagnostics().decals;
+    expect(n).toBeGreaterThan(4);
+    const positions = vfx.meshes[0]!.geometry.getAttribute('iPosSize').array as Float32Array;
+    for (let i = 0; i < n; i++) {
+      expect(Math.abs(positions[i * 4]! - 20), `decal ${i} left the wall`).toBeLessThan(1e-4);
+    }
+    vfx.dispose();
+  });
+
+  it('moves a trail without differencing the jump into velocity', () => {
+    const { vfx } = makeSystem();
+    const target = new THREE.Object3D();
+    target.position.set(0, 5, 0);
+    target.updateMatrixWorld(true);
+    const handle = vfx.addTrail(target, 'dust', 5);
+    for (let i = 0; i < 10; i++) {
+      target.position.x += 0.5;
+      target.updateMatrixWorld(true);
+      vfx.update(1 / 60);
+    }
+    const before = vfx.diagnostics().sprites;
+
+    // A teleport. Differenced, this is 60 km/s and lays a solid line of streaks
+    // across the city — it filled the entire pool before `setPosition` was
+    // implemented for trail handles.
+    target.position.set(1000, 5, 0);
+    target.updateMatrixWorld(true);
+    handle?.setPosition(target.position);
+    vfx.update(1 / 60);
+    expect(vfx.diagnostics().sprites).toBeLessThan(before + 20);
+    vfx.dispose();
+  });
+
+  it('attenuates shake from the camera, not from the world origin', () => {
+    // Every shake in this system is distance-attenuated with a 40-80 m falloff
+    // against a listener that only `update()` used to move. A fight anywhere
+    // but the middle of the map produced no shake at all until the first frame
+    // after the punch — and none ever, on a system whose camera arrived late.
+    const far = new THREE.Vector3(1200, 0, -800);
+    const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 2000);
+    camera.position.set(1200, 2, -800);
+    camera.updateMatrixWorld(true);
+
+    const constructed = new VFXSystem({
+      tier: 'medium',
+      camera,
+      seed: 'test',
+      generateTextures: false,
+    });
+    constructed.spawn('punchImpact', { position: far, intensity: 1 });
+    expect(constructed.shake.trauma).toBeGreaterThan(0.5);
+    constructed.dispose();
+
+    const late = new VFXSystem({ tier: 'medium', seed: 'test', generateTextures: false });
+    late.setCamera(camera);
+    late.spawn('punchImpact', { position: far, intensity: 1 });
+    expect(late.shake.trauma).toBeGreaterThan(0.5);
+    late.dispose();
+  });
+
+  it('reports decal eviction, which the return value cannot', () => {
+    const { vfx } = makeSystem('low');
+    const position = new THREE.Vector3();
+    const normal = new THREE.Vector3(0, 1, 0);
+    const capacity = vfx.diagnostics().decalCapacity;
+    for (let i = 0; i < capacity; i++) {
+      position.set(i, 0, 0);
+      vfx.addDecal({ position, normal, size: 2, materialKey: 'crack' });
+    }
+    expect(vfx.diagnostics().decalsRecycled).toBe(0);
+    for (let i = 0; i < 10; i++) {
+      position.set(i, 0, 5);
+      // Still true — recycling the oldest crack IS the contract.
+      expect(vfx.addDecal({ position, normal, size: 2, materialKey: 'crack' })).toBe(true);
+    }
+    expect(vfx.diagnostics().decalsRecycled).toBe(10);
     vfx.dispose();
   });
 

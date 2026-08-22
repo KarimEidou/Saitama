@@ -120,22 +120,50 @@ export interface IRosterBody {
  * at v = 0. Two conventions that already agree; the bug is only ever
  * introduced by "fixing" one of them.
  */
-async function decodePng(url: string, anisotropy: number): Promise<THREE.Texture> {
+async function decodePng(
+  url: string,
+  anisotropy: number,
+  role: CharacterMapRole
+): Promise<THREE.Texture> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
   const bitmap = await createImageBitmap(await response.blob());
   const texture = new THREE.Texture(bitmap);
   texture.name = url.slice(url.lastIndexOf('/') + 1);
-  texture.anisotropy = anisotropy;
-  // Characters are viewed from two metres to two hundred; without mips the
-  // woven jumpsuit aliases into a shimmering moiré the moment he walks away.
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
+  if (role === 'mask') {
+    // The tint mask is an INDEX map: the baker writes five discrete class ids
+    // and the shader decodes them with band tests. Any filtering averages
+    // neighbouring ids, and the average of two ids is a different valid id —
+    // a neck/collar seam filters to 0.75 and gets tinted with the trousers
+    // colour. Mips are worse still, because a whole 8x8 box collapses to one
+    // meaningless number. Point sampling aliases; it never decodes the wrong
+    // slot, which is the only failure that reads as a bug.
+    texture.anisotropy = 1;
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+  } else {
+    texture.anisotropy = anisotropy;
+    // Characters are viewed from two metres to two hundred; without mips the
+    // woven jumpsuit aliases into a shimmering moiré the moment he walks away.
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+  }
   // Colour space, wrap mode and `flipY` are set by `createRosterMaterial`,
   // which is the single place that knows which role each map plays.
   texture.needsUpdate = true;
   return texture;
+}
+
+/** Release a partially decoded set: the GPU handle AND the source bitmap. */
+function releaseDecoded(decoded: Map<CharacterMapRole, THREE.Texture>): void {
+  for (const texture of decoded.values()) {
+    const image = texture.image as { close?: () => void } | undefined;
+    image?.close?.();
+    texture.dispose();
+  }
+  decoded.clear();
 }
 
 /** Bytes one decoded atlas occupies on the GPU, mip chain included. */
@@ -211,16 +239,33 @@ export class RosterRuntime {
    * Resolves `false` rather than rejecting when the bake is absent: a fresh
    * clone that has not run `npx tsx tools/build-characters.ts` must still boot,
    * and the caller falls back to the generator's vertex colours.
+   *
+   * A failure is REMEMBERED. "No bake on disk" is a supported steady state and
+   * callers poll this on every spawn (`if (!isResident(id)) void load(id)`), so
+   * retrying would mean three 404s, three decodes and a log line per monster,
+   * for the whole session. Use `retry` for the transient case.
    */
   async load(id: string): Promise<boolean> {
     if (this.disposed) return false;
     if (this.loaded.has(id)) return true;
+    if (this.failures.has(id)) return false;
     const existing = this.pending.get(id);
     if (existing !== undefined) return existing;
 
     const task = this.doLoad(id).finally(() => this.pending.delete(id));
     this.pending.set(id, task);
     return task;
+  }
+
+  /**
+   * Forget a recorded failure and attempt the load again.
+   *
+   * For the transient case only — a fetch that lost the network, not a bake
+   * that was never made. Nothing calls this on a timer on purpose.
+   */
+  async retry(id: string): Promise<boolean> {
+    this.failures.delete(id);
+    return this.load(id);
   }
 
   /**
@@ -251,22 +296,22 @@ export class RosterRuntime {
     roles.push('face');
     if (entry.crowd === true) roles.push('mask');
 
+    const decoded = new Map<CharacterMapRole, THREE.Texture>();
     try {
-      const decoded = new Map<CharacterMapRole, THREE.Texture>();
       for (const role of roles) {
         const url = this.source.resolveFile(`${dir}/${mapFileName(role, tier)}`);
         // Only the three PBR maps are structural. A missing face or mask is a
         // character that renders correctly minus one feature, which is a much
         // better outcome than no character at all.
         try {
-          decoded.set(role, await decodePng(url, this.anisotropy));
+          decoded.set(role, await decodePng(url, this.anisotropy, role));
         } catch (error) {
           if (role === 'albedo' || role === 'normal' || role === 'orm') throw error;
           log.warn(`${id}: optional map "${role}" missing (${String(error)})`);
         }
       }
       if (this.disposed) {
-        for (const texture of decoded.values()) texture.dispose();
+        releaseDecoded(decoded);
         return false;
       }
 
@@ -280,17 +325,24 @@ export class RosterRuntime {
       };
       let bytes = 0;
       for (const texture of decoded.values()) bytes += gpuBytesOf(texture);
+      const maps = decoded.size;
 
       this.loaded.set(id, { textures, tier, bytes });
+      // Ownership has moved to `this.loaded`; the catch below must not free it.
+      decoded.clear();
       this.failures.delete(id);
       const ms = performance.now() - started;
       this.loadMsTotal += ms;
       log.info(
-        `${id}: ${decoded.size} maps at '${tier}' ` +
+        `${id}: ${maps} maps at '${tier}' ` +
           `(${(bytes / 1048576).toFixed(1)} MB, ${ms.toFixed(0)}ms)`
       );
       return true;
     } catch (error) {
+      // Whatever did decode before the structural map failed is dead weight:
+      // nothing holds a reference to it, and an ImageBitmap is not reclaimed by
+      // `dispose()` alone.
+      releaseDecoded(decoded);
       this.loadMsTotal += performance.now() - started;
       this.failures.set(id, String(error));
       log.warn(

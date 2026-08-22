@@ -40,6 +40,29 @@ describe('SpriteLayer', () => {
     expect(layer.free).toBe(0);
   });
 
+  it('rejects a non-finite position instead of poisoning the sort', () => {
+    // `Math.floor(NaN)` passes both bounds checks in the counting sort, so a
+    // single NaN particle never lands in a bucket count: the prefix sums come
+    // up one short, the placement loop overruns them, and one slot of `order`
+    // keeps LAST frame's index — which the gather loop then uploads as a live
+    // instance built from retired particle data.
+    const layer = makeLayer(8);
+    const p = createSpriteParams();
+    p.life = 5;
+    expect(layer.emit(p)).toBe(true);
+
+    p.x = Number.NaN;
+    expect(layer.emit(p)).toBe(false);
+    p.x = 0;
+    p.y = Number.POSITIVE_INFINITY;
+    expect(layer.emit(p)).toBe(false);
+
+    expect(layer.activeCount).toBe(1);
+    expect(layer.dropped).toBe(2);
+    layer.prepare(eye, forward);
+    expect((layer.mesh.geometry as THREE.InstancedBufferGeometry).instanceCount).toBe(1);
+  });
+
   it('retires particles when their life runs out', () => {
     const layer = makeLayer(8);
     const p = createSpriteParams();

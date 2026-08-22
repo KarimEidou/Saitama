@@ -51,6 +51,14 @@ const NORMAL_DEPTH_VERTEX = /* glsl */ `
 	varying float vNdDepth;
 
 	void main() {
+		// FIRST, matching three's own material shaders: this chunk DECLARES
+		// batchingMatrix, and both <defaultnormal_vertex> and <project_vertex>
+		// consume it under USE_BATCHING. Declaring it after them fails to link
+		// with "undeclared identifier" the moment a BatchedMesh enters the
+		// scene — and because this is an overrideMaterial, that takes the whole
+		// guide buffer down, not one mesh.
+		#include <batching_vertex>
+
 		#include <beginnormal_vertex>
 		#include <morphinstance_vertex>
 		#include <morphnormal_vertex>
@@ -61,7 +69,6 @@ const NORMAL_DEPTH_VERTEX = /* glsl */ `
 		#include <begin_vertex>
 		#include <morphtarget_vertex>
 		#include <skinning_vertex>
-		#include <batching_vertex>
 		#include <project_vertex>
 
 		vNdNormal = normalize( transformedNormal );
@@ -170,7 +177,8 @@ const COMPOSITE_FRAGMENT = /* glsl */ `
 	uniform sampler2D tAO;
 	uniform sampler2D tNormalDepth;
 	uniform vec2 uHalfResolution;
-	uniform float uDepthSigma;
+	uniform float uCameraFar;
+	uniform float uDepthSigmaPerMetre;
 	uniform float uNormalPower;
 	uniform float uBlend;
 	varying vec2 vUv;
@@ -201,7 +209,17 @@ const COMPOSITE_FRAGMENT = /* glsl */ `
 				vec4 tap = texture2D( tNormalDepth, tapUv );
 				if ( tap.a <= 0.0001 ) continue;
 
-				float depthWeight = exp( -abs( tap.a - guideDepth ) * uDepthSigma );
+				// The guide buffer stores depth normalised by the far plane, so
+				// the separation has to be taken back to METRES before it is
+				// weighed. Weighing the normalised value against a bare
+				// constant makes the filter's edge behaviour a function of
+				// camera.far — at far = 2400 the old sigma of 220 gave a
+				// half-weight separation of 7.6 m against an AO radius of
+				// 0.8 m, which accepted taps from the wall behind a character
+				// at 83 % weight and turned the "joint bilateral" upsample
+				// into a box blur.
+				float separation = abs( tap.a - guideDepth ) * uCameraFar;
+				float depthWeight = exp( -separation * uDepthSigmaPerMetre );
 				vec3 tapNormal = normalize( tap.rgb * 2.0 - 1.0 );
 				float normalWeight = pow( max( dot( tapNormal, guideNormal ), 0.0 ), uNormalPower );
 				float weight = depthWeight * normalWeight;
@@ -292,7 +310,12 @@ export class HalfResSSAOPass extends Pass {
         tAO: { value: null },
         tNormalDepth: { value: null },
         uHalfResolution: { value: new THREE.Vector2(1, 1) },
-        uDepthSigma: { value: 220 },
+        uCameraFar: { value: camera.far },
+        // Per METRE of view-space separation. 8 puts the half-weight point at
+        // ln(2)/8 = 8.7 cm — roughly a tenth of the AO sampling radius, so a
+        // tap on the other side of a silhouette is rejected while the depth
+        // ramp across one half-res texel of sloped ground still passes.
+        uDepthSigmaPerMetre: { value: 8 },
         uNormalPower: { value: 16 },
         uBlend: { value: 1 },
       },
@@ -312,6 +335,11 @@ export class HalfResSSAOPass extends Pass {
     });
     this.normalDepthTarget.texture.name = 'SSAO.normalDepth';
     this.aoTarget = new THREE.WebGLRenderTarget(1, 1, {
+      // R8 (WebGL2), not the RGBA8 default. The resolve writes one scalar and
+      // the composite reads `.r`, so the other three channels are pure
+      // bandwidth: 4x the allocation and 4x the read cost across all nine
+      // bilateral taps, for nothing.
+      format: THREE.RedFormat,
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
       depthBuffer: false,
@@ -328,6 +356,11 @@ export class HalfResSSAOPass extends Pass {
   /** Occlusion strength, 0..1. 0 disables the effect without removing the pass. */
   setIntensity(intensity: number): void {
     this.compositeMaterial.uniforms.uBlend!.value = Math.min(1, Math.max(0, intensity));
+  }
+
+  /** Live occlusion strength. Read back when the chain is rebuilt for a new tier. */
+  get intensity(): number {
+    return this.compositeMaterial.uniforms.uBlend!.value as number;
   }
 
   setRadius(radius: number): void {
@@ -355,6 +388,7 @@ export class HalfResSSAOPass extends Pass {
     const camera = this.camera;
     this.normalDepthMaterial.uniforms.uCameraFar!.value = camera.far;
     this.aoMaterial.uniforms.uCameraFar!.value = camera.far;
+    this.compositeMaterial.uniforms.uCameraFar!.value = camera.far;
     (this.aoMaterial.uniforms.uProjection!.value as THREE.Matrix4).copy(camera.projectionMatrix);
     (this.aoMaterial.uniforms.uProjectionInverse!.value as THREE.Matrix4).copy(
       camera.projectionMatrixInverse
@@ -367,10 +401,22 @@ export class HalfResSSAOPass extends Pass {
     const previousClearColor = new THREE.Color();
     renderer.getClearColor(previousClearColor);
 
+    // `WebGLRenderer.render()` runs the shadow pass on EVERY call, and
+    // `WebGLShadowMap` does not consult `scene.overrideMaterial` — so without
+    // this the prepass re-rasterises every cascade a second time per frame and
+    // throws the result away. On HIGH that is 3 x 2048^2 of duplicated
+    // rasterisation, far more than the "quarter of the pixels" this pass costs.
+    // `WebGLShadowMap.render` bails only on `autoUpdate === false &&
+    // needsUpdate === false`, so both have to go down together.
+    const previousShadowAutoUpdate = renderer.shadowMap.autoUpdate;
+    const previousShadowNeedsUpdate = renderer.shadowMap.needsUpdate;
+
     this.scene.overrideMaterial = this.normalDepthMaterial;
     // The sky must not write into the guide buffer: `overrideMaterial` does not
     // apply to the background, so it would land as opaque garbage.
     this.scene.background = null;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = false;
     renderer.setRenderTarget(this.normalDepthTarget);
     // Alpha 0 = "no surface here", which the shaders test for.
     renderer.setClearColor(0x000000, 0);
@@ -379,6 +425,8 @@ export class HalfResSSAOPass extends Pass {
 
     this.scene.overrideMaterial = previousOverride;
     this.scene.background = previousBackground;
+    renderer.shadowMap.autoUpdate = previousShadowAutoUpdate;
+    renderer.shadowMap.needsUpdate = previousShadowNeedsUpdate;
     renderer.setClearColor(previousClearColor, previousClearAlpha);
 
     /* --- 2. AO resolve at half res -------------------------------------- */

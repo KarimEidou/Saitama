@@ -7,7 +7,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { seatDelta } from '../store';
 import {
+  CLASS_MOVE_SEATS,
   clockParts,
   formatClock,
   formatCount,
@@ -18,6 +20,7 @@ import {
   formatPoints,
   formatRank,
   formatSeatDelta,
+  formatSeatMove,
   formatTier,
   formatYenCompact,
   formatYenFull,
@@ -110,6 +113,29 @@ describe('rank', () => {
     expect(formatSeatDelta(0)).toBe('held');
     expect(formatSeatDelta(3)).toBe('up 3');
     expect(formatSeatDelta(-12)).toBe('down 12');
+  });
+
+  it('decodes a class change SYMMETRICALLY, and never as a seat count', () => {
+    // `seatDelta` encodes a class change as a ±1000 sentinel because the HUD
+    // does not know the class sizes. A demotion is the direction the old
+    // one-sided `seats > 900 ? 1 : seats` guard missed, and it printed the
+    // fabricated "down 1000" on the rank board and on the invoice.
+    expect(formatSeatMove(seatDelta('C', 1, 'B', 300))).toBe('up a class');
+    expect(formatSeatMove(seatDelta('B', 1, 'C', 300))).toBe('down a class');
+    // Two classes at once is still a class change, not "up 2000".
+    expect(formatSeatMove(seatDelta('C', 1, 'A', 30))).toBe('up a class');
+    expect(formatSeatMove(seatDelta('S', 17, 'C', 30))).toBe('down a class');
+    expect(formatSeatMove(-1000)).toBe('down a class');
+    expect(formatSeatMove(1000)).toBe('up a class');
+  });
+
+  it('leaves a real within-class movement to formatSeatDelta', () => {
+    expect(formatSeatMove(seatDelta('C', 388, 'C', 384))).toBe('up 4');
+    expect(formatSeatMove(-12)).toBe('down 12');
+    expect(formatSeatMove(0)).toBe('held');
+    // The sentinel threshold is the only magic number, and it sits well above
+    // any real within-class movement.
+    expect(formatSeatMove(CLASS_MOVE_SEATS - 1)).toBe(`up ${CLASS_MOVE_SEATS - 1}`);
   });
 });
 

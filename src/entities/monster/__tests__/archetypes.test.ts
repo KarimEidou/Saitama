@@ -69,6 +69,34 @@ describe('archetype table', () => {
     }
   });
 
+  it('never parks a monster outside its own reach', () => {
+    // A row whose MOVEMENT profile holds it further away than its longest
+    // attack can reach describes a monster that never attacks anything, and
+    // nothing throws: `mob.swarm.mosquito` shipped with a 1.1 m bite behind
+    // 3.4 m of hover, so fourteen of them per Mosquito Girl phase hovered,
+    // circled and were completely harmless.
+    //
+    // Steering holds the 3-D distance to a ground target at the standoff
+    // (± 1 m) or at the flight altitude (`hover ± bob`), whichever is larger,
+    // so that is the closest the monster will ever get.
+    for (const archetype of MONSTER_ARCHETYPES) {
+      const move = archetype.movement;
+      const floor = Math.max(
+        0,
+        move.standoffMetres - 1,
+        move.hoverHeightMetres - move.bobAmplitudeMetres
+      );
+      const usable = archetype.attacks.filter(
+        (a) => a.rangeMetres > floor && a.minRangeMetres <= floor + 1
+      );
+      expect(
+        usable.length,
+        `${archetype.id} holds ${floor.toFixed(1)} m and can reach ` +
+          `${Math.max(...archetype.attacks.map((a) => a.rangeMetres))} m`
+      ).toBeGreaterThan(0);
+    }
+  });
+
   it('summarises the attack set into the shared IMonsterSpec fields', () => {
     for (const archetype of MONSTER_ARCHETYPES) {
       const widest = Math.max(...archetype.attacks.map((a) => a.rangeMetres));

@@ -160,6 +160,53 @@ describe('TierAvailability', () => {
     expect(availability.chainFor(entry, 'ultra')).toEqual(['mobile']);
   });
 
+  it('ignores unbuilt tiers when looking UPWARDS as well', () => {
+    // An asset processed at `high` only, in a package that shipped `mobile`
+    // (`assets:process --tier` run per asset). The upward last-resort branch
+    // used to hand back 'high' anyway — a request for a file that is provably
+    // not in the package, i.e. the exact 404 this class exists to prevent.
+    const availability = new TierAvailability(['mobile']);
+    const highOnly = { ...entryFor('mat.road.asphalt.worn.albedo') } as AnyAssetEntry;
+    (highOnly as { outputs: unknown }).outputs = entryFor(
+      'mat.road.asphalt.worn.albedo'
+    ).outputs.filter((output) => output.tier === 'high');
+
+    expect(availability.chainFor(highOnly, 'mobile')).toEqual([]);
+    expect(availability.bestTierFor(highOnly, 'mobile')).toBeUndefined();
+  });
+
+  it('still reaches upwards for an asset built above the request when that tier IS built', () => {
+    const availability = new TierAvailability(built);
+    const highOnly = { ...entryFor('mat.road.asphalt.worn.albedo') } as AnyAssetEntry;
+    (highOnly as { outputs: unknown }).outputs = entryFor(
+      'mat.road.asphalt.worn.albedo'
+    ).outputs.filter((output) => output.tier === 'high');
+    expect(availability.bestTierFor(highOnly, 'mobile')).toBe('high');
+  });
+
+  it('counts misses CONSECUTIVELY, so a served file clears the streak', () => {
+    // A desktop on `high` where `high` is mostly present: three gaps spread
+    // across a session of successful `high` fetches must not write the tier
+    // off and drop the rest of the session to mobile textures.
+    const availability = new TierAvailability(built, 3);
+    for (const id of ['hdri.sky.day', 'hdri.sky.night']) {
+      availability.markMissing(id, 'high', entryFor(id), '404');
+      availability.markServed('high');
+    }
+    expect(availability.isTierUsable('high')).toBe(true);
+
+    // Three in a row with nothing served between them still writes it off:
+    // that is a tier the package does not contain.
+    for (const id of [
+      'mat.road.asphalt.worn.albedo',
+      'mat.road.asphalt.worn.normal',
+      'mat.road.asphalt.worn.orm',
+    ]) {
+      availability.markMissing(id, 'high', entryFor(id), '404');
+    }
+    expect(availability.isTierUsable('high')).toBe(false);
+  });
+
   it('records every miss for diagnostics', () => {
     const availability = new TierAvailability(built);
     const entry = entryFor('hdri.sky.day');

@@ -146,7 +146,10 @@ export const QUEST_DEFS: readonly IQuestDef[] = [
         kind: 'defeat',
         description: 'Defeat Crablante',
         required: 1,
-        targetId: 'monster.crablante',
+        // PENDING ARCHETYPE. Targets match `EntityKilled.specId`, which is the
+        // monster archetype id, and no Crablante exists in that table yet — so
+        // this objective cannot advance until one is authored under this id.
+        targetId: 'boss.crablante',
         location: [120, 0, -80],
         radius: 25,
       },
@@ -297,7 +300,9 @@ export const QUEST_DEFS: readonly IQuestDef[] = [
         kind: 'defeat',
         description: 'Defeat Mosquito Girl',
         required: 1,
-        targetId: 'monster.mosquitoGirl',
+        // Matched against `EntityKilled.specId`, which the monster system fills
+        // from the ARCHETYPE id. Anything outside that namespace never matches.
+        targetId: 'boss.mosquitoGirl',
       },
     ],
     rules: {
@@ -378,7 +383,7 @@ export const QUEST_DEFS: readonly IQuestDef[] = [
         kind: 'defeat',
         description: 'Defeat the Deep Sea King',
         required: 1,
-        targetId: 'monster.deepSeaKing',
+        targetId: 'boss.deepSeaKing',
       },
     ],
     rules: {
@@ -420,6 +425,9 @@ export const QUEST_DEFS: readonly IQuestDef[] = [
         kind: 'destroy',
         description: 'Destroy the meteor',
         required: 1,
+        // PENDING SPEC ID: nothing in the world carries `hazard.meteor` yet, so
+        // whatever ends up representing the meteor has to report this id on the
+        // `EntityKilled` that destroys it.
         targetId: 'hazard.meteor',
       },
     ],
@@ -468,7 +476,9 @@ export const QUEST_DEFS: readonly IQuestDef[] = [
         kind: 'defeat',
         description: 'Defeat the Subterranean King',
         required: 1,
-        targetId: 'monster.subterraneanKing',
+        // PENDING ARCHETYPE, as above: no Subterranean King exists in the
+        // monster table yet, so this hidden objective cannot advance.
+        targetId: 'boss.subterraneanKing',
         hidden: true,
       },
     ],

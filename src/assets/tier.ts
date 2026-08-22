@@ -238,6 +238,8 @@ export class TierAvailability {
   private readonly missed = new Set<string>();
   private readonly deadTiers = new Set<QualityTier>();
   private readonly misses: ITierMiss[] = [];
+  /** Misses at each tier since the last file that tier actually served. */
+  private readonly missStreak = new Map<QualityTier, number>();
 
   constructor(
     /** Tiers the manifest claims were built. */
@@ -270,6 +272,19 @@ export class TierAvailability {
   }
 
   /**
+   * Record that `tier` served a file, clearing its miss streak.
+   *
+   * Write-off means "this tier was not shipped", and a tier that just served
+   * something plainly was. Counting every miss ever recorded instead would
+   * write off a desktop's `high` set after three scattered gaps spread over
+   * minutes of successful `high` fetches, silently dropping the rest of the
+   * session to mobile textures.
+   */
+  markServed(tier: QualityTier): void {
+    this.missStreak.set(tier, 0);
+  }
+
+  /**
    * Record that `key` was not served at `tier`.
    *
    * Returns the next tier to try, or undefined when the asset has no cheaper
@@ -287,11 +302,12 @@ export class TierAvailability {
       this.missed.add(id);
       this.misses.push({ key, tier, reason });
 
-      const atThisTier = this.misses.filter((miss) => miss.tier === tier).length;
+      const atThisTier = (this.missStreak.get(tier) ?? 0) + 1;
+      this.missStreak.set(tier, atThisTier);
       if (atThisTier >= this.tierWriteOffThreshold && !this.deadTiers.has(tier)) {
         this.deadTiers.add(tier);
         log.warn(
-          `tier '${tier}' written off after ${atThisTier} misses — the manifest ` +
+          `tier '${tier}' written off after ${atThisTier} consecutive misses — the manifest ` +
             `declares it built but the package does not contain it. Later assets ` +
             `skip '${tier}' entirely rather than 404 one at a time.`
         );
@@ -329,6 +345,11 @@ export class TierAvailability {
       for (let rank = TIER_RANK[preferred] + 1; rank < TIER_ORDER.length; rank++) {
         const tier = TIER_ORDER[rank]!;
         if (!outputs.has(tier)) continue;
+        // `builtTiers` applies upwards too. Without it, an asset built only
+        // above the packaged tier resolves to a file that is provably not in
+        // the package — a guaranteed 404 per asset, which is the exact failure
+        // this class exists to prevent.
+        if (!this.builtTiers.includes(tier)) continue;
         if (this.deadTiers.has(tier)) continue;
         if (this.missed.has(`${entry.id}@${tier}`)) continue;
         chain.push(tier);

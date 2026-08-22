@@ -74,9 +74,23 @@ export class PunchChain {
     return { length: this.length, windowRemaining: remaining, longest: this.longest };
   }
 
-  reset(): void {
+  /**
+   * Break the running chain, keeping the session record.
+   *
+   * This is what a serious punch and a ground slam do: a different verb ends
+   * the barrage, but it does not un-throw the barrage. `longest` is documented
+   * as the longest reached since the last `reset`, and a HUD or achievement
+   * readout of `longestReached` must not drop to 0 because the player finished
+   * a 12-link chain with a charged punch.
+   */
+  break(): void {
     this.length = 0;
     this.lastTime = Number.NEGATIVE_INFINITY;
+  }
+
+  /** Break the chain AND forget the record. A session or replay boundary. */
+  reset(): void {
+    this.break();
     this.longest = 0;
   }
 

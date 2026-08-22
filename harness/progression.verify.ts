@@ -379,6 +379,27 @@ function pass(message: string): void {
   console.log(`  ok    ${message}`);
 }
 
+/**
+ * Angular travel covered by a set of compass bearings, in degrees.
+ *
+ * Azimuth is CIRCULAR and wrapped into [0, 360), so a linear `max - min` is
+ * not a travel figure: a sun oscillating between 355 and 5 degrees — ten
+ * degrees of real movement, straddling due north, which is exactly where the
+ * midnight shot puts it — scores 350 and sails past any threshold. The honest
+ * measure is the complement of the largest EMPTY arc between consecutive
+ * samples, wrapping the last back round to the first; for the pathological
+ * case above that largest gap is 350, giving 10.
+ */
+function circularSpreadDegrees(degrees: readonly number[]): number {
+  if (degrees.length < 2) return 0;
+  const sorted = degrees.map((d) => ((d % 360) + 360) % 360).sort((a, b) => a - b);
+  let largestGap = 360 - sorted[sorted.length - 1]! + sorted[0]!;
+  for (let i = 1; i < sorted.length; i++) {
+    largestGap = Math.max(largestGap, sorted[i]! - sorted[i - 1]!);
+  }
+  return 360 - largestGap;
+}
+
 async function main(): Promise<void> {
   const failures: string[] = [];
   const report: Record<string, unknown> = {};
@@ -649,7 +670,7 @@ async function main(): Promise<void> {
 
     // The sun has to move. A static light would pass every luminance test.
     const azimuths = shots.map((s) => s.sky.sunAzimuthDegrees);
-    const azimuthSpread = Math.max(...azimuths) - Math.min(...azimuths);
+    const azimuthSpread = circularSpreadDegrees(azimuths);
     const elevations = shots.map((s) => s.sky.sunElevationDegrees);
     report.sunTravel = { azimuthSpread, elevations };
     if (azimuthSpread < 120) {

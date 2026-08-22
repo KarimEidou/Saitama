@@ -97,11 +97,14 @@ interface IBudgetReport {
 
 interface IAllocationReport {
   supported: boolean;
+  /** Simulation-only frames sampled. */
   frames: number;
+  /** Presented frames sampled — capped well below `frames`, see the probe. */
+  renderFrames: number;
   /** Bytes the heap grew across N `vfx.update()` calls with no rendering. */
   simBytes: number;
   simBytesPerFrame: number;
-  /** The same across N full frames, rendering included. Reported, not gated. */
+  /** The same across `renderFrames` full frames, rendering included. Reported, not gated. */
   frameBytes: number;
   frameBytesPerFrame: number;
   /** Live particle count while the sample was taken — proof it was busy. */
@@ -688,7 +691,7 @@ function main(): void {
         });
         if (next === 'seriousPunch') {
           bus.emit('EntityKilled', {
-            entityId: 1 as never,
+            entityId: 'vfx.harness.monster.1',
             entityType: 'monster',
             faction: 'monster',
             position: { x: 0, y: 3.2, z: -12 },
@@ -721,7 +724,7 @@ function main(): void {
 
       case 'impactFlash':
         bus.emit('EntityKilled', {
-          entityId: 2 as never,
+          entityId: 'vfx.harness.monster.2',
           entityType: 'monster',
           faction: 'monster',
           position: { x: -2, y: 3.6, z: -16 },
@@ -770,12 +773,17 @@ function main(): void {
   };
 
   function stepSimulation(dt: number): void {
-    simSeconds += dt;
-    bus.setFrame(presentedFrames, simSeconds);
     // Impact freeze runs on REAL time; the sim step it scales is the fixed
     // delta below, so the freeze reads exactly as it would in the game.
     impact.update(FIXED_DT);
-    vfx.update(dt * clock.timeScale);
+    /* `simSeconds` is the VFX clock, so it advances by the SCALED delta.
+       Accumulating the unscaled one made the freeze-frame evidence claim an
+       effect age of 0.0833 s while the effects had advanced by a few per cent
+       of that — and fed the same wrong timestamp to every bus handler. */
+    const scaled = dt * clock.timeScale;
+    simSeconds += scaled;
+    bus.setFrame(presentedFrames, simSeconds);
+    vfx.update(scaled);
   }
 
   function renderFrame(): void {
@@ -884,6 +892,19 @@ function main(): void {
     priority: 1,
   };
 
+  /** Frames between re-fires. Particles expire; an empty system proves nothing. */
+  const REFILL_INTERVAL = 200;
+
+  /**
+   * Frames in the PRESENTED-frame phase of `measureAllocation`.
+   *
+   * Capped independently of the simulation count. The simulation phase needs
+   * thousands of iterations to push the detection floor below Chrome's 100 KB
+   * heap quantum; the render phase is context, not a gate, and every one of its
+   * frames costs a full software-rasterised render.
+   */
+  const RENDER_SAMPLE_FRAMES = 400;
+
   async function measureAllocation(frames: number): Promise<IAllocationReport> {
     const supported = heapBytes() > 0;
     const wasStepping = stepping;
@@ -911,18 +932,30 @@ function main(): void {
     //    about a busy one.
     const simBefore = heapBytes();
     for (let i = 0; i < frames; i++) {
-      if (i % 200 === 0) vfx.spawn('explosion', REFILL);
+      if (i % REFILL_INTERVAL === 0) vfx.spawn('explosion', REFILL);
       vfx.update(FIXED_DT);
     }
     const simAfter = heapBytes();
 
     // 2. Full frames, reported for context. three's own renderer allocates a
     //    little every frame and that is not this system's to fix.
+    //
+    //    A far SHORTER sample than phase 1, and deliberately so: these frames
+    //    are PRESENTED, and thousands of 1280x720 PBR frames through
+    //    SwiftShader cost tens of minutes for a figure that is reported rather
+    //    than gated. The effect is re-fired on the same cadence here too —
+    //    without it the particle system empties within a second and the number
+    //    describes an IDLE system while being printed beside a live sprite
+    //    count.
+    const renderFrames = Math.min(frames, RENDER_SAMPLE_FRAMES);
     window.gc?.();
     await waitFrames(1);
     const frameBefore = heapBytes();
     stepping = true;
-    await waitFrames(frames);
+    for (let i = 0; i < renderFrames; i += REFILL_INTERVAL) {
+      vfx.spawn('explosion', REFILL);
+      await waitFrames(Math.min(REFILL_INTERVAL, renderFrames - i));
+    }
     stepping = false;
     const frameAfter = heapBytes();
 
@@ -930,10 +963,11 @@ function main(): void {
     return {
       supported,
       frames,
+      renderFrames,
       simBytes: simAfter - simBefore,
       simBytesPerFrame: (simAfter - simBefore) / frames,
       frameBytes: frameAfter - frameBefore,
-      frameBytesPerFrame: (frameAfter - frameBefore) / frames,
+      frameBytesPerFrame: (frameAfter - frameBefore) / renderFrames,
       spritesDuringSample,
       heapBefore: simBefore,
       heapAfter: simAfter,

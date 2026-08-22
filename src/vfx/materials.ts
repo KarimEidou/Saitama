@@ -62,6 +62,17 @@ export function createSharedUniforms(): IVFXSharedUniforms {
  * `ONE, ONE_MINUS_SRC_ALPHA`, which lets one fragment shader emit additive
  * glow, alpha compositing or multiplicative darkening depending on the values
  * it writes. Every effect in this system depends on that.
+ *
+ * ── WHY `forceSinglePass` IS NOT OPTIONAL HERE ─────────────────────────────
+ * three draws a `transparent` + `DoubleSide` material TWICE — once with
+ * `side = BackSide`, once with `FrontSide` — and `flipSided` is part of the
+ * program cache key, so each of these materials would otherwise cost two
+ * programs and two draw calls instead of one. Worse, the split is by WINDING:
+ * screen-space-inverted streak quads land in a different pass from every
+ * billboard, so the sprite layer's back-to-front counting sort could never
+ * order the two groups against each other. These materials write no depth and
+ * shade both faces identically, so a single pass is not a compromise — it is
+ * the only ordering that can be correct.
  */
 function applyPremultipliedBlend(material: THREE.ShaderMaterial): void {
   material.transparent = true;
@@ -69,6 +80,7 @@ function applyPremultipliedBlend(material: THREE.ShaderMaterial): void {
   material.premultipliedAlpha = true;
   material.depthWrite = false;
   material.toneMapped = true;
+  material.forceSinglePass = true;
 }
 
 /** The instanced sprite material: dust, clouds, sparks, flashes, streaks. */

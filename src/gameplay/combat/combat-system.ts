@@ -184,7 +184,10 @@ export class CombatSystem {
       // The boss gate: narrative, never HP.
       this.bus.on('BossPhaseChanged', (event) => this.onBossPhaseChanged(event)),
       // Scoring starts when the encounter system says a fight started.
-      this.bus.on('EncounterStarted', (event) => this.onEncounterStarted(event))
+      this.bus.on('EncounterStarted', (event) => this.onEncounterStarted(event)),
+      // Anything the rest of the game kills is dead in this registry too, so
+      // a punch can never kill the same entity a second time.
+      this.bus.on('EntityKilled', (event) => this.onEntityKilled(event))
     );
   }
 
@@ -259,20 +262,40 @@ export class CombatSystem {
       return;
     }
 
-    // `heavyPunch.pressed` is what touch and keyboard produce on release, via
-    // their own `ChargeTracker`. The synthetic driver has no charge tracker,
-    // so a raw press/release of `punch` is honoured as the same gesture —
-    // otherwise no scripted test could throw a serious punch at all. Both
-    // doors land here, and `holdSeconds` is the shared source of truth.
-    const releasing = heavy.pressed || punch.released;
-    if (releasing && this.punchHeld) {
-      if (this.holdSeconds <= this.tuning.tapMaxHoldSeconds && !heavy.pressed) {
-        this.normalPunch();
-      } else {
-        this.seriousPunch(this.chargeFromHold(this.holdSeconds, heavy.value));
+    /* ── TWO INDEPENDENT DOORS, NOT ONE ─────────────────────────────────
+       `heavyPunch.pressed` is what touch and keyboard produce on release, via
+       their own `ChargeTracker` — but it is ALSO what a gamepad's RT trigger
+       produces with no `punch` hold behind it at all. Gating it on
+       `punchHeld` made the whole direct-heavy-attack path silently throw
+       nothing, so the two doors are separate: `heavy.pressed` always fires,
+       and only the `punch.released` door needs a hold to have started.
+       `chargeFromHold` falls back to the input's own ratio when combat saw no
+       hold, which is exactly the direct trigger's case. The synthetic driver
+       has no charge tracker, so a raw press/release of `punch` is honoured as
+       the same gesture — otherwise no scripted test could throw a serious
+       punch at all. */
+    if (heavy.pressed) {
+      this.seriousPunch(this.chargeFromHold(this.holdSeconds, heavy.value));
+      this.clearHold();
+    } else if (punch.released) {
+      if (this.punchHeld) {
+        if (this.holdSeconds <= this.tuning.tapMaxHoldSeconds) {
+          this.normalPunch();
+        } else {
+          this.seriousPunch(this.chargeFromHold(this.holdSeconds, heavy.value));
+        }
       }
       this.clearHold();
-    } else if (releasing) {
+    } else if (this.punchHeld && !punch.held) {
+      /* ── THE GESTURE ENDED WITHOUT A RELEASE EDGE ────────────────────
+         Several shipped paths take the button down to neutral while
+         deliberately suppressing `released`: the uppercut swipe consumes the
+         punch charge through `clearSilently()`, and a blur / pagehide /
+         backend swap hard-resets the tracker with `prevHeld = false`. If the
+         charge outlived those, the player's next innocent tap would come out
+         as a fully charged Serious Punch — the loop's most important
+         decision, made wrongly, by a gesture they already cancelled. So the
+         charge dies with the gesture that created it, and throws nothing. */
       this.clearHold();
     }
 
@@ -384,8 +407,9 @@ export class CombatSystem {
     };
     // A serious punch breaks the chain: it is a different verb, not a louder
     // tap, and letting it inherit a chain multiplier would make the loudest
-    // sound in the game a function of button mashing.
-    this.chain.reset();
+    // sound in the game a function of button mashing. It BREAKS the chain
+    // rather than resetting it — the barrage still happened.
+    this.chain.break();
     return this.throwPunch(request, 'serious', 0);
   }
 
@@ -430,7 +454,7 @@ export class CombatSystem {
         travelTime: 0,
       },
     };
-    this.chain.reset();
+    this.chain.break();
     return this.throwPunch(request, 'slam', 0);
   }
 
@@ -462,8 +486,17 @@ export class CombatSystem {
   /* Encounters                                                             */
   /* ---------------------------------------------------------------------- */
 
-  /** Start scoring a fight. Also driven automatically by `EncounterStarted`. */
+  /**
+   * Start scoring a fight. Also driven automatically by `EncounterStarted`.
+   *
+   * An outstanding encounter is ABORTED first rather than overwritten. Combat
+   * is the only production emitter of `EncounterEnded`, so a tally that is
+   * silently replaced is an encounter id that is never closed — progression
+   * files an incident for it on `EncounterStarted` and only ever deletes on
+   * `EncounterEnded`, and the HUD opens a banner that never comes down.
+   */
   beginEncounter(start: IEncounterStartLike): void {
+    if (this.encounters.active) this.finishEncounter('aborted');
     this.encounters.begin({
       encounterId: start.encounterId,
       hostileIds: start.hostileIds,
@@ -557,11 +590,37 @@ export class CombatSystem {
     if (target === undefined) return;
     // THE gate. A boss becomes killable when the script says so, and by no
     // other means — no HP threshold, no damage total, no combo.
-    target.phaseResolved = event.isFinalPhase;
+    //
+    // It LATCHES. A multi-phase script that broadcasts a later non-final beat
+    // — "recovering", "enraged", a second controller re-stating phase state —
+    // must not re-close a gate the story already opened, or every subsequent
+    // punch takes the gated branch and the boss becomes permanently
+    // unkillable with no feedback. `phaseResolved` is documented as set ONCE.
+    if (event.isFinalPhase) target.phaseResolved = true;
+  }
+
+  /**
+   * Something died. Mark it dead in the registry, whoever killed it.
+   *
+   * The resolver only ever sets `dead` on kills IT made, so a civilian crushed
+   * by falling debris or a monster finished by a scripted set piece stays
+   * `dead: false` here — and the next punch that sweeps the corpse's position
+   * emits a SECOND `EntityKilled` for the same id, which `EntityKilledEvent`
+   * says fires exactly once. Adopting every kill off the bus keeps combat's
+   * private registry from disagreeing with the rest of the game.
+   */
+  private onEntityKilled(event: GameEventOf<'EntityKilled'>): void {
+    const target = this.targets.get(event.entityId);
+    if (target === undefined) return;
+    target.dead = true;
+    target.health = 0;
   }
 
   private onEncounterStarted(event: GameEventOf<'EncounterStarted'>): void {
-    if (this.encounters.active) return;
+    // A second fight starting while one is live closes the first: dropping it
+    // would leave an `EncounterStarted` this system observed with no matching
+    // `EncounterEnded`, and combat is the only thing that emits one.
+    if (this.encounters.active) this.finishEncounter('aborted');
     const hostiles: EntityId[] = [];
     const allies: EntityId[] = [];
     for (const id of event.participantIds) {
@@ -635,6 +694,10 @@ export class CombatSystem {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    // Tearing down mid-fight is an abort, not a win — but it is still a
+    // close. Every `EncounterStarted` combat observed has to be matched by an
+    // `EncounterEnded` for that id, and this is the last chance to emit one.
+    if (this.encounters.active) this.finishEncounter('aborted');
     for (const off of this.unsubscribes) off();
     this.unsubscribes.length = 0;
     this.boredomMeter.dispose();

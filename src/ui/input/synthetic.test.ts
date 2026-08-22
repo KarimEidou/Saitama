@@ -205,6 +205,23 @@ describe('scripted sequences', () => {
     step(manager, 5);
     expect(manager.synthetic.scriptRunning).toBe(false);
   });
+
+  it('a non-finite frame count cannot wedge the queue forever', () => {
+    const manager = makeManager();
+    manager.syntheticEnabled = true;
+    // `frames: number` type-checks NaN — e.g. `Math.round(durationSec / dt)`
+    // where the duration came back undefined from a config lookup.
+    manager.synthetic.queue([
+      { frames: Number.NaN, patch: { move: { x: 1, y: 0 } }, label: 'bad' },
+      { frames: 1, patch: { move: null }, label: 'stop' },
+    ]);
+
+    expect(step(manager, 0).move.x).toBeCloseTo(1, 6);
+    step(manager, 1);
+    const state = step(manager, 2);
+    expect(manager.synthetic.scriptRunning).toBe(false);
+    expect(state.move.magnitude).toBe(0);
+  });
 });
 
 describe('window.__INPUT__ bridge', () => {
@@ -219,8 +236,12 @@ describe('window.__INPUT__ bridge', () => {
     const roundTripped = JSON.parse(JSON.stringify(snapshot));
     expect(roundTripped.move.y).toBeCloseTo(1, 6);
     expect(roundTripped.buttons.sprint.held).toBe(true);
-    // Round-tripping through JSON must not change anything.
-    expect(inputStatesEqual(snapshot, roundTripped, { ignoreTiming: false })).toBe(true);
+    // Round-tripping through JSON must not change anything — pointers included,
+    // since a `PointerSample` field lost across the CDP boundary is exactly the
+    // failure this bridge exists to rule out.
+    expect(
+      inputStatesEqual(snapshot, roundTripped, { ignoreTiming: false, ignorePointers: false })
+    ).toBe(true);
   });
 
   it('snapshot is a deep copy — mutating it cannot corrupt the manager', () => {
@@ -288,6 +309,16 @@ describe('state helpers', () => {
     const copy = cloneInputState(state);
     (copy.buttons.punch as { held: boolean }).held = false;
     expect(state.buttons.punch.held).toBe(true);
+  });
+
+  it('compares pointer FIELDS, not just how many there are', () => {
+    const base = neutralInputState();
+    const sample = { id: 7, x: 0.25, y: 0.3, dx: 0, dy: 0, pressure: 1, down: true, up: false };
+    const a = applyInputPatch(base, { pointers: [sample] });
+    const flippedY = applyInputPatch(base, { pointers: [{ ...sample, y: 1 - sample.y }] });
+    // Same count, every coordinate wrong: only an opted-in comparison sees it.
+    expect(inputStatesEqual(a, flippedY)).toBe(true);
+    expect(inputStatesEqual(a, flippedY, { ignorePointers: false })).toBe(false);
   });
 
   it('inputStatesEqual ignores device and timing by default', () => {

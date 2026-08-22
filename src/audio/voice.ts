@@ -73,6 +73,17 @@ export interface ITriggerParams {
   readonly position?: Vec3;
   /** Distance attenuation override. */
   readonly spatial?: ISpatialSettings;
+  /** Ramp the per-trigger VCA up from silence over this many seconds. */
+  readonly fadeIn?: number;
+  /**
+   * Monotonic index of this trigger within the audio system.
+   *
+   * For voices whose instances alternate — the footstep's left/right weight —
+   * the state cannot live on the voice: a pooled bank hands consecutive steps
+   * to DIFFERENT instances, so a per-voice toggle comes out as LLLLRRRR across
+   * a four-deep pool. The caller owns the sequence; the voice reads it.
+   */
+  readonly sequence?: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -158,8 +169,17 @@ export abstract class SynthVoice {
     }
 
     // The per-trigger VCA is a plain multiplier; the shape lives in the layers.
+    // A requested fade-in is the one thing that shapes it, and it is written
+    // here rather than by the caller so there is exactly one writer at `t`.
+    const gain = Math.max(p.gain, 0);
+    const fadeIn = p.fadeIn && p.fadeIn > 0 ? p.fadeIn : 0;
     this.output.gain.cancelScheduledValues(t);
-    this.output.gain.setValueAtTime(Math.max(p.gain, 0), t);
+    if (fadeIn > 0) {
+      this.output.gain.setValueAtTime(0, t);
+      this.output.gain.linearRampToValueAtTime(gain, t + fadeIn);
+    } else {
+      this.output.gain.setValueAtTime(gain, t);
+    }
 
     this.applySend(p.send ?? 0, t);
 

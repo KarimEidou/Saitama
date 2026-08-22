@@ -235,6 +235,16 @@ export const TRIPLANAR_NORMAL_FRAGMENT = /* glsl */ `
 		tnY = vec3( tnY.xy + tpWorldN.xz, abs( tnY.z ) * tpWorldN.y );
 		tnZ = vec3( tnZ.xy + tpWorldN.xy, abs( tnZ.z ) * tpWorldN.z );
 		vec3 tpNormal = normalize( tnX.zyx * tpBlend.x + tnY.xzy * tpBlend.y + tnZ.xyz * tpBlend.z );
+		// This replaces <normal_fragment_maps> wholesale and rebuilds the normal
+		// from the interpolated GEOMETRIC world normal, which carries no facing
+		// term — where three's stock chunk inherits one from the tbn that
+		// <normal_fragment_begin> already multiplied by faceDirection. Without
+		// this, a DoubleSide triplanar surface (the cratered terrain shell seen
+		// from underground, a torn-open floor slab seen from beneath) lights its
+		// back faces as though they faced the camera.
+		#ifdef DOUBLE_SIDED
+			tpNormal *= faceDirection;
+		#endif
 		normal = normalize( ( viewMatrix * vec4( tpNormal, 0.0 ) ).xyz );
 	}
 `;

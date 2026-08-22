@@ -164,6 +164,18 @@ export interface Strand {
   readonly rings: readonly Ring[];
   /** Vertices generated per ring. Higher = rounder and more expensive. */
   readonly radialSegments: number;
+  /**
+   * Fraction of one segment to shift the ring samples by. Default 0.
+   *
+   * At high segment counts it only rotates the sampling; at low ones it
+   * decides WHICH points of the cross-section exist. The default lands the
+   * samples on the four axis extremes, where every superellipse touches its
+   * bounding box — so a 4-segment plate comes out a rhombus and its
+   * `exponent` does nothing. Half a segment lands them on the corners
+   * instead. UVs keep using the unshifted parameter, so the atlas mapping is
+   * unaffected.
+   */
+  readonly radialOffset?: number;
   readonly capStart: CapMode;
   readonly capEnd: CapMode;
   /**
@@ -256,6 +268,13 @@ export interface LodSettings {
 
 /** Which garment pieces a character wears. */
 export interface GarmentSpec {
+  /**
+   * Descriptive only — handled by the costume `PaintFn` (see
+   * `bodysuitCostume`), never by a strand. A jumpsuit does not change the
+   * silhouette, so it is a recolour plus ~3% inflation of the body itself
+   * (garment.ts explains the trade), which means setting this flag builds no
+   * geometry and switches nothing on.
+   */
   readonly jumpsuit?: boolean;
   readonly cape?: boolean;
   readonly coat?: boolean;

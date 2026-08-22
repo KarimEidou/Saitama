@@ -13,12 +13,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { LethalIntent, ThreatTier } from '@/types';
+import type { EntityId, LethalIntent, ThreatTier, Vec3 } from '@/types';
 import { createRng } from '@/util';
 import { HitResolver } from '../resolver';
 import { LinearScan, TargetRegistry } from '../targets';
 import { DEFAULT_COMBAT_TUNING, LETHAL_INTENTS, isLethalIntent } from '../tuning';
-import type { IPunchRequest } from '../types';
+import type { ICombatBroadPhase, IPunchRequest } from '../types';
 import { RecordingBus } from './fixtures';
 
 const TUNING = DEFAULT_COMBAT_TUNING;
@@ -420,6 +420,139 @@ describe('the emitted event sequence', () => {
     }
     const outcome = resolver.resolve(punch({ maxTargets: 1 }));
     expect(outcome.hits.map((h) => h.targetId)).toEqual(['m0']);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The broad-phase contract                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A broad phase that reports every registered id TWICE.
+ *
+ * Not a contrived one: a grid-backed implementation legitimately over-reports
+ * an entity whose bounding sphere straddles a cell boundary, and the interface
+ * says implementations MAY over-report. It says nothing about uniqueness.
+ */
+class DuplicatingScan implements ICombatBroadPhase {
+  constructor(private readonly registry: TargetRegistry) {}
+
+  private fill(out: EntityId[]): number {
+    out.length = 0;
+    for (const target of this.registry.values()) out.push(target.id, target.id);
+    return out.length;
+  }
+
+  queryCone(_o: Vec3, _d: Vec3, _range: number, _halfAngle: number, out: EntityId[]): number {
+    return this.fill(out);
+  }
+
+  queryRadius(_o: Vec3, _range: number, out: EntityId[]): number {
+    return this.fill(out);
+  }
+}
+
+/**
+ * A conforming FILL-IN-PLACE broad phase.
+ *
+ * `queryCone`/`queryRadius` are documented as returning "the number written
+ * into `out`", which is the standard idiom: write `out[i]` for `i < n` and
+ * leave the tail alone. `out.length` is this implementation's capacity, not
+ * its answer — so a resolver that iterates the array instead of the count
+ * narrow-phases ids the punch never collected.
+ */
+class PaddedScan implements ICombatBroadPhase {
+  constructor(
+    private readonly answer: readonly EntityId[],
+    private readonly padding: EntityId
+  ) {}
+
+  private fill(out: EntityId[]): number {
+    for (let i = 0; i < this.answer.length + 4; i++) out[i] = this.padding;
+    for (let i = 0; i < this.answer.length; i++) out[i] = this.answer[i]!;
+    return this.answer.length;
+  }
+
+  queryCone(_o: Vec3, _d: Vec3, _range: number, _halfAngle: number, out: EntityId[]): number {
+    return this.fill(out);
+  }
+
+  queryRadius(_o: Vec3, _range: number, out: EntityId[]): number {
+    return this.fill(out);
+  }
+}
+
+describe('the broad phase is allowed to over-report, but not to be believed twice', () => {
+  it('resolves a victim reported twice exactly once', () => {
+    const bus = new RecordingBus();
+    const registry = new TargetRegistry();
+    const resolver = new HitResolver({
+      bus,
+      registry,
+      tuning: TUNING,
+      broadPhase: new DuplicatingScan(registry),
+      rng: createRng('duplicates'),
+    });
+    registry.add({
+      id: 'monster',
+      type: 'monster',
+      faction: 'monster',
+      position: { x: 0, y: 1, z: -10 },
+      radius: 1,
+    });
+
+    const outcome = resolver.resolve(punch());
+    expect(outcome.hits).toHaveLength(1);
+    expect(outcome.kills).toBe(1);
+    // `EntityKilled` fires exactly once per entity. Two ImpulseApplied events
+    // would also double the ragdoll's launch velocity.
+    expect(bus.ofType('EntityKilled')).toHaveLength(1);
+    expect(bus.ofType('ImpulseApplied')).toHaveLength(1);
+  });
+
+  it('counts a duplicated civilian once on the scorecard', () => {
+    const bus = new RecordingBus();
+    const registry = new TargetRegistry();
+    const resolver = new HitResolver({
+      bus,
+      registry,
+      tuning: TUNING,
+      broadPhase: new DuplicatingScan(registry),
+      rng: createRng('duplicate-civilians'),
+    });
+    registry.add({ id: 'civ', type: 'npc', faction: 'civilian', position: { x: 0, y: 1, z: -6 } });
+
+    const outcome = resolver.resolve(punch({ intent: 'full' }));
+    expect(outcome.civiliansKilled).toBe(1);
+    expect(bus.ofType('CivilianLost')).toHaveLength(1);
+  });
+
+  it('honours the candidate COUNT, not the length of the buffer it filled', () => {
+    const bus = new RecordingBus();
+    const registry = new TargetRegistry();
+    for (const id of ['in-range', 'stale-tail']) {
+      registry.add({
+        id,
+        type: 'monster',
+        faction: 'monster',
+        position: { x: 0, y: 1, z: -10 },
+        radius: 1,
+      });
+    }
+    const resolver = new HitResolver({
+      bus,
+      registry,
+      tuning: TUNING,
+      broadPhase: new PaddedScan(['in-range'], 'stale-tail'),
+      rng: createRng('padded'),
+    });
+
+    // Both are geometrically inside the cone, so only the returned count can
+    // keep the punch off the one the broad phase did not report.
+    const outcome = resolver.resolve(punch());
+    expect(outcome.hits.map((h) => h.targetId)).toEqual(['in-range']);
+    expect(bus.ofType('EntityKilled')).toHaveLength(1);
+    expect(registry.get('stale-tail')!.dead).toBe(false);
   });
 });
 

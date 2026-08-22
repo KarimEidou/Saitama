@@ -33,6 +33,9 @@ import { SynthVoice, type ITriggerParams } from '../voice';
 /** Concurrent crackle grains. */
 const CRACKLE_UNITS = 10;
 
+/** How far the groan leads the collapse, in seconds. */
+const GROAN_LEAD = 0.15;
+
 interface CollapseShape {
   readonly rumbleCutoff: number;
   readonly rumbleAttack: number;
@@ -232,8 +235,11 @@ export class CollapseVoice extends SynthVoice {
     const scale = lerp(0.6, 1.15, power);
     const rng = p.rng;
 
-    // Groan leads by 150 ms — the structure complains before it falls.
-    const groanStart = Math.max(t - 0, 0);
+    // Groan leads by 150 ms — the structure complains before it falls. The
+    // subtrahend really has to be the lead: with `t - 0` the groan's 150 ms
+    // attack put its peak AFTER the rumble's for the shorter variants, so a
+    // shedding facade groaned in reaction to falling instead of before it.
+    const groanStart = Math.max(t - GROAN_LEAD, 0);
     sweep(
       this.groanCarrier.frequency,
       groanStart,

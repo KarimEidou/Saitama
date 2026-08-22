@@ -237,6 +237,16 @@ export class MaterialLib implements IDisposable {
    */
   acquire(request: IMaterialRequest): THREE.Material {
     const { spec } = request;
+    if (this.disposed) {
+      // Nothing here is usable any more: the placeholder and the damage mask
+      // have been disposed and the record map has been cleared, so the material
+      // this would hand back binds dead textures and is never released. Say so
+      // rather than let a teardown-ordering bug become a rendering mystery.
+      log.warn(
+        `material "${spec.id}" was acquired from a disposed MaterialLib; the ` +
+          `result binds disposed textures and is not tracked. Fix the teardown order.`
+      );
+    }
     const existing = this.records.get(spec.id);
     if (existing) {
       if (existing.spec !== spec && !specsMatch(existing.spec, spec)) {
@@ -387,27 +397,50 @@ export class MaterialLib implements IDisposable {
     handles: TextureHandle[]
   ): void {
     const { spec } = request;
-    const repeat = spec.uvRepeat;
+    const repeatX = spec.uvRepeat?.[0] ?? 1;
+    const repeatY = spec.uvRepeat?.[1] ?? 1;
+    const needsRepeat = repeatX !== 1 || repeatY !== 1;
 
     const prepare = (
       texture: THREE.Texture | undefined,
       colorSpace: THREE.ColorSpace
     ): THREE.Texture | null => {
       if (!texture) return null;
-      let out = texture;
-      // A shared texture must never have its repeat mutated in place — every
-      // other material bound to it would silently change. Cloning shares the
-      // same `source`, so three still uploads exactly one GPU texture.
-      if (repeat && (repeat[0] !== 1 || repeat[1] !== 1)) {
-        out = texture.clone();
-        out.repeat.set(repeat[0], repeat[1]);
+
+      // A texture from the registry — or from the caller's `textures` override —
+      // belongs to somebody else, and `repeat`, `colorSpace` and `anisotropy`
+      // are all per-TEXTURE-OBJECT state. The registry hands the same object out
+      // as a colour map to one material and as an ORM/normal map to another, so
+      // writing any of them in place silently retags every other material bound
+      // to it and the last writer wins: one of the two is then a full gamma off,
+      // with no diagnostic either way. Nothing is mutated here; a clone is made
+      // whenever something must differ, and the clone is owned by this record.
+      //
+      // Cloning shares `source`, so no image data is duplicated on the CPU. It
+      // is NOT free on the GPU: three keys its GL textures per PARAMETER SET
+      // (`getTextureCacheKey` covers wrap modes, anisotropy and colour space),
+      // so a clone that differs in any of those is a second upload of the same
+      // source — unavoidable for two different colour spaces, but the reason
+      // `uvRepeat` on a page that is already bound elsewhere costs real VRAM.
+      if (
+        !needsRepeat &&
+        texture.colorSpace === colorSpace &&
+        texture.anisotropy === this.anisotropyValue
+      ) {
+        return texture;
+      }
+
+      const out = texture.clone();
+      if (needsRepeat) {
+        out.repeat.set(repeatX, repeatY);
         out.wrapS = THREE.RepeatWrapping;
         out.wrapT = THREE.RepeatWrapping;
-        out.needsUpdate = true;
-        ownedTextures.push(out);
       }
       out.colorSpace = colorSpace;
       out.anisotropy = this.anisotropyValue;
+      // No `needsUpdate` write: `Texture.copy()` already set it, and every extra
+      // one bumps the SHARED `source.version`, re-uploading every sibling view.
+      ownedTextures.push(out);
       return out;
     };
 
@@ -717,6 +750,11 @@ export class MaterialLib implements IDisposable {
     this.missingTexture?.dispose();
     this.missingTexture = undefined;
     this.emptyDamageMask.dispose();
+    // `globals` escaped BY REFERENCE into every injected material's uniforms, so
+    // leaving the disposed placeholder in the slot would have three re-upload it
+    // from its retained JS array on the next bind — silently resurrecting a
+    // texture nothing accounts for any more.
+    this.globals.uEngineDamageMask.value = null;
   }
 }
 
@@ -756,6 +794,11 @@ export function hasSpecularOnlyEnvironment(material: THREE.Material): boolean {
  * unconditionally. On a mesh that lacks them WebGL supplies the default vertex
  * attribute (0,0,0,1) — the tint multiplies to black and the object vanishes.
  * Always call this on every InstancedMesh using such a material.
+ *
+ * The attributes are written onto `mesh.geometry`, so that geometry must belong
+ * to this mesh alone. Sharing one archetype geometry between batches of
+ * different sizes makes the last call win and the larger batch read off the end
+ * of the buffer; this warns when it detects that, but it cannot fix it.
  *
  * @param mesh    Target instanced mesh.
  * @param random  Source of randomness, so world generation stays deterministic.
@@ -798,6 +841,23 @@ export function applyInstanceVariation(
     wear[i] = wearLo + random() * (wearHi - wearLo);
   }
 
+  // These attributes are PER-MESH data on a possibly SHARED geometry. Two
+  // `InstancedMesh`es of different sizes sharing one archetype geometry is the
+  // standard way to batch a prop, and the second call here silently replaces the
+  // first mesh's attribute: the larger batch then reads past the end of the
+  // buffer and its extra instances tint to black. Nothing else in the frame says
+  // so, hence the warning — the fix is a geometry per InstancedMesh.
+  const existing = mesh.geometry.getAttribute(INSTANCE_TINT_ATTRIBUTE);
+  if (existing && existing.count !== count) {
+    log.warn(
+      `applyInstanceVariation replaced a ${existing.count}-instance variation ` +
+        `attribute with a ${count}-instance one on the geometry of ` +
+        `"${mesh.name || 'unnamed InstancedMesh'}". That geometry is shared with ` +
+        `an InstancedMesh of a different size, which will now render instances ` +
+        `past ${count} black. Give each InstancedMesh its own geometry.`
+    );
+  }
+
   mesh.geometry.setAttribute(INSTANCE_TINT_ATTRIBUTE, new THREE.InstancedBufferAttribute(tint, 3));
   mesh.geometry.setAttribute(INSTANCE_WEAR_ATTRIBUTE, new THREE.InstancedBufferAttribute(wear, 1));
 }
@@ -805,6 +865,15 @@ export function applyInstanceVariation(
 /** Structural equality of the fields that affect the built material. */
 function specsMatch(a: MaterialSpec, b: MaterialSpec): boolean {
   return (
+    // `uvRepeat`, `normalScale` and `emissiveIntensity` are all consumed by
+    // `build()`, and they are the fields MOST likely to differ between two call
+    // sites that reuse an id (a road surface and a bollard sharing
+    // 'mat.concrete'). Omitting them made the duplicate-id guard pass exactly
+    // the mismatches it exists to catch.
+    (a.uvRepeat?.[0] ?? 1) === (b.uvRepeat?.[0] ?? 1) &&
+    (a.uvRepeat?.[1] ?? 1) === (b.uvRepeat?.[1] ?? 1) &&
+    a.normalScale === b.normalScale &&
+    a.emissiveIntensity === b.emissiveIntensity &&
     a.kind === b.kind &&
     a.color === b.color &&
     a.roughness === b.roughness &&

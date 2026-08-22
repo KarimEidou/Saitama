@@ -16,14 +16,34 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import {
   gaitProfile,
   measureFootSlide,
   measureLimbSanity,
   measureNaiveFootSlide,
 } from '../analysis';
-import { solveGait } from '../locomotion';
+import { LocomotionSolver, solveGait } from '../locomotion';
+import { copyPose, createPose, poseToModelMatrices } from '../pose';
+import type { AnimRig, LocomotionInput, LocomotionReport } from '../types';
 import { civilianFixture, heroFixture, scaledSpeed, showcaseFixtures } from './support';
+
+/** Drive a solver for `steps` frames and hand back the last report. */
+function run(
+  rig: AnimRig,
+  steps: number,
+  input: LocomotionInput,
+  solver = new LocomotionSolver(rig),
+  dt = 1 / 120
+): { solver: LocomotionSolver; report: LocomotionReport } {
+  const pose = createPose(rig.boneCount);
+  let report!: LocomotionReport;
+  for (let i = 0; i < steps; i++) {
+    copyPose(pose, rig.rest);
+    report = solver.update(dt, input, pose);
+  }
+  return { solver, report };
+}
 
 /** Metres. A tenth of a millimetre is invisible; this is five times that. */
 const SLIDE_LIMIT = 0.0005;
@@ -97,6 +117,131 @@ describe('planted feet', () => {
       });
       expect(report.maxContactDrift, fixture.name).toBeLessThan(SLIDE_LIMIT);
     }
+  });
+});
+
+describe('the solver starting mid-stride', () => {
+  // Every seeded crowd member starts at a random cycle phase, and roughly a
+  // third of them start with a foot already in swing — with no toe-off behind
+  // them to swing away from.
+  const { rig } = heroFixture('saitama');
+
+  const firstFrame = (root: THREE.Vector3): LocomotionReport => {
+    const solver = new LocomotionSolver(rig, { phase: 0.73 });
+    solver.setRoot(root, 0);
+    const pose = createPose(rig.boneCount);
+    copyPose(pose, rig.rest);
+    return solver.update(1 / 60, { speed: 1.4 }, pose, false);
+  };
+
+  it('does not lerp a swinging ankle in from the world origin', () => {
+    // The lock is a WORLD position, so an unwritten one is the world origin —
+    // hundreds of metres away for anything standing in the city. The leg then
+    // snaps straight backwards and the reach limiter pins the pelvis at its
+    // crouch floor for the rest of the swing.
+    const near = firstFrame(new THREE.Vector3(0, 0, 0));
+    const far = firstFrame(new THREE.Vector3(300, 0, 300));
+    expect(far.right.phase).toBe('swing');
+    expect(far.right.slip).toBeLessThan(0.001);
+    expect(far.left.slip).toBeLessThan(0.001);
+    // The whole solve is translation invariant, which is the real statement.
+    expect(far.reachDrop).toBeCloseTo(near.reachDrop, 6);
+    expect(far.reachDrop).toBeLessThan(rig.metrics.legLength * 0.17);
+  });
+});
+
+describe('airborne', () => {
+  const { rig } = heroFixture('saitama');
+
+  /** Worst slip and reach drop over `steps` frames of the given input. */
+  const worstOf = (
+    solver: LocomotionSolver,
+    steps: number,
+    input: LocomotionInput
+  ): { slip: number; drop: number } => {
+    const pose = createPose(rig.boneCount);
+    let slip = 0;
+    let drop = 0;
+    for (let i = 0; i < steps; i++) {
+      copyPose(pose, rig.rest);
+      const report = solver.update(1 / 120, input, pose);
+      slip = Math.max(slip, report.left.slip, report.right.slip);
+      drop = Math.max(drop, report.reachDrop);
+    }
+    return { slip, drop };
+  };
+
+  it('holds the legs instead of dragging a stale swing anchor', () => {
+    // The cycle phase freezes while `grounded` is false. Continuing the swing
+    // anyway drags its world anchor backwards at the root's speed for the whole
+    // flight, and a foot that was in stance restarts its swing parked at the
+    // toe-off extreme — out of the leg's reach. Either one pins the pelvis at
+    // the crouch floor and makes `reachDrop`, `pelvisY` and `slip` meaningless
+    // for as long as the character is in the air.
+    const { solver } = run(rig, 400, { speed: 3 });
+    const air = worstOf(solver, 180, { speed: 3, grounded: false });
+    expect(air.slip).toBeLessThan(0.001);
+    expect(air.drop).toBeLessThan(rig.metrics.legLength * 0.02);
+  });
+
+  it('lands without a leg reaching for where it took off from', () => {
+    // Two landing hazards at once. The world anchors went stale while the phase
+    // was frozen, so a foot still in swing would blend in from metres back; and
+    // touchdown charges `local` as sub-frame overshoot, which is only true when
+    // the crossing happened this frame — a foot re-entering stance at an
+    // arbitrary `local` would have its lock shifted back by up to a full stance
+    // excursion and be pinned there for the rest of the step.
+    const { solver } = run(rig, 400, { speed: 1.4 });
+    worstOf(solver, 60, { speed: 1.4, grounded: false });
+    const landed = worstOf(solver, 240, { speed: 1.4 });
+    expect(landed.slip).toBeLessThan(0.001);
+    expect(landed.drop).toBeLessThan(rig.metrics.legLength * 0.05);
+  });
+});
+
+describe('posture under the gait', () => {
+  const { rig } = heroFixture('saitama');
+
+  /** Model-space fore/aft offset of the neck from the hips. Forward is -Z. */
+  const neckLean = (speed: number, slouch: number): number => {
+    const { solver } = run(rig, 240, { speed, slouch });
+    // Pin the phase so two speeds are compared at the same point of the cycle.
+    solver.phase = 0.25;
+    const pose = createPose(rig.boneCount);
+    copyPose(pose, rig.rest);
+    solver.update(1e-6, { speed, slouch }, pose);
+    const model = poseToModelMatrices(pose, rig, []);
+    const neck = new THREE.Vector3().setFromMatrixPosition(model[rig.index.Neck!]!);
+    const hips = new THREE.Vector3().setFromMatrixPosition(model[rig.index.Hips!]!);
+    return neck.z - hips.z;
+  };
+
+  it('leans the thorax FORWARD as the gait moves from standing to a run', () => {
+    // The sagittal axis again, this time on the path that bypasses
+    // `posture.ts`. A run that leans backwards is the single most obvious tell
+    // a procedural gait can have, and no height or slip measurement sees it.
+    expect(neckLean(6, 0)).toBeLessThan(neckLean(0, 0) - 0.05);
+  });
+
+  it('slouches forward as boredom rises, rather than arching back', () => {
+    // `LocomotionInput.slouch` is fed straight from Saitama's Boredom meter.
+    expect(neckLean(1.4, 1)).toBeLessThan(neckLean(1.4, 0) - 0.02);
+  });
+});
+
+describe('report hygiene', () => {
+  const { rig } = heroFixture('saitama');
+
+  it('hands out a copy of the plant lock rather than the live vector', () => {
+    // `FootState.plantWorld` is rewritten in place at every touchdown, so a
+    // consumer that keeps two reports to measure a step length would see both
+    // references mutate to the newest value and always measure zero.
+    const solver = new LocomotionSolver(rig);
+    const { report: first } = run(rig, 1, { speed: 1.4 }, solver);
+    const snapshot = first.right.plantWorld.clone();
+    const { report: later } = run(rig, 600, { speed: 1.4 }, solver);
+    expect(first.right.plantWorld.equals(snapshot)).toBe(true);
+    expect(later.right.plantWorld.distanceTo(snapshot)).toBeGreaterThan(1);
   });
 });
 

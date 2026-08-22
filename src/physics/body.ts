@@ -17,7 +17,11 @@
  */
 
 import type * as THREE from 'three';
-import type { Collider, RigidBody as RapierBody } from '@dimforge/rapier3d-compat';
+import type {
+  Collider,
+  RigidBody as RapierBody,
+  RigidBodyType as RapierBodyType,
+} from '@dimforge/rapier3d-compat';
 import type {
   BodyHandle,
   ColliderHandle,
@@ -42,9 +46,11 @@ const scratchVec: MutableVec = { x: 0, y: 0, z: 0 };
 /** A live rigid body. Created by the world; never constructed directly. */
 export class PhysicsBody implements IRigidBody {
   readonly handle: BodyHandle;
-  readonly type: RigidBodyType;
   readonly entityId: EntityId | undefined;
   readonly layer: PhysicsLayer;
+
+  /** Mirror of the solver's body type; kept truthful by `setType`. */
+  private bodyType: RigidBodyType;
 
   /** The underlying solver body. Physics-internal; do not leak to gameplay. */
   readonly raw: RapierBody;
@@ -89,7 +95,7 @@ export class PhysicsBody implements IRigidBody {
     this.raw = raw;
     this.collider = collider;
     this.handle = raw.handle;
-    this.type = type;
+    this.bodyType = type;
     this.layer = layer;
     this.entityId = entityId;
     this.onForce = onForce;
@@ -109,6 +115,28 @@ export class PhysicsBody implements IRigidBody {
   /** Handle of the current collider, or -1 while the body has none. */
   get colliderHandle(): ColliderHandle {
     return this.collider?.handle ?? -1;
+  }
+
+  /** How the solver is currently simulating this body. */
+  get type(): RigidBodyType {
+    return this.bodyType;
+  }
+
+  /**
+   * Change the body type, keeping `type` truthful.
+   *
+   * Callers that go straight to `raw.setBodyType` leave the wrapper reporting
+   * the type the body had at construction, and both consumers of `type`
+   * (`PhysicsWorld.activeBodyCount` and `applyRadialImpulse`) then act on a
+   * lie — a frozen ragdoll limb is counted as awake forever and is handed
+   * impulses the solver discards.
+   *
+   * The solver's own enum value is supplied by the caller: this file imports
+   * Rapier TYPES only, and `world.rapier` is the one place the module lives.
+   */
+  setType(type: RigidBodyType, rawType: RapierBodyType, wakeUp = false): void {
+    this.bodyType = type;
+    this.raw.setBodyType(rawType, wakeUp);
   }
 
   get isSleeping(): boolean {

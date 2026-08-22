@@ -46,6 +46,36 @@ const ACTIVE_CENTRED_AXIS = Object.freeze({
   active: true,
 });
 
+/** Applied to whichever backend is winning an axis race this frame. */
+interface AxisPick {
+  x: number;
+  y: number;
+  magnitude: number;
+  device: InputDevice;
+}
+
+/** Two magnitudes closer than this are a tie, and recency decides. */
+const AXIS_TIE_EPSILON = 1e-6;
+
+/**
+ * THE axis merge rule, shared by `move` and `look` so the two cannot drift:
+ * largest magnitude wins, ties go to the most recently active backend.
+ */
+function winsAxis(
+  magnitude: number,
+  device: InputDevice,
+  pick: AxisPick | null,
+  lastActive: ReadonlyMap<InputDevice, number>
+): boolean {
+  if (magnitude <= 0) return false;
+  if (pick === null) return true;
+  if (magnitude > pick.magnitude + AXIS_TIE_EPSILON) return true;
+  return (
+    Math.abs(magnitude - pick.magnitude) <= AXIS_TIE_EPSILON &&
+    (lastActive.get(device) ?? -1) > (lastActive.get(pick.device) ?? -1)
+  );
+}
+
 export interface IInputManagerOptions {
   /** Element the touch overlay mounts into. Defaults to `document.body`. */
   readonly mount?: HTMLElement;
@@ -169,14 +199,6 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
   let disposed = false;
   let uninstallBridge: (() => void) | null = null;
 
-  /** Applied to whichever backend is winning the axis race this frame. */
-  interface AxisPick {
-    x: number;
-    y: number;
-    magnitude: number;
-    device: InputDevice;
-  }
-
   function poll(frame: number, time: number): InputState {
     const dt = Number.isNaN(lastTime) ? 0 : Math.max(0, time - lastTime);
     lastTime = time;
@@ -213,13 +235,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
       if (scratch.hasMove) {
         moveTouched = true;
         const magnitude = Math.hypot(scratch.moveX, scratch.moveY);
-        if (
-          magnitude > 0 &&
-          (movePick === null ||
-            magnitude > movePick.magnitude + 1e-6 ||
-            (Math.abs(magnitude - movePick.magnitude) <= 1e-6 &&
-              (lastActive.get(backend.device) ?? -1) > (lastActive.get(movePick.device) ?? -1)))
-        ) {
+        if (winsAxis(magnitude, backend.device, movePick, lastActive)) {
           movePick = { x: scratch.moveX, y: scratch.moveY, magnitude, device: backend.device };
         }
       }
@@ -227,7 +243,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
       if (scratch.hasLook) {
         lookTouched = true;
         const magnitude = Math.hypot(scratch.lookX, scratch.lookY);
-        if (magnitude > 0 && (lookPick === null || magnitude > lookPick.magnitude)) {
+        if (winsAxis(magnitude, backend.device, lookPick, lastActive)) {
           lookPick = { x: scratch.lookX, y: scratch.lookY, magnitude, device: backend.device };
         }
       }
@@ -306,10 +322,12 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
     set enabled(value: boolean) {
       if (enabled === value) return;
       enabled = value;
-      if (!value) {
-        tracker.reset();
-        for (const backend of backends) backend.reset();
-      }
+      // Reset on BOTH edges, exactly as `syntheticEnabled` does. The backends
+      // are never torn down here, so their listeners keep running while we are
+      // disabled: without the re-enable reset, a whole disabled period's worth
+      // of unread drag and pinch flushes into the first frame back.
+      tracker.reset();
+      for (const backend of backends) backend.reset();
     },
 
     dispose(): void {
@@ -358,7 +376,10 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
     },
 
     setTuning(patch: Partial<IInputTuning>): void {
-      tuning = resolveTuning({ ...tuning, ...patch });
+      // The PATCH goes in as the patch, the current tuning as the base —
+      // spreading the two together first would make every field defined and
+      // silently skip `resolveTuning`'s stickRadius/stickFullDeflectionPx sync.
+      tuning = resolveTuning(patch, tuning);
       touch?.setTuning(tuning);
       keyboard?.setTuning(tuning);
       gamepad?.setTuning(tuning);

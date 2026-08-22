@@ -48,6 +48,11 @@ export function hasShaderHooks(material: THREE.Material): boolean {
 /**
  * Append a compile-time shader mutation.
  *
+ * A callback already assigned DIRECTLY onto `material.onBeforeCompile` (the
+ * crowd's VAT skinning, the roster's face injection, the city's damage mask) is
+ * adopted as the chain's first hook, keyed `'assigned'`, rather than being
+ * overwritten by the dispatcher.
+ *
  * @param material Target material.
  * @param key      Short token distinguishing this hook's OUTPUT. Two materials
  *                 whose hooks produce different GLSL must produce different
@@ -71,6 +76,16 @@ export function addShaderHook(material: THREE.Material, key: string, fn: ShaderH
       ? material.customProgramCacheKey.bind(material)
       : undefined;
 
+    // …and the callback that key described. Installing the dispatcher over a
+    // directly-assigned `onBeforeCompile` throws its injection away with no
+    // error anywhere while KEEPING its cache key — the bind-pose bug
+    // `adoptAssignedHook` documents, reachable from the obvious entry point.
+    // So adopt it as the chain's FIRST hook instead; it keeps running, and it
+    // keeps running first.
+    const priorCallback = Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')
+      ? material.onBeforeCompile
+      : undefined;
+
     const list = hooks;
     material.onBeforeCompile = function composedOnBeforeCompile(shader, renderer): void {
       for (let i = 0; i < list.length; i++) list[i]!.fn(shader, renderer);
@@ -80,6 +95,13 @@ export function addShaderHook(material: THREE.Material, key: string, fn: ShaderH
       for (let i = 0; i < list.length; i++) out += list[i]!.key + '|';
       return out;
     };
+
+    if (priorCallback !== undefined) {
+      hooks.push({
+        key: 'assigned',
+        fn: (shader, renderer) => priorCallback.call(material, shader, renderer),
+      });
+    }
   }
 
   hooks.push({ key, fn });
@@ -111,6 +133,10 @@ export function addShaderHook(material: THREE.Material, key: string, fn: ShaderH
  * So a foreign callback is REGISTERED as the chain's first hook instead. It
  * keeps running, it keeps running first, and its own `customProgramCacheKey`
  * rides along through `addShaderHook`.
+ *
+ * That adoption now lives in `addShaderHook` itself, so all this has to do is
+ * put the slot back exactly as the third party found it and let the registry
+ * pick the original up.
  */
 export function adoptAssignedHook(
   material: THREE.Material,
@@ -120,11 +146,11 @@ export function adoptAssignedHook(
   const assigned = material.onBeforeCompile;
   if (previousOnBeforeCompile !== undefined) {
     material.onBeforeCompile = previousOnBeforeCompile;
-    if (!hasShaderHooks(material)) {
-      addShaderHook(material, 'assigned', (shader, renderer) => {
-        previousOnBeforeCompile.call(material, shader, renderer);
-      });
-    }
+  } else {
+    // The slot held nothing of ours before the third party wrote to it. Clear
+    // it back to the prototype no-op, or `addShaderHook` would adopt the third
+    // party's own callback as 'assigned' and run it twice.
+    delete (material as { onBeforeCompile?: THREE.Material['onBeforeCompile'] }).onBeforeCompile;
   }
   addShaderHook(material, key, (shader, renderer) => {
     assigned.call(material, shader, renderer);

@@ -7,7 +7,9 @@ that way. The short version fits in a box:
 > imports another system's implementation. All cross-system communication goes
 > over the event bus.**
 
-Everything below is a consequence of that rule.
+Everything below is a consequence of that rule. It has exactly three sanctioned
+exceptions — the composition root and two shared foundations — and §2 names all
+three; an import outside that list is a defect, not a precedent.
 
 ---
 
@@ -27,8 +29,11 @@ depend on a contract that was agreed before either of them existed.
 That produces three properties worth having long after the parallel build is
 over:
 
-- **Any system is removable.** Delete `src/vfx/` and nothing fails to compile;
-  the events it subscribed to simply have one fewer listener.
+- **Any system is removable.** Delete `src/vfx/` and the only thing that stops
+  compiling is the line in the composition root that constructs it; the events
+  it subscribed to simply have one fewer listener. That is measurable rather
+  than aspirational: `src/game/` is today the sole importer of `@/vfx`,
+  `@/audio`, `@/engine` and `@/physics` anywhere in the tree.
 - **Any system is testable alone.** A harness constructs a bus, the system under
   test, and nothing else.
 - **The whole frame is recordable.** Because events carry plain data rather than
@@ -70,6 +75,34 @@ Real code, but dependency-free: seeded RNG, math, ring buffers, logging, and the
 concrete `EventBus`. Anything here must be safe for every system to use, which
 in practice means it may not import a system, and it may not import `three`.
 
+### The three sanctioned exceptions
+
+Taken absolutely, the rule leaves nowhere to assemble a game and forces the
+world grid to be defined twice. Three exceptions are therefore deliberate, and
+this is the complete list:
+
+1. **`src/game/` — the composition root.** The one directory allowed to import
+   concrete systems, because constructing them and wiring them to a bus is its
+   whole job. Nothing imports `src/game/` except `src/main.ts`.
+2. **`@/spatial/constants` — the world grid.** `WORLD_SIZE`, `CHUNK_SIZE`,
+   `CHUNK_GRID`, `chunkIndex()` and friends are imported directly by 19 modules
+   under `src/world/city/`, `src/world/streaming/` and `src/entities/npc/`.
+   Chunk arithmetic has to agree exactly across all of them, and a second copy
+   of `CHUNK_SIZE` is the drift this section exists to prevent. Read it as
+   `src/util/` content that happens to live at a system's address.
+3. **`@/characters/mesh` — the humanoid substrate.** The procedural body and the
+   27-bone skeleton are what the roster, the animation system and the crowd all
+   build on; 25 imports across `src/characters/roster/`,
+   `src/characters/anim/` and `src/entities/npc/` go straight to it.
+
+Two honest caveats. `src/entities/npc/steering.ts` also reaches into
+`@/spatial/entity-grid` and `@/spatial/index-list`, which is outside the list
+above; it wants moving behind a contract or into `src/util/`. And **nothing
+enforces any of this mechanically** — `eslint.config.js` declares no
+`no-restricted-imports` zones, and the only import-boundary test in the tree,
+`src/ui/hud/__tests__/imports.test.ts`, covers `src/ui/hud/` alone. The rule
+holds because it was followed, not because it is checked.
+
 ## 3. The event bus
 
 `src/util/event-bus.ts` implements `IEventBus` from `src/types/events.ts`. Its
@@ -81,9 +114,15 @@ guarantees are load-bearing enough to list:
    bug cannot kill the frame or starve its siblings.
 3. **Mutation safety.** Subscribing or unsubscribing during dispatch is legal
    and takes effect on the next emit; the bus iterates a snapshot.
-4. **Vector copying.** `Vec3`-shaped payload fields are copied on emit, so
-   callers may pass a reused scratch `THREE.Vector3` without handlers later
-   observing it mutated.
+4. **Vector copying, by key name.** `emit()` shallow-copies the payload, then
+   deep-copies any field named `origin`, `direction`, `position`, `point` or
+   `impulse` whose value looks like a `Vec3` — the `VECTOR_KEYS` list in
+   `src/util/event-bus.ts`. For those five names a caller may pass a reused
+   scratch `THREE.Vector3` and no handler will observe it mutated. The list is
+   nominal, not structural: a `Vec3` under any other key, or an array field such
+   as `EncounterEnded.participantIds`, is passed through by reference. A new
+   `Vec3` payload field must either take one of those five names or be added to
+   `VECTOR_KEYS`.
 5. **Stable ordering.** Handlers run in subscription order.
 
 ### Payloads carry data, never references
@@ -133,8 +172,10 @@ through their contracts and reach each other only over the bus.
 **Wave 3 — integration and evidence.** Per-system harnesses, headless
 verification, APK packaging, licensing and documentation.
 
-Each workstream owns exactly one directory, and promotion into `src/types/` is
-the only sanctioned way to share something new.
+Each workstream owns exactly one directory, and promotion into `src/types/` (or,
+for runtime code, into `src/util/`) is the sanctioned way to share something new
+— the three exceptions in §2 are grandfathered, not an invitation to add a
+fourth.
 
 ## 5. The map
 
@@ -142,6 +183,7 @@ the only sanctioned way to share something new.
 | --------------------------- | ----------------------------------------------------------------- |
 | `src/types/`                | interface contracts; type-only                                    |
 | `src/util/`                 | event bus, RNG, math, logging                                     |
+| `src/assets/`               | runtime asset registry: KTX2/GLB loading, tiering, memory budget  |
 | `src/engine/`               | WebGL2 renderer, materials, shadows, IBL/SH9, hit-stop            |
 | `src/engine/post/`          | tier-gated post-processing chains                                 |
 | `src/world/city/`           | procedural City Z: districts, blocks, pre-fractured buildings     |
@@ -156,14 +198,22 @@ the only sanctioned way to share something new.
 | `src/entities/npc/`         | civilians, panic propagation, allies                              |
 | `src/entities/monster/`     | threat state machine and monster types                            |
 | `src/gameplay/combat/`      | one-punch resolution, serious-punch cone, encounters              |
+| `src/gameplay/destruction/` | fracture resolution, chunk detachment, debris budgeting           |
 | `src/gameplay/progression/` | rank, quests, witnesses, collateral                               |
 | `src/vfx/`                  | shockwaves, particles, decals, speedlines, camera shake           |
 | `src/audio/`                | every sound, synthesised at runtime                               |
+| `src/ui/hud/`               | HUD model, screens, safe-area layout, DOM frame writer            |
 | `src/ui/input/`             | touch, keyboard, gamepad, synthetic                               |
+| `src/game/`                 | **the composition root** — see below                              |
 | `tools/`                    | asset pipeline and generators                                     |
-| `harness/`                  | one page per system, plus the headless drivers                    |
+| `harness/`                  | one page per system, plus the headless `*.verify.ts` drivers      |
+| `verification/`             | whole-game headless checks (`verify.ts`, `soak.verify.ts`)        |
 
-`src/assets/` and `src/ui/hud/` are placeholders and currently empty.
+`src/game/` is the exception the rest of the map depends on. It is the only
+directory permitted to import concrete systems: it constructs them, hands each
+one the shared bus, and owns the frame loop. Every other row obeys §2. If you
+are looking for the place to wire two systems together, it is here and nowhere
+else.
 
 ## 6. The world, in numbers
 
@@ -219,7 +269,14 @@ milliseconds. See the performance section of [`../README.md`](../README.md).
 
 ## 9. Current state
 
-`src/main.ts` is still the scaffold's temporary bootstrap: it proves the
-toolchain end to end and wires up none of the systems above. The integration
-bootstrap that replaces it has not landed. To see a system working, run its
-harness.
+The game is assembled. `src/main.ts` is a thin entry point — find the canvas,
+drive the pre-HUD boot screen, hand off to `Game.boot()`, start the loop — and
+`src/game/` is the integration bootstrap it hands off to: 5,281 lines across
+`game.ts`, `bridges.ts`, `city-streamer.ts`, `city-materials.ts`, `config.ts`
+and `diagnostics.ts`, holding every system in the §5 map against one bus.
+`npm run dev` boots to City Z.
+
+The harnesses under `harness/` are the evidence layer, not a substitute for a
+game that does not run: each drives a single system in isolation, which is what
+makes a failure attributable to one of them. Run the game to see it work; run a
+harness to find out which part is wrong.

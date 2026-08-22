@@ -34,6 +34,23 @@ import type { IObstacleRect } from './types';
 /** Clear of a façade by this much after a push-out, metres. */
 const EXIT_EPSILON = 1e-3;
 
+/**
+ * Metres a rectangle is inflated by before it is bucketed.
+ *
+ * `rectAt` looks in exactly ONE cell — the one the query point falls in — but
+ * tests the rectangle inflated by the caller's margin. A point that is outside
+ * the rectangle yet inside the inflated one can therefore sit in a cell the
+ * un-inflated AABB never touched, and containment silently reports "clear" for
+ * every façade that happens to end within a body radius of a 12 m cell
+ * boundary. Bucketing with the margin baked in costs a handful of extra CSR
+ * entries per rectangle and nothing at query time.
+ *
+ * Sized for the largest margin this field is asked about: the 0.5 m spawn
+ * clearance query in `CrowdSystem.rebuildSpawnPoints`, which is comfortably
+ * above `AGENT_RADIUS`.
+ */
+const BUCKET_MARGIN = 0.5;
+
 /** World X of a field cell's centre. */
 export function cellCentreX(gx: number): number {
   return FIELD_ORIGIN + (gx + 0.5) * FIELD_CELL;
@@ -142,15 +159,20 @@ export class ObstacleField {
     }
   }
 
-  /** Counting sort of rect indices into the cells each rect overlaps. */
+  /**
+   * Counting sort of rect indices into the cells each rect overlaps.
+   *
+   * Inflated by `BUCKET_MARGIN`, because `rectAt` inflates too and only ever
+   * looks in one cell.
+   */
   private bucket(): void {
     this.cellStart.fill(0);
     let total = 0;
     for (const rect of this.rects) {
-      const gx0 = cellX(rect.minX);
-      const gx1 = cellX(rect.maxX);
-      const gz0 = cellZ(rect.minZ);
-      const gz1 = cellZ(rect.maxZ);
+      const gx0 = cellX(rect.minX - BUCKET_MARGIN);
+      const gx1 = cellX(rect.maxX + BUCKET_MARGIN);
+      const gz0 = cellZ(rect.minZ - BUCKET_MARGIN);
+      const gz1 = cellZ(rect.maxZ + BUCKET_MARGIN);
       for (let gz = gz0; gz <= gz1; gz++) {
         const row = gz * FIELD_DIM;
         for (let gx = gx0; gx <= gx1; gx++) {
@@ -167,10 +189,10 @@ export class ObstacleField {
     cursor.set(this.cellStart.subarray(0, FIELD_COUNT));
     for (let i = 0; i < this.rects.length; i++) {
       const rect = this.rects[i]!;
-      const gx0 = cellX(rect.minX);
-      const gx1 = cellX(rect.maxX);
-      const gz0 = cellZ(rect.minZ);
-      const gz1 = cellZ(rect.maxZ);
+      const gx0 = cellX(rect.minX - BUCKET_MARGIN);
+      const gx1 = cellX(rect.maxX + BUCKET_MARGIN);
+      const gz0 = cellZ(rect.minZ - BUCKET_MARGIN);
+      const gz1 = cellZ(rect.maxZ + BUCKET_MARGIN);
       for (let gz = gz0; gz <= gz1; gz++) {
         const row = gz * FIELD_DIM;
         for (let gx = gx0; gx <= gx1; gx++) {

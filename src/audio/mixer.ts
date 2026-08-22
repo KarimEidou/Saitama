@@ -66,8 +66,14 @@ class BusStrip implements IAudioBus {
 
   private volumeValue: number;
   private mutedValue = false;
-  /** Absolute context time at which an automatic duck should release. */
-  private duckReleaseAt = Number.POSITIVE_INFINITY;
+  /**
+   * Absolute context time at which an automatic duck should release.
+   *
+   * `-Infinity` means "not ducking": a strip that has never been ducked, or one
+   * that has been released, is in the past for every `now`. Only the indefinite
+   * `duck()` sets `+Infinity`, which genuinely never releases on its own.
+   */
+  private duckReleaseAt = Number.NEGATIVE_INFINITY;
   private duckReleaseSeconds = 0.3;
 
   constructor(ctx: BaseAudioContext, category: AudioCategory, destination: AudioNode) {
@@ -129,7 +135,7 @@ class BusStrip implements IAudioBus {
     g.cancelScheduledValues(now);
     g.setValueAtTime(g.value, now);
     g.linearRampToValueAtTime(1, now + Math.max(seconds, 0.001));
-    this.duckReleaseAt = Number.POSITIVE_INFINITY;
+    this.duckReleaseAt = Number.NEGATIVE_INFINITY;
   }
 
   /**

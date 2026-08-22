@@ -110,6 +110,7 @@ interface BudgetReport {
 interface AllocationReport {
   supported: boolean;
   frames: number;
+  renderFrames: number;
   simBytes: number;
   simBytesPerFrame: number;
   frameBytes: number;
@@ -656,7 +657,8 @@ async function measureAllocation(page: Page): Promise<AllocationReport> {
       `               simulation only  ${report.simBytes >= 0 ? '+' : ''}${report.simBytes} B ` +
       `total, ${report.simBytesPerFrame.toFixed(2)} B/frame\n` +
       `               with rendering   ${report.frameBytes >= 0 ? '+' : ''}${report.frameBytes} B ` +
-      `total, ${report.frameBytesPerFrame.toFixed(0)} B/frame (three's renderer included)`
+      `total over ${report.renderFrames} presented frames, ` +
+      `${report.frameBytesPerFrame.toFixed(0)} B/frame (three's renderer included)`
   );
   return report;
 }

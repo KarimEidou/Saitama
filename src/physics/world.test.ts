@@ -11,6 +11,7 @@ import {
   FIXED_STEP,
   ImpulsePropagator,
   LAYER_BIT,
+  type PhysicsBody,
   PhysicsWorld,
   aabbHullPoints,
   groupsFor,
@@ -267,6 +268,67 @@ describe('PhysicsWorld', () => {
     world.step(FIXED_STEP, 120);
     off();
     expect(seen).toBeGreaterThan(0);
+    world.dispose();
+  });
+
+  it('refreshes queries for a new collider without perturbing the simulation', () => {
+    const world = new PhysicsWorld({ contactEvents: false });
+    makeGround(world);
+    // A settled stack: contacting bodies are exactly where a stray solver pass
+    // shows up, and it shows up in the VELOCITIES rather than the positions.
+    const stack: PhysicsBody[] = [];
+    for (let i = 0; i < 6; i++) {
+      stack.push(
+        world.createBody({
+          type: 'dynamic',
+          shape: { kind: 'box', halfExtents: new THREE.Vector3(0.25, 0.25, 0.25) },
+          position: new THREE.Vector3(0, 0.25 + i * 0.5, 0),
+          layer: 'debris',
+          collidesWith: ['world', 'debris'],
+          density: 1000,
+          canSleep: false,
+        })
+      );
+    }
+    world.step(FIXED_STEP, 60);
+
+    const read = (): number[] => {
+      const out: number[] = [];
+      const p = new THREE.Vector3();
+      const q = new THREE.Quaternion();
+      const v = new THREE.Vector3();
+      for (const body of stack) {
+        body.getTransform(p, q);
+        body.getLinearVelocity(v);
+        out.push(p.x, p.y, p.z, v.x, v.y, v.z);
+      }
+      return out;
+    };
+    const before = read();
+
+    // A collider created since the last step is invisible to queries until the
+    // acceleration structure is rebuilt, which is the whole point of a refresh.
+    world.createBody({
+      type: 'dynamic',
+      shape: { kind: 'sphere', radius: 0.5 },
+      position: new THREE.Vector3(5, 5, 0),
+      layer: 'debris',
+      collidesWith: ['world'],
+    });
+    const refreshes = world.queryRefreshCount;
+    const hit = world.raycast({
+      origin: new THREE.Vector3(5, 10, 0),
+      direction: new THREE.Vector3(0, -1, 0),
+      maxDistance: 20,
+      layers: ['debris'],
+    });
+    expect(world.queryRefreshCount).toBe(refreshes + 1);
+    expect(hit).toBeDefined();
+    expect(hit!.distance).toBeCloseTo(4.5, 3);
+
+    // EXACT. The refresh runs a real solver step unless the iteration count is
+    // zeroed, and that rewrites every contacting body's velocity.
+    expect(read()).toEqual(before);
     world.dispose();
   });
 

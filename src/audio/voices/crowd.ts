@@ -28,6 +28,21 @@ import { SustainedVoice, SynthVoice, type ITriggerParams } from '../voice';
 const BLIP_UNITS = 6;
 
 /**
+ * Longest gap `scheduleBlips` will ever try to fill in one call, in seconds.
+ *
+ * `scheduledTo` is not clamped against the context clock, and the frame loop
+ * stops calling this whenever the game is modally paused while the live
+ * `AudioContext` keeps running. Without a bound, the first frame after a
+ * ten-minute pause would schedule ~4 000 blip envelopes — ~21 000 `AudioParam`
+ * writes in one frame, every one of them at a time already in the past, for at
+ * most one audible blip. A gap longer than this is skipped, not caught up.
+ */
+const MAX_CATCHUP = 0.5;
+
+/** Upper bound on the credit the scheduler will carry, in blips. */
+const MAX_CREDIT = 8;
+
+/**
  * One vocal fragment: a sawtooth through two formant bandpasses. Two formants
  * is enough to read as a vowel, which is enough to read as a person.
  */
@@ -144,6 +159,19 @@ export class CrowdBedVoice extends SustainedVoice {
   private density = 0.3;
   /** Lookahead cursor: blips are scheduled up to here. */
   private scheduledTo = 0;
+  /**
+   * Fractional blips owed but not yet emitted.
+   *
+   * The scheduler is called once per frame, so a span is ~16 ms and the
+   * expected count in it is a small fraction. Rounding that per call cannot
+   * work: the old `Math.max(1, Math.round(expected * 2))` floor forced exactly
+   * one candidate onset EVERY frame regardless of density, which realised ~34
+   * blips/second at 60 fps against a designed 0.4–7, made the rate a function
+   * of frame rate rather than of the crowd, and saturated all six units so the
+   * bed was a continuous babble. Carrying the fraction forward makes the rate
+   * correct for any call cadence.
+   */
+  private blipCredit = 0;
 
   constructor(
     ctx: BaseAudioContext,
@@ -243,20 +271,31 @@ export class CrowdBedVoice extends SustainedVoice {
   scheduleBlips(horizon: number): number {
     if (!this.isRunning) {
       this.scheduledTo = Math.max(this.scheduledTo, horizon);
+      this.blipCredit = 0;
       return 0;
     }
     if (horizon <= this.scheduledTo) return 0;
-    const from = this.scheduledTo;
+    // Bound the catch-up: a gap longer than one window is skipped rather than
+    // filled, because every blip in it would be scheduled in the past anyway.
+    const from = Math.max(this.scheduledTo, horizon - MAX_CATCHUP);
     const span = horizon - from;
     // 0.4 blips/second in an empty street, 7/second in a packed one.
     const rate = lerp(0.4, 7, this.density * this.density);
-    const expected = rate * span;
-    const onsets = poissonOnsets(Math.max(1, Math.round(expected * 2)), span, () =>
-      this.rng.next()
-    );
+    this.blipCredit = Math.min(this.blipCredit + rate * span, MAX_CREDIT);
+    const wanted = Math.floor(this.blipCredit);
+    if (wanted <= 0) {
+      this.scheduledTo = horizon;
+      return 0;
+    }
+    this.blipCredit -= wanted;
+    // Offsets uniform over the span: conditioned on the count, that IS a
+    // Poisson process, and unlike `poissonOnsets` it cannot truncate at the end
+    // of the window and silently drop blips the credit has already paid for.
+    const onsets: number[] = [];
+    for (let i = 0; i < wanted; i++) onsets.push(this.rng.next() * span);
+    onsets.sort((a, b) => a - b);
     let scheduled = 0;
     for (const offset of onsets) {
-      if (scheduled >= Math.ceil(expected) + 1) break;
       const t = from + offset;
       const unit = this.blips.find((b) => b.freeAt <= t);
       if (!unit) continue;

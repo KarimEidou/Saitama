@@ -182,6 +182,17 @@ float rosterBayer4(vec2 a) {
 }
 `;
 
+/**
+ * The largest threshold `rosterBayer4` can return.
+ *
+ * `rosterBayer2` takes exactly {0, 0.25, 0.5, 0.75}, so `rosterBayer4` takes
+ * the sixteen values `k / 16` and tops out at 15/16 — NOT at 1.0. The discard
+ * test below is `bayer < proximityFade`, so a coverage above this value fails
+ * every cell of the matrix and erases the character completely. Any retune of
+ * `proximityFadeAmount` has to stay at or under it.
+ */
+export const BAYER4_MAX = 15 / 16;
+
 const FADE_FRAGMENT = /* glsl */ `
   if (proximityFade > 0.0 && rosterBayer4(gl_FragCoord.xy) < proximityFade) discard;
 `;
@@ -190,9 +201,26 @@ const FADE_FRAGMENT = /* glsl */ `
 /* Material                                                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Configure a texture the way the asset pipeline's output expects. */
+/**
+ * Configure a texture the way the asset pipeline's output expects.
+ *
+ * IDEMPOTENT ON PURPOSE. These textures are SHARED by every body of a
+ * character and `createRosterMaterial` runs once per body, so an unconditional
+ * `needsUpdate = true` would re-upload every 1024² sheet and regenerate its
+ * mipmaps on the next frame for each civilian that spawns. Only a property
+ * that actually differs marks the texture dirty.
+ */
 function prepare(texture: THREE.Texture, srgb: boolean, anisotropy: number): THREE.Texture {
-  texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  const colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  const dirty =
+    texture.colorSpace !== colorSpace ||
+    texture.wrapS !== THREE.ClampToEdgeWrapping ||
+    texture.wrapT !== THREE.ClampToEdgeWrapping ||
+    texture.anisotropy !== anisotropy ||
+    texture.flipY !== false;
+  if (!dirty) return texture;
+
+  texture.colorSpace = colorSpace;
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.anisotropy = anisotropy;
@@ -223,7 +251,11 @@ export function createRosterMaterial(
   prepare(textures.ormMap, false, anisotropy);
   if (textures.emissiveMap !== undefined) prepare(textures.emissiveMap, true, anisotropy);
   if (textures.faceMap !== undefined) prepare(textures.faceMap, true, anisotropy);
-  if (textures.maskMap !== undefined) prepare(textures.maskMap, false, anisotropy);
+  // The tint mask holds CLASS IDS, not a colour. Anisotropic filtering averages
+  // neighbouring texels, and the average of two ids is a third, valid-looking
+  // id — a skin/cloth seam filters to the accent band. It is bound with point
+  // sampling in `runtime.ts` for the same reason.
+  if (textures.maskMap !== undefined) prepare(textures.maskMap, false, 1);
 
   // Built without an `emissiveMap` key when there is none: three warns loudly
   // about parameters whose value is `undefined`, and a warning per character
@@ -338,14 +370,18 @@ export function getExpression(material: THREE.Material): Expression {
  * Curve from the camera rig's `armCollapseRatio` to a dither coverage.
  *
  * Nothing happens until the arm is 40% collapsed — by then the character is
- * still framed and fading would be a distraction. From there it ramps to 94%
- * coverage; the remaining 6% keeps a faint ghost of the silhouette so the
- * player can still read which way they are facing while the camera is
- * effectively inside them.
+ * still framed and fading would be a distraction. From there it ramps to
+ * `BAYER4_MAX` (15/16), which discards fifteen of the sixteen dither cells and
+ * keeps the sixteenth: a faint ghost of the silhouette so the player can still
+ * read which way they are facing while the camera is effectively inside them.
+ *
+ * The ceiling is the matrix maximum rather than a round 0.94 because the
+ * discard test is `bayer < proximityFade`: anything above 15/16 fails every
+ * cell and the player vanishes outright, which is the opposite of the point.
  */
 export function proximityFadeAmount(armCollapseRatio: number): number {
   const t = clamp01((clamp01(armCollapseRatio) - 0.4) / 0.5);
-  return t * t * (3 - 2 * t) * 0.94;
+  return t * t * (3 - 2 * t) * BAYER4_MAX;
 }
 
 /**

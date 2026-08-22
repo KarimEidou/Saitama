@@ -129,6 +129,18 @@ describe('variant resolution', () => {
     expect(resolveMaterial('Metal')).toBe('metal');
   });
 
+  it('does not resolve a prototype-chain key to itself', () => {
+    // The material table is a plain object literal, so a truthiness lookup also
+    // accepted every inherited `Object.prototype` member. `'constructor'` came
+    // back unchanged, its `densityScale` was `undefined`, the grain count went
+    // NaN and the burst rendered ZERO grains — silently, since the sound key
+    // itself resolved fine. That is the one outcome the fallback exists to
+    // prevent, which is why it is asserted the same way `isSoundKey` is.
+    for (const key of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
+      expect(resolveMaterial(key), `"${key}" must not resolve to itself`).toBe('rubble');
+    }
+  });
+
   it('maps every threat tier to itself and defaults sensibly', () => {
     for (const tier of THREAT_TIERS) expect(resolveTier(tier)).toBe(tier);
     expect(resolveTier(undefined)).toBe('demon');

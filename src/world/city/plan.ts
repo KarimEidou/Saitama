@@ -11,11 +11,12 @@
  * asks "which blocks are in chunk (3, -5)?" hundreds of times a session, and
  * that must be an array lookup rather than a scan over 256 blocks.
  *
- * SEEDS. `blockSeed(planVersion, blockId)` is the single derivation point for
- * every procedural decision inside a block. It folds the plan version in, so
- * bumping the version after an authored change deterministically rerolls
+ * SEEDS. `blockSeed(planVersion, blockId, salt)` is the single derivation point
+ * for every procedural decision inside a block. It folds the plan version in,
+ * so bumping the version after an authored change deterministically rerolls
  * procedural detail rather than leaving fill that no longer suits the new
- * zoning. Nothing in the city may call `Math.random()`.
+ * zoning, and the parcel's own `salt` so one block can be rerolled on its own.
+ * Nothing in the city may call `Math.random()`.
  */
 
 import { hashString, mixSeeds } from '@/util';
@@ -30,16 +31,24 @@ import {
 } from '@/spatial/constants';
 import type { ICityPlan, IPlanBlock, IPlanLandmark, IPlanRoad, IPlanZone } from './plan-types';
 import { pointInPolygon, polygonArea, polygonBounds, type Vec2 } from './polygon';
+import { MATERIAL_TILE_SIZE } from './materials';
+import { PANEL_KINDS } from './facade';
 
 /**
  * Deterministic seed for everything generated inside a block.
  *
- * `hash(blockId, planVersion)` exactly as specified: the id gives spatial
+ * `hash(blockId, planVersion, salt)` exactly as specified: the id gives spatial
  * independence (blocks generate in any order, on any thread, and match), the
- * version gives editability.
+ * version gives editability, and the per-block `salt` lets a designer reroll a
+ * single parcel without disturbing the other 255.
+ *
+ * A zero salt — the default, and what every authored block carries today —
+ * folds nothing in, so leaving the dial alone reproduces the existing city
+ * byte for byte.
  */
-export function blockSeed(planVersion: number, blockId: string): number {
-  return mixSeeds(hashString(blockId), planVersion >>> 0);
+export function blockSeed(planVersion: number, blockId: string, salt = 0): number {
+  const base = mixSeeds(hashString(blockId), planVersion >>> 0);
+  return salt ? mixSeeds(base, salt >>> 0) : base;
 }
 
 /** Seed for a landmark's procedural detail. */
@@ -186,6 +195,23 @@ export function validatePlan(plan: ICityPlan): string[] {
     if (p.roofMaterials.length === 0) problems.push(`zone "${zone.id}" has no roof materials`);
     if (p.tints.length === 0) problems.push(`zone "${zone.id}" has no tints`);
     if (p.floorHeight <= 1.5) problems.push(`zone "${zone.id}" floorHeight is implausible`);
+    // Lot sizes are DIVISORS in `subdivideBlock`: a zero or near-zero width
+    // makes the lot count Infinity (a multi-second freeze then a RangeError) or
+    // tens of thousands of buildings in one block, so they are checked here
+    // rather than discovered as a hang on the first chunk of the zone.
+    checkLotRange(problems, zone.id, 'lotWidth', p.lotWidth);
+    checkLotRange(problems, zone.id, 'lotDepth', p.lotDepth);
+    // A mistyped panel kind is silently dropped by `normaliseWeights`, which
+    // then falls back to a blank wall for the whole zone.
+    checkWeights(problems, zone.id, 'panelWeights', p.panelWeights);
+    checkWeights(problems, zone.id, 'groundWeights', p.groundWeights);
+    // An id with no tile size samples at 1 m tiles, which is a silent visual
+    // bug rather than an error — brick as wallpaper across a district.
+    for (const id of [...p.facadeMaterials, ...p.roofMaterials]) {
+      if (!(MATERIAL_TILE_SIZE[id] > 0)) {
+        problems.push(`zone "${zone.id}" material "${id}" has no MATERIAL_TILE_SIZE entry`);
+      }
+    }
   }
 
   const blockIds = new Set<string>();
@@ -208,8 +234,10 @@ export function validatePlan(plan: ICityPlan): string[] {
     ) {
       problems.push(`block "${block.id}" chunk (${cx}, ${cz}) is outside the world`);
     }
-    if (block.frontage.length !== block.outline.length) {
-      problems.push(`block "${block.id}" frontage length != outline length`);
+    // `frontage` is indexed by COMPASS DIRECTION — [west, south, east, north] —
+    // not by outline edge; see `IPlanBlock.frontage` and `pushRun` in block.ts.
+    if (block.frontage.length !== 4) {
+      problems.push(`block "${block.id}" frontage must be 4 flags [west, south, east, north]`);
     }
     // The parcel must actually sit in the chunk it claims, or streaming will
     // load geometry that is nowhere near the chunk it paid for.
@@ -248,8 +276,26 @@ export function validatePlan(plan: ICityPlan): string[] {
     landmarkIds.add(landmark.id);
     if (landmark.footprint.length < 3) problems.push(`landmark "${landmark.id}" has < 3 vertices`);
     if (landmark.floors < 1) problems.push(`landmark "${landmark.id}" needs >= 1 floor`);
-    if (!withinWorld(landmark.position)) {
-      problems.push(`landmark "${landmark.id}" is outside the world`);
+    // Winding decides which way the walls face: a clockwise footprint renders
+    // the whole landmark inside-out, and nothing downstream notices.
+    if (polygonArea(landmark.footprint) <= 0) {
+      problems.push(`landmark "${landmark.id}" is not wound counter-clockwise`);
+    }
+    // The world is addressable on [-half, half), so `withinWorld`'s inclusive
+    // upper bound is not enough here: a landmark on the east or south edge
+    // passes it and is then silently dropped by `indexPlan`.
+    if (
+      chunkIndex(
+        Math.floor(landmark.position[0] / CHUNK_SIZE),
+        Math.floor(landmark.position[1] / CHUNK_SIZE)
+      ) < 0
+    ) {
+      problems.push(`landmark "${landmark.id}" is outside the chunk grid`);
+    }
+    for (const id of [landmark.facadeMaterial, landmark.roofMaterial]) {
+      if (!(MATERIAL_TILE_SIZE[id] > 0)) {
+        problems.push(`landmark "${landmark.id}" material "${id}" has no MATERIAL_TILE_SIZE entry`);
+      }
     }
   }
 
@@ -264,6 +310,50 @@ export function validatePlan(plan: ICityPlan): string[] {
 function withinWorld(p: Vec2): boolean {
   const half = WORLD_SIZE * 0.5;
   return p[0] >= -half && p[0] <= half && p[1] >= -half && p[1] <= half;
+}
+
+/** Smallest lot dimension generation can divide by without falling over. */
+const MIN_LOT_METRES = 2;
+/** Largest sensible lot dimension; anything bigger is a mistyped decimal point. */
+const MAX_LOT_METRES = 200;
+
+function checkLotRange(
+  problems: string[],
+  zoneId: string,
+  field: 'lotWidth' | 'lotDepth',
+  range: readonly [number, number]
+): void {
+  const [lo, hi] = range;
+  if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo < MIN_LOT_METRES || hi < lo) {
+    problems.push(
+      `zone "${zoneId}" has an invalid ${field} [${lo}, ${hi}]: need ${MIN_LOT_METRES} <= min <= max`
+    );
+    return;
+  }
+  if (hi > MAX_LOT_METRES) {
+    problems.push(`zone "${zoneId}" ${field} max ${hi} is implausible`);
+  }
+}
+
+function checkWeights(
+  problems: string[],
+  zoneId: string,
+  field: 'panelWeights' | 'groundWeights',
+  weights: Readonly<Record<string, number>>
+): void {
+  let sum = 0;
+  for (const [key, value] of Object.entries(weights)) {
+    if (!(PANEL_KINDS as readonly string[]).includes(key)) {
+      problems.push(`zone "${zoneId}" ${field} has unknown panel kind "${key}"`);
+      continue;
+    }
+    if (!Number.isFinite(value) || value < 0) {
+      problems.push(`zone "${zoneId}" ${field}."${key}" must be a finite weight >= 0`);
+      continue;
+    }
+    sum += value;
+  }
+  if (sum <= 0) problems.push(`zone "${zoneId}" ${field} has no positive weight`);
 }
 
 /** Validate and index in one step, throwing on the first batch of problems. */

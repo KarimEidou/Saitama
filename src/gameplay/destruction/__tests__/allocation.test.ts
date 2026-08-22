@@ -417,4 +417,31 @@ describe('coalesced upload ranges', () => {
     expect(touched).toBeGreaterThan(2);
     system.dispose();
   });
+
+  it('records the pending range on dispose instead of holding the structure', () => {
+    const bus = createEventBus();
+    const system = new DestructionSystem({ bus, seed: 'dispose-flush' });
+    const tower = makeTower({ floors: 12 });
+    const structure = system.register({
+      id: 'tower',
+      layout: tower.layout,
+      target: { destroyed: tower.attribute },
+      position: { x: 0, y: 0, z: 0 },
+    });
+
+    // A sweep that blanked geometry and was never followed by an `update()`:
+    // the flush list is holding this structure, and through it the whole baked
+    // layout and the block mesh.
+    system.detachChunk(structure, 4, 'blast');
+    expect(tower.attribute.uploads).toBe(0);
+
+    // Tearing down mid-punch has to drain that list. `update()` refuses to run
+    // once disposed, so nothing else ever would.
+    system.dispose();
+    expect(tower.attribute.uploads).toBe(1);
+    const range = tower.attribute.updateRanges[0]!;
+    const chunk = tower.layout.chunks[4]!;
+    expect(range.start).toBeLessThanOrEqual(chunk.vertexStart);
+    expect(range.start + range.count).toBeGreaterThanOrEqual(chunk.vertexStart + chunk.vertexCount);
+  });
 });

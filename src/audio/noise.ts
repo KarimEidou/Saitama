@@ -31,6 +31,26 @@ export type NoiseKind = 'white' | 'pink' | 'brown';
 /** Default seed for the shared noise buffers. */
 const NOISE_SEED = 0x5a17a;
 
+/** Cross-fade length at the loop point, in seconds. */
+const LOOP_FADE_SECONDS = 0.02;
+
+/**
+ * Per-kind seed salt.
+ *
+ * This was `kind.length`, which is 5 for BOTH `'white'` and `'brown'`: the two
+ * shared a seed, so the brown buffer was a sample-for-sample lowpass of the
+ * white one rather than an independent realisation, and a voice layering the
+ * two (the collapse rumble and its crackle) summed them coherently wherever
+ * the read heads aligned. The values below keep `'white'` and `'pink'` on the
+ * streams they have always had and give `'brown'` its own.
+ */
+const KIND_SALT: Record<NoiseKind, number> = { white: 5, pink: 4, brown: 6 };
+
+/** Samples that `seamless` cross-fades at the end of a buffer of `length`. */
+function fadeSamplesFor(sampleRate: number, length: number): number {
+  return Math.min(Math.floor(sampleRate * LOOP_FADE_SECONDS), Math.floor(length / 4));
+}
+
 /** Buffers are cached per context — one set for the live context, one per offline render. */
 const cache = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>();
 
@@ -96,6 +116,10 @@ function normalise(out: Float32Array, peak: number): void {
  * Cross-fade the buffer's tail into its head over `fadeSamples` so a looping
  * source node produces no click at the wrap point. Without this every noise
  * bed in the game ticks once per loop period, which is instantly audible.
+ *
+ * The fade blends the tail towards `out[0..n)`, so the region it writes is only
+ * continuous with the sample that FOLLOWS the fade — which is why
+ * `createNoiseSource` loops `[n, length)` rather than the whole buffer.
  */
 function seamless(out: Float32Array, fadeSamples: number): void {
   const n = Math.min(fadeSamples, Math.floor(out.length / 4));
@@ -132,7 +156,7 @@ export function getNoiseBuffer(
   const length = Math.max(128, Math.floor(ctx.sampleRate * seconds));
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
-  const rng = createRng(seed ^ (kind.length << 8));
+  const rng = createRng(seed ^ (KIND_SALT[kind] << 8));
   const next = (): number => rng.next();
 
   if (kind === 'white') fillWhite(data, next);
@@ -140,7 +164,7 @@ export function getNoiseBuffer(
   else fillBrown(data, next);
 
   normalise(data, 0.92);
-  seamless(data, Math.floor(ctx.sampleRate * 0.02));
+  seamless(data, fadeSamplesFor(ctx.sampleRate, length));
   // Re-normalise: the cross-fade can only reduce peaks, never raise them.
 
   perContext.set(key, buffer);
@@ -166,6 +190,18 @@ export function createNoiseSource(
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.loop = true;
+  // EXCLUDE THE CROSS-FADE FROM THE LOOP.
+  //
+  // `seamless` blends the buffer's tail INTO its head, so the last sample is
+  // continuous with `out[n]`, not with `out[0]`. Leaving `loopStart`/`loopEnd`
+  // at 0 means "the whole buffer" per the specification, which wraps back to
+  // `out[0]` and steps by several times the natural sample delta — the
+  // once-per-loop tick the cross-fade exists to remove, still audible on every
+  // wind, traffic and rumble bed. Looping `[n, length)` lands on the sample the
+  // fade actually made it continuous with.
+  const fade = fadeSamplesFor(ctx.sampleRate, buffer.length);
+  src.loopStart = fade / ctx.sampleRate;
+  src.loopEnd = buffer.duration;
   // Start at 0 with a read offset: `start(when, offset)` is exact and costs
   // nothing, and decorrelates voices that share a buffer.
   src.start(0, (offsetFraction % 1) * buffer.duration);

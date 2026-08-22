@@ -25,8 +25,9 @@ zero audio files — every sound is synthesised at runtime by the Web Audio API.
 
 ## Status — read this before running anything
 
-The systems are built and individually verified. **They are not yet assembled
-into a playable game.**
+The systems are built, individually verified, and assembled. `npm run dev` boots
+City Z. What is **not** established is how it performs on a real phone — see
+[Performance](#performance-what-is-measured-and-what-is-not).
 
 |                                                               | State                                                                                                    |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -38,11 +39,15 @@ into a playable game.**
 | iOS                                                           | runs in Safari today via Add to Home Screen; the Xcode project generates here but needs macOS to compile |
 | Frame rate                                                    | **never measured on real hardware** — see [Performance](#performance-what-is-measured-and-what-is-not)   |
 
-To see a system working today, run its harness rather than the game: `npx vite`
-and open `/harness/city.html` (or `combat`, `crowd`, `physics`, `renderer`,
-`streaming`, `vfx`, `audio`, `input`, `player`, `progression`, `spatial`,
-`anim`, `humanoid`, `roster`). The matching `npx tsx harness/<name>.verify.ts`
-drives the same page headlessly and writes its evidence to `docs/screenshots/`.
+Every system also has a standalone harness — nineteen pages, one per system.
+`npx vite`, then open `/harness/city.html` (or `anim`, `assets`, `audio`,
+`combat`, `crowd`, `destruction`, `hud`, `humanoid`, `input`, `monster`,
+`physics`, `player`, `progression`, `renderer`, `roster`, `spatial`,
+`streaming`, `vfx`). A harness runs one system against nothing else, which is
+what makes a failure attributable to it: run the game to see it work, run a
+harness to find out which part is wrong. The matching
+`npx tsx harness/<name>.verify.ts` drives the same page headlessly and writes
+its evidence to `docs/screenshots/`.
 
 ---
 
@@ -78,7 +83,8 @@ console errors. Frame rate on a real device remains unmeasured.
 A **native** iOS app needs macOS:
 
 ```bash
-npm i @capacitor/ios && npx tsx scripts/build-web.ts && npx cap add ios
+# -D: the iOS platform scaffold is a build tool, not something the bundle ships.
+npm i -D @capacitor/ios && npx tsx scripts/build-web.ts && npx cap add ios
 ```
 
 generates and structurally validates `ios/App/App.xcodeproj` (bundle
@@ -109,8 +115,11 @@ allow it, or the phone just times out.
   colours, with nothing on screen to say why.
 
 All three stages are re-runnable and idempotent. Neither downloaded nor generated
-assets are committed — `npm run guard` rejects any tracked binary outside
-`docs/screenshots/`.
+assets are committed — `npm run guard` rejects tracked binary _game assets_
+outside `docs/screenshots/`, and any tracked file over 5 MB. It works off a
+fixed list of eighteen extensions (`.ktx2`, `.glb`, `.hdr`, `.png`, `.mp3`, … —
+`scripts/guard-no-binaries.ts` has the whole set), so it is a guard against the
+pipeline's output, not a general binary sniffer.
 
 Other scripts:
 
@@ -121,7 +130,7 @@ Other scripts:
 | `npm test`                            | Vitest unit tests                                                  |
 | `npm run typecheck`                   | `tsc --noEmit`, strict                                             |
 | `npm run lint`                        | ESLint over the whole tree                                         |
-| `npm run guard`                       | refuse tracked binaries and files over 5 MB                        |
+| `npm run guard`                       | refuse tracked binary game assets and files over 5 MB              |
 | `npm run verify`                      | build, serve, drive headless Chromium, prove a real frame rendered |
 | `npx tsx verification/soak.verify.ts` | drive the whole game 1800 frames; zero errors, loop still drawing  |
 | `npx tsx tools/attribution.ts`        | regenerate `ATTRIBUTION.md` from the manifests                     |
@@ -157,7 +166,14 @@ validation errors and took the whole pipeline down with it. It now uses the
 `MANIFEST_FILES` list that already named exactly the three source manifests.
 
 **Web.** The primary target. `npm run build` produces `dist/`. WebGL2 is
-required. The Three.js chunk is 522 KB raw / 129 KB gzipped.
+required. The Three.js engine chunk — the largest single payload, and the one
+that stays cached across game-code changes — is **796 KB raw / 231 KB gzipped**,
+measured on a build from this tree. The rest of the eager payload moves with
+every change under `src/`, so no figure for it is quoted here; the deploy
+workflow's "Report what is being published" step prints the real sizes for
+whatever build it publishes. Rapier and the Capacitor plugins are **not** in the
+eager payload — they are dynamically imported, and `vite.config.ts` deliberately
+declares no `vendor` catch-all chunk that would drag them back onto it.
 
 **Android.** Capacitor packages the web build into an APK that loads assets from
 the bundle and renders in the system WebView.

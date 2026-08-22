@@ -441,10 +441,11 @@ export class CombatHudScreen extends HudScreen {
     });
 
     // The pause affordance sits outside the right column so the ledger does not
-    // shuffle sideways when it appears; the column reserves its width instead.
+    // shuffle sideways when it appears; the column reserves its width instead —
+    // in `styles.ts`, from `--hud-pause-size`, so the reserve and the button it
+    // reserves for cannot drift apart.
     const rightColumn = el(doc, 'div', {
       className: 'hud-top__right',
-      vars: { 'padding-right': '46px' },
       children: [this.ledger, this.collateral],
     });
 
@@ -548,10 +549,21 @@ export class CombatHudScreen extends HudScreen {
     this.tracker.hidden = false;
 
     const urgency = questUrgency(quest);
+    /* Every field the gated block below writes has to be in here. `hidden` and
+       `complete` are first-class on `IQuestObjectiveRow` precisely so they can
+       change WITHOUT the counter moving — an objective revealed by progress
+       goes hidden:false at 0/N, and a `required <= 1` objective completes at
+       0/1 — and a signature blind to them left both changes off the HUD. */
     const signature = [
       quest.id,
+      quest.title,
+      quest.errand ? 'e' : '',
       urgency,
-      quest.objectives.map((o) => `${o.id}:${o.current}/${o.required}`).join(','),
+      quest.objectives
+        .map(
+          (o) => `${o.id}:${o.current}/${o.required}:${o.hidden ? 'h' : ''}${o.complete ? 'c' : ''}`
+        )
+        .join(','),
       quest.conflictsWith?.join(',') ?? '',
     ].join('|');
     if (signature === this.lastTrackerSignature) return;
@@ -627,9 +639,11 @@ export class CombatHudScreen extends HudScreen {
         this.collateralYen.write(writer, encounter.collateralYen / YEN_PER_BILLION);
         writer.setNumber(this.collateralFill, '--collateral', encounter.collateralScore, 3);
       }
-      if (encounter.bossHealth !== undefined) {
-        writer.setNumber(this.bossFill, '--fill', clamp01(encounter.bossHealth), 3);
-      }
+      // Full until told otherwise, and written every frame rather than only
+      // when known: a boss card that opened on the PREVIOUS fight's health
+      // because nothing reset the property is the same bug as one that opens
+      // empty. `--fill` is registered, so `var(--fill,1)` in CSS cannot do it.
+      writer.setNumber(this.bossFill, '--fill', clamp01(encounter.bossHealth ?? 1), 3);
     }
 
     /* tracker clock */
@@ -665,15 +679,31 @@ export class CombatHudScreen extends HudScreen {
  * means least time remaining, so a 30-second evacuation displaces a dragon-tier
  * subjugation with no clock — the correct priority, and the one a naive "first
  * active quest" implementation gets wrong every time.
+ *
+ * ONE INDEXED PASS, no intermediate array and no closures: `frame()` calls this
+ * every frame for the tracker clock, and `step 3 never allocates` is the
+ * performance contract the whole two-tier split exists to keep. A `filter` +
+ * `find` + `reduce` here is a fresh array and three closure activations sixty
+ * times a second, for the session, on a phone.
  */
 export function pickTrackedQuest(model: IHudModel): IQuestRow | undefined {
-  const active = model.quests.filter((q) => q.state === 'active');
-  if (active.length === 0) return undefined;
-  const pinned = active.find((q) => q.id === model.trackedQuestId);
-  if (pinned) return pinned;
-  return active.reduce((best, quest) =>
-    (quest.timeRemaining ?? Infinity) < (best.timeRemaining ?? Infinity) ? quest : best
-  );
+  const quests = model.quests;
+  const pinnedId = model.trackedQuestId;
+  let best: IQuestRow | undefined;
+  let bestTime = Infinity;
+  for (let i = 0; i < quests.length; i++) {
+    const quest = quests[i]!;
+    if (quest.state !== 'active') continue;
+    if (pinnedId !== undefined && quest.id === pinnedId) return quest;
+    const time = quest.timeRemaining ?? Infinity;
+    // Strictly less: ties keep the earlier quest, as the reduce this replaces
+    // did, so the tracker does not swap between two equally urgent jobs.
+    if (best === undefined || time < bestTime) {
+      best = quest;
+      bestTime = time;
+    }
+  }
+  return best;
 }
 
 /** Re-exported so the harness can walk the band table for screenshots. */

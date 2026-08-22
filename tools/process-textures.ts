@@ -66,6 +66,7 @@
 import { mkdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import type {
   IAssetManifest,
@@ -95,6 +96,8 @@ import {
   matchesOnly,
   outputKey,
   outputRelPath,
+  parseConcurrency,
+  parseTier,
   sourceFilePath,
   type IProducedOutput,
   type ProcessOptions,
@@ -109,7 +112,7 @@ import {
  * Bump when a procedural generator changes. It feeds the skip-cache key for
  * synthesised materials, which have no source bytes to notice a change for them.
  */
-const PROC_GEN_VERSION = 1;
+const PROC_GEN_VERSION = 2;
 
 /** Roles this stage knows how to build, and the codec each one gets. */
 const CODEC_FOR_ROLE: Readonly<Partial<Record<TextureRole, TextureCodec>>> = {
@@ -339,6 +342,21 @@ function makeTileableNoise(seed: number, basePeriod: number): (x: number, y: num
 
 const clamp255 = (v: number): number => (v < 0 ? 0 : v > 255 ? 255 : Math.round(v));
 
+/**
+ * White point for a procedural albedo.
+ *
+ * The generated albedo is NEUTRAL: hue comes from `spec.color`, which
+ * `buildMaterial` writes onto `MeshStandardMaterial.color`, and in three.js
+ * `color` multiplies `map`. Baking the tint in as well squares it — glass at
+ * `0x9FB4BF` rendered at ~44% of its intended luminance. The 39 fetched
+ * materials all ship `spec.color = 0xFFFFFF`, so only the two procedural ones
+ * were ever double-tinted, which is exactly why it was easy to miss.
+ *
+ * 243 rather than 255 so the small brightening lobes of the wear/smudge
+ * modulation (up to +5%) have somewhere to go instead of clipping flat.
+ */
+const PROC_ALBEDO_WHITE = 243;
+
 interface IProceduralMaps {
   /** RGB or RGBA, row-major, top row first (the encoder flips it). */
   readonly albedo: { data: Buffer; channels: 3 | 4 };
@@ -364,10 +382,9 @@ function generateGlass(size: number, seed: number): IProceduralMaps {
   const normal = Buffer.alloc(size * size * 3);
   const orm = Buffer.alloc(size * size * 3);
 
-  // spec.color 10466495 = 0x9FB4BF — cool grey-blue.
-  const baseR = 0x9f;
-  const baseG = 0xb4;
-  const baseB = 0xbf;
+  // Neutral: the cool grey-blue comes from spec.color (10466495 = 0x9FB4BF) at
+  // runtime. See PROC_ALBEDO_WHITE.
+  const base = PROC_ALBEDO_WHITE;
 
   const inv = 1 / size;
   for (let y = 0; y < size; y++) {
@@ -380,15 +397,23 @@ function generateGlass(size: number, seed: number): IProceduralMaps {
       const g = grime(u, v);
       // Smudges lighten very slightly (scattered light), grime darkens.
       const tint = 1 + (s - 0.5) * 0.06 - (g - 0.5) * 0.04;
-      albedo[i] = clamp255(baseR * tint);
-      albedo[i + 1] = clamp255(baseG * tint);
-      albedo[i + 2] = clamp255(baseB * tint);
+      const shade = clamp255(base * tint);
+      albedo[i] = shade;
+      albedo[i + 1] = shade;
+      albedo[i + 2] = shade;
 
       // Float glass is not perfectly flat; the ripple is ~1 degree of slope.
+      // The U derivative is NEGATED and the V derivative is not: a height field
+      // gives (-dh/ds, -dh/dt, 1), and the encoder's
+      // `--convert-texcoord-origin bottom-left` flips the image, so t runs
+      // opposite to v (dh/dt = -dy) while s still runs with u. Signing both
+      // channels the same way is self-inconsistent whichever handedness was
+      // meant, and would light these bumps mirrored along U relative to every
+      // fetched `nor_gl` map around them.
       const e = 1 / 64;
       const dx = ripple(u + e, v) - ripple(u - e, v);
       const dy = ripple(u, v + e) - ripple(u, v - e);
-      normal[i] = clamp255(128 + dx * 220);
+      normal[i] = clamp255(128 - dx * 220);
       normal[i + 1] = clamp255(128 + dy * 220);
       normal[i + 2] = 255;
 
@@ -426,10 +451,11 @@ function generateRoadMarkings(size: number, seed: number): IProceduralMaps {
   const normal = Buffer.alloc(size * size * 3);
   const orm = Buffer.alloc(size * size * 3);
 
-  // spec.color 15921382 = 0xF2E6E6 — warm off-white, not pure white.
-  const baseR = 0xf2;
-  const baseG = 0xe6;
-  const baseB = 0xe6;
+  // Neutral: the warm off-white comes from spec.color (15921382 = 0xF2F0E6) at
+  // runtime. See PROC_ALBEDO_WHITE. Hardcoding the unpacked bytes here got the
+  // green channel wrong (0xE6 instead of 0xF0) on top of double-tinting, so the
+  // constant is gone rather than corrected.
+  const base = PROC_ALBEDO_WHITE;
 
   const inv = 1 / size;
   for (let y = 0; y < size; y++) {
@@ -450,15 +476,17 @@ function generateRoadMarkings(size: number, seed: number): IProceduralMaps {
 
       // Grain dirties the paint; worn paint is greyer as the asphalt shows.
       const dirt = 1 - gr * 0.12 - Math.max(0, w - 0.5) * 0.18;
-      albedo[i4] = clamp255(baseR * dirt);
-      albedo[i4 + 1] = clamp255(baseG * dirt);
-      albedo[i4 + 2] = clamp255(baseB * dirt);
+      const shade = clamp255(base * dirt);
+      albedo[i4] = shade;
+      albedo[i4 + 1] = shade;
+      albedo[i4 + 2] = shade;
 
       // Thermoplastic paint sits proud of the road; the grain gives it tooth.
+      // U is negated and V is not — see the note in `generateGlass`.
       const e = 1 / 96;
       const dx = grain(u + e, v) - grain(u - e, v);
       const dy = grain(u, v + e) - grain(u, v - e);
-      normal[i3] = clamp255(128 + dx * 300);
+      normal[i3] = clamp255(128 - dx * 300);
       normal[i3 + 1] = clamp255(128 + dy * 300);
       normal[i3 + 2] = 255;
 
@@ -748,6 +776,10 @@ async function encodeTexture(
     width: png.width,
     height: png.height,
     fullMipChain: true,
+    // `--convert-texcoord-origin bottom-left` must actually have taken effect:
+    // drop that flag and every texture in the city ships upside-down while all
+    // the other assertions here still pass.
+    orientation: 'ru',
   });
   if (problems.length > 0) throw new Error(problems.join('; '));
 
@@ -843,11 +875,11 @@ async function main(): Promise<void> {
     const i = argv.indexOf(name);
     return i >= 0 ? argv[i + 1] : undefined;
   };
-  const tier = (flag('--tier') ?? 'mobile') as QualityTier;
+  const tier = parseTier(flag('--tier'));
   const result = await processTextures({
     tier,
     only: flag('--only')?.split(','),
-    concurrency: Number(flag('--concurrency') ?? 2),
+    concurrency: parseConcurrency(flag('--concurrency')),
     force: argv.includes('--force'),
   });
   console.log(
@@ -859,9 +891,15 @@ async function main(): Promise<void> {
   if (result.errors.length > 0) process.exit(1);
 }
 
+/**
+ * `fileURLToPath`, never `new URL(import.meta.url).pathname`: a URL pathname is
+ * percent-encoded and `process.argv[1]` is not, so the naive comparison fails
+ * for any checkout path containing a space or a non-ASCII character, and the
+ * CLI then silently does nothing and exits 0.
+ */
 const invokedDirectly =
   process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (invokedDirectly) {
   main().catch((error: unknown) => {
