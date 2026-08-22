@@ -1,0 +1,22 @@
+# Build outputs and downloads. Prettier does not read .gitignore, so the
+# generated trees must be repeated here or `format`/`format:check` walk them.
+dist/
+node_modules/
+android/
+ios/
+assets/source/
+assets/generated/
+public/assets/
+public/icons/
+playwright-report/
+test-results/
+
+# Machine-written files: their generators own the byte layout. Formatting them
+# creates a permanent churn loop — the next pipeline run reverts the formatting.
+docs/screenshots/*.json
+verification/playthrough-report.json
+assets/district/cityz.plan.json
+assets/assets.lock.json
+tools/manifest/characters.json
+ATTRIBUTION.md
+package-lock.json

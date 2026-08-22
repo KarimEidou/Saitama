@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,css,html,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,css,html,md}\"",
     "cap:android": "cap sync android"
   },
   "dependencies": {
