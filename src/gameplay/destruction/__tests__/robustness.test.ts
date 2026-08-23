@@ -8,15 +8,17 @@
  *     `aabbInCone`, where `pointAabbDistanceSq(...) > NaN` is also false — the
  *     range reject never fires and every structure in front of the apex is
  *     accepted at unlimited distance.
- *   • `blastRange = NaN` then makes `clamp01(distance / NaN)` NaN, so every
- *     impulse handed to `IDebrisSink.spawn` is NaN and every rigid body in the
- *     scene is ejected to nowhere.
+ *   • `blastRange = NaN` then makes `clamp01(distance / NaN)` ZERO, which is
+ *     the NEAR end of the falloff — so every piece of the city taken by the
+ *     sweep above comes off at the full 26 m/s near-field impulse regardless of
+ *     how far away it was. Finite, and just as wrong.
  *   • `normaliseInto`'s `length < 1e-6` is false for `NaN`, so it falls through
  *     to `x / NaN` and writes the NaN axis its own doc comment promises never
  *     to produce.
  *
- * None of that needs a bug in this unit to reach: `onPlayerLanded` derives its
- * radius from `event.impactSpeed`, and `clamp(NaN * 0.35, 4, 45)` is `NaN`.
+ * None of that needs a bug in this unit to reach: `onPlayerLanded` derives both
+ * its radius and its power from `event.impactSpeed`, and while `clamp` floors
+ * the radius at 4 these days, `impactSpeed * 400` goes through untouched.
  *
  * Every case here carries a POSITIVE CONTROL — the same call with finite
  * numbers really does take chunks — so none of them can pass by the punch

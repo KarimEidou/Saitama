@@ -266,10 +266,12 @@ export class CrowdBedVoice extends SustainedVoice {
 
   /** Map a nearby-civilian count onto the 0..1 density knob. */
   static densityForCount(count: number): number {
-    // A broken civilian counter must not be able to write NaN into an
-    // `AudioParam`: `clamp01` passes NaN straight through, so a NaN count
-    // reached `setIntensity` and then `linearRampToValueAtTime(NaN, …)`, which
-    // throws a `TypeError` out of the per-frame audio update.
+    // A broken civilian counter must not be able to write a nonsense value
+    // into an `AudioParam`. Still load-bearing for INFINITY, which the clamp
+    // below does not save us from: `log10(Infinity)` is `Infinity` and
+    // `clamp01` pins that at 1, so an overflowed counter would open the crowd
+    // bed to full. NaN is belt and braces — `clamp01` floors that at 0, which
+    // is already the right answer.
     if (!Number.isFinite(count)) return 0;
     // Logarithmic: the difference between 0 and 5 people is far more audible
     // than the difference between 60 and 65.

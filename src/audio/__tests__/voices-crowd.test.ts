@@ -83,10 +83,12 @@ describe('crowd density mapping', () => {
   });
 
   it('returns a usable number for a broken civilian count', () => {
-    // `clamp01` passes NaN straight through, so a NaN count reached
-    // `setIntensity` and then `linearRampToValueAtTime(NaN, …)`, which throws a
-    // `TypeError` out of the per-frame audio update — one bad counter reading
-    // and the whole audio update stops.
+    // INFINITY is the case the guard still carries on its own: `log10(Infinity)`
+    // is `Infinity` and `clamp01` pins that at 1, so an overflowed counter would
+    // open the crowd bed to full rather than close it. NaN is belt and braces —
+    // `clamp01` floors that at 0 — but it is asserted here too, because the
+    // alternative was `linearRampToValueAtTime(NaN, …)` throwing a `TypeError`
+    // out of the per-frame audio update.
     expect(density(Number.NaN)).toBe(0);
     expect(density(Number.POSITIVE_INFINITY)).toBe(0);
     expect(density(Number.NEGATIVE_INFINITY)).toBe(0);

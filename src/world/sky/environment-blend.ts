@@ -206,10 +206,11 @@ export function sampleSkyBlend(timeOfDay: number): ISkyBlend {
  *
  * Shared by the keyframe sampler, the phase lookup and the clock — ONE
  * implementation, because two of the three copies this replaces let a
- * non-finite time through. `NaN % 1` and `Infinity % 1` are both NaN, and this
- * repo's `clamp01` passes NaN straight through, so an unguarded wrap carries
- * NaN all the way to `scene.environmentIntensity` and
- * `renderer.toneMappingExposure` with no diagnostic anywhere.
+ * non-finite time through. `NaN % 1` and `Infinity % 1` are both NaN, and a
+ * wrap is not a clamp — nothing on the path from here to
+ * `scene.environmentIntensity` and `renderer.toneMappingExposure` would catch
+ * it, so an unguarded wrap carries NaN all the way with no diagnostic
+ * anywhere.
  */
 export function wrap01(t: number): number {
   if (!Number.isFinite(t)) return 0;

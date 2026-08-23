@@ -251,9 +251,10 @@ describe('sampleSkyBlend', () => {
   });
 
   it('degrades a non-finite time to midnight instead of emitting NaN', () => {
-    // `NaN % 1` and `Infinity % 1` are both NaN, and `clamp01` passes NaN
-    // through — so an unguarded wrap sends NaN to `scene.environmentIntensity`
-    // and `toneMappingExposure` with nothing to say so.
+    // `NaN % 1` and `Infinity % 1` are both NaN, and a wrap is not a clamp —
+    // nothing further down catches it, so an unguarded wrap sends NaN to
+    // `scene.environmentIntensity` and `toneMappingExposure` with nothing to
+    // say so.
     for (const t of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
       const blend = sampleSkyBlend(t);
       expect(Number.isFinite(blend.luminance)).toBe(true);

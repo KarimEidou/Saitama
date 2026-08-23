@@ -79,12 +79,16 @@ const DEFAULT_SEED = 0x5a1741;
 /**
  * NaN-proof read of an optional number.
  *
- * `clamp`/`clamp01` are comparison chains, so `clamp01(NaN)` is NaN: every
- * clamp in the play path is transparent to it. A NaN then reaches an oscillator
- * or filter frequency, where `AudioParam.setValueAtTime` rejects it with a
- * `TypeError` — thrown out of `trigger()`, past the slot bookkeeping, and
- * swallowed by the event bus. Sanitising at this boundary is what keeps a
- * degenerate physics impulse from quietly retiring a voice pool.
+ * Two things a clamp cannot do, which is why this exists rather than a
+ * `clamp01` at each site: it accepts `undefined`, and it substitutes a
+ * caller-chosen fallback instead of a bound. `clamp01` floors a NaN at 0 these
+ * days, but 0 is the wrong answer for a frequency.
+ *
+ * What it averts: a NaN reaching an oscillator or filter frequency, where
+ * `AudioParam.setValueAtTime` rejects it with a `TypeError` — thrown out of
+ * `trigger()`, past the slot bookkeeping, and swallowed by the event bus.
+ * Sanitising at this boundary is what keeps a degenerate physics impulse from
+ * quietly retiring a voice pool.
  */
 function finiteOr(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;

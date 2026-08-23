@@ -1215,12 +1215,12 @@ function wrapPi(angle: number): number {
 /**
  * Replace a non-finite input with a safe default.
  *
- * `clamp` and `clamp01` are written as `v < lo ? lo : v > hi ? hi : v`, so NaN
- * fails both comparisons and passes through untouched — and so do `smoothstep`
- * and `mod`, which are built on them. One bad frame from a caller must not
- * poison `phase` or `rootYaw`: those are ACCUMULATORS, so a single NaN sticks
- * for the life of the solver, every quaternion downstream becomes NaN, and the
- * character disappears for the rest of the session with nothing logged.
+ * Belt and braces: `clamp`, `clamp01` and `smoothstep` now floor a NaN at their
+ * low bound instead of passing it through. `mod` still does not, and either way
+ * the guard belongs at the ENTRY rather than three calls down a helper, because
+ * of what it protects: `phase` and `rootYaw` are ACCUMULATORS, so a single NaN
+ * sticks for the life of the solver, every quaternion downstream becomes NaN,
+ * and the character disappears for the rest of the session with nothing logged.
  *
  * Deliberately silent. A per-frame guard that logged would spam once per
  * character per frame for as long as the bad input lasted.

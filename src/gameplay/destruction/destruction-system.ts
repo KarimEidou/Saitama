@@ -476,10 +476,11 @@ export class DestructionSystem {
     if (this.disposed) return 0;
     if ((INTENT_RANK[intent] ?? 0) < this.minimumIntentRank) return 0;
     // A NaN range makes every reject in `aabbInCone` fall through — `d > NaN`
-    // is false — so one bad number upstream sweeps the entire city, and
-    // `clamp01(NaN)` then hands physics a NaN impulse for every piece of it.
-    // `range <= 0` alone does not catch it: every comparison against NaN is
-    // false, which is exactly why the test is written the positive way round.
+    // is false — so one bad number upstream accepts every structure in front of
+    // the apex at unlimited distance. `range <= 0` alone does not catch it:
+    // every comparison against NaN is false, which is exactly why the test is
+    // written the positive way round. This one is load-bearing; the clamps
+    // downstream bound the impulse but cannot bound the SWEEP.
     if (!Number.isFinite(range) || range <= 0) return 0;
     if (!Number.isFinite(halfAngle) || !Number.isFinite(power)) return 0;
     if (!Number.isFinite(origin.x) || !Number.isFinite(origin.y) || !Number.isFinite(origin.z)) {
@@ -576,8 +577,9 @@ export class DestructionSystem {
     if (this.disposed) return 0;
     if ((INTENT_RANK[intent] ?? 0) < this.minimumIntentRank) return 0;
     // Same reject as `applyShockwave`, and reachable without a single bad line
-    // in this unit: `onPlayerLanded` derives its radius from `event.impactSpeed`
-    // and `clamp(NaN * 0.35, 4, 45)` is NaN.
+    // in this unit: `onPlayerLanded` derives BOTH arguments from
+    // `event.impactSpeed`, and while `clamp` now floors the radius at 4 rather
+    // than passing NaN on, `impactSpeed * 400` is not clamped at all.
     if (!Number.isFinite(radius) || radius <= 0) return 0;
     if (!Number.isFinite(power)) return 0;
     if (!Number.isFinite(origin.x) || !Number.isFinite(origin.y) || !Number.isFinite(origin.z)) {

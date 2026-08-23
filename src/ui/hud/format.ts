@@ -34,8 +34,10 @@ const YEN = '¥';
  *
  * These functions are the last thing between an upstream number and a glyph, and
  * a `NaN` that reaches the screen prints `¥NaN` / `NaN:NaN` — an unreadable
- * value that also looks like a rendering fault rather than a bad input. `clamp01`
- * does not stop it: `NaN < 0` and `NaN > 1` are both false, so it passes through.
+ * value that also looks like a rendering fault rather than a bad input. Belt and
+ * braces now that `clamp01` floors NaN at 0 rather than passing it through: yen
+ * and seconds do not go near a clamp on the way here, so on those paths this is
+ * still the only guard there is.
  */
 function finite(value: number): number {
   return Number.isFinite(value) ? value : 0;

@@ -178,8 +178,9 @@ describe('ratios', () => {
 
 describe('non-finite input never reaches the screen', () => {
   it('coerces NaN and Infinity to the zero of each formatter', () => {
-    // `clamp01` does NOT stop this upstream: `NaN < 0` and `NaN > 1` are both
-    // false, so it passes through and prints `¥NaN` / `NaN:NaN` on the glass.
+    // Belt and braces: `clamp01` floors NaN at 0 now, but yen and seconds do
+    // not pass through a clamp on the way to a glyph, and `¥NaN` on the glass
+    // reads as a rendering fault rather than as the bad input it is.
     expect(formatYenCompact(Number.NaN)).toBe('¥0');
     expect(formatYenFull(Number.NaN)).toBe('¥0');
     expect(formatYenOku(Number.NaN)).toBe('0円');

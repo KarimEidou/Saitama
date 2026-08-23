@@ -303,12 +303,13 @@ describe('gait model', () => {
 });
 
 describe('hostile input', () => {
-  // `clamp`, `clamp01`, `smoothstep` and `mod` all pass NaN through untouched,
-  // so nothing downstream stops it. That would be survivable if the damage were
-  // confined to one frame, but `phase` and `rootYaw` are ACCUMULATORS: one
-  // non-finite frame from a stalled clock or a physics body that went bad makes
-  // every bone NaN for the rest of the session, with nothing thrown and nothing
-  // logged. The character simply disappears.
+  // `mod` still passes NaN through untouched, and `clamp`, `clamp01` and
+  // `smoothstep` only floor it at their low bound — the solver guards its own
+  // entry rather than relying on either. That would all be survivable if the
+  // damage were confined to one frame, but `phase` and `rootYaw` are
+  // ACCUMULATORS: one non-finite frame from a stalled clock or a physics body
+  // that went bad makes every bone NaN for the rest of the session, with
+  // nothing thrown and nothing logged. The character simply disappears.
   const saitama = heroFixture('saitama');
 
   it('solves a finite gait from a non-finite speed', () => {

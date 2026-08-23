@@ -178,12 +178,13 @@ describe('lifecycle', () => {
   });
 
   it('ignores a malformed shockwave rather than waking the whole map', () => {
-    // `clamp01` is `v < 0 ? 0 : v > 1 ? 1 : v`, so `clamp01(NaN)` is NaN and
-    // `NaN <= 0` is false — a non-finite power sailed through the intensity
-    // bail and reached `notice`, where `distance > NaN` is false for EVERY
-    // monster regardless of distance. A non-finite origin is worse: it writes
-    // NaN into `lastKnown`, then into `yaw`, then into `position`, and the
-    // monster is gone from the world with no way back short of `reset()`.
+    // INFINITY is what the power guard still carries alone: `log10(Infinity)`
+    // is `Infinity`, `clamp01` pins that at 1, and a full-intensity pulse wakes
+    // every monster on the map. NaN is belt and braces now that `clamp01`
+    // floors it at 0 and the `intensity <= 0` bail catches it. A non-finite
+    // ORIGIN is worse than either and guarded on its own account: it writes NaN
+    // into `lastKnown`, then into `yaw`, then into `position`, and the monster
+    // is gone from the world with no way back short of `reset()`.
     const { recorder, monsters } = system('nan-wave');
     const far = monsters.spawn(monsterArchetype('mob.wolf.pest'), { x: 5000, y: 0, z: 0 });
     const wave = {
