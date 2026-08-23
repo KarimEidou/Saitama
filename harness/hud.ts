@@ -723,7 +723,7 @@ interface IHitSample {
 }
 
 interface IHitOwnership {
-  /** The band a pointer-down turns into stick input, in viewport px. */
+  /** The band the lattice swept, in viewport px. */
   zone: { x: number; y: number; width: number; height: number };
   sampled: number;
   /** Probes the input overlay did NOT own. Must be empty. */
@@ -1252,6 +1252,18 @@ const HIT_GRID_PX = 40;
  * The geometry is READ FROM THE INPUT LAYER's own exports rather than copied,
  * for the same reason the thumb-reserve assertion reads them: a retuned arc must
  * fail this test, not quietly move out from under it.
+ *
+ * ── THE ONE SHAPE THAT IS NOT ASKED FOR ────────────────────────────────────
+ * The BAND below is described here instead of being asked for, because
+ * `src/ui/input`'s public surface has no function to ask. Every NUMBER still
+ * comes out of `DEFAULT_INPUT_TUNING`, so retuning the fraction moves the sweep
+ * with it; what is written here is only the shape — the stick's fraction of the
+ * width, full height. That is deliberately a slightly WIDER claim than the
+ * stick alone makes: `.opm-input-root` is full-bleed and takes the camera drags
+ * too, so a HUD panel intercepting any point in that band costs the player an
+ * input whichever one it was. If `src/ui/input/stick-geometry.ts`'s
+ * `isStickZone` and `fixedStickAnchor` ever reach the barrel, delete the two
+ * derivations below and call them.
  */
 function hitOwnership(): IHitOwnership {
   const width = window.innerWidth;
@@ -1270,10 +1282,11 @@ function hitOwnership(): IHitOwnership {
     stolen.push({ label, x: Math.round(px), y: Math.round(py), owner: describeElement(element) });
   };
 
-  /* The stick has no fixed anchor — it is floating, and its origin is wherever
-     the thumb lands. What can be named is the innermost resting place: one full
-     deflection in from the bottom-left safe corner, which is the closest a
-     player can grab it with the whole ring still on screen. */
+  /* The anchor. The stick FLOATS, so there is no fixed origin to probe; what
+     can be named is the innermost resting place, one full deflection in from
+     the bottom-left safe corner, which is the closest a thumb can grab it with
+     the whole ring still on screen. Nothing is painted there, and it is still
+     the most expensive single point on the display to lose to a HUD panel. */
   probe(
     'stick-anchor',
     currentInsets.left + DEFAULT_INPUT_TUNING.stickFullDeflectionPx,
@@ -1292,9 +1305,8 @@ function hitOwnership(): IHitOwnership {
     );
   }
 
-  /* The stick band, as `TouchCore` defines it: a pointer-down left of
-     `stickZoneFraction` of the RAW viewport width becomes stick input, insets
-     included — a touch on the notch strip still drives the character. */
+  /* The band: `stickZoneFraction` of the RAW viewport width, insets included,
+     because a touch on the notch strip still drives the character. */
   const zone = {
     x: 0,
     y: 0,

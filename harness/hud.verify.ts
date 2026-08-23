@@ -800,13 +800,16 @@ async function main(): Promise<void> {
           }
 
           /* ---- who owns the touch ---- */
-          // Both hands, though only one of them currently changes anything:
+          // Both hands, though today neither value moves anything.
           // `IHudSettings.stickHand` exists and the settings screen writes it,
-          // but no part of `src/ui/input` reads it yet, so the sampled zone is
-          // the left band either way. When handedness does land, this loop
-          // already covers the mirrored layout instead of having to be
-          // remembered — and `hitOwnership()` derives the zone from the input
-          // layer's own tuning, so it will follow without an edit here.
+          // and nothing carries it across to the input layer: the settings
+          // bridge in `game.ts` forwards look sensitivity, invert, haptics and
+          // the stick LAYOUT, and not the hand. So the swept band is the same
+          // one whichever value is set, and it is left that way ON PURPOSE — a
+          // harness that forwarded the setting itself would be asserting a
+          // behaviour the game does not have. The loop stays because the day
+          // that bridge learns the field, the mirrored layout is already
+          // covered rather than needing to be remembered.
           const stolen: string[] = [];
           let sampled = 0;
           for (const hand of ['left', 'right'] as const) {
