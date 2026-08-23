@@ -144,6 +144,46 @@ describe('the meters paint', () => {
     // otherwise", and the bar opens a boss fight before any health arrives.
     expect(ruleBody('.hud-boss__fill')).toContain('--fill:1');
   });
+
+  it('writes no var() fallback on a registered property anywhere', () => {
+    // The completeness half of the rule above, and the reason it is a guard
+    // rather than a tidy-up: a fallback on a registered property reads as a
+    // defensive default and defends nothing, so the next person to need a real
+    // default writes another one instead of a declaration. Five of them shipped
+    // — on `.hud-boredom__fill`, `.hud-ledger__fill`, `.hud-charge__fill`,
+    // `.hud-standing__bar::after` and `.hud-loading__fill` — each harmless only
+    // because it happened to repeat the registered initial-value.
+    const registered = [...CSS.matchAll(/@property (--[a-z-]+)\{/g)].map((match) => match[1]!);
+    expect(registered.length).toBeGreaterThan(0);
+    for (const property of registered) {
+      const withFallback = new RegExp(`var\\(${property}\\s*,`);
+      expect(withFallback.test(BARE), `${property} carries a dead var() fallback`).toBe(false);
+    }
+    // And the one live fallback survives, because --hud-arc-len is NOT
+    // registered and is written from TypeScript.
+    expect(BARE).toContain('var(--hud-arc-len,239)');
+  });
+});
+
+describe('reduced motion', () => {
+  it('gives every animated pseudo-element a resting state to land on', () => {
+    // `[data-reduced-motion='true'] *::after{animation:none !important}` does
+    // not restore anything — it removes the animation and leaves the SPECIFIED
+    // style standing. `.hud-alert::after` specified none, so the speed-line
+    // hatch fell back to `opacity:1;transform:none`: a full-strength 1-in-7 px
+    // screen in the alert's own colour, unskewed, painted permanently across a
+    // threat bulletin, for exactly the players who asked for less motion.
+    const sweep = ruleBody('.hud-alert::after');
+    expect(sweep).toContain('opacity:0');
+    expect(sweep).toMatch(/transform:skewX\(var\(--hud-skew\)\)/);
+    // And under the type rather than over it: `::after` is a positioned
+    // descendant, so with z-index:auto it paints above the in-flow headline —
+    // in the same hue as the glyphs.
+    expect(sweep).toContain('z-index:-1');
+    // The keyframes still supply the visible pass, so nothing above changes
+    // what the animation looks like while it runs.
+    expect(CSS).toMatch(/@keyframes hud-sweep\{\s*0%\{[^}]*opacity:\.42/);
+  });
 });
 
 describe('the palette reaches the panels', () => {
@@ -280,14 +320,29 @@ describe('tap targets', () => {
   /** Layer containers, which take the touch in order to BLOCK it. */
   const LAYERS = ['.hud-screen', '.hud-loading'];
 
-  it('never sizes a control below MIN_TAP_PX', () => {
+  it('never sizes a control below MIN_TAP_PX, in every media query', () => {
     // `tokens.ts` calls anything smaller "a bug, not a style" — and the pause
     // affordance (40 px) and every settings option (38 px) were smaller.
-    const sizes = /(?:^|[;\s])(min-width|min-height|width|height):(\d+(?:\.\d+)?)px/g;
+    //
+    // EVERY rule, not the first one. This used to read `ruleBody(selector)`,
+    // i.e. the top-level declaration only, while the HUD-scale guard sixty
+    // lines below iterates `ruleBodies` precisely because "the shipping
+    // landscape and portrait media queries re-declare several of these
+    // selectors". Re-declaring a control's size in a media query is a live
+    // pattern in this very sheet — `@media (max-height:520px){.hud-setting{
+    // min-height:44px}}` — so an override that shrank `.hud-btn` or
+    // `.hud-seg__opt` below the floor on the ONE profile that ships would have
+    // passed this guard silently, which is the single failure mode it exists
+    // to prevent.
     for (const selector of CONTROLS) {
-      const body = ruleBody(selector);
-      for (const [, property, value] of body.matchAll(sizes)) {
-        expect(Number(value), `${selector} ${property}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      for (const body of ruleBodies(selector)) {
+        // Rebuilt per body rather than shared: a /g regex carries `lastIndex`,
+        // and the day this switches from `matchAll` to `exec` a shared literal
+        // starts skipping every other rule.
+        const sizes = /(?:^|[;\s])(min-width|min-height|width|height):(\d+(?:\.\d+)?)px/g;
+        for (const [, property, value] of body.matchAll(sizes)) {
+          expect(Number(value), `${selector} ${property}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+        }
       }
     }
   });

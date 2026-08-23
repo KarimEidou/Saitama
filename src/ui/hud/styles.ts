@@ -227,6 +227,14 @@ export function hudStyles(): string {
 /* lets it be transitioned and interpolated. Without this, --boredom is a     */
 /* token string and transition: --boredom does nothing at all.              */
 /* ========================================================================== */
+/* AND REGISTERING ONE MEANS NOTHING BELOW EVER NEEDS A var() FALLBACK. A       */
+/* registered property with an initial-value is never guaranteed-invalid, so    */
+/* var(--boredom,0) and its four siblings could not take their fallback under   */
+/* any condition; they read as defensive defaults defending nothing, in a file  */
+/* whose comments are the design record. The one surviving fallback is          */
+/* var(--hud-arc-len,239), and it survives because --hud-arc-len is NOT         */
+/* registered and is written from TS. Where a non-zero default is wanted the    */
+/* declaration has to supply it — see .hud-boss__fill's --fill:1.               */
 /* --fill INHERITS, and that is load-bearing rather than incidental: one of its  */
 /* consumers is a ::after pseudo-element (.hud-standing__bar) and a writer can   */
 /* only reach the ORIGINATING element. A pseudo inherits from its originator      */
@@ -417,13 +425,30 @@ ${allPalettes()}
 /* ========================================================================== */
 /* Combat HUD — the top band                                                  */
 /* ========================================================================== */
+/* ROW ONE IS A ROW, which means it has ONE bottom edge. It used to be
+   'align-items:start', so each of the four boxes fell to its own content height
+   and the band's dominant horizontal line — the one the eye uses to read a row
+   AS a row — did not exist: rank chip closing at 61, encounter at 43, ledger at
+   64, pause button at 52, four bottoms spread over 21 px. The encounter was the
+   casualty, a 35 px stub suspended between a 53 px plate and a 56 px plate with
+   27 px of bare sky under it while its neighbours cleared the duty strip by 6.
+   Three plates that start at the same y and end wherever their text runs out
+   read as three unrelated widgets, not as one filed row.
+   'stretch' costs nothing — the row was already as tall as its tallest plate —
+   and it buys back something else for free: row one's height stops being
+   content-driven, so the ledger appearing when a fight starts no longer pushes
+   the duty strip and its LOG button down 3 px (idle tracker y=67, combat y=70).
+   The harness measures CLS inside a single scene and could never see that jog.
+   NOT a fixed height pinned to --hud-band-row: the ledger is 56 px at 100 % and
+   66.5 at 130 %, and a 64 px box would clip it at the setting a low-vision
+   player picks. */
 .hud-top{
   position:absolute;
   top:var(--hud-sa-t);left:var(--hud-sa-l);right:var(--hud-sa-r);
   display:grid;
   grid-template-columns:auto minmax(0,1fr) auto;
   grid-template-rows:auto auto;
-  align-items:start;
+  align-items:stretch;
   gap:var(--hud-gap);
   pointer-events:none;
 }
@@ -456,12 +481,49 @@ ${allPalettes()}
    130 % HUD scale it was competing with the mood word for the same 160 px —
    "CAPED BALDY" is on the pause screen and the rank board, and C-388 is who the
    Association says he is, which is the joke.
-   The rank is now the largest thing in the corner by 2.4x with RANK demoted to
-   an overline, which is what turns a widget into a title card. */
+   The rank is the largest thing in the corner by 2.4x, which is what turns a
+   widget into a title card.
+
+   ── WHY THE MOOD WORD HAS ITS OWN LINE NOW ─────────────────────────────────
+   It used to share the caption row with the RANK overline, right-aligned
+   against it, and that arrangement had two costs. The small one: a caption two
+   rows above the meter it captions. The large one: at 130 % HUD scale — the
+   setting a low-vision player picks — the overline and the mood word wanted
+   28 + 8 + 142 = 178 px of a file column measuring 160, so the meter's ONLY
+   content rendered "GOING THROUGH THE MOT…". The header of this file and
+   styles.test.ts both name that exact failure and claim it fixed; it was not,
+   because the landscape override capped the plate at 26vw = 219.4 px, which at
+   130 % is SMALLER than 206 x 1.3, so the var(--hud-scale) term never
+   participated and the guard passed on an inert declaration.
+   Three rows, re-dealt, at the same height as before:
+     1  RANK 388 — the caption inline with the figure it captions — and, opposite
+        it, GAIN xN.NN, the other labelled figure. Two labelled numbers, one
+        baseline, bracketing the plate the way the two captions used to.
+     2  the mood word, alone, FLUSH LEFT over the fill's own origin. A caption
+        directly above its meter, set flush left against one measure, which is
+        the pattern the boot card already uses.
+     3  the meter.
+   The widest row is now row 1 — a closed set of strings (RANK, three digits,
+   GAIN and a two-decimal multiplier) — so the plate's declared width is derived
+   from content that cannot grow, and the mood word, whose vocabulary is the
+   five strings in BOREDOM_BANDS, fits under it at both scales with ~5 px to
+   spare. Measured: 171 px needed at 100 %, 201 at 130 %.
+
+   THE WIDTH IS AFFINE, NOT PROPORTIONAL, and that is the difference between a
+   declaration that scales and one that only looks as if it does. Two thirds of
+   this plate is type and scales; the other third — 22 px of plate padding and
+   the 9 px gutter — is chrome and does not. k * var(--hud-scale) therefore
+   over-provisions at 130 % by exactly the chrome it double-counts, and every
+   px of that over-provision comes straight out of the incident plate in the
+   middle of the row, where the enemy's name is. 80px + 97px x scale is the line
+   through the two measured points: 177 at 100 %, 206 at 130 %. The vw cap
+   stays, because on a 568 px landscape phone the chip WOULD eat the centre
+   column — but on the 844 px profile that ships it no longer binds at 130 %,
+   so the scale term is live rather than decorative. */
 .hud-rankchip{
   --hud-edge:var(--hud-class,var(--hud-accent));
-  display:flex;align-items:center;gap:9px;
-  width:min(calc(232px * var(--hud-scale)),44vw);
+  display:flex;align-items:center;gap:9px;flex:1 1 auto;
+  width:min(calc(80px + 97px * var(--hud-scale)),44vw);
 }
 .hud-rankchip__class{
   flex:0 0 auto;
@@ -471,41 +533,60 @@ ${allPalettes()}
   clip-path:var(--hud-plate);--hud-chamfer:4px;
 }
 .hud-rankchip__file{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
-.hud-rankchip__head{display:flex;align-items:baseline;gap:8px;min-width:0}
+.hud-rankchip__seat{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
+/* A LABELLED FIGURE: caption and number on one baseline, read as one object.
+   Same construction as the invoice's value column, same name. */
+.hud-rankchip__figure{display:flex;align-items:baseline;gap:5px;min-width:0}
 /* The overline. 10 px, tracked, muted — the WORD is the caption and the number
-   under it is the content, which is the exact inverse of how it read before. */
+   BESIDE it is the content, which is the exact inverse of how it read before.
+   It sat on the row above until it started costing the mood word its last
+   twelve pixels; beside the figure it captions is where a caption belongs
+   anyway, and it is now the same shape as GAIN xN.NN opposite it. */
 .hud-rankchip__overline{
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
   color:var(--hud-ink-muted);line-height:1.1;flex:0 0 auto;
 }
-.hud-rankchip__seat{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
 .hud-rankchip__rank{color:var(--hud-class,var(--hud-accent));flex:0 0 auto}
 
 /* ---- boredom, inside the hero file ------------------------------------- */
 /* The game's real progress bar. Presented as a MOOD: a word, a slow breath,
-   and a fill that drains of colour rather than filling up with it. The mood
-   word and the gain share the seat row's baseline, so the meter costs the
-   plate one 5 px rule rather than a row of its own. */
-/* The mood word captions the meter from the row above it, right-aligned so the
-   two captions bracket the plate. .06em rather than .14em because it is not a
-   label — "NOTHING FEELS LIKE ANYTHING" is twenty-seven characters, and heavy
-   tracking on twenty-seven characters costs 49 px that a 121 px band does not
-   have to give it. */
+   and a fill that drains of colour rather than filling up with it. */
+/* The mood word captions the meter from the line DIRECTLY above it, flush left
+   over the fill's own origin. Right-aligned it did two things wrong at once: it
+   competed with the RANK overline for one row (see the plate note above), and a
+   right-aligned TRACKED run stops one tracking unit short of its own box,
+   because CSS adds letter-spacing after the final glyph too — measured, the
+   mood word, the gain and the meter track ended at three different x on the
+   plate's right edge. Flush left, the trailing space falls off the end where
+   nothing is aligned to it, and the whole class of error goes with the
+   alignment rather than being compensated for.
+   .06em rather than .14em because it is not a label — "NOTHING FEELS LIKE
+   ANYTHING" is twenty-seven characters, and heavy tracking on twenty-seven
+   characters costs 49 px that a 121 px band does not have to give it. The
+   ellipsis stays as a backstop for a mood string longer than the five in
+   BOREDOM_BANDS; measured against the longest of those it never fires. */
 .hud-boredom__mood{
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);
   letter-spacing:.06em;text-transform:uppercase;
   color:var(--hud-mood,var(--hud-ink-muted));line-height:1.1;
-  text-align:right;flex:1 1 auto;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
 }
-/* GAIN, not RANK. The overline two lines above says "RANK" and means a ladder
-   position; this said "RANK ×0.83" and meant a multiplier, so the eye parsed
-   the second as "rank times zero". One word, two meanings, 20 px apart. It also
-   carried a title tooltip, on a touch device, where no player will ever see
-   it — the visible word now says what the tooltip said. */
+/* GAIN, not RANK. The word RANK is now on the same baseline, five pixels from
+   the seat number it captions; this said "RANK ×0.83" and meant a multiplier,
+   so the eye parsed the second as "rank times zero". One word, two meanings,
+   20 px apart. It also carried a title tooltip, on a touch device, where no
+   player will ever see it — the visible word now says what the tooltip said.
+   The negative right margin is the trailing letter-space coming back: CSS adds
+   letter-spacing after the FINAL glyph, so this run stopped .14em short of the
+   plate's right edge while the meter track under it did not — measured at 252.0
+   against a track ending at 253.67 and a content edge of 254.0. The sheet
+   already compensates for the CENTRED case on three selectors with
+   padding-left; this is the same correction for the right-aligned one, and it
+   is the last right-aligned tracked run in the HUD. */
 .hud-boredom__mult{
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
   color:var(--hud-ink-muted);white-space:nowrap;flex:0 0 auto;
+  margin-right:-.14em;
 }
 .hud-boredom__mult[data-throttled='true']{color:var(--hud-lost)}
 .hud-boredom__track{
@@ -513,7 +594,7 @@ ${allPalettes()}
   background:var(--hud-track);border-radius:var(--hud-radius);
 }
 .hud-boredom__fill{
-  position:absolute;inset:0;transform-origin:0 50%;transform:scaleX(var(--boredom,0));
+  position:absolute;inset:0;transform-origin:0 50%;transform:scaleX(var(--boredom));
   background:linear-gradient(90deg,
     color-mix(in srgb,var(--hud-mood,#54e08a) 30%,transparent),
     var(--hud-mood,#54e08a));
@@ -541,9 +622,16 @@ ${allPalettes()}
 /* Encounter card and boss bar, one plate: the tier word, the name, the clock,
    and the health rule under all three. Two panels stacked in the centre column
    is two ink rules and two chamfers to say one thing. */
+/* 'flex:1 1 auto' and 'align-content:center' are the two halves of sharing row
+   one's bottom edge: grow to the row's height (see '.hud-top'), and then keep
+   the type in the MIDDLE of the plate rather than pinned to its top with a
+   pocket of empty paper underneath. Grid's 'align-content' is 'stretch' by
+   default and would have grown the 4 px gap between the head and the health
+   rule instead, which is the one place in this plate where the spacing means
+   something. */
 .hud-encounter{
   --hud-edge:var(--hud-tier,var(--hud-accent));
-  display:grid;row-gap:4px;
+  display:grid;row-gap:4px;align-content:center;flex:1 1 auto;
   width:min(calc(560px * var(--hud-scale)),100%);
 }
 .hud-encounter__head{display:flex;align-items:baseline;gap:9px;min-width:0}
@@ -585,13 +673,26 @@ ${allPalettes()}
    letter-space inside the alignment, so every counter sat a letter and a half
    left of its own label and overhung it by ~1 px. Left-aligned columns cannot
    do that. */
+/* TWO ROWS, ONE RHYTHM. The cells used to be content-sized against a
+   flex-start line, so the LABEL row got a uniform 12 px column gap and the
+   VALUE row inherited whatever each label happened to be wider than its own
+   number: measured 28.7 / 22.3 / 44.9 px between "6", "2", "9" and "¥5.42B".
+   The top row read as an even printed tally and the bottom row read as three
+   orphan digits and then a lump — two rhythms in one plate, which is the thing
+   that stops a register reading as a register. space-between plus a cell that
+   may grow distributes the slack across the line instead of dumping it after
+   the last cell, so the value gaps stop being a function of label length.
+   It also fixes the plate's third right edge: the collateral track is
+   full-bleed (flex:1 0 100%) and ended 12 px right of the widest figure, so
+   one plate had an 11 px left margin and a 23 px optical right one. The last
+   cell now ends flush with the track it sits over. */
 .hud-ledger{
   --hud-edge:var(--hud-saved);
-  display:flex;flex-wrap:wrap;align-items:flex-start;
+  display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;flex:1 1 auto;
   column-gap:12px;row-gap:3px;
 }
 .hud-ledger[data-lost='true']{--hud-edge:var(--hud-lost)}
-.hud-ledger__cell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
+.hud-ledger__cell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0;flex:1 1 auto}
 .hud-ledger__cell--saved .hud-ledger__value{color:var(--hud-saved)}
 .hud-ledger__cell--lost .hud-ledger__value{color:var(--hud-lost)}
 .hud-ledger__cell--cost .hud-ledger__value{color:var(--hud-collateral)}
@@ -608,7 +709,7 @@ ${allPalettes()}
    that exists precisely so a meter has something honest to read.
    display:block for the same reason as .hud-boss__fill — see there. */
 .hud-ledger__fill{
-  display:block;height:100%;transform-origin:0 50%;transform:scaleX(var(--collateral,0));
+  display:block;height:100%;transform-origin:0 50%;transform:scaleX(var(--collateral));
   background:linear-gradient(90deg,var(--hud-collateral),#ff4d4d);
   will-change:transform;
 }
@@ -625,13 +726,31 @@ ${allPalettes()}
    the quest log, one tap away, with room to print them properly — and on a
    121 px band they were the two rows that pushed the strip into a hand.
    The edge rule carries urgency, which is what the old border-left did and
-   what this whole language is generalised from. */
+   what this whole language is generalised from.
+
+   THE LEADER IS A TICK, NOT A RULE. That one hairline used to span the whole
+   grid row, so what you actually SAW of it was whatever gap the pinned quest's
+   title happened to leave between the content-sized plate and the LOG button:
+   196 px on the shipping phone, 635 px on a tablet, and nothing at all if the
+   title ran long. An element whose length is set by a string is left-over, not
+   composed — and at 635 px it was the single longest graphic in the HUD, a
+   hairline carrying nothing, reading as a stray horizon across the frame. That
+   also contradicts this file's own opening doctrine: one 3 px rule down the
+   leading edge, and NO hairline round the rest.
+   20 px, terminating one 6 px gutter short of the LOG button's leading edge —
+   expressed against --hud-pause-size because the LOG button is deliberately
+   under the pause button on every profile, so the two share a leading edge and
+   should share the token that puts it there. It is a leader INTO the button,
+   which is what a leader is for. In portrait the plate and the button are 6 px
+   apart and the tick falls behind the plate: there is nothing to lead across
+   there, and a decoration that only appears when there is a gap to cross is the
+   right kind of conditional. */
 .hud-tracker{
   grid-area:2 / 1 / auto / -1;
   --hud-edge:var(--hud-accent);
   display:flex;align-items:stretch;justify-content:space-between;
   gap:6px;min-height:${MIN_TAP_PX}px;
-  background:linear-gradient(var(--hud-line),var(--hud-line)) 0 50% / 100% 1px no-repeat;
+  background:linear-gradient(var(--hud-line),var(--hud-line)) right calc(var(--hud-pause-size) + 6px) top 50% / 20px 1px no-repeat;
 }
 /* The ROW spans the band so its button lands under the pause button on every
    profile; the PLATE inside it is sized to what it is SAYING, capped for
@@ -693,19 +812,39 @@ ${allPalettes()}
    Visibility is a NUMBER, not a class or an attribute: --hud-on is 0 or 1
    and CSS derives opacity and the entry transform from it, so appearing and
    disappearing stay inside the custom-property-only rule.
-   CENTRED IN THE SAFE BOX, not at left:50%. Those are two different axes and
-   they were 12.5 px apart on any single-notch device — invisible on the shots
-   in docs/ only because iOS symmetrises landscape insets. left/right/auto
-   margins centre in the box that actually exists, and need no translate.
-   The width is the smaller of the type-scaled box and the CORRIDOR between the
-   two hands, which is the one panel in this HUD that had no --hud-scale term at
-   all and was 184 px wide in a gap measuring 286. */
+   CENTRED IN THE CORRIDOR, not at left:50% and not in the safe box either.
+   Those are three different axes. left:50% was 12.5 px off the safe box on any
+   single-notch device; the safe box in turn is 7.5 px off the corridor, because
+   the two hands do not claim the same width — the stick reserve is 225 px and
+   the thumb reserve 240. So the box is laid out inside the SAFE box, where it
+   can never overflow an inset whatever the viewport does, and then slid by half
+   the difference between the two reserves. That expression is also the ONLY
+   thing that made [data-stick-hand='right'] mean anything: the swap trades the
+   two reserves, and the old width formula subtracted BOTH of them, so their sum
+   — and therefore every pixel of the result — was invariant under it. A rule
+   that reads as handedness support now moves the arc 15 px when the hand
+   changes. 'translate' rather than a term in 'transform', because 'transform'
+   here is the entry animation and is transitioned; this offset is static.
+
+   THE WIDTH HAS A FLOOR, and that floor is the difference between an arc and
+   nothing at all. The corridor term goes NEGATIVE on any viewport narrower than
+   8 + 8 + 225 + 240 = 481 px — which is every phone held in portrait, where the
+   two quarter-discs overlap and there is no corridor between the hands to
+   measure. min() took the negative branch, 'width' clamped it to 0, and the SVG
+   track, the intent ring, the intent word and the yen forecast all collapsed;
+   the two absolutely-positioned labels then overflowed the 0-width box and
+   printed across the JUMP button. max() with a legible floor is what stops a
+   corridor that does not exist from deleting the panel. The portrait block
+   below drops the corridor term entirely rather than flooring it, because on
+   that shape of screen the honest statement is that the arc clears the hands
+   VERTICALLY — see --hud-arc-lift there. */
 .hud-charge{
   position:absolute;
   left:var(--hud-sa-l);right:var(--hud-sa-r);
   bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift));
-  width:min(calc(var(--hud-arc-w) * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r) - var(--hud-reserve-l) - var(--hud-reserve-r)));
+  width:min(calc(var(--hud-arc-w) * var(--hud-scale)),max(calc(120px * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r) - var(--hud-reserve-l) - var(--hud-reserve-r))));
   height:var(--hud-arc-h);margin:0 auto;
+  translate:calc((var(--hud-reserve-l) - var(--hud-reserve-r)) / 2) 0;
   opacity:var(--hud-on,0);
   transform:translateY(calc((1 - var(--hud-on,0)) * 10px))
             scale(calc(.94 + .06 * var(--hud-on,0)));
@@ -717,23 +856,52 @@ ${allPalettes()}
 .hud-charge__fill{
   fill:none;stroke:var(--hud-intent,var(--hud-commit));stroke-width:7;stroke-linecap:butt;
   stroke-dasharray:var(--hud-arc-len,239);
-  stroke-dashoffset:calc(var(--hud-arc-len,239) * (1 - var(--charge,0)));
+  stroke-dashoffset:calc(var(--hud-arc-len,239) * (1 - var(--charge)));
 }
 .hud-charge__tick{stroke:rgba(255,255,255,.55);stroke-width:2}
 /* The intent word is GENERATED CONTENT from a custom property, for the same
    reason the timer digits are: it changes while the player is holding the
-   button, and a text-node swap is not allowed on that path. */
+   button, and a text-node swap is not allowed on that path.
+
+   THE ONLY TWO STRINGS IN THIS HUD PAINTED STRAIGHT ONTO THE WORLD, and until
+   now the only two with neither a plate under them nor a shadow behind them.
+   '.hud-marker' — the other type with no plate — has carried
+   'text-shadow:0 1px 3px rgba(0,0,0,.95)' for exactly this reason, and the
+   '.hud-pausebtn' note below already makes the argument against the alternative:
+   an unshadowed glyph over a lit facade measures about 1.2:1. Measured here,
+   the intent word is 6.15:1 against the darkest road and 3.01:1 against the
+   road stripe that crosses the same band — under the 3:1 floor for 18 px
+   non-bold type, on the one word that says how much of the neighbourhood is
+   about to be a hole. The shadow is the cheapest thing that fixes it and it
+   costs no layout.
+
+   AND THE WORD IS CONSTRAINED TO THE GAUGE'S OWN CORRIDOR. It used to be
+   left:0;right:0 across the whole box, with no max-width and no nowrap — and
+   the arc's two legs come DOWN through the left and right of that same box at
+   the label's height. "NO RESTRAINT" cleared the stroke by under 3 px purely
+   because that string happens to be the width it is; one more character, or a
+   localised intent word, lands on the stroke, in the stroke's own colour.
+   50% ± .57 × --hud-arc-h is that corridor derived rather than eyeballed: the
+   148x100 viewBox is letterboxed to the box's HEIGHT, so the drawing scale is
+   --hud-arc-h/100, and the inner edge of either leg sits 57 viewBox units from
+   the centre over the label's band. Expressed against 50% it stays true when
+   the box is wider than the drawing — which it is at 130 % HUD scale, where the
+   width scales and the height does not. */
 .hud-charge__label{
-  position:absolute;left:0;right:0;bottom:15px;text-align:center;
+  position:absolute;bottom:15px;text-align:center;
+  left:calc(50% - var(--hud-arc-h) * .57);right:calc(50% - var(--hud-arc-h) * .57);
   font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
   padding-left:.06em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   color:var(--hud-intent,var(--hud-commit));
+  text-shadow:0 1px 3px rgba(0,0,0,.95);
 }
 .hud-charge__label::after{content:var(--hud-intent-label,'NORMAL')}
 .hud-charge__cost{
   position:absolute;left:0;right:0;bottom:0;text-align:center;
   font-size:var(--t-micro);letter-spacing:.14em;padding-left:.14em;
   color:var(--hud-collateral);
+  text-shadow:0 1px 3px rgba(0,0,0,.95);
   opacity:var(--hud-on,0);
 }
 .hud-charge__cost .hud-num{font-size:inherit}
@@ -748,8 +916,21 @@ ${allPalettes()}
    way out of the game as a 1 px hairline and an unshadowed white glyph — about
    1.2:1 over a lit building facade. It is a plate now, like everything else a
    finger is meant to find. */
+/* IT SITS IN ROW ONE, not merely at row one's top. Top-aligned it closed at
+   y=52 in a row that closes at 64, orphaning itself 18 px above the LOG button
+   directly below it in a band whose every other gap is 6 px. The offset centres
+   it on --hud-band-row — the row's DECLARED height, which is measured from the
+   top inset while the band itself starts at the edge floor, hence subtracting
+   --hud-sa-t back out — so the same token still drives the button, the reserve
+   that keeps the ledger out of its corner, and now the button's own y. The
+   max() is a floor, not a preference: in portrait the inset is 59 px and the
+   budget is smaller than it, and the unclamped expression would put the only
+   escape hatch in the game under the Dynamic Island. Row one at 130 % is 66.5
+   px against the 64 px budget, so the button sits 5 px above centre there —
+   inside the budget the harness enforces, and 13 px better than the orphan. */
 .hud-pausebtn{
-  position:absolute;top:var(--hud-sa-t);right:var(--hud-sa-r);
+  position:absolute;right:var(--hud-sa-r);
+  top:max(var(--hud-sa-t),calc(var(--hud-sa-t) + (var(--hud-band-row) - var(--hud-sa-t) - var(--hud-pause-size)) / 2));
   --hud-edge:var(--hud-accent);--hud-chamfer:7px;
   width:var(--hud-pause-size);height:var(--hud-pause-size);
   min-width:var(--hud-pause-size);min-height:var(--hud-pause-size);
@@ -787,12 +968,34 @@ ${allPalettes()}
 /* SPEED LINES. One shot, scaled out from the leading edge and then faded — a
    stamp hitting paper. It replaces the old translateY slide, which was the
    motion of a notification tray. It carries the plate's own chamfer and lean so
-   it wipes the shape rather than a rectangle around it. */
+   it wipes the shape rather than a rectangle around it.
+
+   THE RESTING STATE IS DECLARED, and that is the whole rule rather than a
+   tidy-up. This is the only animated rule in the sheet whose resting state
+   differed from where its keyframes leave it: the hatch got its invisibility
+   ONLY from 'hud-sweep' ending at opacity 0, so 'animation:none' — which is
+   what [data-reduced-motion='true'] and 'prefers-reduced-motion' both do,
+   further down this file — left the specified style standing: opacity 1,
+   transform none. A 1-in-7 px hatch in the alert's own colour, at full
+   strength, unskewed so it did not even follow the plate's lean, painted for
+   ever across a bulletin whose entire job is to be read in under a second. It
+   landed on exactly the players who asked for less motion, and no shot in
+   docs/screenshots covers that state, so nothing caught it. 'hud-sweep''s 0 %
+   frame sets opacity .42, so the animated appearance is bit-identical.
+
+   AND IT SITS UNDER THE TYPE. '::after' is a positioned descendant with
+   z-index:auto inside the stacking context '.hud-panel{contain:layout style}'
+   creates, so it painted ABOVE the in-flow headline — in the same hue as the
+   glyphs, which makes letterforms and hatch indistinguishable for the 340 ms
+   it crosses them. z-index:-1 puts it in the same negative layer as the plate
+   backing and later in tree order than it, so the sweep wipes the PLATE and
+   the words stay on top of it. */
 .hud-alert::after{
-  content:'';position:absolute;inset:0;pointer-events:none;
+  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
   background:repeating-linear-gradient(100deg,var(--hud-alert-color,var(--hud-accent)) 0 1px,transparent 1px 7px);
   clip-path:var(--hud-plate);
   transform-origin:0 50%;
+  opacity:0;transform:skewX(var(--hud-skew)) scaleX(1);
   animation:hud-sweep .34s cubic-bezier(.2,.9,.3,1) forwards;
 }
 .hud-alert__chip{color:var(--hud-alert-color,var(--hud-accent));align-self:center}
@@ -912,9 +1115,35 @@ ${allPalettes()}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .hud-sheet__sub{font-size:var(--t-body);color:var(--hud-ink-muted)}
+/* THE FOLD HAS TO SAY IT IS A FOLD. overflow-y:auto inside a sheet that is
+   overflow:hidden and clipped to a chamfered polygon produces a knife-edge
+   cut with nothing to indicate that anything is under it — and mobile WebViews
+   only paint an overlay scrollbar WHILE a finger is moving, so on the shipping
+   844x390 profile the player sees a numeral sawn in half and no reason to think
+   the sheet scrolls. Measured there, every reading sheet hides most of itself:
+   quests 232 of 601, rank 232 of 623, results 232 of 574, settings 232 of 851.
+   The results screen's payoff — "Hero points awarded" — sits 264 px below a
+   232 px fold.
+   FOUR LAYERS, TWO PAIRS, NO JAVASCRIPT AND NO LAYOUT READ. The two scroll
+   layers are the shadows and stay pinned to the scroll port; the two local
+   layers are painted in the panel's own surface, scroll WITH the content, and
+   therefore cover the shadow exactly when the content is against that end. So
+   the shadow appears only when there is something past it, which is the whole
+   point — a permanent gradient at both ends would be a decoration that lies at
+   the top of a short list. The covers are one 82 % layer rather than the three
+   --hud-panel uses, because they only have to hide a 12 px radial at 55 %
+   black: the 18 % that survives is under one part in 255 against the composed
+   panel, and three layers on a scrolling box is three layers to repaint on
+   every frame of a flick. */
 .hud-sheet__body{
   flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
   padding:12px 16px;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  background:
+    linear-gradient(var(--hud-surface),transparent) 0 0 / 100% 22px no-repeat,
+    linear-gradient(transparent,var(--hud-surface)) 0 100% / 100% 22px no-repeat,
+    radial-gradient(farthest-side at 50% 0,rgba(0,0,0,.55),transparent) 0 0 / 100% 12px no-repeat,
+    radial-gradient(farthest-side at 50% 100%,rgba(0,0,0,.55),transparent) 0 100% / 100% 12px no-repeat;
+  background-attachment:local,local,scroll,scroll;
 }
 .hud-sheet__foot{
   display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
@@ -979,7 +1208,7 @@ ${allPalettes()}
 .hud-standing__bar{height:3px;background:var(--hud-track);border-radius:var(--hud-radius);overflow:hidden;margin-top:6px}
 .hud-standing__bar::after{
   content:'';display:block;height:100%;background:var(--hud-accent);
-  transform-origin:0 50%;transform:scaleX(var(--fill,0));
+  transform-origin:0 50%;transform:scaleX(var(--fill));
 }
 .hud-rival{box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-rival)}
 .hud-rival[data-above='false']{box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-ink-muted)}
@@ -999,6 +1228,19 @@ ${allPalettes()}
 .hud-invoice__line:last-child{border-bottom:none}
 .hud-invoice__key{flex:1 1 auto;color:var(--hud-ink-muted);font-size:var(--t-body)}
 .hud-invoice__val{font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em}
+/* THE VALUE COLUMN, and it is a column. Every row is a flex line with the key
+   growing on the left and, on the right, a box holding the figure over its
+   sub-line. That box had no CSS at all, so the figure sat LEFT-aligned inside a
+   width set by the (usually wider) caption beneath it, and floated to wherever
+   that caption happened to end: measured on the shipping profile against a
+   column edge at x=738.5, "Witnesses 0" landed at 404.6 — 334 px adrift, mid-
+   row, reading as though the 0 belonged to the label rather than to the ledger
+   — with the property-damage yen 100 px out and the awarded hero points 174 px
+   out. Those are the two largest figures in the game. On a screen dressed as a
+   printed invoice the number column is the one thing that has to align.
+   .hud-invoice__sub's existing text-align:right now agrees with the box
+   around it instead of fighting it. */
+.hud-invoice__figure{display:flex;flex-direction:column;align-items:flex-end;min-width:0;text-align:right}
 .hud-invoice__line--total{
   margin-top:6px;border-top:1px solid var(--hud-line);border-bottom:none;padding-top:9px;
 }
@@ -1052,8 +1294,18 @@ ${allPalettes()}
      · The box was padded calc(safe-inset + 16px) per side, so on a notched
        phone the "centre" was the centre of a lopsided rectangle: predicted
        content centre 213.5 CSS px against a true 220, and the ink measured
-       213.17. The padding is symmetric now — max() of each opposing pair — so
-       centred means centred and nothing lands under a cutout either way.
+       213.17. The first repair took max() of each opposing pair, which is
+       SYMMETRIC but is not the safe box: max() throws the asymmetry away
+       instead of honouring it. On the shipping profile (l59 r34, t0 b21) it
+       padded 75/75 and 37/37, so 'place-items:center' centred the card on the
+       raw viewport axis — 422.0/195.0 against a safe-box centre of 434.5/184.5,
+       12.5 px and 10.5 px out. That is precisely the failure '.hud-charge'
+       refuses two hundred lines up ("CENTRED IN THE SAFE BOX, not at left:50%.
+       Those are two different axes and they were 12.5 px apart"), on the one
+       screen where centring IS the composition and the player looks at nothing
+       else for the whole boot. Four insets, used as four insets: the padding
+       box IS the safe box, and its centre is the safe box's centre on any
+       cutout, however lopsided.
      · CSS adds letter-spacing AFTER the final glyph too, so centred tracked
        text sits half a tracking unit left: the title measured 2.00 px off
        centre at .16em/22px, the subtitle 1.83 px at .3em/12px, and the two
@@ -1071,7 +1323,7 @@ ${allPalettes()}
   position:absolute;inset:0;display:grid;place-items:center;
   background:var(--hud-panel);background-color:var(--hud-surface);
   pointer-events:auto;
-  padding:calc(max(var(--hud-sa-t),var(--hud-sa-b)) + 16px) calc(max(var(--hud-sa-l),var(--hud-sa-r)) + 16px);
+  padding:calc(var(--hud-sa-t) + 16px) calc(var(--hud-sa-r) + 16px) calc(var(--hud-sa-b) + 16px) calc(var(--hud-sa-l) + 16px);
 }
 .hud-loading__card{
   --hud-edge:var(--hud-accent);
@@ -1092,7 +1344,7 @@ ${allPalettes()}
 }
 .hud-loading__fill{
   display:block;height:100%;background:var(--hud-accent);
-  transform-origin:0 50%;transform:scaleX(var(--fill,0));
+  transform-origin:0 50%;transform:scaleX(var(--fill));
   will-change:transform;
 }
 /* The percentage LEADS the row, at the same x as the fill's origin. It used to
@@ -1118,9 +1370,24 @@ ${allPalettes()}
 /* ========================================================================== */
 /* 121 px of band, and the arithmetic is at the top of this file. Everything
    below is what fitting in it costs. */
+/* --hud-band-h is NOT redeclared here, and its absence is the point. Its only
+   consumer is the alert stack's default top anchor, which this very block
+   overrides to top:auto a dozen lines down — so the 114px that used to sit on
+   this line had no consumer whatsoever, next to a comment upstream calling the
+   token "a promise rather than a comment". A dead constant beside a live one is
+   worse than no constant: the next person to reach for it gets a number that
+   was never checked against anything. */
 @media (max-height:520px){
-  .hud-root{--hud-gap:6px;--hud-band-row:64px;--hud-band-h:114px;--hud-arc-w:150px;--hud-arc-h:86px}
-  .hud-rankchip{width:min(calc(206px * var(--hud-scale)),26vw)}
+  .hud-root{--hud-gap:6px;--hud-band-row:64px;--hud-arc-w:150px;--hud-arc-h:86px}
+  .hud-rankchip{width:min(calc(80px + 97px * var(--hud-scale)),26vw)}
+  /* The reading sheets are 341 px tall on this profile and spend 109 of them on
+     chrome — a 44 px head and a 65 px foot holding one 44 px button — so a
+     third of the sheet was not content while 60-73 % of the content was under
+     the fold. Tightening the two bands returns 16 px to the body without
+     touching a tap target: the foot's button keeps its own 44 px min-height and
+     the head holds no control at all. */
+  .hud-sheet__head{padding:7px 16px}
+  .hud-sheet__foot{padding:6px 16px}
   /* ONE LINE. The strip's two rows become one row so the band closes above the
      hands at 130 % HUD scale as well as at 100 %; the quest name and its lead
      objective share a baseline instead of stacking. */
@@ -1131,11 +1398,15 @@ ${allPalettes()}
      the two hands, above the charge arc, is the only rectangle left. Anchored
      to the arc's own box so the two cannot collide when a threat is classified
      mid-charge, and low enough that the bulletin starts below the vertical
-     midpoint rather than reaching back up towards a plate. */
+     midpoint rather than reaching back up towards a plate.
+     It takes the arc's corridor offset too, and for the obvious reason: two
+     objects stacked in one rectangle, centred on two different axes 7.5 px
+     apart, is the misalignment nobody can name and everybody sees. */
   .hud-alerts{
     top:auto;
     bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift) + var(--hud-arc-h) + var(--hud-gap));
     max-width:min(calc(300px * var(--hud-scale)),38vw);
+    translate:calc((var(--hud-reserve-l) - var(--hud-reserve-r)) / 2) 0;
   }
   /* One at a time, here only. Three stacked bulletins is already more than
      anyone reads mid-fight — alerts.ts says exactly that about its own queue —
@@ -1154,13 +1425,37 @@ ${allPalettes()}
    and its cost appear and disappear together when a fight starts and ends, so
    putting them at the bottom means nothing above them ever moves. */
 @media (orientation:portrait) and (max-width:460px){
-  .hud-root{--hud-band-h:216px}
+  /* 220px, not 216. The band's last plate closed 3.94px past the old figure, so
+     the token was eating half the 8px gap it exists to protect — and nothing in
+     the repo checks it, because the harness reads --hud-band-row off the root
+     and CORE_SCENES contains no alert scene, which means the top-anchored
+     bulletin placement that BOTH the portrait phone and the tablet use has
+     never been measured or screenshotted. See the harness spec in the report.
+     --hud-arc-lift is the other number this shape of screen needs of its own:
+     the two hands do not leave a corridor at 390px — 225 + 240 is wider than
+     the whole viewport — so the arc cannot go BETWEEN them and has to clear
+     them vertically instead. The deeper reserve plus one gap is the shallowest
+     lift that puts the whole box outside both quarter-discs, corners included. */
+  .hud-root{--hud-band-h:220px;--hud-arc-lift:calc(var(--hud-thumb-reserve) + var(--hud-gap))}
   .hud-top{grid-template-columns:minmax(0,1fr);row-gap:6px}
-  .hud-top__left{grid-area:1 / 1}
+  /* The hero file is the only plate sharing its row with the pause button here,
+     so it is the only one that needs the button's own reserve — the same
+     expression .hud-top__right uses in landscape, for the same reason, from the
+     same token. Four flush-left plates used to step 240 / 332 / 382 / 382 across
+     a 374px column, a 142px rag read as one contour because the plates are
+     stacked and touching. Now there are exactly two right edges and each has a
+     reason: 332 is the button gutter, shared with the duty strip's plate, and
+     382 is the safe edge, shared with the encounter, the ledger and the two
+     buttons. */
+  .hud-top__left{grid-area:1 / 1;padding-right:calc(var(--hud-pause-size) + 6px)}
   .hud-tracker{grid-area:2 / 1}
   .hud-top__centre{grid-area:3 / 1;align-items:stretch}
   .hud-top__right{grid-area:4 / 1;padding-right:0}
-  .hud-rankchip{width:min(calc(232px * var(--hud-scale)),100%)}
+  .hud-rankchip{width:100%}
+  /* No corridor term. It describes a rectangle that does not exist at 390px,
+     and min() taking its negative branch is what collapsed this panel to
+     width:0 on every portrait phone. */
+  .hud-charge{width:min(calc(var(--hud-arc-w) * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r)))}
   .hud-sheet{max-width:100%}
 }
 

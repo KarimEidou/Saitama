@@ -191,6 +191,7 @@ export class ResultsScreen extends HudScreen {
       children: [
         el(this.doc, 'span', { className: 'hud-invoice__key', text: 'Hero points awarded' }),
         el(this.doc, 'div', {
+          className: 'hud-invoice__figure',
           children: [
             el(this.doc, 'span', {
               className: `hud-invoice__val ${invoice.awardedPoints >= 0 ? 'hud-invoice__val--saved' : 'hud-invoice__val--lost'}`,
@@ -259,7 +260,12 @@ export class ResultsScreen extends HudScreen {
       dataset: { line: key.toLowerCase().replace(/[^a-z]+/g, '-') },
       children: [
         el(this.doc, 'span', { className: 'hud-invoice__key', text: key }),
+        // The value column is a COLUMN: figure over sub-line, both flush to the
+        // right edge of the sheet. Unclassed, this wrapper had no CSS at all, so
+        // the figure sat left-aligned in a box whose width was set by the
+        // caption under it — see `.hud-invoice__figure` in `styles.ts`.
         el(this.doc, 'div', {
+          className: 'hud-invoice__figure',
           children: [
             el(this.doc, 'span', {
               className: `hud-invoice__val${tone ? ` hud-invoice__val--${tone}` : ''}`,

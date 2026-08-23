@@ -251,25 +251,32 @@ export class CombatHudScreen extends HudScreen {
         el(doc, 'div', {
           className: 'hud-rankchip__file',
           children: [
-            // The caption row: what the number under it is, and what the meter
-            // under that currently reads. Two captions bracketing one plate.
-            el(doc, 'div', {
-              className: 'hud-rankchip__head',
-              children: [
-                el(doc, 'span', { className: 'hud-rankchip__overline', text: 'RANK' }),
-                this.boredomMood,
-              ],
-            }),
+            // TWO LABELLED FIGURES ON ONE BASELINE, bracketing the plate: the
+            // seat, captioned RANK, and the throttle on what that seat earns,
+            // captioned GAIN. The caption used to sit on the row above its own
+            // number, sharing that row with the mood word — which cost the mood
+            // word its last twelve pixels at 130 % HUD scale and ellipsised the
+            // only content the boredom meter has. See `styles.ts` on
+            // `.hud-rankchip`.
             el(doc, 'div', {
               className: 'hud-rankchip__seat',
               children: [
-                el(doc, 'span', {
-                  className: 'hud-readout hud-rankchip__rank',
-                  children: [this.rankNumber.element],
+                el(doc, 'div', {
+                  className: 'hud-rankchip__figure',
+                  children: [
+                    el(doc, 'span', { className: 'hud-rankchip__overline', text: 'RANK' }),
+                    el(doc, 'span', {
+                      className: 'hud-readout hud-rankchip__rank',
+                      children: [this.rankNumber.element],
+                    }),
+                  ],
                 }),
                 this.boredomGain,
               ],
             }),
+            // The mood word gets the line directly above the meter it captions,
+            // flush left over the fill's own origin.
+            this.boredomMood,
             el(doc, 'div', {
               className: 'hud-boredom__track',
               attrs: { 'data-hud': 'boredom' },
@@ -347,7 +354,21 @@ export class CombatHudScreen extends HudScreen {
       children: [
         this.cell('SAVED', this.savedCount.element, 'hud-ledger__cell--saved'),
         this.lostCell,
-        this.cell('WATCHING', this.witnessCount.element, 'hud-ledger__witness'),
+        // EYES, not WATCHING, and the trade is worth writing down because it is
+        // a word changed to buy pixels. WATCHING was 8 tracked characters over a
+        // 1-digit number — 66.5 px at 130 % HUD scale, the worst ink-per-fact
+        // ratio anywhere in a band with 751 px to spend — and row one at 130 %
+        // was 51 px over budget, which is what ellipsised the enemy's name to
+        // "MOSQUI…" on the one accessibility setting the game has. EYES costs 34
+        // and the name fits with room over.
+        // What it cost: WATCHING is present tense, and the point of the counter
+        // is that the crowd is watching RIGHT NOW. What it buys back: SAVED,
+        // LOST and COST are all counts of civilians or yen, so a fourth label in
+        // the same grammar would have been read as a third civilian count.
+        // EYES cannot be — it is an audience, which is the thing the number
+        // actually is. The full word is on the invoice afterwards, as
+        // "Witnesses", where there is room to print it.
+        this.cell('EYES', this.witnessCount.element, 'hud-ledger__witness'),
         this.costCell,
         this.costTrack,
       ],
