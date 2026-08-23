@@ -126,7 +126,9 @@ describe('Frustum primitives', () => {
     expect(frustum.containsPoint(forwardX, 5, forwardZ)).toBe(true);
   });
 
-  it('keeps the packed predicates bit-identical to the scalar forms', () => {
+  // 2000 boxes x 3 predicates x float32 round-trips outruns vitest's 5 s
+  // default on a 2-core CI runner; the explicit timeout keeps the sweep whole.
+  it('keeps the packed predicates bit-identical to the scalar forms', { timeout: 30_000 }, () => {
     // `frustum.ts` states that `testPacked` is bit-identical to `testBox`, and
     // the whole equivalence proof rests on it — but both `cullFrustum` and
     // `bruteForceCull` call `testPacked`, so a defect inside it cancels out
