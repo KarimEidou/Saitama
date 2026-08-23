@@ -271,12 +271,26 @@ function buildScene(): IScene {
   ragdollGroup.name = 'ragdolls';
   scene.add(ragdollGroup);
 
-  // Looking down the street the punch travels, from the side and slightly
-  // above: high enough to see whole facades come off, low enough that the
-  // buildings still tower.
+  // ── THE CAMERA HAS TO BE ON THE PUNCH'S OWN STREET ────────────────────────
+  // City Z is one block per 96 m chunk with a ~16 m street between blocks, so
+  // ANY viewpoint that is not standing on a street is standing INSIDE a
+  // building — and every viewpoint more than one chunk back has a whole intact
+  // block between it and the target.
+  //
+  // Parking the camera 168 m behind the focus centre did both at once: it sat
+  // inside `blk_1_-2` (bounds x 105..183, y 0..88, z -183..-105) and looked at
+  // the punched block through the intact `blk_1_-3`. The destruction worked
+  // perfectly and was invisible — 769 chunks came off behind a wall, the frame
+  // moved half a percent, and the shader-truth check flagged the block the
+  // camera was buried in rather than the one that was collapsing.
+  //
+  // This stands where Saitama stands: eight metres behind the punch origin,
+  // 26 m up, on the cross street the cone travels down (z between the -295.7
+  // and -280.3 block faces), looking into the middle of the block being eaten.
+  // Nothing is between the lens and the damage.
   const camera = new THREE.PerspectiveCamera(50, aspect(), 0.4, 1600);
-  camera.position.set(FOCUS_CENTRE.x - 30, 44, FOCUS_CENTRE.z + 168);
-  camera.lookAt(FOCUS_CENTRE.x + 46, 16, FOCUS_CENTRE.z - 6);
+  camera.position.set(PUNCH_ORIGIN.x - 8, 28, PUNCH_ORIGIN.z + 7);
+  camera.lookAt(FOCUS_CENTRE.x + 26, 12, FOCUS_CENTRE.z + 6);
 
   return {
     scene,
@@ -394,13 +408,24 @@ async function buildWorld(currentSeed: string): Promise<IWorld> {
   const ragdolls = new RagdollManager(physics);
   const damage = new ChunkDamageState();
 
+  // ── THE VICTIMS HAVE TO STAND WHERE THE RAGDOLL RULE LOOKS ────────────────
+  // Destruction throws a ragdoll for a death within `RAGDOLL_IMPACT_RADIUS`
+  // (42 m) of a REMEMBERED IMPACT, and a shockwave remembers exactly one — its
+  // ORIGIN, not the 180 m of cone behind it. Spacing 24 victims 5.5 m apart
+  // from 24 m out therefore left four of them inside that sphere: four
+  // ragdolls launched against a cap of eight, and the ceiling this harness
+  // exists to prove was never pressed on at all.
+  //
+  // They stand in the first 38 m of the street the cone runs down instead —
+  // well inside the 22 degree half-angle, all 24 inside the impact sphere, so
+  // eight are thrown and the other sixteen are suppressed by the cap.
   const victims: IVictim[] = [];
   const victimRng = createRng(`${currentSeed}:victims`);
   for (let i = 0; i < 24; i++) {
     const position = new THREE.Vector3(
-      PUNCH_ORIGIN.x + 24 + i * 5.5,
+      PUNCH_ORIGIN.x + 9 + i * 1.25,
       0,
-      PUNCH_ORIGIN.z - i * 0.9 + victimRng.range(-3, 3)
+      PUNCH_ORIGIN.z + 1 + victimRng.range(-3, 3)
     );
     victims.push({
       entityId: `monster-${String(i).padStart(2, '0')}` as EntityId,
@@ -847,6 +872,22 @@ function runShaderTruth(): IShaderTruthResult {
   const array = attribute.array as Uint8Array;
   const backup = array.slice();
 
+  // ── THE BASELINE HAS TO BE A BLOCK WITH NOTHING HIDDEN ────────────────────
+  // "The block with the most frame to lose", measured from a camera pointed at
+  // the punch, is normally a block the punch has ALREADY taken pieces out of —
+  // and using that as the intact baseline breaks both halves of the check at
+  // once. Filling with 255 then only removes whatever the punch left standing,
+  // and filling with 1 overwrites the punch's own 255s and UN-HIDES everything
+  // it had removed, so the trap frame differs from the baseline for a reason
+  // that has nothing to do with the normalised-Uint8 bug it exists to
+  // reproduce. (Measured: 5.7% changed for 255 against 17.9% for 1 — the check
+  // reads backwards.)
+  //
+  // Zeroing first makes the baseline explicit and independent of the punch:
+  // 0 = the whole block drawn, 255 = the whole block gone, 1 = 0.0039 once
+  // normalised, which must fail `> 0.5` and leave the frame BIT-IDENTICAL.
+  array.fill(0);
+  attribute.needsUpdate = true;
   render();
   const intact = samplePixels();
 
@@ -857,10 +898,6 @@ function runShaderTruth(): IShaderTruthResult {
   attribute.needsUpdate = true;
   render();
   const with255 = samplePixels();
-
-  array.set(backup);
-  attribute.needsUpdate = true;
-  render();
 
   array.fill(1);
   attribute.needsUpdate = true;

@@ -6,10 +6,15 @@
  * the measurements the page publishes, and screenshots the material grid.
  *
  * ── THE APK MIRROR ─────────────────────────────────────────────────────────
- * A middleware exposes `/apk-assets/*` as `/assets/*` with one difference:
+ * A middleware exposes `/apk/assets/*` as `/assets/*` with one difference:
  * every `.high.` and `.ultra.` file answers 404. That is precisely the Android
  * package — `assets.runtime.json` declares three tiers, the APK contains one,
  * and 26 declared files (13 high + 13 ultra) are simply absent.
+ *
+ * The mount ENDS in the generated root's own name on purpose. `resolveFile`
+ * appends `generatedRoot` unless the base already ends at it, compared on a
+ * path boundary — so a mirror at `/apk-assets` means "the tree lives under
+ * `/apk-assets/assets/`" and every file resolves one directory too deep.
  *
  * The 404 count is taken from PLAYWRIGHT'S side of the connection, not the
  * page's, so the runtime cannot mark its own homework: if it asks for a file
@@ -181,8 +186,11 @@ function mb(bytes: number): string {
 /* Server                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/** Where the mirrored tree is mounted. See `APK MIRROR` in the file header. */
+const APK_MOUNT = '/apk/assets/';
+
 /**
- * Mirror `/assets` at `/apk-assets` with the high and ultra tiers withheld.
+ * Mirror `/assets` at `/apk/assets` with the high and ultra tiers withheld.
  *
  * Installed as an inline plugin so `vite.config.ts` (owned by another
  * workstream) does not have to change. `configureServer` without a returned
@@ -195,7 +203,7 @@ function apkMirror(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = req.url ?? '';
-        if (!url.startsWith('/apk-assets/')) {
+        if (!url.startsWith(APK_MOUNT)) {
           next();
           return;
         }
@@ -204,7 +212,7 @@ function apkMirror(): Plugin {
           res.end('not packaged in the APK');
           return;
         }
-        req.url = url.replace('/apk-assets/', '/assets/');
+        req.url = url.replace(APK_MOUNT, '/assets/');
         next();
       });
     },
@@ -625,7 +633,7 @@ function assertAndroidTier(run: RunResult): void {
   );
 
   const tieredRequests = run.requests.filter(
-    (requestUrl) => /apk-assets/.test(requestUrl) && /\.(high|ultra)\./.test(requestUrl)
+    (requestUrl) => requestUrl.includes(APK_MOUNT) && /\.(high|ultra)\./.test(requestUrl)
   );
   check(
     tieredRequests.length === 0,

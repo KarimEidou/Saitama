@@ -198,8 +198,15 @@ const ENVIRONMENTS = ['hdri.sky.day', 'hdri.sky.dusk'] as const;
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'grid';
 const rootName = params.get('root') ?? 'assets';
-/** `apk` mirrors the tree with every `.high.`/`.ultra.` file withheld. */
-const baseUrl = rootName === 'apk' ? '/apk-assets' : '/assets';
+/**
+ * `apk` mirrors the tree with every `.high.`/`.ultra.` file withheld.
+ *
+ * The mirror is mounted at `/apk/assets`, not `/apk-assets`: the provider
+ * appends the manifest's `generatedRoot` unless the base already ends AT it on
+ * a path boundary, so a base of `/apk-assets` resolves every file to
+ * `/apk-assets/assets/…` — one directory below anything the mirror serves.
+ */
+const baseUrl = rootName === 'apk' ? '/apk/assets' : '/assets';
 const width = Number(params.get('w') ?? 1600);
 const height = Number(params.get('h') ?? 900);
 
@@ -627,6 +634,15 @@ function texturesOf(registry: AssetRegistry, materialId: string): string[] {
 async function runBudgetProbe(registry: AssetRegistry): Promise<IBudgetReport> {
   const keepMaterials = GRID_MATERIALS.filter((_unused, index) => index % 2 === 0);
   const dropMaterials = GRID_MATERIALS.filter((_unused, index) => index % 2 === 1);
+
+  // Lift the ceiling out of the way FIRST. This mode boots with a deliberately
+  // tight 24 MB budget, and releasing a handle while the registry is already
+  // over budget frees it on the spot (`notifyUnreferenced` -> `trim`) — so
+  // without this the unloaded half is gone before the squeeze below runs, and
+  // the pass under test is left with nothing but referenced handles to choose
+  // between: `evicted: []`, `pinned: [everything]`, and every verdict about
+  // WHICH textures went unfalsifiable.
+  registry.setTextureBudget(Number.MAX_SAFE_INTEGER);
 
   for (const id of dropMaterials) registry.unload(id);
 

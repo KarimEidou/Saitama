@@ -641,6 +641,14 @@ export function runScenarios(): readonly IScenarioResult[] {
     const coordinator = new ProgressionCoordinator({ bus, worldSeed: WORLD_SEED });
 
     // The bargain sale versus the Mosquito Girl. He can do one of them.
+    //
+    // The spec ids below are the monster ARCHETYPE ids, because that is what
+    // the real producers put on `EntityKilled` (`monster-system.ts` and
+    // `boss-encounter.ts` both send `archetype.id`) and what a 'defeat'
+    // objective's `targetId` is matched against. The catalogue used to name
+    // these targets `monster.*`, a namespace nothing emits, so the objectives
+    // were unreachable; they now name `boss.*` and this driver has to stimulate
+    // them the way the game does.
     coordinator.quests.accept('quest.errand.bargain');
     coordinator.quests.accept('quest.subjugation.crablante');
     bus.emit('EntityKilled', {
@@ -649,7 +657,7 @@ export function runScenarios(): readonly IScenarioResult[] {
       faction: 'monster',
       position: { x: 120, y: 0, z: -80 },
       threatTier: 'tiger',
-      specId: 'monster.crablante',
+      specId: 'boss.crablante',
       intent: 'normal',
       rewardPoints: 90,
     });
@@ -664,7 +672,7 @@ export function runScenarios(): readonly IScenarioResult[] {
       faction: 'monster',
       position: { x: 310, y: 0, z: 60 },
       threatTier: 'demon',
-      specId: 'monster.mosquitoGirl',
+      specId: 'boss.mosquitoGirl',
       intent: 'normal',
       rewardPoints: 400,
     });

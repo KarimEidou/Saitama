@@ -497,9 +497,21 @@ function runScript(
     if (f === PICTURE_FRAME) onPeak?.();
     // Halfway through, the monster swings and takes a building with it. Two
     // events, both of which the crowd system only learns about from the bus.
+    //
+    // The wave is released AT the monster, like every real `ShockwaveFired`
+    // producer in the game — `HeroNpc.fireAttack` and the player's punches all
+    // pass their own transform as `origin`. Seeding it ten metres downrange
+    // instead left a blind spot behind the cone's apex covering exactly the
+    // square the melee ally fights in: Mumen Rider charges to contact and so
+    // stands on the monster, and a cone whose apex is in front of the monster
+    // can never reach him. That went unnoticed while allies could shockwave
+    // each other, because Genos' 24 m cone kept knocking Mumen down short of
+    // the apex and the wave caught him there. Friendly fire is off now (see
+    // `applyShockwaveToAllies`), so the monster has to be the one that downs
+    // him — which is what the ally claims below have always been about.
     if (MODE !== 'calm' && f === SHOCKWAVE_FRAME) {
       targetBus.emit('ShockwaveFired', {
-        origin: { x: STREET_X, y: 2, z: MONSTER_Z + 10 },
+        origin: { x: STREET_X, y: 2, z: MONSTER_Z },
         direction: { x: 0, y: 0, z: 1 },
         power: 120000,
         range: 70,
