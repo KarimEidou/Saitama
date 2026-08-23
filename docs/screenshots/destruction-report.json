@@ -1,0 +1,210 @@
+{
+  "punch": {
+    "originX": 48,
+    "originY": 1.7,
+    "originZ": -294,
+    "range": 180,
+    "halfAngleDeg": 21.999999999999996,
+    "power": 2500000
+  },
+  "before": {
+    "stats": {
+      "frame": 0,
+      "structures": 411,
+      "unaddressableBuildings": 85,
+      "totalChunks": 9801,
+      "destruction": {
+        "structures": 411,
+        "damagedStructures": 0,
+        "chunksDestroyed": 0,
+        "chunksDestroyedThisFrame": 0,
+        "debrisSpawned": 0,
+        "debrisLive": 0,
+        "visualOnlyDetaches": 0,
+        "collapsesTriggered": 0,
+        "floorsCollapsed": 0,
+        "pendingCollapseChunks": 0,
+        "ragdollsLaunched": 0,
+        "ragdollsSuppressed": 0,
+        "destroyedMassKg": 0,
+        "collateralTotal": 0,
+        "persistedPieces": 0,
+        "restoredChunks": 0,
+        "frame": 0
+      },
+      "debrisLive": 0,
+      "debrisCapacity": 300,
+      "debrisSimulated": 0,
+      "debrisBallistic": 0,
+      "ragdollsActive": 0,
+      "ragdollsMax": 8,
+      "physicsBodies": 0,
+      "damagedChunks": 0,
+      "destroyedPieces": 0,
+      "damageResidentBytes": 0,
+      "detachEvents": 0,
+      "trianglesDrawn": 3043790,
+      "drawCalls": 841,
+      "generationMs": 1514.3650000002235
+    },
+    "pixels": {
+      "stdDev": 43.61582174700774,
+      "colours": 5416,
+      "edgeDensity": 0.3415997978138624,
+      "meanLuma": 172.27082216343328
+    }
+  },
+  "mid": {
+    "stats": {
+      "frame": 14,
+      "structures": 411,
+      "unaddressableBuildings": 85,
+      "totalChunks": 9801,
+      "destruction": {
+        "structures": 411,
+        "damagedStructures": 46,
+        "chunksDestroyed": 769,
+        "chunksDestroyedThisFrame": 0,
+        "debrisSpawned": 300,
+        "debrisLive": 300,
+        "visualOnlyDetaches": 469,
+        "collapsesTriggered": 9,
+        "floorsCollapsed": 46,
+        "pendingCollapseChunks": 0,
+        "ragdollsLaunched": 8,
+        "ragdollsSuppressed": 16,
+        "destroyedMassKg": 19945668.45083486,
+        "collateralTotal": 19945668.45083486,
+        "persistedPieces": 438,
+        "restoredChunks": 0,
+        "frame": 14
+      },
+      "debrisLive": 300,
+      "debrisCapacity": 300,
+      "debrisSimulated": 300,
+      "debrisBallistic": 0,
+      "ragdollsActive": 8,
+      "ragdollsMax": 8,
+      "physicsBodies": 404,
+      "damagedChunks": 5,
+      "destroyedPieces": 438,
+      "damageResidentBytes": 160,
+      "detachEvents": 769,
+      "trianglesDrawn": 3050978,
+      "drawCalls": 1440,
+      "generationMs": 1514.3650000002235
+    },
+    "pixels": {
+      "stdDev": 37.65956668794294,
+      "colours": 3536,
+      "edgeDensity": 0.2053452960131421,
+      "meanLuma": 187.01428689006468
+    }
+  },
+  "after": {
+    "stats": {
+      "frame": 240,
+      "structures": 411,
+      "unaddressableBuildings": 85,
+      "totalChunks": 9801,
+      "destruction": {
+        "structures": 411,
+        "damagedStructures": 46,
+        "chunksDestroyed": 769,
+        "chunksDestroyedThisFrame": 0,
+        "debrisSpawned": 300,
+        "debrisLive": 300,
+        "visualOnlyDetaches": 469,
+        "collapsesTriggered": 9,
+        "floorsCollapsed": 46,
+        "pendingCollapseChunks": 0,
+        "ragdollsLaunched": 8,
+        "ragdollsSuppressed": 16,
+        "destroyedMassKg": 19945668.45083486,
+        "collateralTotal": 19945668.45083486,
+        "persistedPieces": 438,
+        "restoredChunks": 0,
+        "frame": 240
+      },
+      "debrisLive": 300,
+      "debrisCapacity": 300,
+      "debrisSimulated": 300,
+      "debrisBallistic": 0,
+      "ragdollsActive": 8,
+      "ragdollsMax": 8,
+      "physicsBodies": 312,
+      "damagedChunks": 5,
+      "destroyedPieces": 438,
+      "damageResidentBytes": 160,
+      "detachEvents": 769,
+      "trianglesDrawn": 3050918,
+      "drawCalls": 1435,
+      "generationMs": 1514.3650000002235
+    },
+    "pixels": {
+      "stdDev": 34.66788815235141,
+      "colours": 3648,
+      "edgeDensity": 0.22493207809439567,
+      "meanLuma": 186.9944326866549
+    }
+  },
+  "shaderTruth": {
+    "totalPixels": 1134000,
+    "changedWith255": 265777,
+    "changedWith1": 0,
+    "hashIntact": 809121799,
+    "hashWith255": 1276879599,
+    "hashWith1": 809121799,
+    "verticesFlagged": 308408
+  },
+  "persistence": {
+    "buildingId": "blk_0_-4.b13",
+    "destroyedBefore": 6,
+    "destroyedAfter": 6,
+    "identical": true,
+    "meshWasPristine": true,
+    "hiddenVerticesAfter": 5844,
+    "maskPieces": 438,
+    "maskBytes": 160
+  },
+  "determinism": {
+    "runs": 2,
+    "detachCount": 769,
+    "identical": true,
+    "digest": "2abbcb68"
+  },
+  "persistedPixels": {
+    "stdDev": 34.67604891003111,
+    "colours": 3643,
+    "edgeDensity": 0.2252795855184179,
+    "meanLuma": 186.98061375661374
+  },
+  "imageDifference": {
+    "beforeToMid": 0.3597319223985891,
+    "beforeToAfter": 0.4280229276895944,
+    "beforeToPersisted": 0.42904761904761907
+  },
+  "buildingBand": {
+    "region": {
+      "left": 227,
+      "top": 108,
+      "width": 806,
+      "height": 450
+    },
+    "before": {
+      "stdDev": 41.61846779928302,
+      "meanLuma": 175.95481297674849,
+      "colours": 36102,
+      "edgeDensity": 0,
+      "pixels": 362700
+    },
+    "after": {
+      "stdDev": 21.140808251417646,
+      "meanLuma": 198.2291848175719,
+      "colours": 9543,
+      "edgeDensity": 0,
+      "pixels": 362700
+    }
+  },
+  "consoleErrors": []
+}

@@ -346,14 +346,14 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 16.995420224691358,
-        "stdDev": 37.69791629579572,
-        "colours": 260,
-        "meanR": 16.054191358024692,
-        "meanG": 17.12266975308642,
-        "meanB": 18.50645061728395,
-        "coolness": 0.07095525774698395,
-        "coolnessShadow": 0.17547753583433356,
+        "meanLuma": 17.0003705,
+        "stdDev": 37.697842721262504,
+        "colours": 257,
+        "meanR": 16.05844135802469,
+        "meanG": 17.127296296296297,
+        "meanB": 18.51666975308642,
+        "coolness": 0.07109820665975379,
+        "coolnessShadow": 0.17565085431706812,
         "warmFraction": 0.03221604938271605,
         "brightFraction": 0.02848456790123457,
         "skyLuma": 1.4149054987212275,
@@ -391,15 +391,15 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 51.332480890123456,
-        "stdDev": 34.642241752185534,
-        "colours": 623,
-        "meanR": 48.63633333333333,
-        "meanG": 51.26303703703704,
-        "meanB": 59.95945061728395,
-        "coolness": 0.10426847960414076,
-        "coolnessShadow": 0.27098027041273354,
-        "warmFraction": 0.06616358024691359,
+        "meanLuma": 51.333657535802466,
+        "stdDev": 34.64579627915595,
+        "colours": 627,
+        "meanR": 48.63774074074074,
+        "meanG": 51.26436419753087,
+        "meanB": 59.958456790123456,
+        "coolness": 0.10424597091592686,
+        "coolnessShadow": 0.2710308334488027,
+        "warmFraction": 0.06621296296296296,
         "brightFraction": 0.0024228395061728393,
         "skyLuma": 33.18450514705882,
         "skyCoolness": 0.4661371246114886
@@ -436,13 +436,13 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 145.26066787962964,
-        "stdDev": 64.14378803442416,
+        "meanLuma": 145.26021850864197,
+        "stdDev": 64.14329348427627,
         "colours": 418,
-        "meanR": 137.88966358024692,
-        "meanG": 146.1281049382716,
-        "meanB": 158.37264197530865,
-        "coolness": 0.06913798350637872,
+        "meanR": 137.8891851851852,
+        "meanG": 146.1276512345679,
+        "meanB": 158.37232098765432,
+        "coolness": 0.0691387013691857,
         "coolnessShadow": 0.34398629728351343,
         "warmFraction": 0.022959876543209877,
         "brightFraction": 0.22301543209876543,
@@ -481,16 +481,16 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 158.42228601666667,
-        "stdDev": 62.2474826771469,
+        "meanLuma": 158.42237584753084,
+        "stdDev": 62.24769117896789,
         "colours": 419,
-        "meanR": 150.89237345679012,
-        "meanG": 159.3306388888889,
-        "meanB": 171.59687654320987,
-        "coolness": 0.06420214964194854,
+        "meanR": 150.89227160493826,
+        "meanG": 159.33079320987653,
+        "meanB": 171.59689197530864,
+        "coolness": 0.06420253053004779,
         "coolnessShadow": 0.3343382506821457,
-        "warmFraction": 0.01925,
-        "brightFraction": 0.2892314814814815,
+        "warmFraction": 0.019253086419753086,
+        "brightFraction": 0.2892345679012346,
         "skyLuma": 106.08341812659847,
         "skyCoolness": 0.3066917219666653
       }
@@ -526,15 +526,15 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 69.13986958827161,
-        "stdDev": 42.34743163433786,
-        "colours": 519,
-        "meanR": 65.2014413580247,
-        "meanG": 69.02831481481482,
-        "meanB": 81.842,
-        "coolness": 0.1131676359604404,
-        "coolnessShadow": 0.28888096507097655,
-        "warmFraction": 0.0795,
+        "meanLuma": 69.13656185987655,
+        "stdDev": 42.3445564788883,
+        "colours": 517,
+        "meanR": 65.19700617283951,
+        "meanG": 69.02520679012346,
+        "meanB": 81.84003395061728,
+        "coolness": 0.11318935530668857,
+        "coolnessShadow": 0.2889202102619203,
+        "warmFraction": 0.07939814814814815,
         "brightFraction": 0.002441358024691358,
         "skyLuma": 41.32499926470588,
         "skyCoolness": 0.4419494850540487
@@ -571,14 +571,14 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 26.147822311111113,
-        "stdDev": 49.4365308707283,
-        "colours": 284,
-        "meanR": 25.35688888888889,
-        "meanG": 26.287731481481483,
-        "meanB": 27.090888888888887,
-        "coolness": 0.03306145795818059,
-        "coolnessShadow": 0.1517475391555075,
+        "meanLuma": 26.15150709074074,
+        "stdDev": 49.43510314540739,
+        "colours": 287,
+        "meanR": 25.358845679012347,
+        "meanG": 26.291870370370372,
+        "meanB": 27.095163580246915,
+        "coolness": 0.03310171950160454,
+        "coolnessShadow": 0.15181111607579673,
         "warmFraction": 0.06166358024691358,
         "brightFraction": 0.05748765432098765,
         "skyLuma": 3.395771291560102,
@@ -586,11 +586,11 @@
       }
     }
   ],
-  "midnightNoonLumaRatio": 0.10727922599793421,
+  "midnightNoonLumaRatio": 0.1073104124909825,
   "closestPair": {
     "a": "midnight",
     "b": "night",
-    "delta": 11.426030073747956
+    "delta": 11.430925820229696
   },
   "skyPatch": [
     {
@@ -625,7 +625,7 @@
     }
   ],
   "sunTravel": {
-    "azimuthSpread": 302.36089252264645,
+    "azimuthSpread": 249.8246220168067,
     "elevations": [
       -30.803323371758857,
       2.680852292177602,
@@ -671,13 +671,13 @@
       "name": "genosIrony",
       "detail": {
         "jointIncidents": 10,
-        "playerCredit": 1000,
-        "genosCredit": 2400,
+        "playerCredit": 900,
+        "genosCredit": 2160,
         "ratio": 2.4,
-        "playerRank": "C-Class Rank 288",
+        "playerRank": "C-Class Rank 298",
         "genosRank": "S-Class Rank 15",
         "startGap": 527,
-        "endGap": 429
+        "endGap": 439
       }
     },
     {
@@ -705,7 +705,7 @@
       "detail": {
         "atTwentySeconds": "active",
         "afterExpiry": "failed",
-        "boredom": 0.04
+        "boredom": 0.08
       }
     }
   ],
@@ -844,14 +844,14 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 20.748614533950615,
-        "stdDev": 38.65210849741515,
-        "colours": 277,
-        "meanR": 19.844762345679012,
-        "meanG": 20.88748765432099,
-        "meanB": 22.034444444444443,
-        "coolness": 0.05228566313920331,
-        "coolnessShadow": 0.11884782207092155,
+        "meanLuma": 20.75496684259259,
+        "stdDev": 38.65269860076992,
+        "colours": 275,
+        "meanR": 19.848623456790122,
+        "meanG": 20.89386111111111,
+        "meanB": 22.047922839506175,
+        "coolness": 0.05249357231410918,
+        "coolnessShadow": 0.1191331308159728,
         "warmFraction": 0.03220370370370371,
         "brightFraction": 0.028478395061728393,
         "skyLuma": 1.4149054987212275,
@@ -887,13 +887,13 @@
         "hasMeasuredEnvironment": true
       },
       "pixels": {
-        "meanLuma": 151.18691135432098,
-        "stdDev": 60.255113342366165,
+        "meanLuma": 151.18723408086422,
+        "stdDev": 60.25553100677888,
         "colours": 402,
-        "meanR": 142.35558641975308,
-        "meanG": 152.25233333333333,
-        "meanB": 166.63774074074075,
-        "coolness": 0.07858472072562042,
+        "meanR": 142.35547839506174,
+        "meanG": 152.25281481481483,
+        "meanB": 166.63775925925927,
+        "coolness": 0.07858515302319584,
         "coolnessShadow": 0.3420779038319694,
         "warmFraction": 0.001154320987654321,
         "brightFraction": 0.22164197530864196,
@@ -902,13 +902,13 @@
       }
     }
   ],
-  "mobileMidnightNoonRatio": 0.13723816663814403,
+  "mobileMidnightNoonRatio": 0.13727988985823736,
   "saveRoundTrip": {
     "backend": "localStorage",
     "exact": true,
-    "bytes": 2010,
+    "bytes": 2022,
     "mismatches": [],
-    "rank": "C-Class Rank 372",
+    "rank": "C-Class Rank 373",
     "boredom": 0,
     "questStates": 10
   },

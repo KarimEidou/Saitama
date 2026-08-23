@@ -37,23 +37,23 @@
   },
   "regions": {
     "whole": {
-      "meanLuma": 37.323964544686866,
-      "stdDev": 29.48968903166542,
-      "colours": 1138,
+      "meanLuma": 37.19314902445726,
+      "stdDev": 28.333931374024246,
+      "colours": 972,
       "width": 2532,
       "height": 1170
     },
     "band": {
-      "meanLuma": 42.44400500557322,
-      "stdDev": 32.65248963075381,
-      "colours": 516,
+      "meanLuma": 43.80387272683541,
+      "stdDev": 32.5747193832819,
+      "colours": 522,
       "width": 2532,
       "height": 360
     },
     "corridor": {
-      "meanLuma": 31.502936862322425,
-      "stdDev": 27.597708581057788,
-      "colours": 527,
+      "meanLuma": 27.8417112736478,
+      "stdDev": 18.894797936792358,
+      "colours": 306,
       "width": 1013,
       "height": 351
     }
@@ -72,11 +72,12 @@
     "offending": [],
     "directWrites": [],
     "reads": [],
+    "uninstrumentedReads": [],
     "layoutShift": 0,
     "layoutShiftObserved": true,
     "setPropertyCalls": 511,
     "writerWrites": 511,
-    "writerSkipped": 1893
+    "writerSkipped": 2013
   },
   "snapshot.phone-landscape": {
     "scene": "combat",
@@ -139,7 +140,7 @@
       "width": 844,
       "height": 390
     },
-    "cumulativeLayoutShift": 0.03726273126150782
+    "cumulativeLayoutShift": 0.05262031388313438
   },
   "snapshot.phone-portrait": {
     "scene": "pause",
@@ -202,7 +203,7 @@
       "width": 390,
       "height": 844
     },
-    "cumulativeLayoutShift": 0.00008199818120978922
+    "cumulativeLayoutShift": 0.00004460585871605391
   },
   "snapshot.tablet": {
     "scene": "combat-charging",
@@ -265,7 +266,7 @@
       "width": 1024,
       "height": 768
     },
-    "cumulativeLayoutShift": 0.015536109606424969
+    "cumulativeLayoutShift": 0.01550478239854177
   },
   "shots": {
     "hud-loading-phone-landscape.png": {
@@ -276,114 +277,114 @@
       "height": 1170
     },
     "hud-combat-phone-landscape.png": {
-      "meanLuma": 37.323964544686866,
-      "stdDev": 29.48968903166542,
-      "colours": 1138,
+      "meanLuma": 37.19314902445726,
+      "stdDev": 28.333931374024246,
+      "colours": 972,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-boss-phone-landscape.png": {
-      "meanLuma": 36.126229368728765,
-      "stdDev": 29.19015625912237,
-      "colours": 1184,
+      "meanLuma": 36.2563874800693,
+      "stdDev": 28.404371093646674,
+      "colours": 1003,
       "width": 2532,
       "height": 1170
     },
     "hud-quests-phone-landscape.png": {
-      "meanLuma": 27.13142528463944,
-      "stdDev": 23.566164255225566,
-      "colours": 869,
+      "meanLuma": 31.208887048879447,
+      "stdDev": 21.30018403708587,
+      "colours": 967,
       "width": 2532,
       "height": 1170
     },
     "hud-rank-phone-landscape.png": {
-      "meanLuma": 19.190671200141978,
-      "stdDev": 28.56150048357415,
-      "colours": 585,
+      "meanLuma": 20.652957308321156,
+      "stdDev": 29.351883443573865,
+      "colours": 591,
       "width": 2532,
       "height": 1170
     },
     "hud-results-phone-landscape.png": {
-      "meanLuma": 24.182776798667362,
-      "stdDev": 18.552683112129834,
-      "colours": 750,
+      "meanLuma": 30.640900684908875,
+      "stdDev": 20.24345557918658,
+      "colours": 786,
       "width": 2532,
       "height": 1170
     },
     "hud-pause-phone-landscape.png": {
-      "meanLuma": 16.19772934343392,
-      "stdDev": 23.299578947673588,
-      "colours": 331,
+      "meanLuma": 20.684002736985395,
+      "stdDev": 21.230360045634,
+      "colours": 602,
       "width": 2532,
       "height": 1170
     },
     "hud-settings-phone-landscape.png": {
-      "meanLuma": 31.17524031564145,
-      "stdDev": 21.322915611396436,
-      "colours": 971,
+      "meanLuma": 28.45910922466403,
+      "stdDev": 19.549983360365697,
+      "colours": 841,
       "width": 2532,
       "height": 1170
     },
     "hud-idle-phone-landscape.png": {
-      "meanLuma": 37.350838558145185,
-      "stdDev": 25.418017305745288,
-      "colours": 857,
+      "meanLuma": 37.626695284583604,
+      "stdDev": 25.305682567463414,
+      "colours": 885,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-alert-phone-landscape.png": {
-      "meanLuma": 35.120936073100964,
-      "stdDev": 27.180745689612273,
-      "colours": 979,
+      "meanLuma": 35.89771931422856,
+      "stdDev": 27.168700884405464,
+      "colours": 1015,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-charging-phone-landscape.png": {
-      "meanLuma": 37.47266917337882,
-      "stdDev": 29.700549113412997,
-      "colours": 1167,
+      "meanLuma": 37.96723350126408,
+      "stdDev": 29.478610926448063,
+      "colours": 1204,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-bored-phone-landscape.png": {
-      "meanLuma": 36.423226875590984,
-      "stdDev": 27.74254967918476,
-      "colours": 894,
+      "meanLuma": 37.074051695151404,
+      "stdDev": 27.75982869910744,
+      "colours": 970,
       "width": 2532,
       "height": 1170
     },
     "hud-markers-phone-landscape.png": {
-      "meanLuma": 36.955762660791954,
-      "stdDev": 29.68002158166145,
-      "colours": 1268,
+      "meanLuma": 37.50307672929384,
+      "stdDev": 29.57197645366457,
+      "colours": 1275,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-deuteranopia.png": {
-      "meanLuma": 37.60413136416411,
-      "stdDev": 30.804139591740583,
-      "colours": 1171,
+      "meanLuma": 37.258846745391885,
+      "stdDev": 28.378112030777803,
+      "colours": 953,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-protanopia.png": {
-      "meanLuma": 37.641126200859084,
-      "stdDev": 30.99014848927876,
-      "colours": 1173,
+      "meanLuma": 37.33061609923012,
+      "stdDev": 28.73071601489074,
+      "colours": 919,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-tritanopia.png": {
-      "meanLuma": 37.494567286381496,
-      "stdDev": 30.202252047024313,
-      "colours": 1349,
+      "meanLuma": 37.164621105377265,
+      "stdDev": 28.29748734977225,
+      "colours": 956,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-highContrast.png": {
-      "meanLuma": 38.60232765507618,
-      "stdDev": 33.78091016311337,
-      "colours": 1197,
+      "meanLuma": 35.721072231829375,
+      "stdDev": 32.3003801362903,
+      "colours": 948,
       "width": 2532,
       "height": 1170
     },
@@ -395,51 +396,51 @@
       "height": 2532
     },
     "hud-combat-phone-portrait.png": {
-      "meanLuma": 51.11767035580384,
-      "stdDev": 38.36321441048779,
-      "colours": 1071,
+      "meanLuma": 50.83331148049554,
+      "stdDev": 37.472990603262474,
+      "colours": 890,
       "width": 1170,
       "height": 2532
     },
     "hud-combat-boss-phone-portrait.png": {
-      "meanLuma": 49.43495906319523,
-      "stdDev": 38.07052548745303,
-      "colours": 1116,
+      "meanLuma": 49.445705772879585,
+      "stdDev": 37.298699267165404,
+      "colours": 937,
       "width": 1170,
       "height": 2532
     },
     "hud-quests-phone-portrait.png": {
-      "meanLuma": 37.18392415012133,
-      "stdDev": 28.16115101258771,
-      "colours": 1067,
+      "meanLuma": 40.81413846923562,
+      "stdDev": 27.531475979049397,
+      "colours": 1053,
       "width": 1170,
       "height": 2532
     },
     "hud-rank-phone-portrait.png": {
-      "meanLuma": 39.542572808971514,
-      "stdDev": 27.693343722699954,
-      "colours": 1267,
+      "meanLuma": 43.51930773846176,
+      "stdDev": 28.166552168176395,
+      "colours": 1079,
       "width": 1170,
       "height": 2532
     },
     "hud-results-phone-portrait.png": {
-      "meanLuma": 33.147005979231416,
-      "stdDev": 24.79727964472447,
-      "colours": 982,
+      "meanLuma": 42.04226882979166,
+      "stdDev": 27.17386498598929,
+      "colours": 941,
       "width": 1170,
       "height": 2532
     },
     "hud-pause-phone-portrait.png": {
-      "meanLuma": 39.704911715581844,
-      "stdDev": 29.410091925243915,
-      "colours": 876,
+      "meanLuma": 39.646438293593505,
+      "stdDev": 29.002013439691677,
+      "colours": 786,
       "width": 1170,
       "height": 2532
     },
     "hud-settings-phone-portrait.png": {
-      "meanLuma": 20.973619462348527,
-      "stdDev": 30.38401183749196,
-      "colours": 491,
+      "meanLuma": 38.3256488918904,
+      "stdDev": 25.490826602414668,
+      "colours": 947,
       "width": 1170,
       "height": 2532
     },
@@ -451,51 +452,51 @@
       "height": 1536
     },
     "hud-combat-tablet.png": {
-      "meanLuma": 43.13628430003484,
-      "stdDev": 29.552366521299792,
-      "colours": 1058,
+      "meanLuma": 42.994653741274284,
+      "stdDev": 29.00032386931856,
+      "colours": 916,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-boss-tablet.png": {
-      "meanLuma": 42.634731514320094,
-      "stdDev": 29.62645689323221,
-      "colours": 1100,
+      "meanLuma": 42.659686192691616,
+      "stdDev": 29.246236398253984,
+      "colours": 952,
       "width": 2048,
       "height": 1536
     },
     "hud-quests-tablet.png": {
-      "meanLuma": 33.12377062189393,
-      "stdDev": 20.999802935313376,
-      "colours": 960,
+      "meanLuma": 33.54110644141753,
+      "stdDev": 20.965937575886276,
+      "colours": 906,
       "width": 2048,
       "height": 1536
     },
     "hud-rank-tablet.png": {
-      "meanLuma": 23.333863964313164,
-      "stdDev": 22.19306851116654,
-      "colours": 764,
+      "meanLuma": 32.40110131778606,
+      "stdDev": 20.605287934585256,
+      "colours": 893,
       "width": 2048,
       "height": 1536
     },
     "hud-results-tablet.png": {
-      "meanLuma": 14.613701146096837,
-      "stdDev": 20.485581285096885,
-      "colours": 488,
+      "meanLuma": 30.437105426219745,
+      "stdDev": 19.229105333285624,
+      "colours": 877,
       "width": 2048,
       "height": 1536
     },
     "hud-pause-tablet.png": {
-      "meanLuma": 24.70116477498247,
-      "stdDev": 17.154985580000673,
-      "colours": 646,
+      "meanLuma": 28.738182398016026,
+      "stdDev": 18.98572670488863,
+      "colours": 680,
       "width": 2048,
       "height": 1536
     },
     "hud-settings-tablet.png": {
-      "meanLuma": 22.740299290998006,
-      "stdDev": 21.964492587740487,
-      "colours": 724,
+      "meanLuma": 28.910008180104768,
+      "stdDev": 19.85853257351045,
+      "colours": 815,
       "width": 2048,
       "height": 1536
     }
@@ -504,6 +505,7 @@
     "loading@phone-landscape": [
       {
         "id": "loading-track",
+        "kind": "panel",
         "screen": "boot",
         "x": 274.5,
         "y": 186.59375,
@@ -515,6 +517,7 @@
     "combat@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 8,
@@ -524,6 +527,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 66,
@@ -533,6 +537,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 365.5,
         "y": 8,
@@ -542,8 +547,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 621.1875,
+        "x": 617.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -551,8 +557,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 632,
+        "x": 628,
         "y": 64,
         "width": 132,
         "height": 62,
@@ -560,6 +567,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 334.5,
         "y": 132,
@@ -569,26 +577,29 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
-        "x": 347,
-        "y": 273,
-        "width": 150,
-        "height": 86,
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
         "text": ""
       }
     ],
     "combat-boss@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 8,
@@ -598,6 +609,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 66,
@@ -607,6 +619,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 364.546875,
         "y": 8,
@@ -616,6 +629,7 @@
       },
       {
         "id": "boss",
+        "kind": "panel",
         "screen": "hud",
         "x": 284.5,
         "y": 68,
@@ -625,8 +639,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 621.1875,
+        "x": 617.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -634,8 +649,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 632,
+        "x": 628,
         "y": 64,
         "width": 132,
         "height": 62,
@@ -643,6 +659,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 334.5,
         "y": 132,
@@ -652,26 +669,29 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
-        "x": 347,
-        "y": 273,
-        "width": 150,
-        "height": 86,
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
         "text": ""
       }
     ],
     "quests@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "quests",
         "x": 59,
         "y": 8,
@@ -681,6 +701,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "quests",
         "x": 59,
         "y": 66,
@@ -690,6 +711,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "quests",
         "x": 334.5,
         "y": 115,
@@ -699,24 +721,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "quests",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "quests",
-        "x": 347,
-        "y": 273,
-        "width": 150,
-        "height": 86,
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "quests",
         "x": 69,
         "y": 18,
@@ -726,6 +751,7 @@
       },
       {
         "id": "quests-close",
+        "kind": "panel",
         "screen": "quests",
         "x": 714,
         "y": 304,
@@ -737,6 +763,7 @@
     "rank@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "rank",
         "x": 59,
         "y": 8,
@@ -746,6 +773,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "rank",
         "x": 59,
         "y": 66,
@@ -755,6 +783,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "rank",
         "x": 334.5,
         "y": 115,
@@ -764,24 +793,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "rank",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "rank",
-        "x": 347,
-        "y": 273,
-        "width": 150,
-        "height": 86,
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "rank",
         "x": 69,
         "y": 18,
@@ -791,6 +823,7 @@
       },
       {
         "id": "standing",
+        "kind": "panel",
         "screen": "rank",
         "x": 84,
         "y": 78,
@@ -800,6 +833,7 @@
       },
       {
         "id": "rank-close",
+        "kind": "panel",
         "screen": "rank",
         "x": 714,
         "y": 304,
@@ -811,6 +845,7 @@
     "results@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "results",
         "x": 59,
         "y": 8,
@@ -820,6 +855,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "results",
         "x": 59,
         "y": 66,
@@ -829,6 +865,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "results",
         "x": 334.5,
         "y": 115,
@@ -838,24 +875,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "results",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "results",
-        "x": 347,
-        "y": 273,
-        "width": 150,
-        "height": 86,
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "results",
         "x": 114.5,
         "y": 18,
@@ -865,6 +905,7 @@
       },
       {
         "id": "results-dismiss",
+        "kind": "panel",
         "screen": "results",
         "x": 664.890625,
         "y": 304,
@@ -876,6 +917,7 @@
     "pause@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "pause",
         "x": 59,
         "y": 8,
@@ -885,6 +927,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "pause",
         "x": 59,
         "y": 66,
@@ -894,6 +937,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "pause",
         "x": 365.5,
         "y": 8,
@@ -903,8 +947,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "pause",
-        "x": 621.1875,
+        "x": 617.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -912,8 +957,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "pause",
-        "x": 632,
+        "x": 628,
         "y": 64,
         "width": 132,
         "height": 62,
@@ -921,6 +967,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "pause",
         "x": 334.5,
         "y": 132,
@@ -930,63 +977,70 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "pause",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "pause",
-        "x": 347,
-        "y": 273,
-        "width": 150,
-        "height": 86,
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "pause",
         "x": 224.5,
-        "y": 40.53125,
+        "y": 43.53125,
         "width": 420,
-        "height": 295.9375,
+        "height": 289.9375,
         "text": "PausedCaped Baldy · C-388ResumeRequestsHero AssociationSetti"
       },
       {
         "id": "pause-resume",
+        "kind": "panel",
         "screen": "pause",
         "x": 239.5,
-        "y": 100.53125,
+        "y": 103.53125,
         "width": 390,
         "height": 44,
         "text": "Resume"
       },
       {
         "id": "pause-quests",
+        "kind": "panel",
         "screen": "pause",
         "x": 239.5,
-        "y": 152.53125,
+        "y": 153.53125,
         "width": 390,
         "height": 44,
         "text": "Requests"
       },
       {
         "id": "pause-rank",
+        "kind": "panel",
         "screen": "pause",
         "x": 239.5,
-        "y": 204.53125,
+        "y": 203.53125,
         "width": 390,
         "height": 44,
         "text": "Hero Association"
       },
       {
         "id": "pause-settings",
+        "kind": "panel",
         "screen": "pause",
         "x": 239.5,
-        "y": 256.53125,
+        "y": 253.53125,
         "width": 390,
         "height": 44,
         "text": "Settings"
@@ -995,6 +1049,7 @@
     "settings@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "settings",
         "x": 59,
         "y": 8,
@@ -1004,6 +1059,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "settings",
         "x": 59,
         "y": 66,
@@ -1013,6 +1069,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "settings",
         "x": 334.5,
         "y": 115,
@@ -1022,24 +1079,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "settings",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "settings",
-        "x": 347,
-        "y": 273,
-        "width": 150,
-        "height": 86,
+        "x": 351.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "settings",
         "x": 69,
         "y": 18,
@@ -1049,96 +1109,107 @@
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 627.578125,
         "y": 113,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "low"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 674.578125,
         "y": 113,
         "width": 60.25,
-        "height": 38,
+        "height": 44,
         "text": "medium"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 737.828125,
         "y": 113,
         "width": 44.171875,
-        "height": 38,
+        "height": 44,
         "text": "high"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 544.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "50%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 591.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "60%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 638.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "75%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 685.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "85%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 732.828125,
-        "y": 171,
+        "y": 177,
         "width": 49.171875,
-        "height": 38,
+        "height": 44,
         "text": "100%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 663.46875,
-        "y": 268,
+        "y": 280,
         "width": 66.328125,
-        "height": 38,
+        "height": 44,
         "text": "Floating"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 732.796875,
-        "y": 268,
+        "y": 280,
         "width": 49.203125,
-        "height": 38,
+        "height": 44,
         "text": "Fixed"
       },
       {
         "id": "settings-close",
+        "kind": "panel",
         "screen": "settings",
         "x": 714,
         "y": 304,
@@ -1150,6 +1221,7 @@
     "idle@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 8,
@@ -1159,6 +1231,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 66,
@@ -1168,6 +1241,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 334.5,
         "y": 115,
@@ -1177,15 +1251,17 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
         "x": 351.5,
         "y": 285.58001708984375,
@@ -1197,6 +1273,7 @@
     "combat-alert@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 8,
@@ -1206,6 +1283,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 66,
@@ -1215,6 +1293,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 365.5,
         "y": 8,
@@ -1224,8 +1303,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 621.1875,
+        "x": 617.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -1233,8 +1313,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 632,
+        "x": 628,
         "y": 64,
         "width": 132,
         "height": 62,
@@ -1242,6 +1323,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 334.5,
         "y": 132,
@@ -1251,15 +1333,17 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
         "x": 351.5,
         "y": 285.58001708984375,
@@ -1269,6 +1353,7 @@
       },
       {
         "id": "alerts",
+        "kind": "panel",
         "screen": "hud",
         "x": 212,
         "y": 12,
@@ -1278,6 +1363,7 @@
       },
       {
         "id": "hud-panel",
+        "kind": "panel",
         "screen": "hud",
         "x": 212,
         "y": 12,
@@ -1289,6 +1375,7 @@
     "combat-charging@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 8,
@@ -1298,6 +1385,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 66,
@@ -1307,6 +1395,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 365.5,
         "y": 8,
@@ -1316,8 +1405,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 621.1875,
+        "x": 617.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -1325,8 +1415,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 632,
+        "x": 628,
         "y": 64,
         "width": 132,
         "height": 62,
@@ -1334,6 +1425,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 334.5,
         "y": 132,
@@ -1343,15 +1435,17 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
         "x": 347,
         "y": 273,
@@ -1363,6 +1457,7 @@
     "combat-bored@phone-landscape": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 8,
@@ -1372,6 +1467,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 66,
@@ -1381,6 +1477,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 365.5,
         "y": 8,
@@ -1390,8 +1487,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 621.1875,
+        "x": 617.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -1399,8 +1497,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 632,
+        "x": 628,
         "y": 64,
         "width": 132,
         "height": 62,
@@ -1408,6 +1507,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 334.5,
         "y": 132,
@@ -1417,15 +1517,17 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
         "x": 351.5,
         "y": 285.58001708984375,
@@ -1437,6 +1539,7 @@
     "markers@phone-landscape": [
       {
         "id": "hud-marker",
+        "kind": "marker",
         "screen": "hud",
         "x": 387.59375,
         "y": 148.82310485839844,
@@ -1446,6 +1549,7 @@
       },
       {
         "id": "hud-marker",
+        "kind": "marker",
         "screen": "hud",
         "x": 236.41845703125,
         "y": 154.49111938476562,
@@ -1455,6 +1559,7 @@
       },
       {
         "id": "hud-marker",
+        "kind": "marker",
         "screen": "hud",
         "x": 510.64599609375,
         "y": 162.16404724121094,
@@ -1464,6 +1569,7 @@
       },
       {
         "id": "hud-marker",
+        "kind": "marker",
         "screen": "hud",
         "x": 530.1697387695312,
         "y": 205.4905242919922,
@@ -1473,6 +1579,7 @@
       },
       {
         "id": "hud-marker",
+        "kind": "marker",
         "screen": "hud",
         "x": 258.2837829589844,
         "y": 192.8723907470703,
@@ -1482,6 +1589,7 @@
       },
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 8,
@@ -1491,6 +1599,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 59,
         "y": 66,
@@ -1500,6 +1609,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 365.5,
         "y": 8,
@@ -1509,8 +1619,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 621.1875,
+        "x": 617.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -1518,8 +1629,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 632,
+        "x": 628,
         "y": 64,
         "width": 132,
         "height": 62,
@@ -1527,6 +1639,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 334.5,
         "y": 132,
@@ -1536,15 +1649,17 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 770,
+        "x": 766,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
         "x": 351.5,
         "y": 285.58001708984375,
@@ -1556,6 +1671,7 @@
     "loading@phone-portrait": [
       {
         "id": "loading-track",
+        "kind": "panel",
         "screen": "boot",
         "x": 74.09375,
         "y": 428.28125,
@@ -1567,6 +1683,7 @@
     "combat@phone-portrait": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 59,
@@ -1576,6 +1693,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 119,
@@ -1585,6 +1703,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 185,
@@ -1594,8 +1713,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 193.1875,
+        "x": 189.1875,
         "y": 59,
         "width": 142.8125,
         "height": 50,
@@ -1603,8 +1723,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 204,
+        "x": 200,
         "y": 117,
         "width": 132,
         "height": 62,
@@ -1612,6 +1733,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 468.109375,
@@ -1621,26 +1743,29 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 342,
+        "x": 338,
         "y": 59,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
-        "x": 103,
-        "y": 696,
-        "width": 184,
-        "height": 104,
+        "x": 108.5199966430664,
+        "y": 709.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
         "text": ""
       }
     ],
     "combat-boss@phone-portrait": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 59,
@@ -1650,6 +1775,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 119,
@@ -1659,6 +1785,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 185,
@@ -1668,6 +1795,7 @@
       },
       {
         "id": "boss",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 245,
@@ -1677,8 +1805,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 193.1875,
+        "x": 189.1875,
         "y": 59,
         "width": 142.8125,
         "height": 50,
@@ -1686,8 +1815,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 204,
+        "x": 200,
         "y": 117,
         "width": 132,
         "height": 62,
@@ -1695,6 +1825,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 468.109375,
@@ -1704,26 +1835,29 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 342,
+        "x": 338,
         "y": 59,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
-        "x": 103,
-        "y": 696,
-        "width": 184,
-        "height": 104,
+        "x": 108.5199966430664,
+        "y": 709.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
         "text": ""
       }
     ],
     "quests@phone-portrait": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "quests",
         "x": 8,
         "y": 59,
@@ -1733,6 +1867,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "quests",
         "x": 8,
         "y": 119,
@@ -1742,6 +1877,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "quests",
         "x": 8,
         "y": 468.109375,
@@ -1751,24 +1887,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "quests",
-        "x": 342,
+        "x": 338,
         "y": 59,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "quests",
-        "x": 103,
-        "y": 696,
-        "width": 184,
-        "height": 104,
+        "x": 108.5199966430664,
+        "y": 709.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "quests",
         "x": 18,
         "y": 69,
@@ -1778,6 +1917,7 @@
       },
       {
         "id": "quests-close",
+        "kind": "panel",
         "screen": "quests",
         "x": 286,
         "y": 745,
@@ -1789,6 +1929,7 @@
     "rank@phone-portrait": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "rank",
         "x": 8,
         "y": 59,
@@ -1798,6 +1939,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "rank",
         "x": 8,
         "y": 119,
@@ -1807,6 +1949,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "rank",
         "x": 8,
         "y": 468.109375,
@@ -1816,24 +1959,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "rank",
-        "x": 342,
+        "x": 338,
         "y": 59,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "rank",
-        "x": 103,
-        "y": 696,
-        "width": 184,
-        "height": 104,
+        "x": 108.5199966430664,
+        "y": 709.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "rank",
         "x": 18,
         "y": 69,
@@ -1843,6 +1989,7 @@
       },
       {
         "id": "standing",
+        "kind": "panel",
         "screen": "rank",
         "x": 33,
         "y": 129,
@@ -1852,6 +1999,7 @@
       },
       {
         "id": "rank-close",
+        "kind": "panel",
         "screen": "rank",
         "x": 286,
         "y": 745,
@@ -1863,6 +2011,7 @@
     "results@phone-portrait": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "results",
         "x": 8,
         "y": 59,
@@ -1872,6 +2021,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "results",
         "x": 8,
         "y": 119,
@@ -1881,6 +2031,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "results",
         "x": 8,
         "y": 468.109375,
@@ -1890,24 +2041,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "results",
-        "x": 342,
+        "x": 338,
         "y": 59,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "results",
-        "x": 103,
-        "y": 696,
-        "width": 184,
-        "height": 104,
+        "x": 108.5199966430664,
+        "y": 709.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "results",
         "x": 18,
         "y": 79.90625,
@@ -1917,6 +2071,7 @@
       },
       {
         "id": "invoice-total",
+        "kind": "panel",
         "screen": "results",
         "x": 33,
         "y": 568.90625,
@@ -1926,6 +2081,7 @@
       },
       {
         "id": "results-dismiss",
+        "kind": "panel",
         "screen": "results",
         "x": 282.390625,
         "y": 734.078125,
@@ -1937,6 +2093,7 @@
     "pause@phone-portrait": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "pause",
         "x": 8,
         "y": 59,
@@ -1946,6 +2103,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "pause",
         "x": 8,
         "y": 119,
@@ -1955,6 +2113,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "pause",
         "x": 8,
         "y": 185,
@@ -1964,8 +2123,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "pause",
-        "x": 193.1875,
+        "x": 189.1875,
         "y": 59,
         "width": 142.8125,
         "height": 50,
@@ -1973,8 +2133,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "pause",
-        "x": 204,
+        "x": 200,
         "y": 117,
         "width": 132,
         "height": 62,
@@ -1982,6 +2143,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "pause",
         "x": 8,
         "y": 468.109375,
@@ -1991,24 +2153,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "pause",
-        "x": 342,
+        "x": 338,
         "y": 59,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "pause",
-        "x": 103,
-        "y": 696,
-        "width": 184,
-        "height": 104,
+        "x": 108.5199966430664,
+        "y": 709.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "pause",
         "x": 18,
         "y": 286.53125,
@@ -2018,6 +2183,7 @@
       },
       {
         "id": "pause-resume",
+        "kind": "panel",
         "screen": "pause",
         "x": 33,
         "y": 346.53125,
@@ -2027,6 +2193,7 @@
       },
       {
         "id": "pause-quests",
+        "kind": "panel",
         "screen": "pause",
         "x": 33,
         "y": 398.53125,
@@ -2036,6 +2203,7 @@
       },
       {
         "id": "pause-rank",
+        "kind": "panel",
         "screen": "pause",
         "x": 33,
         "y": 450.53125,
@@ -2045,6 +2213,7 @@
       },
       {
         "id": "pause-settings",
+        "kind": "panel",
         "screen": "pause",
         "x": 33,
         "y": 502.53125,
@@ -2056,6 +2225,7 @@
     "settings@phone-portrait": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "settings",
         "x": 8,
         "y": 59,
@@ -2065,6 +2235,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "settings",
         "x": 8,
         "y": 119,
@@ -2074,6 +2245,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "settings",
         "x": 8,
         "y": 468.109375,
@@ -2083,24 +2255,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "settings",
-        "x": 342,
+        "x": 338,
         "y": 59,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "settings",
-        "x": 103,
-        "y": 696,
-        "width": 184,
-        "height": 104,
+        "x": 108.5199966430664,
+        "y": 709.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "settings",
         "x": 18,
         "y": 69,
@@ -2110,213 +2285,237 @@
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 199.578125,
-        "y": 165.296875,
+        "y": 164,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "low"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 246.578125,
-        "y": 165.296875,
+        "y": 164,
         "width": 60.25,
-        "height": 38,
+        "height": 44,
         "text": "medium"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 309.828125,
-        "y": 165.296875,
+        "y": 164,
         "width": 44.171875,
-        "height": 38,
+        "height": 44,
         "text": "high"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 116.828125,
-        "y": 270.125,
+        "y": 270.53125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "50%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 163.828125,
-        "y": 270.125,
+        "y": 270.53125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "60%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 210.828125,
-        "y": 270.125,
+        "y": 270.53125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "75%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 257.828125,
-        "y": 270.125,
+        "y": 270.53125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "85%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 304.828125,
-        "y": 270.125,
+        "y": 270.53125,
         "width": 49.171875,
-        "height": 38,
+        "height": 44,
         "text": "100%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 235.46875,
-        "y": 413.96875,
+        "y": 416.078125,
         "width": 66.328125,
-        "height": 38,
+        "height": 44,
         "text": "Floating"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 304.796875,
-        "y": 413.96875,
+        "y": 416.078125,
         "width": 49.203125,
-        "height": 38,
+        "height": 44,
         "text": "Fixed"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 256.625,
-        "y": 473.265625,
+        "y": 480.078125,
         "width": 44.171875,
-        "height": 38,
+        "height": 44,
         "text": "Left"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 303.796875,
-        "y": 473.265625,
+        "y": 480.078125,
         "width": 50.203125,
-        "height": 38,
+        "height": 44,
         "text": "Right"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 263,
-        "y": 531.265625,
+        "y": 544.078125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "Off"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 310,
-        "y": 531.265625,
+        "y": 544.078125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "On"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 46,
-        "y": 620.5,
+        "y": 636.3125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "0.4×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 93,
-        "y": 620.5,
+        "y": 636.3125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "0.6×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 140,
-        "y": 620.5,
+        "y": 636.3125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "0.8×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 187,
-        "y": 620.5,
+        "y": 636.3125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "1×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 234,
-        "y": 620.5,
+        "y": 636.3125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "1.3×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 281,
-        "y": 620.5,
+        "y": 636.3125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "1.6×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 328,
-        "y": 620.5,
+        "y": 636.3125,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "2×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 263,
-        "y": 709.75,
+        "y": 728.5625,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "Off"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 310,
-        "y": 709.75,
+        "y": 728.5625,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "On"
       },
       {
         "id": "settings-close",
+        "kind": "panel",
         "screen": "settings",
         "x": 286,
         "y": 745,
@@ -2328,6 +2527,7 @@
     "loading@tablet": [
       {
         "id": "loading-track",
+        "kind": "panel",
         "screen": "boot",
         "x": 352,
         "y": 398.09375,
@@ -2339,6 +2539,7 @@
     "combat@tablet": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 8,
@@ -2348,6 +2549,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 68,
@@ -2357,6 +2559,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 443,
         "y": 8,
@@ -2366,8 +2569,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 827.1875,
+        "x": 823.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -2375,8 +2579,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 838,
+        "x": 834,
         "y": 66,
         "width": 132,
         "height": 62,
@@ -2384,6 +2589,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 396,
         "y": 136,
@@ -2393,26 +2599,29 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 976,
+        "x": 972,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
-        "x": 420,
-        "y": 646,
-        "width": 184,
-        "height": 104,
+        "x": 425.5199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
         "text": ""
       }
     ],
     "combat-boss@tablet": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 8,
@@ -2422,6 +2631,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "hud",
         "x": 8,
         "y": 68,
@@ -2431,6 +2641,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "hud",
         "x": 442.046875,
         "y": 8,
@@ -2440,6 +2651,7 @@
       },
       {
         "id": "boss",
+        "kind": "panel",
         "screen": "hud",
         "x": 342,
         "y": 68,
@@ -2449,8 +2661,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "hud",
-        "x": 827.1875,
+        "x": 823.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -2458,8 +2671,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "hud",
-        "x": 838,
+        "x": 834,
         "y": 66,
         "width": 132,
         "height": 62,
@@ -2467,6 +2681,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "hud",
         "x": 396,
         "y": 136,
@@ -2476,26 +2691,29 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "hud",
-        "x": 976,
+        "x": 972,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "hud",
-        "x": 420,
-        "y": 646,
-        "width": 184,
-        "height": 104,
+        "x": 425.5199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
         "text": ""
       }
     ],
     "quests@tablet": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "quests",
         "x": 8,
         "y": 8,
@@ -2505,6 +2723,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "quests",
         "x": 8,
         "y": 68,
@@ -2514,6 +2733,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "quests",
         "x": 396,
         "y": 119,
@@ -2523,24 +2743,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "quests",
-        "x": 976,
+        "x": 972,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "quests",
-        "x": 420,
-        "y": 646,
-        "width": 184,
-        "height": 104,
+        "x": 425.5199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "quests",
         "x": 102,
         "y": 44.34375,
@@ -2550,6 +2773,7 @@
       },
       {
         "id": "quests-close",
+        "kind": "panel",
         "screen": "quests",
         "x": 836,
         "y": 668.65625,
@@ -2561,6 +2785,7 @@
     "rank@tablet": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "rank",
         "x": 8,
         "y": 8,
@@ -2570,6 +2795,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "rank",
         "x": 8,
         "y": 68,
@@ -2579,6 +2805,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "rank",
         "x": 396,
         "y": 119,
@@ -2588,24 +2815,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "rank",
-        "x": 976,
+        "x": 972,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "rank",
-        "x": 420,
-        "y": 646,
-        "width": 184,
-        "height": 104,
+        "x": 425.5199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "rank",
         "x": 102,
         "y": 50.15625,
@@ -2615,6 +2845,7 @@
       },
       {
         "id": "standing",
+        "kind": "panel",
         "screen": "rank",
         "x": 117,
         "y": 110.15625,
@@ -2624,6 +2855,7 @@
       },
       {
         "id": "rank-close",
+        "kind": "panel",
         "screen": "rank",
         "x": 836,
         "y": 662.84375,
@@ -2635,6 +2867,7 @@
     "results@tablet": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "results",
         "x": 8,
         "y": 8,
@@ -2644,6 +2877,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "results",
         "x": 8,
         "y": 68,
@@ -2653,6 +2887,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "results",
         "x": 396,
         "y": 119,
@@ -2662,24 +2897,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "results",
-        "x": 976,
+        "x": 972,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "results",
-        "x": 420,
-        "y": 646,
-        "width": 184,
-        "height": 104,
+        "x": 425.5199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "results",
         "x": 192,
         "y": 45.109375,
@@ -2689,6 +2927,7 @@
       },
       {
         "id": "invoice-total",
+        "kind": "panel",
         "screen": "results",
         "x": 207,
         "y": 520.109375,
@@ -2698,6 +2937,7 @@
       },
       {
         "id": "results-dismiss",
+        "kind": "panel",
         "screen": "results",
         "x": 742.390625,
         "y": 667.890625,
@@ -2709,6 +2949,7 @@
     "pause@tablet": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "pause",
         "x": 8,
         "y": 8,
@@ -2718,6 +2959,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "pause",
         "x": 8,
         "y": 68,
@@ -2727,6 +2969,7 @@
       },
       {
         "id": "encounter",
+        "kind": "panel",
         "screen": "pause",
         "x": 443,
         "y": 8,
@@ -2736,8 +2979,9 @@
       },
       {
         "id": "ledger",
+        "kind": "panel",
         "screen": "pause",
-        "x": 827.1875,
+        "x": 823.1875,
         "y": 8,
         "width": 142.8125,
         "height": 50,
@@ -2745,8 +2989,9 @@
       },
       {
         "id": "collateral",
+        "kind": "panel",
         "screen": "pause",
-        "x": 838,
+        "x": 834,
         "y": 66,
         "width": 132,
         "height": 62,
@@ -2754,6 +2999,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "pause",
         "x": 396,
         "y": 136,
@@ -2763,24 +3009,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "pause",
-        "x": 976,
+        "x": 972,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "pause",
-        "x": 420,
-        "y": 646,
-        "width": 184,
-        "height": 104,
+        "x": 425.5199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "pause",
         "x": 302,
         "y": 236.03125,
@@ -2790,6 +3039,7 @@
       },
       {
         "id": "pause-resume",
+        "kind": "panel",
         "screen": "pause",
         "x": 317,
         "y": 296.03125,
@@ -2799,6 +3049,7 @@
       },
       {
         "id": "pause-quests",
+        "kind": "panel",
         "screen": "pause",
         "x": 317,
         "y": 348.03125,
@@ -2808,6 +3059,7 @@
       },
       {
         "id": "pause-rank",
+        "kind": "panel",
         "screen": "pause",
         "x": 317,
         "y": 400.03125,
@@ -2817,6 +3069,7 @@
       },
       {
         "id": "pause-settings",
+        "kind": "panel",
         "screen": "pause",
         "x": 317,
         "y": 452.03125,
@@ -2828,6 +3081,7 @@
     "settings@tablet": [
       {
         "id": "rank-chip",
+        "kind": "panel",
         "screen": "settings",
         "x": 8,
         "y": 8,
@@ -2837,6 +3091,7 @@
       },
       {
         "id": "boredom",
+        "kind": "panel",
         "screen": "settings",
         "x": 8,
         "y": 68,
@@ -2846,6 +3101,7 @@
       },
       {
         "id": "tracker",
+        "kind": "panel",
         "screen": "settings",
         "x": 396,
         "y": 119,
@@ -2855,24 +3111,27 @@
       },
       {
         "id": "pause-button",
+        "kind": "panel",
         "screen": "settings",
-        "x": 976,
+        "x": 972,
         "y": 8,
-        "width": 40,
-        "height": 40,
+        "width": 44,
+        "height": 44,
         "text": "❚❚"
       },
       {
         "id": "charge",
+        "kind": "panel",
         "screen": "settings",
-        "x": 420,
-        "y": 646,
-        "width": 184,
-        "height": 104,
+        "x": 425.5199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
         "text": ""
       },
       {
         "id": "hud-sheet",
+        "kind": "panel",
         "screen": "settings",
         "x": 102,
         "y": 18,
@@ -2882,294 +3141,287 @@
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 749.578125,
         "y": 113,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "low"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 796.578125,
         "y": 113,
         "width": 60.25,
-        "height": 38,
+        "height": 44,
         "text": "medium"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 859.828125,
         "y": 113,
         "width": 44.171875,
-        "height": 38,
+        "height": 44,
         "text": "high"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 666.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "50%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 713.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "60%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 760.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "75%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 807.828125,
-        "y": 171,
+        "y": 177,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "85%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 854.828125,
-        "y": 171,
+        "y": 177,
         "width": 49.171875,
-        "height": 38,
+        "height": 44,
         "text": "100%"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 785.46875,
-        "y": 268,
+        "y": 280,
         "width": 66.328125,
-        "height": 38,
+        "height": 44,
         "text": "Floating"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 854.796875,
-        "y": 268,
+        "y": 280,
         "width": 49.203125,
-        "height": 38,
+        "height": 44,
         "text": "Fixed"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 806.625,
-        "y": 326,
+        "y": 344,
         "width": 44.171875,
-        "height": 38,
+        "height": 44,
         "text": "Left"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 853.796875,
-        "y": 326,
+        "y": 344,
         "width": 50.203125,
-        "height": 38,
+        "height": 44,
         "text": "Right"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 813,
-        "y": 384,
+        "y": 408,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "Off"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 860,
-        "y": 384,
+        "y": 408,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "On"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 578,
-        "y": 442,
+        "y": 472,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "0.4×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 625,
-        "y": 442,
+        "y": 472,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "0.6×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 672,
-        "y": 442,
+        "y": 472,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "0.8×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 719,
-        "y": 442,
+        "y": 472,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "1×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 766,
-        "y": 442,
+        "y": 472,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "1.3×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 813,
-        "y": 442,
+        "y": 472,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "1.6×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 860,
-        "y": 442,
+        "y": 472,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "2×"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 813,
-        "y": 500,
+        "y": 536,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "Off"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 860,
-        "y": 500,
+        "y": 536,
         "width": 44,
-        "height": 38,
+        "height": 44,
         "text": "On"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 469.171875,
-        "y": 597,
+        "y": 639,
         "width": 74,
-        "height": 42,
+        "height": 44,
         "text": "Standard"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 546.171875,
-        "y": 597,
+        "y": 639,
         "width": 93.484375,
-        "height": 42,
+        "height": 44,
         "text": "Deuteranopia"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 642.65625,
-        "y": 597,
+        "y": 639,
         "width": 80.40625,
-        "height": 42,
+        "height": 44,
         "text": "Protanopia"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 726.0625,
-        "y": 597,
+        "y": 639,
         "width": 78.40625,
-        "height": 42,
+        "height": 44,
         "text": "Tritanopia"
       },
       {
         "id": "hud-seg__opt",
+        "kind": "panel",
         "screen": "settings",
         "x": 807.46875,
-        "y": 597,
+        "y": 639,
         "width": 96.53125,
-        "height": 42,
+        "height": 44,
         "text": "High contrast"
       },
       {
-        "id": "hud-seg__opt",
-        "screen": "settings",
-        "x": 703.484375,
-        "y": 659,
-        "width": 44,
-        "height": 38,
-        "text": "85%"
-      },
-      {
-        "id": "hud-seg__opt",
-        "screen": "settings",
-        "x": 750.484375,
-        "y": 659,
-        "width": 49.171875,
-        "height": 38,
-        "text": "100%"
-      },
-      {
-        "id": "hud-seg__opt",
-        "screen": "settings",
-        "x": 802.65625,
-        "y": 659,
-        "width": 49.171875,
-        "height": 38,
-        "text": "115%"
-      },
-      {
-        "id": "hud-seg__opt",
-        "screen": "settings",
-        "x": 854.828125,
-        "y": 659,
-        "width": 49.171875,
-        "height": 38,
-        "text": "130%"
-      },
-      {
         "id": "settings-close",
+        "kind": "panel",
         "screen": "settings",
         "x": 836,
         "y": 695,
@@ -3198,7 +3450,7 @@
     {
       "name": "combat @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 29.5, colours 1138"
+      "detail": "stdDev 28.3, colours 972"
     },
     {
       "name": "combat @ phone-landscape respects the safe area",
@@ -3213,7 +3465,7 @@
     {
       "name": "combat-boss @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 29.2, colours 1184"
+      "detail": "stdDev 28.4, colours 1003"
     },
     {
       "name": "combat-boss @ phone-landscape respects the safe area",
@@ -3228,7 +3480,7 @@
     {
       "name": "quests @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 23.6, colours 869"
+      "detail": "stdDev 21.3, colours 967"
     },
     {
       "name": "quests @ phone-landscape respects the safe area",
@@ -3238,7 +3490,7 @@
     {
       "name": "rank @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 28.6, colours 585"
+      "detail": "stdDev 29.4, colours 591"
     },
     {
       "name": "rank @ phone-landscape respects the safe area",
@@ -3248,7 +3500,7 @@
     {
       "name": "results @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 18.6, colours 750"
+      "detail": "stdDev 20.2, colours 786"
     },
     {
       "name": "results @ phone-landscape respects the safe area",
@@ -3258,7 +3510,7 @@
     {
       "name": "pause @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 23.3, colours 331"
+      "detail": "stdDev 21.2, colours 602"
     },
     {
       "name": "pause @ phone-landscape respects the safe area",
@@ -3268,7 +3520,7 @@
     {
       "name": "settings @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 21.3, colours 971"
+      "detail": "stdDev 19.5, colours 841"
     },
     {
       "name": "settings @ phone-landscape respects the safe area",
@@ -3278,7 +3530,7 @@
     {
       "name": "idle @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 25.4, colours 857"
+      "detail": "stdDev 25.3, colours 885"
     },
     {
       "name": "idle @ phone-landscape respects the safe area",
@@ -3293,7 +3545,7 @@
     {
       "name": "combat-alert @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 27.2, colours 979"
+      "detail": "stdDev 27.2, colours 1015"
     },
     {
       "name": "combat-alert @ phone-landscape respects the safe area",
@@ -3308,7 +3560,7 @@
     {
       "name": "combat-charging @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 29.7, colours 1167"
+      "detail": "stdDev 29.5, colours 1204"
     },
     {
       "name": "combat-charging @ phone-landscape respects the safe area",
@@ -3323,7 +3575,7 @@
     {
       "name": "combat-bored @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 27.7, colours 894"
+      "detail": "stdDev 27.8, colours 970"
     },
     {
       "name": "combat-bored @ phone-landscape respects the safe area",
@@ -3338,7 +3590,7 @@
     {
       "name": "markers @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 29.7, colours 1268"
+      "detail": "stdDev 29.6, colours 1275"
     },
     {
       "name": "markers @ phone-landscape respects the safe area",
@@ -3347,18 +3599,18 @@
     },
     {
       "name": "markers @ phone-landscape keeps the thumb corners clear",
-      "pass": false,
-      "detail": "hud-marker"
+      "pass": true,
+      "detail": "no readable panel inside either hand"
     },
     {
       "name": "the region crop actually crops",
       "pass": true,
-      "detail": "band 2532x360 mean 42.4 vs frame 2532x1170 mean 37.3"
+      "detail": "band 2532x360 mean 43.8 vs frame 2532x1170 mean 37.2"
     },
     {
       "name": "the HUD band carries far more detail than the empty corridor",
       "pass": true,
-      "detail": "band stdDev 32.7 vs corridor 27.6"
+      "detail": "band stdDev 32.6 vs corridor 18.9"
     },
     {
       "name": "the 60 Hz path writes ONLY custom properties",
@@ -3373,7 +3625,7 @@
     {
       "name": "ZERO forced reflows — no layout property is read during the window",
       "pass": true,
-      "detail": "120 frames, 511 CSSOM writes, 0 layout reads"
+      "detail": "120 frames, 511 CSSOM writes, 0 layout reads, every watched accessor instrumented"
     },
     {
       "name": "zero cumulative layout shift while the meters animate",
@@ -3383,27 +3635,27 @@
     {
       "name": "the writer skips unchanged values rather than rewriting them",
       "pass": true,
-      "detail": "511 writes, 1893 skipped over 120 frames (4.3 CSSOM writes/frame)"
+      "detail": "511 writes, 2013 skipped over 120 frames (4.3 CSSOM writes/frame)"
     },
     {
       "name": "deuteranopia palette renders",
       "pass": true,
-      "detail": "stdDev 30.8, colours 1171"
+      "detail": "stdDev 28.4, colours 953"
     },
     {
       "name": "protanopia palette renders",
       "pass": true,
-      "detail": "stdDev 31.0, colours 1173"
+      "detail": "stdDev 28.7, colours 919"
     },
     {
       "name": "tritanopia palette renders",
       "pass": true,
-      "detail": "stdDev 30.2, colours 1349"
+      "detail": "stdDev 28.3, colours 956"
     },
     {
       "name": "highContrast palette renders",
       "pass": true,
-      "detail": "stdDev 33.8, colours 1197"
+      "detail": "stdDev 32.3, colours 948"
     },
     {
       "name": "the layout survives HUD scale at 130%",
@@ -3423,7 +3675,7 @@
     {
       "name": "combat @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 38.4, colours 1071"
+      "detail": "stdDev 37.5, colours 890"
     },
     {
       "name": "combat @ phone-portrait respects the safe area",
@@ -3438,7 +3690,7 @@
     {
       "name": "combat-boss @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 38.1, colours 1116"
+      "detail": "stdDev 37.3, colours 937"
     },
     {
       "name": "combat-boss @ phone-portrait respects the safe area",
@@ -3453,7 +3705,7 @@
     {
       "name": "quests @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 28.2, colours 1067"
+      "detail": "stdDev 27.5, colours 1053"
     },
     {
       "name": "quests @ phone-portrait respects the safe area",
@@ -3463,7 +3715,7 @@
     {
       "name": "rank @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 27.7, colours 1267"
+      "detail": "stdDev 28.2, colours 1079"
     },
     {
       "name": "rank @ phone-portrait respects the safe area",
@@ -3473,7 +3725,7 @@
     {
       "name": "results @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 24.8, colours 982"
+      "detail": "stdDev 27.2, colours 941"
     },
     {
       "name": "results @ phone-portrait respects the safe area",
@@ -3483,7 +3735,7 @@
     {
       "name": "pause @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 29.4, colours 876"
+      "detail": "stdDev 29.0, colours 786"
     },
     {
       "name": "pause @ phone-portrait respects the safe area",
@@ -3493,7 +3745,7 @@
     {
       "name": "settings @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 30.4, colours 491"
+      "detail": "stdDev 25.5, colours 947"
     },
     {
       "name": "settings @ phone-portrait respects the safe area",
@@ -3568,7 +3820,7 @@
     {
       "name": "combat @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 29.6, colours 1058"
+      "detail": "stdDev 29.0, colours 916"
     },
     {
       "name": "combat @ tablet respects the safe area",
@@ -3583,7 +3835,7 @@
     {
       "name": "combat-boss @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 29.6, colours 1100"
+      "detail": "stdDev 29.2, colours 952"
     },
     {
       "name": "combat-boss @ tablet respects the safe area",
@@ -3598,7 +3850,7 @@
     {
       "name": "quests @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 21.0, colours 960"
+      "detail": "stdDev 21.0, colours 906"
     },
     {
       "name": "quests @ tablet respects the safe area",
@@ -3608,7 +3860,7 @@
     {
       "name": "rank @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 22.2, colours 764"
+      "detail": "stdDev 20.6, colours 893"
     },
     {
       "name": "rank @ tablet respects the safe area",
@@ -3618,7 +3870,7 @@
     {
       "name": "results @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 20.5, colours 488"
+      "detail": "stdDev 19.2, colours 877"
     },
     {
       "name": "results @ tablet respects the safe area",
@@ -3628,7 +3880,7 @@
     {
       "name": "pause @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 17.2, colours 646"
+      "detail": "stdDev 19.0, colours 680"
     },
     {
       "name": "pause @ tablet respects the safe area",
@@ -3638,12 +3890,12 @@
     {
       "name": "settings @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 22.0, colours 724"
+      "detail": "stdDev 19.9, colours 815"
     },
     {
       "name": "settings @ tablet respects the safe area",
       "pass": true,
-      "detail": "39 panels inside the safe box"
+      "detail": "35 panels inside the safe box"
     },
     {
       "name": "no console errors from any profile",
@@ -3651,5 +3903,5 @@
       "detail": "clean"
     }
   ],
-  "generatedAt": "2026-08-17T08:18:50.976Z"
+  "generatedAt": "2026-08-23T18:36:24.684Z"
 }

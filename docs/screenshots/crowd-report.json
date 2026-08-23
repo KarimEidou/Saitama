@@ -9,16 +9,16 @@
     "farEstimate": 1585,
     "moods": {
       "commute": 0,
-      "gawk": 15,
-      "flee": 214,
+      "gawk": 14,
+      "flee": 215,
       "cower": 3,
       "down": 18
     },
-    "gawkFraction": 0.06,
-    "panicFraction": 0.868,
-    "peakFlee": 222,
-    "peakGawk": 191,
-    "peakCower": 125,
+    "gawkFraction": 0.056,
+    "panicFraction": 0.872,
+    "peakFlee": 223,
+    "peakGawk": 193,
+    "peakCower": 126,
     "crowdDrawCalls": 6,
     "sceneDrawCalls": 17,
     "crowdTriangles": 113000,
@@ -26,12 +26,12 @@
     "archetypeMeshes": 6,
     "distinctOffsets": 217,
     "paletteBytes": 746496,
-    "simMsMean": 0.8055000000074506,
-    "simMsMedian": 0.6000000014901161,
-    "simMsP95": 1.699999999254942,
-    "simMsMax": 37.600000001490116,
-    "alarmMs": 0.30000000074505806,
-    "flowMs": 0.09999999776482582,
+    "simMsMean": 0.8817777777732246,
+    "simMsMedian": 0.6999999992549419,
+    "simMsP95": 1.599999999627471,
+    "simMsMax": 51.20000000111759,
+    "alarmMs": 0.19999999925494194,
+    "flowMs": 0.09999999962747097,
     "frames": 1800,
     "frontSamples": [
       {
@@ -316,7 +316,7 @@
       },
       {
         "t": 11.100000000000131,
-        "radius": 180.0999722376436
+        "radius": 175.64737401965337
       },
       {
         "t": 11.200000000000136,
@@ -477,7 +477,7 @@
     ],
     "frontSpeed": 38.027092013270675,
     "frontFinal": 174,
-    "minSeparation": 0.511008233473073,
+    "minSeparation": 0.5082590765854246,
     "buildingPenetrations": 0,
     "penetrationChecks": 89620,
     "fleeConvergence": {
@@ -492,22 +492,22 @@
       "converged": 15720,
       "cycles": 0,
       "stalled": 0,
-      "longestWalk": 10
+      "longestWalk": 11
     },
     "directionsIntoWalls": 0,
-    "saved": 180,
-    "lost": 57,
-    "witnessedSaves": 104,
-    "savedEvents": 180,
-    "lostEvents": 57,
+    "saved": 172,
+    "lost": 54,
+    "witnessedSaves": 103,
+    "savedEvents": 172,
+    "lostEvents": 54,
     "lostByPlayer": 0,
-    "savedByPlayer": 14,
-    "outcomesWithLineOfSight": 138,
-    "outcomesWithBystanders": 237,
+    "savedByPlayer": 15,
+    "outcomesWithLineOfSight": 135,
+    "outcomesWithBystanders": 226,
     "allies": [
       {
         "name": "Genos",
-        "health": 296.70641876518374,
+        "health": 321.57590559930327,
         "maxHealth": 420,
         "reEngagements": 1,
         "dead": false
@@ -521,7 +521,7 @@
       },
       {
         "name": "Tatsumaki",
-        "health": 780,
+        "health": 714.059946046385,
         "maxHealth": 780,
         "reEngagements": 0,
         "dead": false
@@ -531,8 +531,8 @@
       "Mumen Rider"
     ],
     "mumenReEngagements": 6,
-    "determinismHash": 3431532025,
-    "determinismTwinHash": 3431532025,
+    "determinismHash": 213867036,
+    "determinismTwinHash": 213867036,
     "deterministic": true
   },
   "fields": {
@@ -545,16 +545,16 @@
     "farEstimate": 1585,
     "moods": {
       "commute": 0,
-      "gawk": 15,
-      "flee": 214,
+      "gawk": 14,
+      "flee": 215,
       "cower": 3,
       "down": 18
     },
-    "gawkFraction": 0.06,
-    "panicFraction": 0.868,
-    "peakFlee": 222,
-    "peakGawk": 191,
-    "peakCower": 125,
+    "gawkFraction": 0.056,
+    "panicFraction": 0.872,
+    "peakFlee": 223,
+    "peakGawk": 193,
+    "peakCower": 126,
     "crowdDrawCalls": 6,
     "sceneDrawCalls": 15,
     "crowdTriangles": 113000,
@@ -562,11 +562,11 @@
     "archetypeMeshes": 6,
     "distinctOffsets": 217,
     "paletteBytes": 746496,
-    "simMsMean": 0.8573333333060146,
+    "simMsMean": 0.8258333333167764,
     "simMsMedian": 0.6000000014901161,
-    "simMsP95": 2.699999999254942,
-    "simMsMax": 34.30000000074506,
-    "alarmMs": 0.19999999925494194,
+    "simMsP95": 1.5,
+    "simMsMax": 33.59999999962747,
+    "alarmMs": 0.2000000011175871,
     "flowMs": 0,
     "frames": 1800,
     "frontSamples": [
@@ -852,7 +852,7 @@
       },
       {
         "t": 11.100000000000131,
-        "radius": 180.0999722376436
+        "radius": 175.64737401965337
       },
       {
         "t": 11.200000000000136,
@@ -1013,7 +1013,7 @@
     ],
     "frontSpeed": 38.027092013270675,
     "frontFinal": 174,
-    "minSeparation": 0.511008233473073,
+    "minSeparation": 0.5082590765854246,
     "buildingPenetrations": 0,
     "penetrationChecks": 89620,
     "fleeConvergence": {
@@ -1028,22 +1028,22 @@
       "converged": 15720,
       "cycles": 0,
       "stalled": 0,
-      "longestWalk": 10
+      "longestWalk": 11
     },
     "directionsIntoWalls": 0,
-    "saved": 180,
-    "lost": 57,
-    "witnessedSaves": 104,
-    "savedEvents": 180,
-    "lostEvents": 57,
+    "saved": 172,
+    "lost": 54,
+    "witnessedSaves": 103,
+    "savedEvents": 172,
+    "lostEvents": 54,
     "lostByPlayer": 0,
-    "savedByPlayer": 14,
-    "outcomesWithLineOfSight": 138,
-    "outcomesWithBystanders": 237,
+    "savedByPlayer": 15,
+    "outcomesWithLineOfSight": 135,
+    "outcomesWithBystanders": 226,
     "allies": [
       {
         "name": "Genos",
-        "health": 296.70641876518374,
+        "health": 321.57590559930327,
         "maxHealth": 420,
         "reEngagements": 1,
         "dead": false
@@ -1057,7 +1057,7 @@
       },
       {
         "name": "Tatsumaki",
-        "health": 780,
+        "health": 714.059946046385,
         "maxHealth": 780,
         "reEngagements": 0,
         "dead": false
@@ -1067,8 +1067,8 @@
       "Mumen Rider"
     ],
     "mumenReEngagements": 6,
-    "determinismHash": 3431532025,
-    "determinismTwinHash": 3431532025,
+    "determinismHash": 213867036,
+    "determinismTwinHash": 213867036,
     "deterministic": true
   },
   "calm": {
@@ -1092,23 +1092,464 @@
     "peakGawk": 0,
     "peakCower": 0,
     "crowdDrawCalls": 6,
-    "sceneDrawCalls": 20,
+    "sceneDrawCalls": 21,
     "crowdTriangles": 113000,
     "instances": 250,
     "archetypeMeshes": 6,
     "distinctOffsets": 217,
     "paletteBytes": 746496,
-    "simMsMean": 0.7312777777864701,
-    "simMsMedian": 0.6000000014901161,
-    "simMsP95": 1.0999999977648258,
-    "simMsMax": 32.899999998509884,
+    "simMsMean": 0.7440555555559695,
+    "simMsMedian": 0.599999999627471,
+    "simMsP95": 1.1000000014901161,
+    "simMsMax": 35.80000000074506,
     "alarmMs": 0.30000000074505806,
-    "flowMs": 0.09999999776482582,
+    "flowMs": 0.10000000149011612,
     "frames": 1800,
-    "frontSamples": [],
+    "frontSamples": [
+      {
+        "t": 4.099999999999991,
+        "radius": 0
+      },
+      {
+        "t": 4.19999999999999,
+        "radius": 0
+      },
+      {
+        "t": 4.29999999999999,
+        "radius": 0
+      },
+      {
+        "t": 4.39999999999999,
+        "radius": 0
+      },
+      {
+        "t": 4.499999999999989,
+        "radius": 0
+      },
+      {
+        "t": 4.599999999999989,
+        "radius": 0
+      },
+      {
+        "t": 4.699999999999989,
+        "radius": 0
+      },
+      {
+        "t": 4.799999999999988,
+        "radius": 0
+      },
+      {
+        "t": 4.899999999999988,
+        "radius": 0
+      },
+      {
+        "t": 4.999999999999988,
+        "radius": 0
+      },
+      {
+        "t": 5.099999999999987,
+        "radius": 0
+      },
+      {
+        "t": 5.199999999999987,
+        "radius": 0
+      },
+      {
+        "t": 5.2999999999999865,
+        "radius": 0
+      },
+      {
+        "t": 5.399999999999986,
+        "radius": 0
+      },
+      {
+        "t": 5.499999999999986,
+        "radius": 0
+      },
+      {
+        "t": 5.599999999999985,
+        "radius": 0
+      },
+      {
+        "t": 5.699999999999985,
+        "radius": 0
+      },
+      {
+        "t": 5.799999999999985,
+        "radius": 0
+      },
+      {
+        "t": 5.899999999999984,
+        "radius": 0
+      },
+      {
+        "t": 5.999999999999984,
+        "radius": 0
+      },
+      {
+        "t": 6.099999999999984,
+        "radius": 0
+      },
+      {
+        "t": 6.199999999999983,
+        "radius": 0
+      },
+      {
+        "t": 6.299999999999983,
+        "radius": 0
+      },
+      {
+        "t": 6.399999999999983,
+        "radius": 0
+      },
+      {
+        "t": 6.499999999999982,
+        "radius": 0
+      },
+      {
+        "t": 6.599999999999982,
+        "radius": 0
+      },
+      {
+        "t": 6.6999999999999815,
+        "radius": 0
+      },
+      {
+        "t": 6.799999999999981,
+        "radius": 0
+      },
+      {
+        "t": 6.899999999999981,
+        "radius": 0
+      },
+      {
+        "t": 6.9999999999999805,
+        "radius": 0
+      },
+      {
+        "t": 7.09999999999998,
+        "radius": 0
+      },
+      {
+        "t": 7.19999999999998,
+        "radius": 0
+      },
+      {
+        "t": 7.299999999999979,
+        "radius": 0
+      },
+      {
+        "t": 7.399999999999979,
+        "radius": 0
+      },
+      {
+        "t": 7.499999999999979,
+        "radius": 0
+      },
+      {
+        "t": 7.599999999999978,
+        "radius": 0
+      },
+      {
+        "t": 7.699999999999978,
+        "radius": 0
+      },
+      {
+        "t": 7.799999999999978,
+        "radius": 0
+      },
+      {
+        "t": 7.899999999999977,
+        "radius": 0
+      },
+      {
+        "t": 7.999999999999977,
+        "radius": 0
+      },
+      {
+        "t": 8.099999999999982,
+        "radius": 0
+      },
+      {
+        "t": 8.199999999999987,
+        "radius": 0
+      },
+      {
+        "t": 8.299999999999992,
+        "radius": 0
+      },
+      {
+        "t": 8.399999999999997,
+        "radius": 0
+      },
+      {
+        "t": 8.500000000000002,
+        "radius": 0
+      },
+      {
+        "t": 8.600000000000007,
+        "radius": 0
+      },
+      {
+        "t": 8.700000000000012,
+        "radius": 0
+      },
+      {
+        "t": 8.800000000000017,
+        "radius": 0
+      },
+      {
+        "t": 8.900000000000022,
+        "radius": 0
+      },
+      {
+        "t": 9.000000000000027,
+        "radius": 0
+      },
+      {
+        "t": 9.100000000000032,
+        "radius": 0
+      },
+      {
+        "t": 9.200000000000037,
+        "radius": 0
+      },
+      {
+        "t": 9.300000000000042,
+        "radius": 0
+      },
+      {
+        "t": 9.400000000000047,
+        "radius": 0
+      },
+      {
+        "t": 9.500000000000052,
+        "radius": 0
+      },
+      {
+        "t": 9.600000000000056,
+        "radius": 0
+      },
+      {
+        "t": 9.700000000000061,
+        "radius": 0
+      },
+      {
+        "t": 9.800000000000066,
+        "radius": 0
+      },
+      {
+        "t": 9.900000000000071,
+        "radius": 0
+      },
+      {
+        "t": 10.000000000000076,
+        "radius": 0
+      },
+      {
+        "t": 10.100000000000081,
+        "radius": 0
+      },
+      {
+        "t": 10.200000000000086,
+        "radius": 0
+      },
+      {
+        "t": 10.300000000000091,
+        "radius": 0
+      },
+      {
+        "t": 10.400000000000096,
+        "radius": 0
+      },
+      {
+        "t": 10.500000000000101,
+        "radius": 0
+      },
+      {
+        "t": 10.600000000000106,
+        "radius": 0
+      },
+      {
+        "t": 10.700000000000111,
+        "radius": 0
+      },
+      {
+        "t": 10.800000000000116,
+        "radius": 0
+      },
+      {
+        "t": 10.900000000000121,
+        "radius": 0
+      },
+      {
+        "t": 11.000000000000126,
+        "radius": 0
+      },
+      {
+        "t": 11.100000000000131,
+        "radius": 0
+      },
+      {
+        "t": 11.200000000000136,
+        "radius": 0
+      },
+      {
+        "t": 11.300000000000141,
+        "radius": 0
+      },
+      {
+        "t": 11.400000000000146,
+        "radius": 0
+      },
+      {
+        "t": 11.500000000000151,
+        "radius": 0
+      },
+      {
+        "t": 11.600000000000156,
+        "radius": 0
+      },
+      {
+        "t": 11.700000000000161,
+        "radius": 0
+      },
+      {
+        "t": 11.800000000000166,
+        "radius": 0
+      },
+      {
+        "t": 11.90000000000017,
+        "radius": 0
+      },
+      {
+        "t": 12.000000000000176,
+        "radius": 0
+      },
+      {
+        "t": 12.10000000000018,
+        "radius": 0
+      },
+      {
+        "t": 12.200000000000186,
+        "radius": 0
+      },
+      {
+        "t": 12.30000000000019,
+        "radius": 0
+      },
+      {
+        "t": 12.400000000000196,
+        "radius": 0
+      },
+      {
+        "t": 12.5000000000002,
+        "radius": 0
+      },
+      {
+        "t": 12.600000000000206,
+        "radius": 0
+      },
+      {
+        "t": 12.70000000000021,
+        "radius": 0
+      },
+      {
+        "t": 12.800000000000216,
+        "radius": 0
+      },
+      {
+        "t": 12.90000000000022,
+        "radius": 0
+      },
+      {
+        "t": 13.000000000000226,
+        "radius": 0
+      },
+      {
+        "t": 13.10000000000023,
+        "radius": 0
+      },
+      {
+        "t": 13.200000000000236,
+        "radius": 0
+      },
+      {
+        "t": 13.30000000000024,
+        "radius": 0
+      },
+      {
+        "t": 13.400000000000245,
+        "radius": 0
+      },
+      {
+        "t": 13.50000000000025,
+        "radius": 0
+      },
+      {
+        "t": 13.600000000000255,
+        "radius": 0
+      },
+      {
+        "t": 13.70000000000026,
+        "radius": 0
+      },
+      {
+        "t": 13.800000000000265,
+        "radius": 0
+      },
+      {
+        "t": 13.90000000000027,
+        "radius": 0
+      },
+      {
+        "t": 14.000000000000275,
+        "radius": 0
+      },
+      {
+        "t": 14.10000000000028,
+        "radius": 0
+      },
+      {
+        "t": 14.200000000000285,
+        "radius": 0
+      },
+      {
+        "t": 14.30000000000029,
+        "radius": 0
+      },
+      {
+        "t": 14.400000000000295,
+        "radius": 0
+      },
+      {
+        "t": 14.5000000000003,
+        "radius": 0
+      },
+      {
+        "t": 14.600000000000305,
+        "radius": 0
+      },
+      {
+        "t": 14.70000000000031,
+        "radius": 0
+      },
+      {
+        "t": 14.800000000000315,
+        "radius": 0
+      },
+      {
+        "t": 14.90000000000032,
+        "radius": 0
+      },
+      {
+        "t": 15.000000000000325,
+        "radius": 0
+      }
+    ],
     "frontSpeed": 0,
     "frontFinal": 0,
-    "minSeparation": 0.5144532615566217,
+    "minSeparation": 0.5156420130707312,
     "buildingPenetrations": 0,
     "penetrationChecks": 89620,
     "fleeConvergence": {
@@ -1123,7 +1564,7 @@
       "converged": 15720,
       "cycles": 0,
       "stalled": 0,
-      "longestWalk": 10
+      "longestWalk": 11
     },
     "directionsIntoWalls": 0,
     "saved": 0,
@@ -1160,8 +1601,8 @@
     ],
     "allyDowned": [],
     "mumenReEngagements": 6,
-    "determinismHash": 1403280473,
-    "determinismTwinHash": 1403280473,
+    "determinismHash": 884794622,
+    "determinismTwinHash": 884794622,
     "deterministic": true
   }
 }

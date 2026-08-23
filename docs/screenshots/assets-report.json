@@ -2,8 +2,8 @@
   "grid": {
     "mode": "grid",
     "root": "/assets",
-    "tier": "high",
-    "tierReason": "desktop-class defaults",
+    "tier": "mobile",
+    "tierReason": "desktop-class defaults; clamped to 'mobile' (built: mobile)",
     "transcodeTarget": "RGBA_BPTC_Format",
     "transcodeAvailable": [
       "bptc",
@@ -16,35 +16,35 @@
     "textures": [
       {
         "key": "mat.road.asphalt.worn.albedo",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "srgb",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.road.asphalt.worn.normal",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "linear",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.road.asphalt.worn.orm",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
@@ -58,35 +58,35 @@
       },
       {
         "key": "mat.wall.brick.red.albedo",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "srgb",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.wall.brick.red.normal",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "linear",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.wall.brick.red.orm",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
@@ -100,35 +100,35 @@
       },
       {
         "key": "mat.metal.rust.coarse.albedo",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "srgb",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.metal.rust.coarse.normal",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "linear",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.metal.rust.coarse.orm",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
@@ -532,7 +532,7 @@
         "missing": [],
         "usesFallbackTexture": false,
         "tiers": [
-          "high"
+          "mobile"
         ]
       },
       {
@@ -547,7 +547,7 @@
         "missing": [],
         "usesFallbackTexture": false,
         "tiers": [
-          "high"
+          "mobile"
         ]
       },
       {
@@ -562,7 +562,7 @@
         "missing": [],
         "usesFallbackTexture": false,
         "tiers": [
-          "high"
+          "mobile"
         ]
       },
       {
@@ -711,6 +711,7 @@
           3225,
           1809
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -721,15 +722,25 @@
       },
       {
         "id": "model.prop.fire_hydrant",
-        "lodGroups": 1,
+        "lodGroups": 10,
         "lodCount": 3,
         "triangles": [
-          22888,
-          8010,
-          2746
+          86316,
+          30200,
+          10296
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 30,
@@ -738,15 +749,23 @@
       },
       {
         "id": "model.prop.metal_trash_can",
-        "lodGroups": 1,
+        "lodGroups": 8,
         "lodCount": 3,
         "triangles": [
-          416,
-          144,
-          48
+          13960,
+          4875,
+          1662
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 24,
@@ -762,6 +781,7 @@
           7115,
           2439
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -779,6 +799,7 @@
           1008,
           344
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -796,6 +817,7 @@
           1541,
           527
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -806,15 +828,17 @@
       },
       {
         "id": "model.building.rollershutter_door",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          552,
-          193,
-          193
+          1104,
+          386,
+          386
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -823,15 +847,17 @@
       },
       {
         "id": "model.prop.security_light",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          4540,
-          1589,
-          540
+          4668,
+          1638,
+          589
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -842,7 +868,7 @@
     "environments": [
       {
         "key": "hdri.sky.day",
-        "mode": "pmrem",
+        "mode": "sh",
         "meanLuminance": 0.73268945997054,
         "maxLuminance": 136998.2976,
         "shCoefficients": 27,
@@ -850,12 +876,12 @@
         "magFilterIsLinear": true,
         "equirectMapping": true,
         "flipY": false,
-        "gpuBytes": 47535448,
+        "gpuBytes": 5592408,
         "fallback": false
       },
       {
         "key": "hdri.sky.dusk",
-        "mode": "pmrem",
+        "mode": "sh",
         "meanLuminance": 0.9044060619958861,
         "maxLuminance": 4.035887499999999,
         "shCoefficients": 27,
@@ -863,21 +889,20 @@
         "magFilterIsLinear": true,
         "equirectMapping": true,
         "flipY": false,
-        "gpuBytes": 47535448,
+        "gpuBytes": 5592408,
         "fallback": false
       }
     ],
     "requestedTiers": [
-      "high",
       "mobile"
     ],
     "tierMisses": [],
     "unavailableTiers": [],
     "missing": [],
     "failures": [],
-    "textureBytes": 75498432,
-    "textureBudgetBytes": 576716800,
-    "gpuBytes": 180954178,
+    "textureBytes": 50332608,
+    "textureBudgetBytes": 314572800,
+    "gpuBytes": 72106600,
     "progressSamples": [
       {
         "fraction": 0,
@@ -889,144 +914,144 @@
         "fraction": 0.045454545454545456,
         "loaded": 1,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 254064
       },
       {
         "fraction": 0.09090909090909091,
         "loaded": 2,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 1810060
       },
       {
         "fraction": 0.13636363636363635,
         "loaded": 3,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 3367410
       },
       {
         "fraction": 0.18181818181818182,
         "loaded": 4,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 4964335
       },
       {
         "fraction": 0.22727272727272727,
         "loaded": 5,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 6410513
       },
       {
         "fraction": 0.2727272727272727,
         "loaded": 6,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 7969160
       },
       {
         "fraction": 0.3181818181818182,
         "loaded": 7,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 9366732
       },
       {
         "fraction": 0.36363636363636365,
         "loaded": 8,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 10867916
       },
       {
         "fraction": 0.4090909090909091,
         "loaded": 9,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 12168309
       },
       {
         "fraction": 0.45454545454545453,
         "loaded": 10,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 13392986
       },
       {
         "fraction": 0.5,
         "loaded": 11,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 14923297
       },
       {
         "fraction": 0.5454545454545454,
         "loaded": 12,
         "total": 22,
-        "bytesLoaded": 254064
+        "bytesLoaded": 16462517
       },
       {
         "fraction": 0.5909090909090909,
         "loaded": 13,
         "total": 22,
-        "bytesLoaded": 1090816
+        "bytesLoaded": 17809858
       },
       {
         "fraction": 0.6363636363636364,
         "loaded": 14,
         "total": 22,
-        "bytesLoaded": 1090816
+        "bytesLoaded": 18646610
       },
       {
         "fraction": 0.6818181818181818,
         "loaded": 15,
         "total": 22,
-        "bytesLoaded": 1427848
+        "bytesLoaded": 19203150
       },
       {
         "fraction": 0.7272727272727273,
         "loaded": 16,
         "total": 22,
-        "bytesLoaded": 1603964
+        "bytesLoaded": 19379266
       },
       {
         "fraction": 0.7727272727272727,
         "loaded": 17,
         "total": 22,
-        "bytesLoaded": 1798596
+        "bytesLoaded": 19716298
       },
       {
         "fraction": 0.8181818181818182,
         "loaded": 18,
         "total": 22,
-        "bytesLoaded": 2056068
+        "bytesLoaded": 19910930
       },
       {
         "fraction": 0.8636363636363636,
         "loaded": 19,
         "total": 22,
-        "bytesLoaded": 2234504
+        "bytesLoaded": 20089366
       },
       {
         "fraction": 0.9090909090909091,
         "loaded": 20,
         "total": 22,
-        "bytesLoaded": 2791044
+        "bytesLoaded": 20346838
       },
       {
         "fraction": 0.9545454545454546,
         "loaded": 21,
         "total": 22,
-        "bytesLoaded": 9464617
+        "bytesLoaded": 22677496
       },
       {
         "fraction": 1,
         "loaded": 22,
         "total": 22,
-        "bytesLoaded": 16948350
+        "bytesLoaded": 25300075
       }
     ],
     "progressMonotonic": true,
-    "drawCalls": 79,
-    "sceneTriangles": 215729,
+    "drawCalls": 41,
+    "sceneTriangles": 179062,
     "characterCount": 14,
-    "loadMs": 2582
+    "loadMs": 748
   },
   "apk": {
     "mode": "grid",
-    "root": "/apk-assets",
+    "root": "/apk/assets",
     "tier": "mobile",
     "tierReason": "native shell: only the mobile tier is packaged in the app bundle",
     "transcodeTarget": "RGBA_BPTC_Format",
@@ -1736,6 +1761,7 @@
           3225,
           1809
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -1746,15 +1772,25 @@
       },
       {
         "id": "model.prop.fire_hydrant",
-        "lodGroups": 1,
+        "lodGroups": 10,
         "lodCount": 3,
         "triangles": [
-          22888,
-          8010,
-          2746
+          86316,
+          30200,
+          10296
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 30,
@@ -1763,15 +1799,23 @@
       },
       {
         "id": "model.prop.metal_trash_can",
-        "lodGroups": 1,
+        "lodGroups": 8,
         "lodCount": 3,
         "triangles": [
-          416,
-          144,
-          48
+          13960,
+          4875,
+          1662
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 24,
@@ -1787,6 +1831,7 @@
           7115,
           2439
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -1804,6 +1849,7 @@
           1008,
           344
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -1821,6 +1867,7 @@
           1541,
           527
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -1831,15 +1878,17 @@
       },
       {
         "id": "model.building.rollershutter_door",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          552,
-          193,
-          193
+          1104,
+          386,
+          386
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -1848,15 +1897,17 @@
       },
       {
         "id": "model.prop.security_light",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          4540,
-          1589,
-          540
+          4668,
+          1638,
+          589
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -1901,7 +1952,7 @@
     "failures": [],
     "textureBytes": 50332608,
     "textureBudgetBytes": 314572800,
-    "gpuBytes": 72097980,
+    "gpuBytes": 71836118,
     "progressSamples": [
       {
         "fraction": 0,
@@ -1913,146 +1964,146 @@
         "fraction": 0.045454545454545456,
         "loaded": 1,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 254064
       },
       {
         "fraction": 0.09090909090909091,
         "loaded": 2,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 1810060
       },
       {
         "fraction": 0.13636363636363635,
         "loaded": 3,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 3367410
       },
       {
         "fraction": 0.18181818181818182,
         "loaded": 4,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 4813588
       },
       {
         "fraction": 0.22727272727272727,
         "loaded": 5,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 6410513
       },
       {
         "fraction": 0.2727272727272727,
         "loaded": 6,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 7969160
       },
       {
         "fraction": 0.3181818181818182,
         "loaded": 7,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 9366732
       },
       {
         "fraction": 0.36363636363636365,
         "loaded": 8,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 10667125
       },
       {
         "fraction": 0.4090909090909091,
         "loaded": 9,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 12168309
       },
       {
         "fraction": 0.45454545454545453,
         "loaded": 10,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 13392986
       },
       {
         "fraction": 0.5,
         "loaded": 11,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 14932206
       },
       {
         "fraction": 0.5454545454545454,
         "loaded": 12,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 16462517
       },
       {
         "fraction": 0.5909090909090909,
         "loaded": 13,
         "total": 22,
-        "bytesLoaded": 254064
+        "bytesLoaded": 17809858
       },
       {
         "fraction": 0.6363636363636364,
         "loaded": 14,
         "total": 22,
-        "bytesLoaded": 1090816
+        "bytesLoaded": 18366398
       },
       {
         "fraction": 0.6818181818181818,
         "loaded": 15,
         "total": 22,
-        "bytesLoaded": 1647356
+        "bytesLoaded": 19203150
       },
       {
         "fraction": 0.7272727272727273,
         "loaded": 16,
         "total": 22,
-        "bytesLoaded": 1984388
+        "bytesLoaded": 19540182
       },
       {
         "fraction": 0.7727272727272727,
         "loaded": 17,
         "total": 22,
-        "bytesLoaded": 2160504
+        "bytesLoaded": 19716298
       },
       {
         "fraction": 0.8181818181818182,
         "loaded": 18,
         "total": 22,
-        "bytesLoaded": 2355136
+        "bytesLoaded": 19910930
       },
       {
         "fraction": 0.8636363636363636,
         "loaded": 19,
         "total": 22,
-        "bytesLoaded": 2533572
+        "bytesLoaded": 20089366
       },
       {
         "fraction": 0.9090909090909091,
         "loaded": 20,
         "total": 22,
-        "bytesLoaded": 2791044
+        "bytesLoaded": 20346838
       },
       {
         "fraction": 0.9545454545454546,
         "loaded": 21,
         "total": 22,
-        "bytesLoaded": 5121702
+        "bytesLoaded": 22969417
       },
       {
         "fraction": 1,
         "loaded": 22,
         "total": 22,
-        "bytesLoaded": 7744281
+        "bytesLoaded": 25300075
       }
     ],
     "progressMonotonic": true,
-    "drawCalls": 80,
-    "sceneTriangles": 215741,
+    "drawCalls": 41,
+    "sceneTriangles": 179062,
     "characterCount": 14,
-    "loadMs": 1351
+    "loadMs": 719
   },
   "forcedUltra": {
     "mode": "grid",
-    "root": "/apk-assets",
-    "tier": "ultra",
-    "tierReason": "forced to 'ultra'",
+    "root": "/apk/assets",
+    "tier": "mobile",
+    "tierReason": "forced to 'ultra'; clamped to 'mobile' (built: mobile)",
     "transcodeTarget": "RGBA_BPTC_Format",
     "transcodeAvailable": [
       "bptc",
@@ -2760,6 +2811,7 @@
           3225,
           1809
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -2770,15 +2822,25 @@
       },
       {
         "id": "model.prop.fire_hydrant",
-        "lodGroups": 1,
+        "lodGroups": 10,
         "lodCount": 3,
         "triangles": [
-          22888,
-          8010,
-          2746
+          86316,
+          30200,
+          10296
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 30,
@@ -2787,15 +2849,23 @@
       },
       {
         "id": "model.prop.metal_trash_can",
-        "lodGroups": 1,
+        "lodGroups": 8,
         "lodCount": 3,
         "triangles": [
-          416,
-          144,
-          48
+          13960,
+          4875,
+          1662
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 24,
@@ -2811,6 +2881,7 @@
           7115,
           2439
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -2828,6 +2899,7 @@
           1008,
           344
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -2845,6 +2917,7 @@
           1541,
           527
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -2855,15 +2928,17 @@
       },
       {
         "id": "model.building.rollershutter_door",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          552,
-          193,
-          193
+          1104,
+          386,
+          386
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -2872,15 +2947,17 @@
       },
       {
         "id": "model.prop.security_light",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          4540,
-          1589,
-          540
+          4668,
+          1638,
+          589
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -2891,7 +2968,7 @@
     "environments": [
       {
         "key": "hdri.sky.day",
-        "mode": "pmrem",
+        "mode": "sh",
         "meanLuminance": 0.73268945997054,
         "maxLuminance": 136998.2976,
         "shCoefficients": 27,
@@ -2899,12 +2976,12 @@
         "magFilterIsLinear": true,
         "equirectMapping": true,
         "flipY": false,
-        "gpuBytes": 11883864,
+        "gpuBytes": 5592408,
         "fallback": false
       },
       {
         "key": "hdri.sky.dusk",
-        "mode": "pmrem",
+        "mode": "sh",
         "meanLuminance": 0.9044060619958861,
         "maxLuminance": 4.035887499999999,
         "shCoefficients": 27,
@@ -2912,64 +2989,20 @@
         "magFilterIsLinear": true,
         "equirectMapping": true,
         "flipY": false,
-        "gpuBytes": 11883864,
+        "gpuBytes": 5592408,
         "fallback": false
       }
     ],
     "requestedTiers": [
       "mobile"
     ],
-    "tierMisses": [
-      {
-        "key": "mat.road.asphalt.worn.albedo",
-        "tier": "ultra",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/albedo.ultra.ktx2"
-      },
-      {
-        "key": "mat.road.asphalt.worn.normal",
-        "tier": "ultra",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/normal.ultra.ktx2"
-      },
-      {
-        "key": "mat.road.asphalt.worn.orm",
-        "tier": "ultra",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/orm.ultra.ktx2"
-      },
-      {
-        "key": "mat.wall.brick.red.albedo",
-        "tier": "ultra",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.wall.brick.red/albedo.ultra.ktx2"
-      },
-      {
-        "key": "mat.road.asphalt.worn.albedo",
-        "tier": "high",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/albedo.high.ktx2"
-      },
-      {
-        "key": "mat.road.asphalt.worn.normal",
-        "tier": "high",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/normal.high.ktx2"
-      },
-      {
-        "key": "mat.road.asphalt.worn.orm",
-        "tier": "high",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.road.asphalt.worn/orm.high.ktx2"
-      },
-      {
-        "key": "mat.wall.brick.red.albedo",
-        "tier": "high",
-        "reason": "Error: HTTP 404 for /apk-assets/tex/mat.wall.brick.red/albedo.high.ktx2"
-      }
-    ],
-    "unavailableTiers": [
-      "ultra",
-      "high"
-    ],
+    "tierMisses": [],
+    "unavailableTiers": [],
     "missing": [],
     "failures": [],
     "textureBytes": 50332608,
-    "textureBudgetBytes": 1258291200,
-    "gpuBytes": 86140998,
+    "textureBudgetBytes": 314572800,
+    "gpuBytes": 71808116,
     "progressSamples": [
       {
         "fraction": 0,
@@ -2981,146 +3014,146 @@
         "fraction": 0.045454545454545456,
         "loaded": 1,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 254064
       },
       {
         "fraction": 0.09090909090909091,
         "loaded": 2,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 1810060
       },
       {
         "fraction": 0.13636363636363635,
         "loaded": 3,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 3367410
       },
       {
         "fraction": 0.18181818181818182,
         "loaded": 4,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 4813588
       },
       {
         "fraction": 0.22727272727272727,
         "loaded": 5,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 6410513
       },
       {
         "fraction": 0.2727272727272727,
         "loaded": 6,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 7969160
       },
       {
         "fraction": 0.3181818181818182,
         "loaded": 7,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 9366732
       },
       {
         "fraction": 0.36363636363636365,
         "loaded": 8,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 10867916
       },
       {
         "fraction": 0.4090909090909091,
         "loaded": 9,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 12168309
       },
       {
         "fraction": 0.45454545454545453,
         "loaded": 10,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 13392986
       },
       {
         "fraction": 0.5,
         "loaded": 11,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 14932206
       },
       {
         "fraction": 0.5454545454545454,
         "loaded": 12,
         "total": 22,
-        "bytesLoaded": 254064
+        "bytesLoaded": 16279547
       },
       {
         "fraction": 0.5909090909090909,
         "loaded": 13,
         "total": 22,
-        "bytesLoaded": 254064
+        "bytesLoaded": 17809858
       },
       {
         "fraction": 0.6363636363636364,
         "loaded": 14,
         "total": 22,
-        "bytesLoaded": 591096
+        "bytesLoaded": 18646610
       },
       {
         "fraction": 0.6818181818181818,
         "loaded": 15,
         "total": 22,
-        "bytesLoaded": 1427848
+        "bytesLoaded": 19203150
       },
       {
         "fraction": 0.7272727272727273,
         "loaded": 16,
         "total": 22,
-        "bytesLoaded": 1603964
+        "bytesLoaded": 19540182
       },
       {
         "fraction": 0.7727272727272727,
         "loaded": 17,
         "total": 22,
-        "bytesLoaded": 2160504
+        "bytesLoaded": 19716298
       },
       {
         "fraction": 0.8181818181818182,
         "loaded": 18,
         "total": 22,
-        "bytesLoaded": 2355136
+        "bytesLoaded": 19910930
       },
       {
         "fraction": 0.8636363636363636,
         "loaded": 19,
         "total": 22,
-        "bytesLoaded": 2533572
+        "bytesLoaded": 20168402
       },
       {
         "fraction": 0.9090909090909091,
         "loaded": 20,
         "total": 22,
-        "bytesLoaded": 2791044
+        "bytesLoaded": 20346838
       },
       {
         "fraction": 0.9545454545454546,
         "loaded": 21,
         "total": 22,
-        "bytesLoaded": 5121702
+        "bytesLoaded": 22969417
       },
       {
         "fraction": 1,
         "loaded": 22,
         "total": 22,
-        "bytesLoaded": 7744281
+        "bytesLoaded": 25300075
       }
     ],
     "progressMonotonic": true,
-    "drawCalls": 79,
-    "sceneTriangles": 215729,
+    "drawCalls": 41,
+    "sceneTriangles": 179062,
     "characterCount": 14,
-    "loadMs": 1476
+    "loadMs": 871
   },
   "budget": {
     "mode": "budget",
     "root": "/assets",
-    "tier": "high",
-    "tierReason": "desktop-class defaults",
+    "tier": "mobile",
+    "tierReason": "desktop-class defaults; clamped to 'mobile' (built: mobile)",
     "transcodeTarget": "RGBA_BPTC_Format",
     "transcodeAvailable": [
       "bptc",
@@ -3133,35 +3166,35 @@
     "textures": [
       {
         "key": "mat.road.asphalt.worn.albedo",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "srgb",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.road.asphalt.worn.normal",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "linear",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.road.asphalt.worn.orm",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
@@ -3175,35 +3208,77 @@
       },
       {
         "key": "mat.metal.rust.coarse.albedo",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "srgb",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.metal.rust.coarse.normal",
-        "tier": "high",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
         "colorSpace": "linear",
-        "width": 2048,
-        "height": 2048,
-        "gpuBytes": 5592432,
-        "mipLevels": 12,
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
         "flipY": false,
         "fallback": false
       },
       {
         "key": "mat.metal.rust.coarse.orm",
-        "tier": "high",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.albedo",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "srgb",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.normal",
+        "tier": "mobile",
+        "gpuFormat": "RGBA_BPTC_Format",
+        "compressed": true,
+        "codec": "bc7",
+        "colorSpace": "linear",
+        "width": 1024,
+        "height": 1024,
+        "gpuBytes": 1398128,
+        "mipLevels": 11,
+        "flipY": false,
+        "fallback": false
+      },
+      {
+        "key": "mat.ground.sidewalk.slabs.orm",
+        "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
         "compressed": true,
         "codec": "bc7",
@@ -3342,20 +3417,6 @@
         "fallback": false
       },
       {
-        "key": "mat.ground.cobblestone.alley.normal",
-        "tier": "mobile",
-        "gpuFormat": "RGBA_BPTC_Format",
-        "compressed": true,
-        "codec": "bc7",
-        "colorSpace": "linear",
-        "width": 1024,
-        "height": 1024,
-        "gpuBytes": 1398128,
-        "mipLevels": 11,
-        "flipY": false,
-        "fallback": false
-      },
-      {
         "key": "mat.ground.grass.leafy.albedo",
         "tier": "mobile",
         "gpuFormat": "RGBA_BPTC_Format",
@@ -3396,48 +3457,6 @@
         "mipLevels": 11,
         "flipY": false,
         "fallback": false
-      },
-      {
-        "key": "mat.metal.plate.industrial.albedo",
-        "tier": "mobile",
-        "gpuFormat": "RGBA_BPTC_Format",
-        "compressed": true,
-        "codec": "bc7",
-        "colorSpace": "srgb",
-        "width": 1024,
-        "height": 1024,
-        "gpuBytes": 1398128,
-        "mipLevels": 11,
-        "flipY": false,
-        "fallback": false
-      },
-      {
-        "key": "mat.metal.plate.industrial.normal",
-        "tier": "mobile",
-        "gpuFormat": "RGBA_BPTC_Format",
-        "compressed": true,
-        "codec": "bc7",
-        "colorSpace": "linear",
-        "width": 1024,
-        "height": 1024,
-        "gpuBytes": 1398128,
-        "mipLevels": 11,
-        "flipY": false,
-        "fallback": false
-      },
-      {
-        "key": "mat.metal.plate.industrial.orm",
-        "tier": "mobile",
-        "gpuFormat": "RGBA_BPTC_Format",
-        "compressed": true,
-        "codec": "bc7",
-        "colorSpace": "linear",
-        "width": 1024,
-        "height": 1024,
-        "gpuBytes": 1398128,
-        "mipLevels": 11,
-        "flipY": false,
-        "fallback": false
       }
     ],
     "materials": [
@@ -3453,7 +3472,7 @@
         "missing": [],
         "usesFallbackTexture": false,
         "tiers": [
-          "high"
+          "mobile"
         ]
       },
       {
@@ -3468,7 +3487,7 @@
         "missing": [],
         "usesFallbackTexture": false,
         "tiers": [
-          "high"
+          "mobile"
         ]
       },
       {
@@ -3483,7 +3502,7 @@
         "missing": [],
         "usesFallbackTexture": false,
         "tiers": [
-          "high"
+          "mobile"
         ]
       },
       {
@@ -3632,6 +3651,7 @@
           3225,
           1809
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -3642,15 +3662,25 @@
       },
       {
         "id": "model.prop.fire_hydrant",
-        "lodGroups": 1,
+        "lodGroups": 10,
         "lodCount": 3,
         "triangles": [
-          22888,
-          8010,
-          2746
+          86316,
+          30200,
+          10296
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 30,
@@ -3659,15 +3689,23 @@
       },
       {
         "id": "model.prop.metal_trash_can",
-        "lodGroups": 1,
+        "lodGroups": 8,
         "lodCount": 3,
         "triangles": [
-          416,
-          144,
-          48
+          13960,
+          4875,
+          1662
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
           1
         ],
         "meshes": 24,
@@ -3683,6 +3721,7 @@
           7115,
           2439
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -3700,6 +3739,7 @@
           1008,
           344
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -3717,6 +3757,7 @@
           1541,
           527
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
           1
@@ -3727,15 +3768,17 @@
       },
       {
         "id": "model.building.rollershutter_door",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          552,
-          193,
-          193
+          1104,
+          386,
+          386
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -3744,15 +3787,17 @@
       },
       {
         "id": "model.prop.security_light",
-        "lodGroups": 1,
+        "lodGroups": 2,
         "lodCount": 3,
         "triangles": [
-          4540,
-          1589,
-          540
+          4668,
+          1638,
+          589
         ],
+        "defaultLevel": 0,
         "activeLevel": 0,
         "visiblePerGroup": [
+          1,
           1
         ],
         "meshes": 6,
@@ -3763,7 +3808,7 @@
     "environments": [
       {
         "key": "hdri.sky.day",
-        "mode": "pmrem",
+        "mode": "sh",
         "meanLuminance": 0.73268945997054,
         "maxLuminance": 136998.2976,
         "shCoefficients": 27,
@@ -3771,12 +3816,12 @@
         "magFilterIsLinear": true,
         "equirectMapping": true,
         "flipY": false,
-        "gpuBytes": 47535448,
+        "gpuBytes": 5592408,
         "fallback": false
       },
       {
         "key": "hdri.sky.dusk",
-        "mode": "pmrem",
+        "mode": "sh",
         "meanLuminance": 0.9044060619958861,
         "maxLuminance": 4.035887499999999,
         "shCoefficients": 27,
@@ -3784,16 +3829,54 @@
         "magFilterIsLinear": true,
         "equirectMapping": true,
         "flipY": false,
-        "gpuBytes": 47535448,
+        "gpuBytes": 5592408,
         "fallback": false
       }
     ],
     "budget": {
-      "budgetBytes": 21391214,
-      "residentBefore": 47536032,
-      "residentAfter": 47536032,
-      "evicted": [],
-      "pinned": [],
+      "budgetBytes": 22649673,
+      "residentBefore": 50332608,
+      "residentAfter": 29360688,
+      "evicted": [
+        "mat.wall.brick.red.albedo",
+        "mat.wall.brick.red.normal",
+        "mat.wall.brick.red.orm",
+        "mat.wall.plaster.beige.albedo",
+        "mat.wall.plaster.beige.normal",
+        "mat.wall.plaster.beige.orm",
+        "mat.roof.tiles.ceramic.albedo",
+        "mat.roof.tiles.ceramic.normal",
+        "mat.roof.tiles.ceramic.orm",
+        "mat.ground.cobblestone.alley.albedo",
+        "mat.ground.cobblestone.alley.normal",
+        "mat.ground.cobblestone.alley.orm",
+        "mat.metal.plate.industrial.albedo",
+        "mat.metal.plate.industrial.normal",
+        "mat.metal.plate.industrial.orm"
+      ],
+      "pinned": [
+        "mat.road.asphalt.worn.albedo",
+        "mat.road.asphalt.worn.normal",
+        "mat.road.asphalt.worn.orm",
+        "mat.metal.rust.coarse.albedo",
+        "mat.metal.rust.coarse.normal",
+        "mat.metal.rust.coarse.orm",
+        "mat.wall.concrete.dirty.albedo",
+        "mat.wall.concrete.dirty.normal",
+        "mat.wall.concrete.dirty.orm",
+        "mat.metal.corrugated.albedo",
+        "mat.metal.corrugated.normal",
+        "mat.metal.corrugated.orm",
+        "mat.wood.planks.weathered.albedo",
+        "mat.wood.planks.weathered.normal",
+        "mat.wood.planks.weathered.orm",
+        "mat.ground.grass.leafy.albedo",
+        "mat.ground.grass.leafy.normal",
+        "mat.ground.grass.leafy.orm",
+        "mat.ground.sidewalk.slabs.albedo",
+        "mat.ground.sidewalk.slabs.normal",
+        "mat.ground.sidewalk.slabs.orm"
+      ],
       "retainedKeys": [
         "mat.road.asphalt.worn.albedo",
         "mat.road.asphalt.worn.normal",
@@ -3817,19 +3900,18 @@
       "retainedStillResident": true,
       "evictedWereUnreferenced": true,
       "evictedInLruOrder": true,
-      "overBudget": false
+      "overBudget": true
     },
     "requestedTiers": [
-      "high",
       "mobile"
     ],
     "tierMisses": [],
     "unavailableTiers": [],
     "missing": [],
     "failures": [],
-    "textureBytes": 47536032,
-    "textureBudgetBytes": 21391214,
-    "gpuBytes": 154652402,
+    "textureBytes": 29360688,
+    "textureBudgetBytes": 22649673,
+    "gpuBytes": 51083894,
     "progressSamples": [
       {
         "fraction": 0,
@@ -3841,139 +3923,139 @@
         "fraction": 0.045454545454545456,
         "loaded": 1,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 254064
       },
       {
         "fraction": 0.09090909090909091,
         "loaded": 2,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 1810060
       },
       {
         "fraction": 0.13636363636363635,
         "loaded": 3,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 3256238
       },
       {
         "fraction": 0.18181818181818182,
         "loaded": 4,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 4813588
       },
       {
         "fraction": 0.22727272727272727,
         "loaded": 5,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 6410513
       },
       {
         "fraction": 0.2727272727272727,
         "loaded": 6,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 7969160
       },
       {
         "fraction": 0.3181818181818182,
         "loaded": 7,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 9470344
       },
       {
         "fraction": 0.36363636363636365,
         "loaded": 8,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 10867916
       },
       {
         "fraction": 0.4090909090909091,
         "loaded": 9,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 12168309
       },
       {
         "fraction": 0.45454545454545453,
         "loaded": 10,
         "total": 22,
-        "bytesLoaded": 0
+        "bytesLoaded": 13392986
       },
       {
         "fraction": 0.5,
         "loaded": 11,
         "total": 22,
-        "bytesLoaded": 254064
+        "bytesLoaded": 14932206
       },
       {
         "fraction": 0.5454545454545454,
         "loaded": 12,
         "total": 22,
-        "bytesLoaded": 1090816
+        "bytesLoaded": 16462517
       },
       {
         "fraction": 0.5909090909090909,
         "loaded": 13,
         "total": 22,
-        "bytesLoaded": 1090816
+        "bytesLoaded": 17809858
       },
       {
         "fraction": 0.6363636363636364,
         "loaded": 14,
         "total": 22,
-        "bytesLoaded": 1647356
+        "bytesLoaded": 17985974
       },
       {
         "fraction": 0.6818181818181818,
         "loaded": 15,
         "total": 22,
-        "bytesLoaded": 1647356
+        "bytesLoaded": 18822726
       },
       {
         "fraction": 0.7272727272727273,
         "loaded": 16,
         "total": 22,
-        "bytesLoaded": 1823472
+        "bytesLoaded": 19379266
       },
       {
         "fraction": 0.7727272727272727,
         "loaded": 17,
         "total": 22,
-        "bytesLoaded": 2080944
+        "bytesLoaded": 19716298
       },
       {
         "fraction": 0.8181818181818182,
         "loaded": 18,
         "total": 22,
-        "bytesLoaded": 2259380
+        "bytesLoaded": 19910930
       },
       {
         "fraction": 0.8636363636363636,
         "loaded": 19,
         "total": 22,
-        "bytesLoaded": 2454012
+        "bytesLoaded": 20089366
       },
       {
         "fraction": 0.9090909090909091,
         "loaded": 20,
         "total": 22,
-        "bytesLoaded": 2791044
+        "bytesLoaded": 20346838
       },
       {
         "fraction": 0.9545454545454546,
         "loaded": 21,
         "total": 22,
-        "bytesLoaded": 10274777
+        "bytesLoaded": 22969417
       },
       {
         "fraction": 1,
         "loaded": 22,
         "total": 22,
-        "bytesLoaded": 16948350
+        "bytesLoaded": 25300075
       }
     ],
     "progressMonotonic": true,
-    "drawCalls": 79,
-    "sceneTriangles": 215729,
+    "drawCalls": 41,
+    "sceneTriangles": 179062,
     "characterCount": 14,
-    "loadMs": 3397
+    "loadMs": 781
   }
 }
