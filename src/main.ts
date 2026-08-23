@@ -30,6 +30,14 @@
  * fetched through the asset provider and never by a timer.
  */
 
+// Bundles Bebas Neue and Inter. A side-effect import, and the app bootstrap is
+// the place `src/ui/hud/fonts.ts` documents for it: the HUD's own modules must
+// not pull a stylesheet through the bundler, or every headless consumer of the
+// HUD drags one too. Without this line the shipping bundle contains neither
+// face and the whole HUD renders in `system-ui` — about 25% wider than the
+// condensed face every panel width in `styles.ts` is measured against, which is
+// why labels that fit in the harness overflow on a device.
+import '@/ui/hud/fonts';
 import { clamp, createLogger } from '@/util';
 import { Game } from '@/game';
 
