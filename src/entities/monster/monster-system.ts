@@ -690,8 +690,13 @@ export class MonsterSystem {
     // The bus is somebody else's surface. A non-finite power or origin would
     // pass every distance test below (NaN comparisons are false) and either
     // wake the entire map or write NaN into a brain's position permanently:
-    // `clamp01(NaN)` is `NaN`, `NaN <= 0` is false, and `distance > NaN` is
-    // false for every monster at every distance.
+    // `distance > NaN` is false for every monster at every distance.
+    //
+    // The power guard carries `+Infinity` on its own — `clamp01` pins that at
+    // 1, which is maximum intensity and wakes everything. NaN reaches the
+    // `intensity <= 0` bail below now that `clamp01` floors it at 0, so for
+    // that case this is belt-and-braces rather than the only thing standing
+    // between a bad event and a map-wide alert.
     if (!Number.isFinite(event.power)) return;
     if (
       !Number.isFinite(event.origin.x) ||
