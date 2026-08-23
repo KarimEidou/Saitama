@@ -92,8 +92,11 @@
  *   · the encounter card and the boss bar are ONE plate (the incident),
  *   · the quest tracker is a single-line DUTY STRIP, not a card.
  *
- * Four panels became three plates and a strip, and the band went from
- * overflowing at 100 % to fitting at 130 %.
+ * Six panels became three plates and a duty row, and the band went from
+ * overflowing at 100 % — the right column reached 6 px into a hand at 130 % —
+ * to closing at y=114 at 100 % and y=125 at 130 %, both above the 129 px line.
+ * `--hud-band-row` is this file's own statement of that budget and the harness
+ * fails if row one outgrows it.
  *
  * ── WHERE THE ALERTS WENT, AND WHY ─────────────────────────────────────────
  * The threat banner used to be `left:50%` in the z-index 4 layer while the
@@ -122,9 +125,9 @@
  * panels needed anyway: `--hud-surface` is 82 % opaque, tuned against the dusk
  * sky in the committed reference shots, and the shipping game is DAYTIME. The
  * rank chip's fill measurably swung rgb(30,32,37)→(39,44,52) with the windows
- * behind it. `--hud-panel` now lays the palette's own surface down TWICE, so
- * every palette composes to ~97 % by its own colour rather than by a literal,
- * and the city bleed drops from ~18 % to ~3 %.
+ * behind it. `--hud-panel` now lays the palette's own surface down THREE TIMES,
+ * so every palette composes to ~99 % by its own colour rather than by a
+ * literal, and the city bleed drops from ~18 % to under 1 %.
  *
  * ── EVERY ANIMATED PROPERTY IS COMPOSITED ──────────────────────────────────
  * `transform` and `opacity` only, and only three motions exist:
@@ -137,6 +140,10 @@
  *            bar that said zero.
  *   PULSE    urgent. A hard `steps(1,end)` flash. Never a fade: a fade reads as
  *            a rendering artefact, a flash reads as an alarm.
+ *
+ * THREE, and a screen opening is not one of them — see `.hud-screen`, which
+ * used to cross-fade for 160 ms and cost this project every readable screenshot
+ * of a modal it has ever committed.
  *
  * All three are killed outright by `[data-reduced-motion='true']` at the bottom
  * of this file.
@@ -355,9 +362,11 @@ ${allPalettes()}
   letter-spacing:.14em;text-transform:uppercase;
   color:var(--hud-ink-muted);line-height:1.1;white-space:nowrap;
 }
-/* Every live number on the playing HUD, at one size. The rank, the fight
-   clock, the ledger counts, the yen, the quest clock — they were 19, 21, 23,
-   17 and 20 px, which is why no two of them ever sat on a shared baseline. */
+/* EVERY LIVE NUMBER ON THE PLAYING HUD, AT ONE SIZE, FROM ONE RULE. The rank,
+   the fight clock, the ledger counts, the yen, the quest clock and the boot
+   percentage were 19, 21, 23, 17, 20 and 13 px in six separate declarations,
+   which is why no two of them ever sat on a shared baseline and why fixing one
+   never fixed the others. They all carry this class now. */
 .hud-readout{
   font-family:${DISPLAY_FONT};
   font-size:var(--t-readout);
@@ -382,7 +391,7 @@ ${allPalettes()}
   letter-spacing:.06em;text-transform:uppercase;
   color:var(--hud-ink);
   background:none;border:none;
-  padding:9px 16px;cursor:pointer;
+  padding:9px 16px;cursor:pointer;text-align:left;
   transition:transform .08s ease-out,color .12s;
   touch-action:none;will-change:transform;contain:layout style;
 }
@@ -399,7 +408,6 @@ ${allPalettes()}
    dropped the panel contrast the palette test measures. The edge rule and the
    glyph carry it instead, and High contrast gets louder rather than muddier. */
 .hud-btn--primary{--hud-edge:var(--hud-accent);color:var(--hud-accent)}
-.hud-btn--ghost{--hud-edge:transparent}
 
 /* ========================================================================== */
 /* Combat HUD — the top band                                                  */
@@ -466,10 +474,7 @@ ${allPalettes()}
   color:var(--hud-ink-muted);line-height:1.1;flex:0 0 auto;
 }
 .hud-rankchip__seat{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
-.hud-rankchip__rank{
-  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
-  font-variant-numeric:tabular-nums;color:var(--hud-class,var(--hud-accent));flex:0 0 auto;
-}
+.hud-rankchip__rank{color:var(--hud-class,var(--hud-accent));flex:0 0 auto}
 
 /* ---- boredom, inside the hero file ------------------------------------- */
 /* The game's real progress bar. Presented as a MOOD: a word, a slow breath,
@@ -549,10 +554,7 @@ ${allPalettes()}
   flex:1 1 auto;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.hud-encounter__clock{
-  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
-  font-variant-numeric:tabular-nums;color:var(--hud-ink);flex:0 0 auto;
-}
+.hud-encounter__clock{color:var(--hud-ink);flex:0 0 auto}
 .hud-encounter__clock .hud-num{font-size:inherit}
 .hud-encounter__sep{opacity:.55}
 /* Boss health: the plate's base rule, only the geometry the compositor can do */
@@ -585,10 +587,6 @@ ${allPalettes()}
 }
 .hud-ledger[data-lost='true']{--hud-edge:var(--hud-lost)}
 .hud-ledger__cell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
-.hud-ledger__value{
-  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
-  font-variant-numeric:tabular-nums;
-}
 .hud-ledger__cell--saved .hud-ledger__value{color:var(--hud-saved)}
 .hud-ledger__cell--lost .hud-ledger__value{color:var(--hud-lost)}
 .hud-ledger__cell--cost .hud-ledger__value{color:var(--hud-collateral)}
@@ -649,7 +647,7 @@ ${allPalettes()}
    button sits at the TRAILING end of a strip that spans the whole band, which
    puts it in the trailing 55 % on every profile the harness drives. */
 .hud-tracker__open{
-  flex:0 0 auto;width:${MIN_TAP_PX}px;padding:0;
+  flex:0 0 auto;width:${MIN_TAP_PX}px;padding:0 0 0 .06em;
   display:grid;place-items:center;
   font-size:var(--t-body);letter-spacing:.06em;color:var(--hud-ink-muted);
 }
@@ -674,11 +672,7 @@ ${allPalettes()}
 .hud-tracker__count{font-variant-numeric:tabular-nums;color:var(--hud-ink);flex:0 0 auto}
 .hud-tracker__plate .hud-tracker__obj{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hud-tracker__what{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.hud-tracker__clock{
-  display:flex;align-items:baseline;gap:2px;flex:0 0 auto;
-  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
-  font-variant-numeric:tabular-nums;
-}
+.hud-tracker__clock{display:flex;align-items:baseline;gap:2px;flex:0 0 auto}
 /* PULSE. A hard flash, never a fade — a fade reads as a rendering artefact. */
 .hud-tracker[data-urgency='critical'] .hud-tracker__clock{
   color:var(--hud-lost);
@@ -727,12 +721,14 @@ ${allPalettes()}
 .hud-charge__label{
   position:absolute;left:0;right:0;bottom:15px;text-align:center;
   font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
+  padding-left:.06em;
   color:var(--hud-intent,var(--hud-commit));
 }
 .hud-charge__label::after{content:var(--hud-intent-label,'NORMAL')}
 .hud-charge__cost{
   position:absolute;left:0;right:0;bottom:0;text-align:center;
-  font-size:var(--t-micro);letter-spacing:.14em;color:var(--hud-collateral);
+  font-size:var(--t-micro);letter-spacing:.14em;padding-left:.14em;
+  color:var(--hud-collateral);
   opacity:var(--hud-on,0);
 }
 .hud-charge__cost .hud-num{font-size:inherit}
@@ -845,21 +841,43 @@ ${allPalettes()}
 .hud-marker[data-kind='objective'] .hud-marker__pip{border-radius:50%}
 .hud-marker[data-kind='civilian'] .hud-marker__pip{border-radius:50%;width:9px;height:9px}
 .hud-marker[data-kind='errand'] .hud-marker__pip{border-radius:2px}
-.hud-marker__label{font-size:var(--t-micro);color:var(--hud-marker-color,var(--hud-accent))}
-.hud-marker__dist{font-size:var(--t-micro);color:var(--hud-ink-muted);letter-spacing:.14em}
+/* CSS adds letter-spacing after the FINAL glyph too, so a CENTRED tracked run
+   sits half a tracking unit left of the thing it is centred under — measured at
+   2.00 px on the old boot title. A padding-left equal to the tracking puts the
+   ink back on the axis exactly, and under a projected map pin that axis is the
+   pin. Same fix on the charge arc's two centred lines. */
+.hud-marker__label{
+  font-size:var(--t-micro);padding-left:.14em;
+  color:var(--hud-marker-color,var(--hud-accent));
+}
+.hud-marker__dist{
+  font-size:var(--t-micro);letter-spacing:.14em;padding-left:.14em;
+  color:var(--hud-ink-muted);
+}
 .hud-marker[data-far='true'] .hud-marker__label{display:none}
 
 /* ========================================================================== */
 /* Screens                                                                    */
 /* ========================================================================== */
+/* A SCREEN DOES NOT ANIMATE IN, and that is a deliberate subtraction rather
+   than an omission. There are three motion verbs in this HUD — stamp, breathe,
+   pulse — and a 160 ms cross-fade of an entire modal was a fourth: it said
+   nothing the scrim does not say instantly, it delayed the only escape hatch in
+   the game by a tenth of a second, and it cost this project something concrete.
+   Every modal shot in docs/screenshots was taken two frames after the screen
+   opened, which is 33 ms into that fade, so every piece of committed evidence
+   for the pause menu, the invoice and the settings sheet was a 20 %-opaque
+   ghost with the city legible through it. Nobody could review those screens
+   because nobody could see them.
+   Stamping the sheet instead is not available: STAMP scales from 1.06, and a
+   sheet already 751 px wide inside a 751 px safe box would spend 120 ms
+   overflowing the notch. */
 .hud-screen{
   position:absolute;inset:0;display:flex;pointer-events:auto;
   background:radial-gradient(120% 90% at 50% 0%,rgba(4,6,11,.80),rgba(2,3,6,.94));
   padding:calc(var(--hud-sa-t) + 10px) calc(var(--hud-sa-r) + 10px)
           calc(var(--hud-sa-b) + 10px) calc(var(--hud-sa-l) + 10px);
-  animation:hud-screen-in .16s ease-out;
 }
-@keyframes hud-screen-in{from{opacity:0}to{opacity:1}}
 .hud-screen--centre{align-items:center;justify-content:center}
 /* A document lies FLAT. The lean is for field plates stamped in a hurry; the
    paperwork the Association files is not in a hurry, and a 3° skew over 400 px
@@ -898,8 +916,11 @@ ${allPalettes()}
   padding:10px 16px;border-top:1px solid var(--hud-line);flex:0 0 auto;
 }
 
-.hud-section{margin:0 0 14px}
-.hud-section:last-child{margin-bottom:0}
+/* Spacing goes on the TOP of a section, not the bottom, so a section is
+   separated from whatever precedes it — including the rank board's assessment
+   note, which is not a section and used to butt straight into "THE LADDER". */
+.hud-section{margin:14px 0 0}
+.hud-section:first-child{margin-top:0}
 .hud-section__title{
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
   color:var(--hud-ink-muted);padding-bottom:4px;margin-bottom:7px;
@@ -1075,10 +1096,7 @@ ${allPalettes()}
    238 px from the fill head with a 167 px void in between — and the row's
    justify-content:center was dead code for the same reason. */
 .hud-loading__row{display:flex;align-items:baseline;gap:10px;margin-top:9px}
-.hud-loading__pct{
-  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
-  color:var(--hud-accent);flex:0 0 auto;
-}
+.hud-loading__pct{color:var(--hud-accent);flex:0 0 auto}
 .hud-loading__label{
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
   color:var(--hud-ink-muted);

@@ -104,7 +104,7 @@ export class LoadingScreen extends HudScreen {
             className: 'hud-loading__row',
             children: [
               el(doc, 'span', {
-                className: 'hud-loading__pct',
+                className: 'hud-readout hud-loading__pct',
                 children: [this.percent.element],
               }),
               this.label,

@@ -264,7 +264,7 @@ export class CombatHudScreen extends HudScreen {
               className: 'hud-rankchip__seat',
               children: [
                 el(doc, 'span', {
-                  className: 'hud-rankchip__rank',
+                  className: 'hud-readout hud-rankchip__rank',
                   children: [this.rankNumber.element],
                 }),
                 this.boredomGain,
@@ -305,7 +305,7 @@ export class CombatHudScreen extends HudScreen {
             this.encounterTier,
             this.encounterName,
             el(doc, 'span', {
-              className: 'hud-encounter__clock',
+              className: 'hud-readout hud-encounter__clock',
               children: [
                 this.clockMinutes.element,
                 el(doc, 'span', { className: 'hud-encounter__sep', text: ':' }),
@@ -324,7 +324,7 @@ export class CombatHudScreen extends HudScreen {
     this.lostCount = new CssNumber(doc, { id: 'lost' });
     this.witnessCount = new CssNumber(doc, { id: 'witness' });
     this.costYen = new CssNumber(doc, {
-      className: 'hud-ledger__value',
+      className: 'hud-readout hud-ledger__value',
       decimals: 2,
       prefix: '¥',
       suffix: 'B',
@@ -366,7 +366,7 @@ export class CombatHudScreen extends HudScreen {
     this.trackerMinutes = new CssNumber(doc, { id: 'q-m' });
     this.trackerSeconds = new CssNumber(doc, { pad2: true, id: 'q-s' });
     this.trackerClock = el(doc, 'div', {
-      className: 'hud-tracker__clock',
+      className: 'hud-readout hud-tracker__clock',
       children: [
         el(doc, 'span', { className: 'hud-label', text: 'TIME' }),
         this.trackerMinutes.element,
@@ -498,7 +498,7 @@ export class CombatHudScreen extends HudScreen {
       className: `hud-ledger__cell ${modifier}`,
       children: [
         el(this.doc, 'span', { className: 'hud-label', text: label }),
-        el(this.doc, 'span', { className: 'hud-ledger__value', children: [value] }),
+        el(this.doc, 'span', { className: 'hud-readout hud-ledger__value', children: [value] }),
       ],
     });
   }
