@@ -172,9 +172,17 @@ export class HudStore {
 
     on('EncounterStarted', (event) => {
       this.encounterStartedAt = this.clockSeconds;
+      // The emitter knows what it spawned; the id is only ever a guess at it.
+      // Prefer the pushed name, fall back to humanising the id so the authored
+      // encounters — which carry their name in the id — keep reading exactly as
+      // they do today. Blank counts as absent: an emitter that pushes an empty
+      // string has not named anything, and an empty name slot is worse than a
+      // humanised id.
+      const pushed = event.displayName?.trim();
       this.model.encounter = {
         id: event.encounterId,
-        name: prettyEncounterName(event.encounterId),
+        name:
+          pushed !== undefined && pushed !== '' ? pushed : prettyEncounterName(event.encounterId),
         tier: event.threatTier,
         isBoss: event.isBoss,
         elapsed: 0,
@@ -522,11 +530,28 @@ export function seatDelta(
  * `encounter.deepSeaKing` -> `Deep Sea King`.
  *
  * A fallback, not a localisation strategy: whoever owns the monster gets to
- * push a real display name. This exists so an unnamed encounter shows something
- * a human can read instead of an id.
+ * push a real display name (`EncounterStartedEvent.displayName`). This exists
+ * so an unnamed encounter shows something a human can read instead of an id.
+ *
+ * ── WHY THE NUMERIC GUARD ─────────────────────────────────────────────────
+ * Taking only the last segment assumes the last segment is the name. For
+ * `wave.0` — the id the monster system gives every open-world wave — it is a
+ * COUNTER, and the encounter card rendered a bare `0` where the monster's name
+ * belongs, on every non-scripted fight in the game. So a purely numeric tail
+ * keeps the segment before it and reads `Wave 0`: still not a monster's name,
+ * but unmistakably an id rather than a number the player might read as a
+ * score. This is the last line of defence, and it has to hold for whatever id
+ * a future emitter invents, not just for the one that broke it.
  */
 export function prettyEncounterName(encounterId: string): string {
-  const tail = encounterId.split('.').pop() ?? encounterId;
+  const segments = encounterId.split('.');
+  let tail = segments.pop() ?? encounterId;
+  if (/^\d+$/.test(tail)) {
+    // `encounter.wave.0` -> `wave 0`; a bare `0` with nothing in front of it
+    // gets a generic noun, because a lone digit is never a name.
+    const previous = segments.pop();
+    tail = previous !== undefined && previous !== '' ? `${previous} ${tail}` : `encounter ${tail}`;
+  }
   const spaced = tail.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }

@@ -197,6 +197,20 @@ export interface AllyDownedEvent extends IEventBase {
 export interface EncounterStartedEvent extends IEventBase {
   readonly type: 'EncounterStarted';
   readonly encounterId: string;
+  /**
+   * What to CALL this fight on screen, pushed by whoever spawned it.
+   *
+   * Optional because an authored encounter carries its name in its id already
+   * (`encounter.deepSeaKing` reads fine after `prettyEncounterName`). A
+   * PROCEDURAL encounter does not: the monster system names its open-world
+   * waves `wave.0`, `wave.1`, ... and no amount of prettifying turns a wave
+   * counter into a monster. So the emitter that knows what it actually put on
+   * the street says so here, and the display layer prefers it over the id.
+   *
+   * A plain string, not a reference: the bus shallow-copies payloads, so
+   * anything deeper would be shared mutable state between systems.
+   */
+  readonly displayName?: string;
   readonly threatTier: ThreatTier;
   readonly position: Vec3;
   /** Encounter radius in metres. */

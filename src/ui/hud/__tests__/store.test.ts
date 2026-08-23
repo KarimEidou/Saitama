@@ -561,5 +561,64 @@ describe('housekeeping', () => {
     expect(prettyEncounterName('encounter.deepSeaKing')).toBe('Deep Sea King');
     expect(prettyEncounterName('encounter.mosquito')).toBe('Mosquito');
     expect(prettyEncounterName('bare')).toBe('Bare');
+    // Authored ids are the ones that survive this function at all, so they are
+    // the ones a change to it must not move.
+    expect(prettyEncounterName('boss.mosquitoGirl')).toBe('Mosquito Girl');
+    expect(prettyEncounterName('encounter.joint_op')).toBe('Joint op');
+  });
+
+  it('never renders a bare number where a name belongs', () => {
+    // THE REGRESSION: the monster system ids every open-world wave `wave.N`,
+    // and taking only the tail put a literal "0" in the encounter card's name
+    // slot for the first wave of every session.
+    expect(prettyEncounterName('wave.0')).toBe('Wave 0');
+    expect(prettyEncounterName('wave.17')).toBe('Wave 17');
+    expect(prettyEncounterName('encounter.wave.3')).toBe('Wave 3');
+    // Nothing in front of the digits at all still must not read as a score.
+    expect(prettyEncounterName('7')).toBe('Encounter 7');
+    // A name that merely ENDS in a digit is a name, not a counter.
+    expect(prettyEncounterName('encounter.boros2')).toBe('Boros2');
+  });
+});
+
+describe('encounter display names', () => {
+  function start(bus: EventBus, patch: { encounterId: string; displayName?: string }): void {
+    bus.emit('EncounterStarted', {
+      threatTier: 'tiger',
+      position: { x: 0, y: 0, z: 0 },
+      radius: 40,
+      participantIds: [],
+      isBoss: false,
+      ...patch,
+    });
+  }
+
+  it('prefers the name the emitter pushed over anything derived from the id', () => {
+    const { bus, store } = makeStore();
+    start(bus, { encounterId: 'wave.0', displayName: 'Mob Thug' });
+    expect(store.model.encounter?.name).toBe('Mob Thug');
+    expect(store.model.encounter?.id).toBe('wave.0');
+    store.dispose();
+  });
+
+  it('falls back to the id when no name was pushed, so authored ids still read', () => {
+    const { bus, store } = makeStore();
+    start(bus, { encounterId: 'encounter.deepSeaKing' });
+    expect(store.model.encounter?.name).toBe('Deep Sea King');
+    store.dispose();
+  });
+
+  it('treats a blank pushed name as no name at all', () => {
+    const { bus, store } = makeStore();
+    start(bus, { encounterId: 'encounter.mosquito', displayName: '   ' });
+    expect(store.model.encounter?.name).toBe('Mosquito');
+    store.dispose();
+  });
+
+  it('shows an id-shaped label rather than a digit for an unnamed wave', () => {
+    const { bus, store } = makeStore();
+    start(bus, { encounterId: 'wave.0' });
+    expect(store.model.encounter?.name).toBe('Wave 0');
+    store.dispose();
   });
 });

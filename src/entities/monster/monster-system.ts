@@ -399,7 +399,11 @@ export class MonsterSystem {
 
       this.announcedWaves.add(wave);
       const participants: EntityId[] = [];
+      // Seeded from the monster that ENGAGED, not from nothing: `wolf` ranks 0
+      // and the comparison below is strictly greater, so an all-wolf wave never
+      // takes a branch. Its tier and its name have to be right already.
       let tier: ThreatTier = monster.archetype.threatTier;
+      let displayName = monster.archetype.name;
       let best = 0;
       for (const other of this.monsters.values()) {
         if (this.waveOfMonster.get(other.id) !== wave) continue;
@@ -408,10 +412,18 @@ export class MonsterSystem {
         if (rank > best) {
           best = rank;
           tier = other.archetype.threatTier;
+          // The banner reads "THREAT TIGER / <name>". Both halves have to
+          // describe the SAME monster, or the card names a street pest and
+          // rates it as the demon standing behind it.
+          displayName = other.archetype.name;
         }
       }
       this.bus.emit('EncounterStarted', {
+        // A wave counter, which is an index and not a name. `displayName`
+        // below is what the HUD shows; this stays the correlation key that
+        // `EncounterEnded` is matched against.
         encounterId: `wave.${wave}`,
+        displayName,
         threatTier: tier,
         position: monster.brain.position,
         radius: 40,

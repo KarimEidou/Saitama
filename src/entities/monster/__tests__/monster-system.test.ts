@@ -8,7 +8,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { MAX_SCRIPTED_MINIONS, MonsterSystem } from '../monster-system';
-import { monsterArchetype } from '../archetypes';
+import { MONSTER_ARCHETYPES, monsterArchetype } from '../archetypes';
 import { mirrorPunch, makeTarget, recordingBus, type IMirrorTarget } from './fixtures';
 import type { IMonsterTarget, Vec3 } from '../types';
 
@@ -170,6 +170,11 @@ describe('lifecycle', () => {
     expect(started[0]!.encounterId).toMatch(/^wave\./);
     const ids = started.map((e) => e.encounterId);
     expect(new Set(ids).size).toBe(ids.length);
+    // The id is a wave COUNTER. The HUD's name slot is fed by `displayName`,
+    // which has to be an archetype's name — without it the encounter card read
+    // the tail of `wave.0` and showed the player a literal "0".
+    const names = MONSTER_ARCHETYPES.map((a) => a.name);
+    for (const event of started) expect(names).toContain(event.displayName);
   });
 
   it('ignores a malformed shockwave rather than waking the whole map', () => {

@@ -601,6 +601,10 @@ async function main(): Promise<void> {
 
     const shots: Record<string, IPixelStats> = {};
     const panelReports: Record<string, IPanelRect[]> = {};
+    // Only the STOLEN probes are kept. A passing grid is thousands of points
+    // that all say the same thing; a failing one is a short list of coordinates
+    // somebody has to go and look at.
+    const hitReports: Record<string, string[]> = {};
 
     for (const profile of PROFILES) {
       console.log(`\n${profile.id} — ${profile.label}`);
@@ -632,6 +636,31 @@ async function main(): Promise<void> {
           'thumb reserve exceeds the input layer’s own arc reach',
           geometry.hudReserve > geometry.maxReach,
           `reserve ${geometry.hudReserve}px vs furthest painted button pixel ${geometry.maxReach.toFixed(1)}px`
+        );
+
+        /* ---- mount parity ---- */
+        // Needs a scene with a HUD button in it: the empirical half of the
+        // check reads the hit-test chain at one, and the boot screen has none.
+        await setScene(page, 'combat');
+        const parity = (await page.evaluate(() =>
+          window.__HUD_HARNESS__!.mountParity()
+        )) as IMountParity;
+        report.mountParity = parity;
+
+        check(
+          'the controls mount on document.body, where `game.ts` mounts them',
+          parity.parentIsBody && parity.siblings,
+          `.opm-input-root parent: ${parity.inputParent}, sibling of #ui-root: ${parity.siblings}`
+        );
+        check(
+          'the HUD paints ABOVE the controls, as it does in the shipping page',
+          parity.hudAbove && parity.uiZIndex > parity.inputZIndex,
+          parity.hudAbove
+            ? `#ui-root z-index ${parity.uiZIndex} over .opm-input-root z-index ${parity.inputZIndex}`
+            : // The inverse order is what shipped in every screenshot in
+              // docs/screenshots/ for as long as the overlay was mounted inside
+              // #ui-root, so name the chain rather than just failing.
+              `hit-test chain at a HUD button, topmost first: ${parity.probe.join(' > ')}`
         );
       }
 
@@ -669,13 +698,20 @@ async function main(): Promise<void> {
           outside.length === 0,
           outside.length === 0
             ? `${panels.length} panels inside the safe box`
-            : outside
-                .slice(0, 3)
-                .map(
-                  (p) =>
-                    `${p.id}[${p.x.toFixed(0)},${p.y.toFixed(0)} ${p.width.toFixed(0)}x${p.height.toFixed(0)}]`
-                )
-                .join(' ')
+            : outside.slice(0, 3).map(describeRect).join(' ')
+        );
+
+        /* ---- panel vs panel ---- */
+        // Runs in EVERY scene, modal included: two rows colliding inside a
+        // settings sheet is the same bug as a banner landing on the encounter
+        // card, and the sheet is where a font fallback shows up first.
+        const overlaps = findOverlaps(panels);
+        check(
+          `${scene} @ ${profile.id} has no panel painting on another`,
+          overlaps.length === 0,
+          overlaps.length === 0
+            ? `${panels.length} panels, no pair sharing more than ${OVERLAP_TOLERANCE_PX2}px²`
+            : describeOverlaps(overlaps)
         );
 
         /* ---- thumb reserve, only for the non-modal combat HUD ---- */
@@ -715,6 +751,88 @@ async function main(): Promise<void> {
             intruders.length === 0
               ? 'no readable panel inside either hand'
               : intruders.map((p) => p.id).join(', ')
+          );
+
+          /* ---- the top band fits above both hands ---- */
+          // The reserve is whichever hand claims more, read from the tokens
+          // through the input layer rather than copied: retuning either one
+          // moves this line with it.
+          const reserve = Math.max(geometry.hudReserve, geometry.stickReserve);
+          const reaching = bandIntruders(panels, profile, reserve);
+          check(
+            `${scene} @ ${profile.id} keeps the top band above the hands`,
+            reaching.length === 0,
+            reaching.length === 0
+              ? `nothing above the halfway line reaches past y=${(profile.height - profile.insets.bottom - reserve).toFixed(0)}`
+              : reaching
+                  .map(
+                    (p) =>
+                      `${describeRect(p)} reaches y=${(p.y + p.height).toFixed(0)}, ` +
+                      `${(p.y + p.height - (profile.height - profile.insets.bottom - reserve)).toFixed(0)}px into the reserve`
+                  )
+                  .join('; ')
+          );
+
+          /* ---- the declared band budget ---- */
+          const budget = (await page.evaluate(() =>
+            window.__HUD_HARNESS__!.bandBudget()
+          )) as IBandBudget;
+          if (budget.declared === null) {
+            // Skipped, loudly. A budget assertion against a budget nobody has
+            // declared would be an assertion against a number this file made
+            // up, which is worse than no assertion at all.
+            console.log(
+              `  [skip] ${scene} @ ${profile.id} band budget — .hud-root declares no --hud-band-row` +
+                (budget.declaredRaw === '' ? '' : ` (unparseable: "${budget.declaredRaw}")`)
+            );
+          } else if (budget.rowOneBottom === null) {
+            console.log(
+              `  [skip] ${scene} @ ${profile.id} band budget — the top band is not laid out`
+            );
+          } else {
+            const used = budget.rowOneBottom - budget.insetTop;
+            check(
+              `${scene} @ ${profile.id} row 1 fits its declared budget`,
+              used <= budget.declared + budget.gap + 0.5,
+              `row 1 runs ${used.toFixed(1)}px from the top inset against a ${budget.declared}px budget ` +
+                `+ ${budget.gap}px gap (${budget.members.join(', ')})`
+            );
+          }
+
+          /* ---- who owns the touch ---- */
+          // Both hands, though only one of them currently changes anything:
+          // `IHudSettings.stickHand` exists and the settings screen writes it,
+          // but no part of `src/ui/input` reads it yet, so the sampled zone is
+          // the left band either way. When handedness does land, this loop
+          // already covers the mirrored layout instead of having to be
+          // remembered — and `hitOwnership()` derives the zone from the input
+          // layer's own tuning, so it will follow without an edit here.
+          const stolen: string[] = [];
+          let sampled = 0;
+          for (const hand of ['left', 'right'] as const) {
+            await page.evaluate((value) => {
+              window.__HUD_HARNESS__!.setSettings({ stickHand: value as never });
+            }, hand);
+            const ownership = (await page.evaluate(() =>
+              window.__HUD_HARNESS__!.hitOwnership()
+            )) as IHitOwnership;
+            sampled += ownership.sampled;
+            for (const sample of ownership.stolen) {
+              stolen.push(`${hand}/${sample.label}@${sample.x},${sample.y} -> ${sample.owner}`);
+            }
+          }
+          await page.evaluate(() => {
+            window.__HUD_HARNESS__!.setSettings({ stickHand: 'left' as never });
+          });
+
+          if (stolen.length > 0) hitReports[`${scene}@${profile.id}`] = stolen;
+          check(
+            `${scene} @ ${profile.id} lets the controls own every touch they need`,
+            stolen.length === 0,
+            stolen.length === 0
+              ? `${sampled} probes across the arc and the stick band, all into .opm-input-root`
+              : stolen.slice(0, 4).join('; ') +
+                  (stolen.length > 4 ? `; +${stolen.length - 4} more` : '')
           );
         }
       }
@@ -951,6 +1069,24 @@ async function main(): Promise<void> {
             ? 'nothing overflows the safe box'
             : overflow.map((p) => p.id).join(', ')
         );
+
+        /* The VERTICAL half of the same question, and the half that actually
+           bites: 130% is where a row that was tuned to the pixel at 100% grows
+           past the band and starts down towards a hand. Horizontal overflow is
+           caught by a `min-width:0` grid column; height has nothing catching
+           it, which is exactly why it needs an assertion. */
+        const scaledReserve = Math.max(geometry.hudReserve, geometry.stickReserve);
+        const scaledReaching = bandIntruders(scaledPanels, profile, scaledReserve);
+        check(
+          'the top band still clears the hands at HUD scale 130%',
+          scaledReaching.length === 0,
+          scaledReaching.length === 0
+            ? `nothing above the halfway line reaches past y=${(profile.height - profile.insets.bottom - scaledReserve).toFixed(0)}`
+            : scaledReaching
+                .map((p) => `${describeRect(p)} reaches y=${(p.y + p.height).toFixed(0)}`)
+                .join('; ')
+        );
+
         await page.evaluate(() => {
           window.__HUD_HARNESS__!.setSettings({ hudScale: 1 as never });
         });
@@ -963,6 +1099,7 @@ async function main(): Promise<void> {
 
     report.shots = shots;
     report.panels = panelReports;
+    report.stolenTouches = hitReports;
 
     check(
       'no console errors from any profile',

@@ -12,13 +12,20 @@
  */
 
 import type { IInputConfig } from '@/types';
-import { createLogger } from '@/util';
+import { clamp, createLogger } from '@/util';
 
 const log = createLogger('input.config');
 
 /* -------------------------------------------------------------------------- */
 /* Tuning                                                                     */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Which hand holds the movement stick. Mirrors `IHudSettings.stickHand`, which
+ * cannot be imported here: the HUD is forbidden from importing `@/ui/input` and
+ * the dependency does not run the other way either.
+ */
+export type StickHand = 'left' | 'right';
 
 /**
  * `IInputConfig` plus the concrete pixel/second thresholds the touch backend
