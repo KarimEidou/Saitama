@@ -182,6 +182,46 @@ async function regionMean(
   return colour.reduce((sum, c) => sum + c.mean, 0) / colour.length;
 }
 
+/** One region's RGB bytes. Materialised first, for the reason `analyse` gives. */
+async function regionBytes(
+  file: string,
+  rect: { left: number; top: number; width: number; height: number }
+): Promise<Buffer> {
+  const cropped = await sharp(file).extract(rect).toBuffer();
+  return sharp(cropped).removeAlpha().raw().toBuffer();
+}
+
+/**
+ * Mean absolute per-pixel difference between the same region of two captures,
+ * in 0..255.
+ *
+ * Why not compare the two region MEANS: a mean is very nearly invariant under
+ * a camera rotation. Swing the view along a street lined with facades on both
+ * sides and the band is made of different pixels but averages to the same
+ * number — so "the mean barely moved" is evidence about the street, not about
+ * the camera. Comparing the pixels themselves asks the question that was meant
+ * all along: is this a different view of the world?
+ */
+async function regionDiff(
+  fileA: string,
+  fileB: string,
+  rect: { left: number; top: number; width: number; height: number }
+): Promise<number> {
+  const [a, b] = await Promise.all([regionBytes(fileA, rect), regionBytes(fileB, rect)]);
+  if (a.length !== b.length || a.length === 0) return Number.NaN;
+  let total = 0;
+  for (let i = 0; i < a.length; i++) total += Math.abs(a[i]! - b[i]!);
+  return total / a.length;
+}
+
+/** Signed shortest difference between two headings, in degrees. */
+function shortestAngleDeg(a: number, b: number): number {
+  let d = (a - b) % 360;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return d;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Driving                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -251,6 +291,8 @@ interface IGameWindow {
     spawnEncounter(id: string, distance?: number): string | undefined;
     faceNearestMonster(): void;
     faceNearestStructure(): void;
+    /** The third-person rig. `diagnostics().yaw` is the camera's own heading. */
+    player: { camera: { diagnostics(): { yaw: number } } };
     monsters: {
       count: number;
       describeForCombat(): { id: string; position: { y: number }; radius: number }[];
@@ -284,6 +326,13 @@ interface IGameWindow {
 
 const diag = (page: Page): Promise<IDiag> =>
   page.evaluate(() => window.__GAME_DIAG__ as unknown as IDiag);
+
+/** The camera rig's own heading, in degrees. */
+const cameraYawDeg = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const game = (window as unknown as IGameWindow).__GAME__;
+    return ((game?.player.camera.diagnostics().yaw ?? Number.NaN) * 180) / Math.PI;
+  });
 
 /* -------------------------------------------------------------------------- */
 /* Main                                                                       */
@@ -413,36 +462,109 @@ async function main(): Promise<void> {
           `(floor ${TRAVERSE_FLOOR_M} m) — locomotion is not being driven`
       );
     }
-    // The framing baseline, captured BEFORE the turn: the same band on both
-    // shots is the only way to say anything about what the turn did.
-    await shoot('integration-02a-pre-turn');
-    const BAND = { left: 0, top: 200, width: VIEWPORT.width, height: 500 };
-    const upperBefore = await regionMean(path.join(OUT_DIR, 'integration-02a-pre-turn.png'), BAND);
-    // Turn to face the block, so the shot frames a street rather than the sky.
+    // STOP AND SETTLE BEFORE FRAMING ANYTHING. The baseline used to be captured
+    // mid-dash and compared against a shot taken from a standstill, so most of
+    // what separated the pair was the deceleration between them: the speed FOV
+    // relaxing, the arm re-extending and the player coasting several metres.
+    // Measured, that confound is worth ~64 points of band mean and ~70 points of
+    // per-pixel difference — larger than the turn it was supposed to be
+    // measuring. Settling first makes the pair differ by the TURN and nothing
+    // else (the same window with no look input moves the band mean by 0.6 and
+    // the pixels by 6.5).
     await page.evaluate(() => {
       window.__INPUT__!.setMove(0, 0);
       window.__INPUT__!.release('sprint');
-      window.__INPUT__!.setLook(1, 0);
     });
-    await frames(page, 40);
+    await frames(page, 20);
+    await shoot('integration-02a-pre-turn');
+    const BAND = { left: 0, top: 200, width: VIEWPORT.width, height: 500 };
+    const upperBefore = await regionMean(path.join(OUT_DIR, 'integration-02a-pre-turn.png'), BAND);
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  TURN A QUARTER TURN — MEASURED ON THE CAMERA, NOT COUNTED IN FRAMES
+    // ══════════════════════════════════════════════════════════════════════
+    // `look` is a RATE: `setLook(1, 0)` is `lookFullRateDegPerSec` (220 °/s)
+    // for as long as it stays latched, and the clock clamps `dt` to MAX_DELTA
+    // (1/15 s). Every SwiftShader frame here is far slower than that, so each
+    // one is a full 66.7 ms of game time — 14.7 degrees. A fixed count of 40
+    // was therefore not "a turn" at all but 587 degrees, one and a half
+    // revolutions, and where it stopped was a function of how many frames the
+    // host managed to schedule: land near a multiple of 360 and the camera
+    // comes back to the heading it started from, which is indistinguishable
+    // from a camera that never turned. That is exactly how this read as
+    // "the camera did not turn" while the rig was in fact sweeping 546°.
+    //
+    // So the drive is bounded by the ANGLE the camera actually reports, and
+    // the frame count is only a safety net. A quarter turn is a real change of
+    // view that cannot wrap onto itself.
+    const TURN_TARGET_DEG = 90;
+    // A STALL GUARD, not a budget. Every frame here is a clamped 66.7 ms of
+    // game time, so the target is reached in about seven; the cap only exists
+    // so a camera that ignores `setLook` fails instead of looping forever, and
+    // it is loose enough that even an unthrottled 60 Hz loop (3.7 degrees a
+    // frame) still gets there.
+    const TURN_FRAME_CAP = 60;
+    let lastYaw = await cameraYawDeg(page);
+    const yawBefore = lastYaw;
+    // Accumulated per FRAME, so it is monotone and immune to wrapping: the
+    // total is what turned, not where it ended up.
+    let swept = 0;
+    let turnFrames = 0;
+    await page.evaluate(() => window.__INPUT__!.setLook(1, 0));
+    while (swept < TURN_TARGET_DEG && turnFrames < TURN_FRAME_CAP) {
+      await frames(page, 1);
+      turnFrames++;
+      const yawNow = await cameraYawDeg(page);
+      if (!Number.isFinite(yawNow)) break;
+      swept += Math.abs(shortestAngleDeg(yawNow, lastYaw));
+      lastYaw = yawNow;
+    }
     await page.evaluate(() => window.__INPUT__!.setLook(0, 0));
     await frames(page, 20);
     await shoot('integration-02-traverse');
-    // The block is 58 m of facade nine metres to the player's side: after the
-    // turn the upper half of the frame must stop being what it was. Asserted as
-    // a CHANGE rather than "darker": the avenue ahead is lined with facades
-    // too, so the pre-turn band is not reliably sky — but a camera that ignored
-    // `setLook` leaves this pair identical.
-    const upper = await regionMean(path.join(OUT_DIR, 'integration-02-traverse.png'), BAND);
-    const bandShift = Math.abs(upper - upperBefore);
-    say(`  upper-frame mean ${upperBefore.toFixed(1)} -> ${upper.toFixed(1)} across the turn`);
-    notes.push(
-      `upper-frame mean before the turn ${upperBefore.toFixed(1)}, after ${upper.toFixed(1)}`
+
+    // PROOF 1: the look input reached the camera. This is the whole chain —
+    // `window.__INPUT__` -> synthetic backend -> `InputManager` axis merge ->
+    // `InputState.look` -> `ThirdPersonCameraRig.readLook` — read off the rig's
+    // own diagnostics rather than inferred from pixels.
+    say(
+      `  camera yaw ${yawBefore.toFixed(1)} -> ${lastYaw.toFixed(1)} deg, ` +
+        `${swept.toFixed(1)} deg swept over ${turnFrames} look frames`
     );
-    if (bandShift < 2) {
+    if (!(swept >= TURN_TARGET_DEG)) {
       failures.push(
-        `40 frames of look input changed the upper-frame mean by ${bandShift.toFixed(2)} ` +
-          `(${upperBefore.toFixed(1)} -> ${upper.toFixed(1)}) — the camera did not turn`
+        `${turnFrames} frames of look input swept the camera ${swept.toFixed(1)} deg ` +
+          `(wanted ${TURN_TARGET_DEG}) — the camera did not turn`
+      );
+    }
+
+    // PROOF 2: the rendered frame followed it. A yaw counter can move while the
+    // scene is drawn from a stale transform, so the same band on both shots has
+    // to actually be different pixels. Compared per pixel, NOT as two means:
+    // the avenue is lined with facades on both sides, so a turn can leave the
+    // band's average almost untouched — the failing measurement moved it by
+    // 1.37 across a 546-degree sweep. The floor for this pair, measured with
+    // the look input never set, is ~6.5; a quarter turn measures ~83.
+    const upper = await regionMean(path.join(OUT_DIR, 'integration-02-traverse.png'), BAND);
+    const framingDiff = await regionDiff(
+      path.join(OUT_DIR, 'integration-02a-pre-turn.png'),
+      path.join(OUT_DIR, 'integration-02-traverse.png'),
+      BAND
+    );
+    const FRAMING_DIFF_FLOOR = 20;
+    say(
+      `  upper frame: mean ${upperBefore.toFixed(1)} -> ${upper.toFixed(1)}, ` +
+        `per-pixel difference ${framingDiff.toFixed(1)}`
+    );
+    notes.push(
+      `the turn swept ${swept.toFixed(1)} deg and changed the upper frame by ` +
+        `${framingDiff.toFixed(1)} per pixel (mean ${upperBefore.toFixed(1)} -> ${upper.toFixed(1)})`
+    );
+    if (!(framingDiff >= FRAMING_DIFF_FLOOR)) {
+      failures.push(
+        `a ${swept.toFixed(1)} deg camera turn changed the upper frame by ` +
+          `${framingDiff.toFixed(1)} per pixel (floor ${FRAMING_DIFF_FLOOR}) — ` +
+          `the render is not following the camera`
       );
     }
 
