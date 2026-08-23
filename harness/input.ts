@@ -38,6 +38,25 @@ interface HarnessPeaks {
   twistAbs: number;
 }
 
+/**
+ * Where the stick READS from and where it is PAINTED, in one struct.
+ *
+ * They are separate numbers derived by separate modules (`touch-core` decides
+ * the origin, `touch-overlay` decides the ring), and the whole anchored layout
+ * is only honest while they agree — a ring painted somewhere the origin is not
+ * is the failure this control has actually shipped. Reading both here is what
+ * lets `input.verify.ts` assert on the difference rather than on a magnitude
+ * that happens to come out right either way.
+ */
+export interface StickProbe {
+  /** Origin the deflection is measured from. `null` when no thumb is on it. */
+  origin: { x: number; y: number } | null;
+  /** The thumb driving it, same frame. */
+  thumb: { x: number; y: number } | null;
+  /** Centre and radius of the painted ring, straight off its layout box. */
+  ring: { x: number; y: number; radius: number } | null;
+}
+
 export interface IInputHarness {
   readonly ready: boolean;
   readonly manager: IInputManager;
@@ -52,6 +71,22 @@ export interface IInputHarness {
   frame(): number;
   /** Resolves after `count` more polls have run. */
   waitFrames(count: number): Promise<number>;
+  /** Origin, thumb and painted ring for the movement stick. */
+  stickProbe(): StickProbe;
+  /**
+   * Stop the input clock. Polls keep running (so `waitFrames` still resolves)
+   * but every one of them sees `dt === 0`, so nothing in the input layer that
+   * measures a DURATION advances until `advanceClock()` says it may.
+   *
+   * Returns the frozen time, in seconds. Idempotent.
+   */
+  freezeClock(): number;
+  /** Move the frozen clock forward by exactly this many seconds. */
+  advanceClock(seconds: number): number;
+  /** Hand the clock back to `requestAnimationFrame`. */
+  thawClock(): void;
+  /** Whether the clock is currently frozen. */
+  clockFrozen(): boolean;
   /** Extremes since the last `clearPeaks()`. Drags are transient; peaks are not. */
   peaks(): HarnessPeaks;
   clearPeaks(): void;
@@ -181,6 +216,48 @@ const out = {
   peaks: el('v-peaks'),
 };
 
+/* ---- stick / camera zone markers ----
+   Painted from the LIVE tuning, never from constants baked into input.html.
+   The hand and both zone fractions are settable at runtime through
+   `__INPUT__.setConfig`, and a marker that does not follow them is worse than
+   no marker at all: it states, in paint, that the zone is somewhere it is not.
+   That is exactly what the old fixed 50% line did once `stickZoneFraction`
+   became 0.45 and `stickZoneTopFraction` handed the top of the screen back to
+   the camera.
+
+   Held in a map for the same reason `out` is: `el()` throws on a missing id,
+   so the page and this module cannot drift apart silently. */
+const zone = {
+  split: el('zone-split'),
+  top: el('zone-top'),
+  stickLabel: el('zone-stick'),
+  cameraLabel: el('zone-camera'),
+};
+let lastZoneSignature = '';
+
+function syncZoneMarkers(): void {
+  const tuning = manager.tuning;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const signature = `${tuning.stickHand}:${tuning.stickZoneFraction}:${tuning.stickZoneTopFraction}:${w}x${h}`;
+  // Cheap enough to ask every frame, expensive enough to write only on change:
+  // this runs inside the input path the harness exists to measure.
+  if (signature === lastZoneSignature) return;
+  lastZoneSignature = signature;
+
+  const band = w * tuning.stickZoneFraction;
+  const splitX = tuning.stickHand === 'right' ? w - band : band;
+  const splitY = h * tuning.stickZoneTopFraction;
+  document.body.dataset.stickHand = tuning.stickHand;
+  document.documentElement.style.setProperty('--zone-x', `${splitX.toFixed(1)}px`);
+  document.documentElement.style.setProperty('--zone-y', `${splitY.toFixed(1)}px`);
+
+  const widthPct = Math.round(tuning.stickZoneFraction * 100);
+  const heightPct = Math.round((1 - tuning.stickZoneTopFraction) * 100);
+  zone.stickLabel.textContent = `stick zone · ${tuning.stickHand} ${widthPct}% · lower ${heightPct}%`;
+  zone.cameraLabel.textContent = 'camera · drag + pinch + twist';
+}
+
 /** One row per action, built once and mutated thereafter. */
 const buttonCells = new Map<string, { row: HTMLElement; flags: HTMLElement; meta: HTMLElement }>();
 for (const action of INPUT_ACTIONS) {
@@ -228,7 +305,10 @@ function drawScope(state: InputState, pointerSamples: readonly PointerSample[]):
 
   // Full-deflection ring and dead-zone ring, to scale, in RAW THUMB-TRAVEL
   // space: the outer ring is `stickFullDeflectionPx` of travel from the
-  // floating origin and the dashed one is `stickDeadZonePx`.
+  // stick's origin and the dashed one is `stickDeadZonePx`. Travel is measured
+  // from wherever `stickOriginFor` put that origin — the anchor for a thumb
+  // that grabbed the ring, the touch point for one that did not — so this
+  // scope is the same picture in both stick layouts.
   const deadFraction =
     DEFAULT_INPUT_TUNING.stickDeadZonePx / DEFAULT_INPUT_TUNING.stickFullDeflectionPx;
   ctx.strokeStyle = 'rgba(255,210,48,0.35)';
@@ -430,10 +510,27 @@ function render(state: InputState, pointerDebug: PointerDebug[]): void {
   drawScope(state, state.pointers);
 }
 
+/* The time handed to `manager.poll()`. `null` is the wall clock, which is what
+   a real session runs on. A number means the clock is FROZEN there and moves
+   only when `advanceClock()` says so.
+
+   Freezing exists because every duration threshold in the input layer —
+   `ChargeTracker` above all — is accumulated from the `dt` BETWEEN TWO POLLS,
+   and a gesture driven from Playwright is only ever as quick as the transport
+   and the machine allow. Two `Input.dispatchTouchEvent` round trips plus the
+   assertions between them cost 100-500ms against SwiftShader, measured; the
+   charge starts at 0.22s. A test for "a quick tap does not charge" written
+   against the wall clock therefore measures the CI box, and it says so by
+   passing on an idle machine and failing on a loaded one. Frozen, the poll dt
+   is exactly zero until the test asks for more, so a tap lasts 80ms because
+   the test said 80ms. */
+let frozenTime: number | null = null;
+
 function tick(nowMs: number): void {
   requestAnimationFrame(tick);
-  const state = manager.poll(frameIndex, nowMs / 1000);
+  const state = manager.poll(frameIndex, frozenTime ?? nowMs / 1000);
   frameIndex++;
+  syncZoneMarkers();
 
   /* peaks — a drag between two polls would otherwise be invisible */
   if (state.move.magnitude > peaks.moveMagnitude) peaks.moveMagnitude = state.move.magnitude;
@@ -501,6 +598,50 @@ const harness: IInputHarness = {
     });
   },
 
+  stickProbe(): StickProbe {
+    const live = manager.touch?.core.stick ?? null;
+    /* The ring's own layout box, not a recomputed anchor. Re-deriving the
+       anchor here would only prove this file can do the same arithmetic as
+       `stick-geometry.ts`; measuring the box proves the ring is where the
+       arithmetic says, which is the thing that has actually been wrong. */
+    const node = document.querySelector<HTMLElement>('.opm-stick');
+    const box = node?.getBoundingClientRect();
+    return {
+      origin: live ? { x: live.originX, y: live.originY } : null,
+      thumb: live ? { x: live.x, y: live.y } : null,
+      ring:
+        box && box.width > 0
+          ? { x: box.left + box.width / 2, y: box.top + box.height / 2, radius: box.width / 2 }
+          : null,
+    };
+  },
+
+  freezeClock(): number {
+    frozenTime ??= performance.now() / 1000;
+    return frozenTime;
+  },
+
+  advanceClock(seconds: number): number {
+    if (frozenTime === null) {
+      throw new Error('advanceClock() with a running clock — call freezeClock() first');
+    }
+    // Negative would run the charge backwards; `manager.poll` clamps dt at 0
+    // anyway, so it would silently do nothing rather than fail a test loudly.
+    frozenTime += Math.max(0, seconds);
+    return frozenTime;
+  },
+
+  thawClock(): void {
+    /* The next poll's dt becomes the REAL time that has passed since the
+       freeze, which is the honest answer: the game was running all along and
+       only this page's idea of the clock stopped. */
+    frozenTime = null;
+  },
+
+  clockFrozen(): boolean {
+    return frozenTime !== null;
+  },
+
   peaks(): HarnessPeaks {
     return { ...peaks };
   },
@@ -562,6 +703,10 @@ const harness: IInputHarness = {
   },
 
   resetAll(): void {
+    /* Thaw FIRST. A frozen clock left behind by one scenario would silently
+       stop every timer in the next one, and a suite of tests that all pass
+       because nothing can ever time out is worse than a suite that fails. */
+    frozenTime = null;
     manager.reset();
     manager.syntheticEnabled = false;
     manager.setInteractPrompt(null);

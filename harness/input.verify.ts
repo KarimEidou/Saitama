@@ -26,6 +26,18 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import { createServer, type ViteDevServer } from 'vite';
+/* The PRODUCTION geometry, imported rather than re-derived. `touch-core` and
+   `touch-overlay` both call these functions to decide where the stick reads
+   from and where it is painted; a test that computed the anchor a third way
+   would agree with them right up until one of the three was retuned, and would
+   then disagree about which of the two was wrong. The module is pure
+   arithmetic with type-only imports, so it loads under tsx in Node. */
+import {
+  fixedStickAnchor,
+  isStickZone,
+  stickReachPx,
+  ZERO_SAFE_AREA,
+} from '@/ui/input/stick-geometry';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const SHOTS = path.join(ROOT, 'docs', 'screenshots');
@@ -165,13 +177,44 @@ type Snapshot = {
   anyActive: boolean;
 };
 
+/**
+ * The strongest `look.x`/`look.y` in a run of snapshots, SIGN PRESERVED.
+ *
+ * `peaks()` latches magnitudes, which answers "did the camera move?" but not
+ * "which way?", and the current frame answers neither for a rate that decays
+ * the moment the thumb stops. Folding the page's own history keeps the sign of
+ * the frame that actually mattered.
+ */
+function signedPeak(
+  states: readonly { look: { x: number; y: number } }[],
+  axis: 'x' | 'y'
+): number {
+  let best = 0;
+  for (const state of states) {
+    const value = state.look[axis];
+    if (Math.abs(value) > Math.abs(best)) best = value;
+  }
+  return best;
+}
+
 function makeHelpers(page: Page) {
   return {
     frames: (n = 2) => page.evaluate((count) => window.__INPUT_HARNESS__!.waitFrames(count), n),
     snapshot: () =>
       page.evaluate(() => window.__INPUT_HARNESS__!.snapshot()) as unknown as Promise<Snapshot>,
     pointers: () => page.evaluate(() => window.__INPUT_HARNESS__!.pointers()),
+    /** The last N snapshots, latched on the page — immune to round-trip lag. */
+    history: (count: number) =>
+      page.evaluate((value) => window.__INPUT_HARNESS__!.history(value), count),
     peaks: () => page.evaluate(() => window.__INPUT_HARNESS__!.peaks()),
+    /** Where the stick reads from, and where it is painted. */
+    stickProbe: () => page.evaluate(() => window.__INPUT_HARNESS__!.stickProbe()),
+    /** Stop the input clock so a DURATION can be driven instead of waited out. */
+    freezeClock: () => page.evaluate(() => window.__INPUT_HARNESS__!.freezeClock()),
+    advanceClock: (seconds: number) =>
+      page.evaluate((value) => window.__INPUT_HARNESS__!.advanceClock(value), seconds),
+    thawClock: () => page.evaluate(() => window.__INPUT_HARNESS__!.thawClock()),
+    clockFrozen: () => page.evaluate(() => window.__INPUT_HARNESS__!.clockFrozen()),
     clearPeaks: () => page.evaluate(() => window.__INPUT_HARNESS__!.clearPeaks()),
     gestures: () => page.evaluate(() => window.__INPUT_HARNESS__!.gestures()),
     clearGestures: () => page.evaluate(() => window.__INPUT_HARNESS__!.clearGestures()),
@@ -281,8 +324,24 @@ async function main(): Promise<void> {
       `tuning: deadZone=${DEAD}px fullDeflection=${FULL}px degPerPx=${config.cameraDegPerPx}`
     );
 
-    /* Anchor for stick gestures: left half, in the clear lane below the
-       readout panels, so the ring is visible in the evidence screenshots. */
+    /* Where the ANCHORED stick lives, from the module the input layer and the
+       overlay both call. The insets are zero here — headless Chromium reports
+       no notch, and section 13 puts back the ones it borrows — so this is the
+       ring's real centre for the whole run. */
+    const W = VIEWPORT.width;
+    const H = VIEWPORT.height;
+    const anchor = fixedStickAnchor(config, W, H, ZERO_SAFE_AREA);
+    /* A thumb 50px up-and-right of the anchor: INSIDE `stickCaptureRadiusPx`
+       (122), which is precisely what makes it the point that tells the two
+       layouts apart — anchored snaps the origin here, floating does not. */
+    const NEAR = { x: anchor.x + 24, y: anchor.y - 44 };
+
+    /* Touch point for every stick gesture below. It is in the stick zone but
+       234px from the anchor — far outside the capture radius — so the origin
+       falls under the thumb, and "drag N px from here" therefore measures N px
+       of travel from THIS point rather than from the ring. It also sits clear
+       of the readout panels and of the ring, so the evidence screenshots show
+       a deflected knob and an unobscured stick in the same frame. */
     const SX = 300;
     const SY = 430;
     /* Anchor for camera gestures: right half, clear of the thumb-arc buttons. */
@@ -292,6 +351,15 @@ async function main(): Promise<void> {
     /* ==================================================================== */
     group('1. stick vector for a known drag');
     /* ==================================================================== */
+    /* Everything below assumes both probe points are stick touches at all.
+       They stop being that the moment `stickZoneFraction` or the newer
+       `stickZoneTopFraction` is retuned, and the symptom would be a whole
+       section of camera drags quietly asserting stick numbers. */
+    check(
+      isStickZone(SX, SY, W, H, config) && isStickZone(NEAR.x, NEAR.y, W, H, config),
+      'both stick probe points are inside the stick zone',
+      `(${SX},${SY}) and (${NEAR.x},${NEAR.y}) of ${W}x${H}`
+    );
     await h.reset();
     await touch.down(1, SX, SY);
     await h.frames(2);
@@ -367,24 +435,211 @@ async function main(): Promise<void> {
     s = await h.snapshot();
     close(s.move.magnitude, 0, 0.0001, 'stick centres when the thumb lifts');
 
+    /* ====================================================================
+       THE THREE ORIGIN CASES
+
+       There is one question here — where does the deflection get measured
+       from? — and `stickOriginFor` gives three different answers depending on
+       the layout and on where the thumb landed. They used to be covered by a
+       single section called "floating origin (never a fixed stick)" that
+       pressed at three points and checked that a `FULL`-px drag read
+       magnitude 1 at each. That section passed while proving none of it: the
+       stick had become ANCHORED by default, its first probe point was 50px
+       from the anchor and therefore inside `stickCaptureRadiusPx`, so the
+       origin snapped to the anchor — and a drag ending `FULL` px from an
+       origin still reads 1.0 no matter which of the two origins it was. The
+       assertion was green because the arithmetic works out either way.
+
+       So each case gets its own section, each pressing where the answers
+       differ, and each asserting on the origin itself rather than on a
+       magnitude that survives being wrong.
+       ==================================================================== */
+
     /* ==================================================================== */
-    group('3. floating origin (never a fixed stick)');
+    group('3a. FLOATING layout: the origin materialises under the thumb');
     /* ==================================================================== */
     await h.reset();
-    for (const [ox, oy] of [
-      [120, 500],
-      [430, 250],
-      [260, 570],
-    ] as const) {
-      await touch.down(1, ox, oy);
-      await h.frames(2);
-      await touch.dragTo(1, ox, oy - FULL);
-      await h.frames(3);
-      s = await h.snapshot();
-      close(s.move.magnitude, 1, 0.03, `origin anchors at (${ox},${oy}) wherever the thumb lands`);
-      await touch.up(1);
-      await h.frames(2);
+    await page.evaluate(`window.__INPUT__.setConfig({ floatingStick: true })`);
+    await h.frames(2);
+
+    /* Even floating, the ring is no longer invisible until touched: it parks
+       on the anchored layout's home so there is something to discover. */
+    let probe = await h.stickProbe();
+    check(probe.ring !== null, 'the floating ring is painted before anything is touched');
+    if (probe.ring) {
+      close(probe.ring.x, anchor.x, 1.5, 'idle floating ring parks on the anchor (x)');
+      close(probe.ring.y, anchor.y, 1.5, 'idle floating ring parks on the anchor (y)');
     }
+
+    /* Press 50px from the anchor — where an anchored stick would snap. */
+    await touch.down(1, NEAR.x, NEAR.y);
+    await h.frames(2);
+    probe = await h.stickProbe();
+    s = await h.snapshot();
+    check(probe.origin !== null, 'a floating touch produces an origin');
+    if (probe.origin) {
+      close(probe.origin.x, NEAR.x, 0.5, 'FLOATING origin is the touch point (x)');
+      close(probe.origin.y, NEAR.y, 0.5, 'FLOATING origin is the touch point (y)');
+    }
+    /* The assertion the old section could not make. An origin under the thumb
+       means zero deflection on touch-down; the anchored layout reads 0.47 here
+       from the same touch, so this single number separates them. */
+    close(s.move.magnitude, 0, 0.001, 'FLOATING: 50px from the anchor still reads centred');
+    if (probe.ring) {
+      close(probe.ring.x, NEAR.x, 1.5, 'the painted ring FOLLOWED the thumb (x)');
+      close(probe.ring.y, NEAR.y, 1.5, 'the painted ring FOLLOWED the thumb (y)');
+    }
+
+    await touch.dragTo(1, NEAR.x, NEAR.y - FULL);
+    await h.frames(3);
+    s = await h.snapshot();
+    close(s.move.magnitude, 1, 0.03, 'FLOATING: full deflection is measured from the thumb');
+    close(s.move.y, 1, 0.03, 'FLOATING: and in the direction the thumb moved');
+    await touch.up(1);
+    await h.frames(3);
+    probe = await h.stickProbe();
+    if (probe.ring) {
+      close(
+        probe.ring.x,
+        anchor.x,
+        1.5,
+        'a released floating ring goes home, not wherever it ended (x)'
+      );
+      close(probe.ring.y, anchor.y, 1.5, 'a released floating ring goes home (y)');
+    }
+
+    /* ==================================================================== */
+    group('3b. ANCHORED, thumb inside the capture radius: origin snaps to the ring');
+    /* ==================================================================== */
+    await page.evaluate(`window.__INPUT__.setConfig({ floatingStick: false })`);
+    await h.reset();
+    await h.frames(2);
+    probe = await h.stickProbe();
+    if (probe.ring) {
+      close(probe.ring.x, anchor.x, 1.5, 'anchored ring is painted on the anchor (x)');
+      close(probe.ring.y, anchor.y, 1.5, 'anchored ring is painted on the anchor (y)');
+      /* The ring is drawn at the VISUAL radius (76px), not at the input radius
+         (92px). They were one number once and the ring came out 240px across. */
+      close(
+        probe.ring.radius,
+        config.stickBaseRadiusPx,
+        1.5,
+        'the ring is painted at stickBaseRadiusPx, not at the input radius'
+      );
+    }
+
+    const nearDistance = Math.hypot(NEAR.x - anchor.x, NEAR.y - anchor.y);
+    check(
+      nearDistance < config.stickCaptureRadiusPx,
+      'the near probe really is inside the capture radius',
+      `${nearDistance.toFixed(1)}px < ${config.stickCaptureRadiusPx}px`
+    );
+
+    await touch.down(1, NEAR.x, NEAR.y);
+    await h.frames(2);
+    probe = await h.stickProbe();
+    s = await h.snapshot();
+    if (probe.origin) {
+      close(probe.origin.x, anchor.x, 0.5, 'ANCHORED near touch: origin snapped to the anchor (x)');
+      close(probe.origin.y, anchor.y, 0.5, 'ANCHORED near touch: origin snapped to the anchor (y)');
+    } else {
+      fail('ANCHORED near touch: origin snapped to the anchor', 'no stick origin reported');
+    }
+    /* The thumb is 50px from the origin the instant it lands, so the stick is
+       ALREADY deflected — that is what "a thumb placed anywhere on the artwork
+       centres it" costs, and it is the observable difference from floating. */
+    const nearDeflection = (nearDistance - DEAD) / (FULL - DEAD);
+    close(
+      s.move.magnitude,
+      nearDeflection,
+      0.02,
+      'ANCHORED near touch: deflected on contact, by the anchor-to-thumb distance'
+    );
+    close(
+      (s.move.angle * 180) / Math.PI,
+      (Math.atan2(anchor.y - NEAR.y, NEAR.x - anchor.x) * 180) / Math.PI,
+      2,
+      'ANCHORED near touch: and pointing from the anchor towards the thumb'
+    );
+    if (probe.ring) {
+      close(probe.ring.x, anchor.x, 1.5, 'the ring did not move to meet the thumb (x)');
+      close(probe.ring.y, anchor.y, 1.5, 'the ring did not move to meet the thumb (y)');
+    }
+
+    /* And the anchor really is the origin: a drag to exactly `FULL` px from
+       the ANCHOR reads 1.0, though the thumb travelled only 54px to get
+       there. Measured from the touch point that would be a third of full. */
+    await touch.dragTo(1, anchor.x, anchor.y - FULL);
+    await h.frames(3);
+    s = await h.snapshot();
+    close(
+      s.move.magnitude,
+      1,
+      0.03,
+      'ANCHORED near touch: full deflection is measured from the anchor'
+    );
+    close(s.move.y, 1, 0.03, 'ANCHORED near touch: due north of the anchor reads due north');
+    await touch.up(1);
+    await h.frames(2);
+    s = await h.snapshot();
+    close(s.move.magnitude, 0, 0.0001, 'ANCHORED near touch: centres when the thumb lifts');
+
+    /* ==================================================================== */
+    group('3c. ANCHORED, thumb outside it: origin falls to the touch, ring stays home');
+    /* ==================================================================== */
+    await h.reset();
+    const farDistance = Math.hypot(SX - anchor.x, SY - anchor.y);
+    check(
+      farDistance > config.stickCaptureRadiusPx,
+      'the far probe really is outside the capture radius',
+      `${farDistance.toFixed(1)}px > ${config.stickCaptureRadiusPx}px`
+    );
+
+    await touch.down(1, SX, SY);
+    await h.frames(2);
+    probe = await h.stickProbe();
+    s = await h.snapshot();
+    if (probe.origin) {
+      close(probe.origin.x, SX, 0.5, 'ANCHORED far touch: origin fell back to the touch point (x)');
+      close(probe.origin.y, SY, 0.5, 'ANCHORED far touch: origin fell back to the touch point (y)');
+    } else {
+      fail('ANCHORED far touch: origin fell back to the touch point', 'no stick origin reported');
+    }
+    close(
+      s.move.magnitude,
+      0,
+      0.001,
+      'ANCHORED far touch: centred on contact — the thumb did NOT sprint off'
+    );
+    /* The other half of the bargain: the ring is not dragged across the screen
+       to a thumb that never grabbed it. It stays where it is painted and works
+       as a deflection gauge instead. */
+    if (probe.ring) {
+      close(
+        probe.ring.x,
+        anchor.x,
+        1.5,
+        'ANCHORED far touch: the ring stays painted on the anchor (x)'
+      );
+      close(
+        probe.ring.y,
+        anchor.y,
+        1.5,
+        'ANCHORED far touch: the ring stays painted on the anchor (y)'
+      );
+    }
+
+    await touch.dragTo(1, SX, SY - FULL);
+    await h.frames(3);
+    s = await h.snapshot();
+    close(
+      s.move.magnitude,
+      1,
+      0.03,
+      'ANCHORED far touch: full deflection is measured from the thumb'
+    );
+    await touch.up(1);
+    await h.frames(2);
 
     /* ==================================================================== */
     group('4. camera drag');
@@ -401,8 +656,21 @@ async function main(): Promise<void> {
       'rightward drag produces a look rate',
       `peak |look.x|=${peaks.lookAbsX.toFixed(4)}`
     );
-    s = await h.snapshot();
-    check(s.look.x > 0, 'rightward drag -> positive look.x', `look.x=${s.look.x.toFixed(4)}`);
+    /* The DIRECTION comes off the page's own history, not off a snapshot.
+       `look` is a smoothed RATE and the thumb stops dead the instant `dragTo`
+       returns, so the smoother decays (62ms time constant, then the
+       `lookRestDegPerSec` snap to exactly zero) while the round trip that
+       would read it is still in flight: `look.x` was 0.2493 at its peak and
+       0.0000 by the time a `snapshot()` came back, on a machine that was
+       merely busy. Asking the page which frame turned the camera hardest is
+       the same latching trick every edge assertion here uses `lastPressed`
+       for, and it asserts about the drag rather than about the transport. */
+    const rightward = signedPeak(await h.history(60), 'x');
+    check(
+      rightward > 0,
+      'rightward drag -> positive look.x',
+      `strongest look.x=${rightward.toFixed(4)}`
+    );
     await touch.up(2);
     await h.frames(30);
     s = await h.snapshot();
@@ -413,11 +681,11 @@ async function main(): Promise<void> {
     await h.frames(2);
     await touch.dragTo(2, CX, CY - 120, 12);
     await h.frames(3);
-    s = await h.snapshot();
+    const upward = signedPeak(await h.history(60), 'y');
     check(
-      s.look.y > 0,
+      upward > 0,
       'upward drag -> positive look.y (looks up)',
-      `look.y=${s.look.y.toFixed(4)}`
+      `strongest look.y=${upward.toFixed(4)}`
     );
     await touch.up(2);
     await h.frames(20);
@@ -594,15 +862,89 @@ async function main(): Promise<void> {
     await h.reset();
     await h.clearPressed();
 
-    /* Tap = light punch, no heavy. */
+    /* ---- a tap is a light punch, and the tap's LENGTH is DRIVEN ----------
+       `heavyPunch` fires when the punch has been held for `chargeStartSec`
+       (0.22s), and that hold is accumulated from the `dt` between two polls.
+       A press driven from here cannot be made quick in wall-clock terms: the
+       touch-down, the touch-up and the two assertions between them are four
+       CDP round trips, and against SwiftShader those cost 100-500ms depending
+       on what else the box is doing. Measured on this machine, this exact
+       sequence produced holds of 0.100s, 0.117s, 0.150s, 0.233s and 0.483s on
+       five consecutive runs — so the wall-clock version of this test passed or
+       failed with the load average, and on the runs it failed, `heavyPunch`
+       had fired at 0.233s exactly as designed.
+
+       The production behaviour was never in question: `touch-core.test.ts`
+       pins it with a perfect clock ("a tap fires punch and NOT heavyPunch",
+       one frame down and one frame up). What was in question was whether this
+       harness could state a duration. It can now: freeze the input clock and
+       hand the press exactly the length the test claims for it. */
+    const QUICK_TAP_SEC = 0.08;
+    check(
+      QUICK_TAP_SEC < config.chargeStartSec,
+      'the "quick" tap is shorter than the threshold it must not cross',
+      `${QUICK_TAP_SEC}s < ${config.chargeStartSec}s`
+    );
+    await h.freezeClock();
+    /* Spend the first frozen poll before anything is pressed: it still carries
+       the real dt between the last wall-clock poll and the freeze. Every poll
+       after it is dt = 0 until `advanceClock` says otherwise. */
+    await h.frames(2);
+
     await touch.down(3, punchCentre.x, punchCentre.y);
     await h.frames(2);
     s = await h.snapshot();
     check(s.buttons.punch.held, 'punch button press registers');
     check((await h.pressed()).includes('punch'), 'punch fires its pressed edge on touch-down');
+    await h.advanceClock(QUICK_TAP_SEC);
+    await h.frames(2);
+    const quickHold = await page.evaluate(
+      () => window.__INPUT_HARNESS__!.manager.touch!.core.chargeHoldTime
+    );
+    close(
+      quickHold,
+      QUICK_TAP_SEC,
+      0.001,
+      'the press lasted exactly as long as the test said, not as long as the box took'
+    );
     await touch.up(3);
     await h.frames(3);
-    check((await h.lastPressed('heavyPunch')) === null, 'a quick tap does NOT fire heavyPunch');
+    check(
+      (await h.lastPressed('heavyPunch')) === null,
+      `a ${QUICK_TAP_SEC * 1000}ms tap does NOT fire heavyPunch`
+    );
+
+    /* The control. A negative result is only worth something if the same rig
+       can produce a positive one — otherwise "no heavy punch" is equally what
+       a broken clock, a missed touch or a dead button would report. Nudge the
+       identical press just past `chargeStartSec` and the heavy punch must
+       appear, with the ratio that hold earns. */
+    await h.clearPressed();
+    const JUST_CHARGED_SEC = config.chargeStartSec + 0.06;
+    await touch.down(3, punchCentre.x, punchCentre.y);
+    await h.frames(2);
+    await h.advanceClock(JUST_CHARGED_SEC);
+    await h.frames(2);
+    await touch.up(3);
+    await h.frames(3);
+    const justCharged = await h.lastPressed('heavyPunch');
+    check(
+      justCharged !== null,
+      `the same rig DOES fire heavyPunch at ${Math.round(JUST_CHARGED_SEC * 1000)}ms`
+    );
+    if (justCharged) {
+      close(
+        justCharged.value,
+        (JUST_CHARGED_SEC - config.chargeStartSec) / (config.chargeFullSec - config.chargeStartSec),
+        0.01,
+        'and carries the ratio the driven hold earns'
+      );
+    }
+    await h.thawClock();
+    /* Everything below this line waits out real time again — the charge ring,
+       the partial charge, the gesture windows. A freeze left behind here would
+       stop all of them, and they would pass by never timing out at all. */
+    check(!(await h.clockFrozen()), 'the input clock is running again afterwards');
 
     /* Hold = charge, release = heavy punch with the ratio. */
     await h.clearPressed();
@@ -679,33 +1021,48 @@ async function main(): Promise<void> {
     check(heavy !== null, 'releasing a full charge fires heavyPunch');
     if (heavy) close(heavy.value, 1, 0.02, 'heavyPunch carries the charge ratio');
 
-    /* Partway through a charge the ring must be PARTLY drawn, not all-or-nothing. */
+    /* Partway through a charge the ring must be PARTLY drawn, not
+       all-or-nothing — and "partway" is the one word a `waitForTimeout` cannot
+       promise. This probe used to sleep for 0.571s and hope the press ended
+       before `chargeFullSec`; it read 0.722 on an idle box and saturated at
+       1.000 on a busy one, failing an assertion whose whole point is that the
+       ratio is between the two extremes. Driven, the hold is 0.571s and the
+       ratio is 0.45, so the ring can be checked against the number it should
+       be showing rather than against a band wide enough to survive the
+       transport. */
+    const PARTIAL_RATIO = 0.45;
+    const partialHold =
+      config.chargeStartSec + (config.chargeFullSec - config.chargeStartSec) * PARTIAL_RATIO;
     await h.clearPressed();
+    await h.freezeClock();
+    await h.frames(2);
     await touch.down(3, punchCentre.x, punchCentre.y);
-    await page.waitForTimeout(
-      (config.chargeStartSec + (config.chargeFullSec - config.chargeStartSec) * 0.45) * 1000
-    );
+    await h.frames(2);
+    await h.advanceClock(partialHold);
     await h.frames(2);
     const partial = (await page.evaluate(
       `parseFloat(getComputedStyle(document.querySelector('.opm-charge-fill')).strokeDashoffset)`
     )) as number;
     const circumference = 2 * Math.PI * 45;
-    check(
-      partial > circumference * 0.1 && partial < circumference * 0.9,
-      'charge ring sweeps progressively, not all-or-nothing',
-      `dashoffset=${partial.toFixed(1)} of ${circumference.toFixed(1)}`
+    close(
+      partial,
+      circumference * (1 - PARTIAL_RATIO),
+      circumference * 0.02,
+      'charge ring sweeps progressively — the arc drawn is the ratio held'
     );
     await touch.up(3);
     await h.frames(3);
     const partialHeavy = await h.lastPressed('heavyPunch');
     check(partialHeavy !== null, 'a partial charge still fires heavyPunch');
     if (partialHeavy) {
-      check(
-        partialHeavy.value > 0.1 && partialHeavy.value < 0.95,
-        'a partial charge carries a partial ratio',
-        `value=${partialHeavy.value.toFixed(3)}`
+      close(
+        partialHeavy.value,
+        PARTIAL_RATIO,
+        0.01,
+        'a partial charge carries exactly the ratio the hold earned'
       );
     }
+    await h.thawClock();
 
     /* Jump. */
     const jumpCentre = await h.buttonCentre('jump');
@@ -1032,7 +1389,7 @@ async function main(): Promise<void> {
     await h.frames(2);
 
     /* ==================================================================== */
-    group('14. evidence screenshots');
+    group('14. evidence screenshots, and the panels that must not cover the controls');
     /* ==================================================================== */
     await h.reset();
     await h.setInteract('SMASH');
@@ -1076,8 +1433,79 @@ async function main(): Promise<void> {
     await touch.releaseAll();
     await h.frames(3);
 
+    /* ---- the harness's own readouts stay off the controls, in BOTH hands --
+       This page paints its readouts into the same viewport the input overlay
+       paints controls into, and it used to tuck the scope panel and the hint
+       into the bottom-left corner on the grounds that the lower MIDDLE was
+       where the floating stick appeared. The stick is anchored in that corner
+       now, and both bottom corners are control territory in every
+       configuration: the stick reserves one, the thumb arc reserves the other,
+       and `stickHand` only swaps which is which. So the panels clear both
+       squares and do not move when the hand does — which is also why this
+       check can run the same assertion twice instead of two different ones. */
+    const RESERVE = 225; // mirrors STICK_RESERVE_PX in src/ui/hud/tokens.ts
+    check(
+      stickReachPx(config) <= RESERVE,
+      'the reserved square still covers the whole painted stick',
+      `reach=${stickReachPx(config).toFixed(1)}px <= ${RESERVE}px`
+    );
+    const corners = [
+      { name: 'bottom-left', l: 0, t: H - RESERVE, r: RESERVE, b: H },
+      { name: 'bottom-right', l: W - RESERVE, t: H - RESERVE, r: W, b: H },
+    ];
+
+    for (const hand of ['left', 'right'] as const) {
+      await page.evaluate(`window.__INPUT__.setConfig({ stickHand: '${hand}' })`);
+      await h.frames(3);
+
+      const mirrored = fixedStickAnchor({ ...config, stickHand: hand }, W, H, ZERO_SAFE_AREA);
+      const ring = (await h.stickProbe()).ring;
+      if (ring) {
+        close(ring.x, mirrored.x, 1.5, `${hand} hand: the ring is painted on that hand's corner`);
+        close(ring.y, mirrored.y, 1.5, `${hand} hand: and at the anchored height`);
+      } else {
+        fail(`${hand} hand: the ring is painted on that hand's corner`, 'no ring measured');
+      }
+
+      /* Every fixed readout on the page, measured as laid out rather than as
+         written in the stylesheet — a panel that outgrows its slot because a
+         row was added is exactly the regression this catches. */
+      const readouts = (await page.evaluate(`(() => {
+        const out = [];
+        for (const node of document.querySelectorAll('.panel, #hint, .zone-label')) {
+          const box = node.getBoundingClientRect();
+          out.push({
+            id: node.id || node.className,
+            l: box.left, t: box.top, r: box.right, b: box.bottom,
+          });
+        }
+        return out;
+      })()`)) as { id: string; l: number; t: number; r: number; b: number }[];
+
+      const intruders = readouts
+        .filter((r) => corners.some((c) => r.l < c.r && r.r > c.l && r.t < c.b && r.b > c.t))
+        .map((r) => r.id);
+      check(
+        readouts.length >= 6 && intruders.length === 0,
+        `${hand} hand: no readout intrudes on either ${RESERVE}px control corner`,
+        `${readouts.length} measured${intruders.length ? `, intruding: ${intruders.join(', ')}` : ''}`
+      );
+    }
+
+    /* Photograph the mirrored layout. "The panels clear the stick" is a claim
+       about both hands and only one of them is the default, so the evidence
+       has to show the other one too. Nothing is touching it: this shot is also
+       what `stickIdleOpacity` looks like, which is the whole reason the stick
+       is painted at rest at all. */
+    const rightHandShot = path.join(SHOTS, 'input-stick-right-hand.png');
+    await page.screenshot({ path: rightHandShot, type: 'png' });
+    await assertNotBlank(rightHandShot, 'right-hand stick');
+    await page.evaluate(`window.__INPUT__.setConfig({ stickHand: 'left' })`);
+    await h.frames(3);
+
     console.log(`\nsaved: ${multitouchShot}`);
     console.log(`saved: ${chargeShot}`);
+    console.log(`saved: ${rightHandShot}`);
 
     /* ==================================================================== */
     group('15. no console errors, no leaked rejections');

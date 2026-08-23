@@ -54,37 +54,71 @@
           var(--bg);
       }
 
-      /* Marks the stick zone / camera zone split so the split is legible. */
+      /* ---- stick / camera zone markers ----
+         The stick zone is an L, not a half: it owns `stickZoneFraction` of the
+         width on its own hand's side, but only BELOW `stickZoneTopFraction` of
+         the height, because a swipe near the top of the screen is always
+         someone looking around rather than someone walking. Two lines, so the
+         corner of that L is visible: `#zone-top` runs along the height
+         boundary across the stick's band only, and `#zone-split` drops from it
+         to the bottom edge.
+
+         Both lines and both labels are placed from the LIVE tuning by input.ts
+         (`--zone-x`, `--zone-y`, `body[data-stick-hand]`), so flipping
+         `stickHand` or retuning the fractions from the console redraws them.
+         A hard-coded 50% is how this page came to claim, in paint, that the
+         split was somewhere it is not. */
       #zone-split {
         position: fixed;
-        left: 50%;
-        top: 0;
+        left: var(--zone-x, 50%);
+        top: var(--zone-y, 0);
         bottom: 0;
         width: 1px;
         z-index: 1;
         background: linear-gradient(
           to bottom,
-          transparent,
-          rgba(255, 255, 255, 0.22) 22%,
-          rgba(255, 255, 255, 0.22) 78%,
-          transparent
+          rgba(255, 255, 255, 0.22),
+          rgba(255, 255, 255, 0.07)
         );
       }
+      #zone-top {
+        position: fixed;
+        top: var(--zone-y, 0);
+        height: 1px;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.16);
+      }
+      body[data-stick-hand='left'] #zone-top {
+        left: 0;
+        width: var(--zone-x, 50%);
+      }
+      body[data-stick-hand='right'] #zone-top {
+        left: var(--zone-x, 50%);
+        right: 0;
+      }
 
+      /* Each label sits inside the region it names, and clear of the 225px
+         control squares in both bottom corners (see panel placement below). */
       .zone-label {
         position: fixed;
-        bottom: 10px;
+        bottom: 236px;
         z-index: 1;
         color: rgba(255, 255, 255, 0.28);
         letter-spacing: 0.22em;
         font-size: 10px;
         text-transform: uppercase;
       }
-      #zone-left {
+      body[data-stick-hand='left'] #zone-stick {
         left: 16px;
       }
-      #zone-right {
-        left: calc(50% + 16px);
+      body[data-stick-hand='left'] #zone-camera {
+        left: calc(var(--zone-x, 50%) + 16px);
+      }
+      body[data-stick-hand='right'] #zone-stick {
+        right: 16px;
+      }
+      body[data-stick-hand='right'] #zone-camera {
+        left: 16px;
       }
 
       /* Every readout is inert: touches must fall through to the controls. */
@@ -149,9 +183,25 @@
 
       /* ---- panel placement ----
          Tuned for a 1024x640 landscape viewport so that NOTHING overlaps and
-         the lower-middle stays clear: that is where the floating stick and its
-         ring are drawn, and a panel on top of them would hide the one thing
-         this harness exists to show. */
+         BOTH BOTTOM CORNERS stay empty.
+
+         The lane that used to be kept clear was the lower MIDDLE, on the
+         grounds that the floating stick was drawn there. That was true of a
+         stick which materialised under the thumb wherever it landed, and it is
+         false now: the ring is ANCHORED `stickFixedInsetPx` (96px) in from the
+         safe-area corner on the stick hand, with a `stickBaseRadiusPx` (76px)
+         radius, so its furthest painted pixel is hypot(96,96) + 76 = 212px
+         from that corner — which `src/ui/hud/tokens.ts` reserves as a 225px
+         square (`STICK_RESERVE_PX`). The scope panel and the hint were tucked
+         into the bottom-left, which is to say directly on top of it.
+
+         Both corners, not merely the stick's, and the panels do NOT follow the
+         hand. The thumb arc lives in the corner OPPOSITE the stick (furthest
+         reach 16 + 166 + 33 = 215px, also inside 225), and `stickHand` only
+         swaps which corner holds which — the union of occupied corners is the
+         same in both hands, so a hand-following panel would vacate the ring
+         only to land on the arc. Staying out of both is correct for either
+         hand, needs no JS, and keeps the two hands' screenshots diffable. */
       #panel-state {
         left: 8px;
         top: 8px;
@@ -172,9 +222,10 @@
         top: 8px;
         width: 286px;
       }
+      /* Bottom-CENTRE: the one band that is neither corner. */
       #panel-scope {
-        left: 8px;
-        top: 306px;
+        left: 244px;
+        bottom: 8px;
         width: 194px;
       }
 
@@ -278,15 +329,18 @@
         color: var(--dim);
       }
 
+      /* Beside the scope, in the same clear band. Narrow on purpose: the 620px
+         column it used to have only fitted because it started in the corner
+         the stick now owns. */
       #hint {
         position: fixed;
-        left: 8px;
-        bottom: 30px;
+        left: 454px;
+        bottom: 12px;
         z-index: 50;
         pointer-events: none;
         color: var(--dim);
         line-height: 1.6;
-        max-width: 620px;
+        max-width: 320px;
       }
       #hint b {
         color: var(--text);
@@ -297,9 +351,12 @@
 
   <body>
     <div id="backdrop"></div>
+    <div id="zone-top"></div>
     <div id="zone-split"></div>
-    <div class="zone-label" id="zone-left">left half · floating stick</div>
-    <div class="zone-label" id="zone-right">right half · camera drag + pinch</div>
+    <!-- Both labels are rewritten from the live tuning by input.ts; the text
+         here is only what shows if the module never boots. -->
+    <div class="zone-label" id="zone-stick">stick zone</div>
+    <div class="zone-label" id="zone-camera">camera</div>
 
     <section class="panel" id="panel-state">
       <h2>Input state</h2>
@@ -351,10 +408,11 @@
     </section>
 
     <div id="hint">
-      <b>Left half</b> drag = floating stick (origin lands under your thumb). <b>Right half</b> drag
-      = camera, two fingers = pinch/twist.<br />
-      <b>Punch</b> tap = light, hold = charge ring, swipe up = uppercut. <b>Dash</b> toggles.
-      <b>Double tap</b> = jump. <b>Two-finger tap</b> = lock on.
+      <b>Stick</b> is anchored in the marked corner and lit at rest: a thumb inside the capture
+      radius grabs it, one further out keeps its own origin while the ring stays put.
+      <b>Camera</b> is everywhere else — drag to look, two fingers pinch/twist.<br />
+      <b>Punch</b> tap = light, hold = charge ring, swipe up = uppercut. <b>Double tap</b> = jump.
+      <b>Two-finger tap</b> = lock on. <b>Dash</b> toggles.
     </div>
 
     <script type="module" src="./input.ts"></script>
