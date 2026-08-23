@@ -53,16 +53,16 @@
   },
   "regions": {
     "whole": {
-      "meanLuma": 36.72277220851609,
-      "stdDev": 31.89681068815518,
-      "colours": 1158,
+      "meanLuma": 37.26184889891146,
+      "stdDev": 32.375967906631736,
+      "colours": 1160,
       "width": 2532,
       "height": 1170
     },
     "band": {
-      "meanLuma": 37.21425736946221,
-      "stdDev": 42.47248143566977,
-      "colours": 645,
+      "meanLuma": 38.96625661333526,
+      "stdDev": 43.59075550552704,
+      "colours": 638,
       "width": 2532,
       "height": 360
     },
@@ -155,7 +155,7 @@
       "width": 844,
       "height": 390
     },
-    "cumulativeLayoutShift": 0.018083225910946518
+    "cumulativeLayoutShift": 0.036817771442776356
   },
   "snapshot.phone-portrait": {
     "scene": "pause",
@@ -285,233 +285,233 @@
   },
   "shots": {
     "hud-loading-phone-landscape.png": {
-      "meanLuma": 17.782875349813743,
-      "stdDev": 26.276090375530774,
-      "colours": 171,
+      "meanLuma": 14.479042623756396,
+      "stdDev": 26.444615443785935,
+      "colours": 154,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-phone-landscape.png": {
-      "meanLuma": 36.72277220851609,
-      "stdDev": 31.89681068815518,
-      "colours": 1158,
+      "meanLuma": 37.26184889891146,
+      "stdDev": 32.375967906631736,
+      "colours": 1160,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-boss-phone-landscape.png": {
-      "meanLuma": 36.782951021790645,
-      "stdDev": 32.08907468476369,
-      "colours": 1219,
+      "meanLuma": 37.28943994115854,
+      "stdDev": 32.564908607843094,
+      "colours": 1212,
       "width": 2532,
       "height": 1170
     },
     "hud-quests-phone-landscape.png": {
-      "meanLuma": 22.963678371397116,
-      "stdDev": 28.03934106075258,
-      "colours": 727,
+      "meanLuma": 20.95596851700941,
+      "stdDev": 28.14637019938841,
+      "colours": 724,
       "width": 2532,
       "height": 1170
     },
     "hud-rank-phone-landscape.png": {
-      "meanLuma": 19.731944888892357,
-      "stdDev": 30.82163877013416,
-      "colours": 396,
+      "meanLuma": 25.557774653853425,
+      "stdDev": 22.46208219514727,
+      "colours": 955,
       "width": 2532,
       "height": 1170
     },
     "hud-results-phone-landscape.png": {
-      "meanLuma": 29.82339351680874,
-      "stdDev": 21.08688357651035,
-      "colours": 989,
+      "meanLuma": 29.56647455967097,
+      "stdDev": 21.134741692532433,
+      "colours": 933,
       "width": 2532,
       "height": 1170
     },
     "hud-pause-phone-landscape.png": {
-      "meanLuma": 12.980401939077092,
-      "stdDev": 23.273447022616505,
-      "colours": 291,
+      "meanLuma": 11.705500102982231,
+      "stdDev": 23.208224549750753,
+      "colours": 273,
       "width": 2532,
       "height": 1170
     },
     "hud-settings-phone-landscape.png": {
-      "meanLuma": 30.41321072415547,
-      "stdDev": 21.538470365692046,
-      "colours": 911,
+      "meanLuma": 23.83251870906811,
+      "stdDev": 19.928627875294488,
+      "colours": 755,
       "width": 2532,
       "height": 1170
     },
     "hud-idle-phone-landscape.png": {
-      "meanLuma": 36.959980268213535,
-      "stdDev": 28.27224752530214,
-      "colours": 1044,
+      "meanLuma": 37.67032329418964,
+      "stdDev": 28.625139459245244,
+      "colours": 1046,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-alert-phone-landscape.png": {
-      "meanLuma": 37.0247427896719,
-      "stdDev": 32.198735565243595,
-      "colours": 1203,
+      "meanLuma": 37.44479636114676,
+      "stdDev": 32.59267475822173,
+      "colours": 1211,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-charging-phone-landscape.png": {
-      "meanLuma": 37.0473992301927,
-      "stdDev": 32.104754816296,
-      "colours": 1294,
+      "meanLuma": 37.58595861775589,
+      "stdDev": 32.57667969663415,
+      "colours": 1295,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-bored-phone-landscape.png": {
-      "meanLuma": 36.636853376156004,
-      "stdDev": 31.4362485839373,
-      "colours": 1176,
+      "meanLuma": 37.17857972552645,
+      "stdDev": 31.963122109243752,
+      "colours": 1181,
       "width": 2532,
       "height": 1170
     },
     "hud-markers-phone-landscape.png": {
-      "meanLuma": 37.16827509826912,
-      "stdDev": 33.25986300298251,
-      "colours": 1544,
+      "meanLuma": 37.70643243428542,
+      "stdDev": 33.7359290458423,
+      "colours": 1552,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-deuteranopia.png": {
-      "meanLuma": 36.82005744616265,
-      "stdDev": 32.17292475286374,
-      "colours": 1174,
+      "meanLuma": 37.351816386524234,
+      "stdDev": 32.65350739447363,
+      "colours": 1165,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-protanopia.png": {
-      "meanLuma": 36.678430683154225,
-      "stdDev": 32.05520387150972,
+      "meanLuma": 37.21563621180252,
+      "stdDev": 32.56016309289056,
       "colours": 1135,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-tritanopia.png": {
-      "meanLuma": 36.61166262210225,
-      "stdDev": 31.73901982506545,
-      "colours": 1204,
+      "meanLuma": 37.07238247791849,
+      "stdDev": 32.12672461690616,
+      "colours": 1209,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-highContrast.png": {
-      "meanLuma": 35.114834720273535,
-      "stdDev": 34.89543813296734,
-      "colours": 1163,
+      "meanLuma": 36.2694530877708,
+      "stdDev": 35.445104147351266,
+      "colours": 1172,
       "width": 2532,
       "height": 1170
     },
     "hud-loading-phone-portrait.png": {
-      "meanLuma": 16.2501484890651,
-      "stdDev": 20.134598843845893,
-      "colours": 160,
+      "meanLuma": 12.8867814742996,
+      "stdDev": 20.112756872130163,
+      "colours": 149,
       "width": 1170,
       "height": 2532
     },
     "hud-combat-phone-portrait.png": {
-      "meanLuma": 49.18329135031813,
-      "stdDev": 40.08294083782414,
-      "colours": 1020,
+      "meanLuma": 48.434609760251114,
+      "stdDev": 40.75577924257293,
+      "colours": 1018,
       "width": 1170,
       "height": 2532
     },
     "hud-combat-boss-phone-portrait.png": {
-      "meanLuma": 48.96429585569916,
-      "stdDev": 40.19203740112971,
-      "colours": 1082,
+      "meanLuma": 48.16340132641818,
+      "stdDev": 40.88495992643662,
+      "colours": 1073,
       "width": 1170,
       "height": 2532
     },
     "hud-quests-phone-portrait.png": {
-      "meanLuma": 40.51129646107055,
-      "stdDev": 27.807501185804945,
-      "colours": 1221,
+      "meanLuma": 39.26031913409133,
+      "stdDev": 27.871926110541466,
+      "colours": 1204,
       "width": 1170,
       "height": 2532
     },
     "hud-rank-phone-portrait.png": {
-      "meanLuma": 40.28152762030499,
-      "stdDev": 28.648890628222443,
-      "colours": 1166,
+      "meanLuma": 38.99313667681206,
+      "stdDev": 28.767914576272947,
+      "colours": 1155,
       "width": 1170,
       "height": 2532
     },
     "hud-results-phone-portrait.png": {
-      "meanLuma": 42.48003636406805,
-      "stdDev": 28.019018352950024,
-      "colours": 1145,
+      "meanLuma": 32.187036215245996,
+      "stdDev": 26.00836971740873,
+      "colours": 1140,
       "width": 1170,
       "height": 2532
     },
     "hud-pause-phone-portrait.png": {
-      "meanLuma": 12.797235208696648,
-      "stdDev": 23.422425627155896,
-      "colours": 289,
+      "meanLuma": 11.570953946774075,
+      "stdDev": 23.38944337738065,
+      "colours": 275,
       "width": 1170,
       "height": 2532
     },
     "hud-settings-phone-portrait.png": {
-      "meanLuma": 38.18750332344237,
-      "stdDev": 26.16853533482389,
-      "colours": 1022,
+      "meanLuma": 32.485966344035596,
+      "stdDev": 26.09727165820296,
+      "colours": 919,
       "width": 1170,
       "height": 2532
     },
     "hud-loading-tablet.png": {
-      "meanLuma": 15.809820601985328,
-      "stdDev": 17.5349943350594,
-      "colours": 164,
+      "meanLuma": 12.46157971879272,
+      "stdDev": 17.38330989036387,
+      "colours": 150,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-tablet.png": {
-      "meanLuma": 43.208384918369255,
-      "stdDev": 30.61228012413708,
-      "colours": 935,
+      "meanLuma": 43.76080896795191,
+      "stdDev": 30.494209905026935,
+      "colours": 923,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-boss-tablet.png": {
-      "meanLuma": 43.37096854291715,
-      "stdDev": 30.937136252393262,
-      "colours": 971,
+      "meanLuma": 43.86738312214064,
+      "stdDev": 30.781975693839446,
+      "colours": 954,
       "width": 2048,
       "height": 1536
     },
     "hud-quests-tablet.png": {
-      "meanLuma": 33.7157070192474,
-      "stdDev": 21.76410545649629,
-      "colours": 1032,
+      "meanLuma": 33.05622923324899,
+      "stdDev": 21.55768674784794,
+      "colours": 1074,
       "width": 2048,
       "height": 1536
     },
     "hud-rank-tablet.png": {
-      "meanLuma": 36.205978411038096,
-      "stdDev": 22.51667824435929,
-      "colours": 914,
+      "meanLuma": 35.91457413477394,
+      "stdDev": 22.245776498376262,
+      "colours": 962,
       "width": 2048,
       "height": 1536
     },
     "hud-results-tablet.png": {
-      "meanLuma": 34.4436729345452,
-      "stdDev": 21.762800313225416,
-      "colours": 928,
+      "meanLuma": 29.95966525170233,
+      "stdDev": 19.538866023155887,
+      "colours": 892,
       "width": 2048,
       "height": 1536
     },
     "hud-pause-tablet.png": {
-      "meanLuma": 16.9302406846223,
-      "stdDev": 14.829025966236006,
-      "colours": 433,
+      "meanLuma": 28.22067204023323,
+      "stdDev": 18.92266250027091,
+      "colours": 648,
       "width": 2048,
       "height": 1536
     },
     "hud-settings-tablet.png": {
-      "meanLuma": 31.929074215660943,
-      "stdDev": 20.708236318973846,
-      "colours": 846,
+      "meanLuma": 24.336604817603604,
+      "stdDev": 21.86228432212868,
+      "colours": 703,
       "width": 2048,
       "height": 1536
     }
@@ -600,7 +600,7 @@
         "occluded": false,
         "x": 59,
         "y": 70,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -722,7 +722,7 @@
         "occluded": false,
         "x": 59,
         "y": 70,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -808,7 +808,7 @@
         "occluded": true,
         "x": 59,
         "y": 67,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -918,7 +918,7 @@
         "occluded": true,
         "x": 59,
         "y": 67,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -1040,7 +1040,7 @@
         "occluded": true,
         "x": 59,
         "y": 67,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -1174,7 +1174,7 @@
         "occluded": true,
         "x": 59,
         "y": 70,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -1320,7 +1320,7 @@
         "occluded": true,
         "x": 59,
         "y": 67,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -1550,7 +1550,7 @@
         "occluded": false,
         "x": 59,
         "y": 67,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -1660,7 +1660,7 @@
         "occluded": false,
         "x": 59,
         "y": 70,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -1794,7 +1794,7 @@
         "occluded": false,
         "x": 59,
         "y": 70,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -1904,7 +1904,7 @@
         "occluded": false,
         "x": 59,
         "y": 70,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -2074,7 +2074,7 @@
         "occluded": false,
         "x": 59,
         "y": 70,
-        "width": 701,
+        "width": 514.4375,
         "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -3246,7 +3246,7 @@
         "occluded": false,
         "x": 8,
         "y": 72,
-        "width": 760,
+        "width": 331.59375,
         "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -3368,7 +3368,7 @@
         "occluded": false,
         "x": 8,
         "y": 72,
-        "width": 760,
+        "width": 331.59375,
         "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -3454,7 +3454,7 @@
         "occluded": true,
         "x": 8,
         "y": 69,
-        "width": 760,
+        "width": 331.59375,
         "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -3564,7 +3564,7 @@
         "occluded": true,
         "x": 8,
         "y": 69,
-        "width": 760,
+        "width": 331.59375,
         "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -3686,7 +3686,7 @@
         "occluded": true,
         "x": 8,
         "y": 69,
-        "width": 760,
+        "width": 331.59375,
         "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -3832,7 +3832,7 @@
         "occluded": true,
         "x": 8,
         "y": 72,
-        "width": 760,
+        "width": 331.59375,
         "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -3978,7 +3978,7 @@
         "occluded": true,
         "x": 8,
         "y": 69,
-        "width": 760,
+        "width": 331.59375,
         "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
@@ -4400,7 +4400,7 @@
     {
       "name": "loading @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 26.3, colours 171"
+      "detail": "stdDev 26.4, colours 154"
     },
     {
       "name": "loading @ phone-landscape respects the safe area",
@@ -4415,7 +4415,7 @@
     {
       "name": "combat @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.9, colours 1158"
+      "detail": "stdDev 32.4, colours 1160"
     },
     {
       "name": "combat @ phone-landscape respects the safe area",
@@ -4450,7 +4450,7 @@
     {
       "name": "combat-boss @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.1, colours 1219"
+      "detail": "stdDev 32.6, colours 1212"
     },
     {
       "name": "combat-boss @ phone-landscape respects the safe area",
@@ -4485,7 +4485,7 @@
     {
       "name": "quests @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 28.0, colours 727"
+      "detail": "stdDev 28.1, colours 724"
     },
     {
       "name": "quests @ phone-landscape respects the safe area",
@@ -4500,7 +4500,7 @@
     {
       "name": "rank @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 30.8, colours 396"
+      "detail": "stdDev 22.5, colours 955"
     },
     {
       "name": "rank @ phone-landscape respects the safe area",
@@ -4515,7 +4515,7 @@
     {
       "name": "results @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 21.1, colours 989"
+      "detail": "stdDev 21.1, colours 933"
     },
     {
       "name": "results @ phone-landscape respects the safe area",
@@ -4530,7 +4530,7 @@
     {
       "name": "pause @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 23.3, colours 291"
+      "detail": "stdDev 23.2, colours 273"
     },
     {
       "name": "pause @ phone-landscape respects the safe area",
@@ -4545,7 +4545,7 @@
     {
       "name": "settings @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 21.5, colours 911"
+      "detail": "stdDev 19.9, colours 755"
     },
     {
       "name": "settings @ phone-landscape respects the safe area",
@@ -4560,7 +4560,7 @@
     {
       "name": "idle @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 28.3, colours 1044"
+      "detail": "stdDev 28.6, colours 1046"
     },
     {
       "name": "idle @ phone-landscape respects the safe area",
@@ -4595,7 +4595,7 @@
     {
       "name": "combat-alert @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.2, colours 1203"
+      "detail": "stdDev 32.6, colours 1211"
     },
     {
       "name": "combat-alert @ phone-landscape respects the safe area",
@@ -4630,7 +4630,7 @@
     {
       "name": "combat-charging @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.1, colours 1294"
+      "detail": "stdDev 32.6, colours 1295"
     },
     {
       "name": "combat-charging @ phone-landscape respects the safe area",
@@ -4665,7 +4665,7 @@
     {
       "name": "combat-bored @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.4, colours 1176"
+      "detail": "stdDev 32.0, colours 1181"
     },
     {
       "name": "combat-bored @ phone-landscape respects the safe area",
@@ -4700,7 +4700,7 @@
     {
       "name": "markers @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 33.3, colours 1544"
+      "detail": "stdDev 33.7, colours 1552"
     },
     {
       "name": "markers @ phone-landscape respects the safe area",
@@ -4734,13 +4734,13 @@
     },
     {
       "name": "the region crop actually crops",
-      "pass": false,
-      "detail": "band 2532x360 mean 37.2 vs frame 2532x1170 mean 36.7"
+      "pass": true,
+      "detail": "band 2532x360 mean 39.0 vs frame 2532x1170 mean 37.3"
     },
     {
       "name": "the HUD band carries far more detail than the empty corridor",
       "pass": true,
-      "detail": "band stdDev 42.5 vs corridor 18.7"
+      "detail": "band stdDev 43.6 vs corridor 18.7"
     },
     {
       "name": "the 60 Hz path writes ONLY custom properties",
@@ -4770,22 +4770,22 @@
     {
       "name": "deuteranopia palette renders",
       "pass": true,
-      "detail": "stdDev 32.2, colours 1174"
+      "detail": "stdDev 32.7, colours 1165"
     },
     {
       "name": "protanopia palette renders",
       "pass": true,
-      "detail": "stdDev 32.1, colours 1135"
+      "detail": "stdDev 32.6, colours 1135"
     },
     {
       "name": "tritanopia palette renders",
       "pass": true,
-      "detail": "stdDev 31.7, colours 1204"
+      "detail": "stdDev 32.1, colours 1209"
     },
     {
       "name": "highContrast palette renders",
       "pass": true,
-      "detail": "stdDev 34.9, colours 1163"
+      "detail": "stdDev 35.4, colours 1172"
     },
     {
       "name": "the layout survives HUD scale at 130%",
@@ -4800,7 +4800,7 @@
     {
       "name": "loading @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 20.1, colours 160"
+      "detail": "stdDev 20.1, colours 149"
     },
     {
       "name": "loading @ phone-portrait respects the safe area",
@@ -4815,7 +4815,7 @@
     {
       "name": "combat @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 40.1, colours 1020"
+      "detail": "stdDev 40.8, colours 1018"
     },
     {
       "name": "combat @ phone-portrait respects the safe area",
@@ -4850,7 +4850,7 @@
     {
       "name": "combat-boss @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 40.2, colours 1082"
+      "detail": "stdDev 40.9, colours 1073"
     },
     {
       "name": "combat-boss @ phone-portrait respects the safe area",
@@ -4885,7 +4885,7 @@
     {
       "name": "quests @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 27.8, colours 1221"
+      "detail": "stdDev 27.9, colours 1204"
     },
     {
       "name": "quests @ phone-portrait respects the safe area",
@@ -4900,7 +4900,7 @@
     {
       "name": "rank @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 28.6, colours 1166"
+      "detail": "stdDev 28.8, colours 1155"
     },
     {
       "name": "rank @ phone-portrait respects the safe area",
@@ -4915,7 +4915,7 @@
     {
       "name": "results @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 28.0, colours 1145"
+      "detail": "stdDev 26.0, colours 1140"
     },
     {
       "name": "results @ phone-portrait respects the safe area",
@@ -4930,7 +4930,7 @@
     {
       "name": "pause @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 23.4, colours 289"
+      "detail": "stdDev 23.4, colours 275"
     },
     {
       "name": "pause @ phone-portrait respects the safe area",
@@ -4945,7 +4945,7 @@
     {
       "name": "settings @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 26.2, colours 1022"
+      "detail": "stdDev 26.1, colours 919"
     },
     {
       "name": "settings @ phone-portrait respects the safe area",
@@ -5015,7 +5015,7 @@
     {
       "name": "loading @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 17.5, colours 164"
+      "detail": "stdDev 17.4, colours 150"
     },
     {
       "name": "loading @ tablet respects the safe area",
@@ -5030,7 +5030,7 @@
     {
       "name": "combat @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 30.6, colours 935"
+      "detail": "stdDev 30.5, colours 923"
     },
     {
       "name": "combat @ tablet respects the safe area",
@@ -5065,7 +5065,7 @@
     {
       "name": "combat-boss @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 30.9, colours 971"
+      "detail": "stdDev 30.8, colours 954"
     },
     {
       "name": "combat-boss @ tablet respects the safe area",
@@ -5100,7 +5100,7 @@
     {
       "name": "quests @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 21.8, colours 1032"
+      "detail": "stdDev 21.6, colours 1074"
     },
     {
       "name": "quests @ tablet respects the safe area",
@@ -5115,7 +5115,7 @@
     {
       "name": "rank @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 22.5, colours 914"
+      "detail": "stdDev 22.2, colours 962"
     },
     {
       "name": "rank @ tablet respects the safe area",
@@ -5130,7 +5130,7 @@
     {
       "name": "results @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 21.8, colours 928"
+      "detail": "stdDev 19.5, colours 892"
     },
     {
       "name": "results @ tablet respects the safe area",
@@ -5145,7 +5145,7 @@
     {
       "name": "pause @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 14.8, colours 433"
+      "detail": "stdDev 18.9, colours 648"
     },
     {
       "name": "pause @ tablet respects the safe area",
@@ -5160,7 +5160,7 @@
     {
       "name": "settings @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 20.7, colours 846"
+      "detail": "stdDev 21.9, colours 703"
     },
     {
       "name": "settings @ tablet respects the safe area",
@@ -5178,5 +5178,5 @@
       "detail": "clean"
     }
   ],
-  "generatedAt": "2026-08-23T21:15:14.329Z"
+  "generatedAt": "2026-08-23T21:22:06.150Z"
 }
