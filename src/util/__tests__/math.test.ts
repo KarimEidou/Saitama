@@ -210,6 +210,147 @@ describe('clamp / clamp01 / lerp', () => {
   });
 });
 
+/**
+ * NaN MUST NOT SURVIVE A CLAMP
+ *
+ * EVERY comparison against NaN is false, so the two obvious implementations of
+ * a clamp — `Math.min(1, Math.max(0, x))` and `x < 0 ? 0 : x > 1 ? 1 : x` —
+ * both return NaN for NaN. A function whose entire job is "give me a number in
+ * this range" then returns something that is not a number, and 230-odd call
+ * sites assume it cannot.
+ *
+ * The consequences are not local, which is what makes this worth a test file's
+ * worth of noise. `clamp01(boredom)` feeds `setLocomotion`'s `slouch`, which
+ * reaches every `poseArm`/`poseSpine`/`poseLeg` angle and then `applyPose` — a
+ * NaN quaternion has no orientation, the bounding sphere goes NaN, the frustum
+ * test rejects it, and the character does not degrade, he VANISHES. In
+ * progression the same NaN reaches `publishRank`, whose "did anything change?"
+ * early-out is `next.rank === previous.rank`: `NaN === NaN` is false, so a NaN
+ * standing always looks like a change and always publishes.
+ *
+ * IF YOU ARE HERE BECAUSE THESE TESTS FAIL AFTER YOU SIMPLIFIED `math.ts`:
+ * that is what they are for. Put the comparison-first form back.
+ */
+describe('the clamp family floors NaN instead of passing it through', () => {
+  // The two rewrites this suite exists to prevent, kept executable so the
+  // claim is demonstrated rather than asserted in a comment. Taking `x` as a
+  // parameter is not incidental: an inline `NaN < 0` trips eslint's `use-isnan`
+  // — the linter knows the comparison is meaningless, which is precisely the
+  // property that makes it a silent hole once the NaN arrives at runtime.
+  const naiveMinMax = (x: number): number => Math.min(1, Math.max(0, x));
+  const naiveTernary = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
+
+  it('clamp01(NaN) is 0, not NaN', () => {
+    expect(clamp01(Number.NaN)).toBe(0);
+    expect(naiveMinMax(Number.NaN)).toBeNaN();
+    expect(naiveTernary(Number.NaN)).toBeNaN();
+    // ...and both agree with the real thing everywhere else, which is why the
+    // bug survived: nothing but NaN distinguishes them.
+    for (const value of [-5, -0.5, 0, 0.25, 1, 1.5, 5]) {
+      expect(naiveMinMax(value)).toBe(clamp01(value));
+      expect(naiveTernary(value)).toBe(clamp01(value));
+    }
+  });
+
+  it('clamp01 pins both infinities to the end of the range they came from', () => {
+    expect(clamp01(Number.POSITIVE_INFINITY)).toBe(1);
+    expect(clamp01(Number.NEGATIVE_INFINITY)).toBe(0);
+  });
+
+  it('clamp01 returns the canonical +0, never -0', () => {
+    // `toBe` is `Object.is`, so this really does distinguish the two zeroes.
+    // A -0 leaking out flips the sign of `1 / t` and `Math.atan2(t, -1)` for
+    // reasons the caller cannot see from its own arguments.
+    expect(Object.is(clamp01(-0), 0)).toBe(true);
+    expect(Object.is(clamp01(0), 0)).toBe(true);
+    expect(Object.is(clamp01(Number.NaN), 0)).toBe(true);
+    expect(Object.is(clamp01(-1), 0)).toBe(true);
+  });
+
+  it('clamp01 is unchanged for every finite input', () => {
+    expect(clamp01(-0.5)).toBe(0);
+    expect(clamp01(0.25)).toBe(0.25);
+    expect(clamp01(1)).toBe(1);
+    expect(clamp01(1.5)).toBe(1);
+    expect(clamp01(Number.MIN_VALUE)).toBe(Number.MIN_VALUE);
+    expect(clamp01(1 - Number.EPSILON)).toBe(1 - Number.EPSILON);
+  });
+
+  it('clamp(NaN, min, max) is `min` — a survivable frame, not a poisoned one', () => {
+    // `min` rather than NaN because a wrong number is recoverable and a NaN is
+    // not: the next frame overwrites a pinned camera pitch, but nothing
+    // overwrites a NaN that has already been folded into an accumulator.
+    expect(clamp(Number.NaN, 0, 10)).toBe(0);
+    expect(clamp(Number.NaN, -1, 1)).toBe(-1);
+    expect(clamp(Number.NaN, 5, 5)).toBe(5);
+  });
+
+  it('clamp handles both infinities and an inverted range as before', () => {
+    expect(clamp(Number.POSITIVE_INFINITY, 0, 10)).toBe(10);
+    expect(clamp(Number.NEGATIVE_INFINITY, 0, 10)).toBe(0);
+    expect(clamp(5, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY)).toBe(5);
+    // An inverted range is nonsense, but it must stay the SAME nonsense the
+    // `<`/`>` form produced, since callers derive bounds from live state.
+    expect(clamp(5, 10, 0)).toBe(10);
+    expect(clamp(15, 10, 0)).toBe(0);
+    expect(clamp(-5, 10, 0)).toBe(10);
+  });
+
+  it('clamp does NOT launder a non-finite bound', () => {
+    // Deliberate: with a broken range there is no in-range answer to return,
+    // and inventing one hides the caller's bug. A NaN VALUE is the case this
+    // family exists to absorb; a NaN BOUND is a different bug entirely.
+    expect(clamp(5, Number.NaN, 10)).toBeNaN();
+  });
+
+  it('saturate(NaN) is 0 and saturate(Infinity) is 1 — never NaN', () => {
+    // `value <= 0` is false for NaN, so the old guard fell through to
+    // `NaN / NaN`; and `Infinity / Infinity` is NaN too, so the curve's own
+    // limit has to be stated rather than computed.
+    expect(saturate(Number.NaN, 100)).toBe(0);
+    expect(saturate(Number.NEGATIVE_INFINITY, 100)).toBe(0);
+    expect(saturate(Number.POSITIVE_INFINITY, 100)).toBe(1);
+    expect(Object.is(saturate(-0, 100), 0)).toBe(true);
+  });
+
+  it('falloff is 0 for a non-finite distance OR radius', () => {
+    // Out of range is the safe end: an effect that did not happen, rather than
+    // one applied at unknown strength to every rigid body in the scene.
+    expect(falloff(Number.NaN, 10)).toBe(0);
+    expect(falloff(10, Number.NaN)).toBe(0);
+    expect(falloff(Number.NaN, Number.NaN)).toBe(0);
+    expect(falloff(Number.POSITIVE_INFINITY, 10)).toBe(0);
+    // ...and the documented origin/degenerate-radius cases are untouched.
+    expect(falloff(0, 0)).toBe(1);
+    expect(falloff(0, -1)).toBe(1);
+    expect(falloff(5, 10)).toBeCloseTo(0.25, 12);
+    expect(falloff(10, 10)).toBe(0);
+  });
+
+  it('carries the fix into everything built on clamp01', () => {
+    // These need no guard of their own, and must not grow one: the clamp is
+    // the choke point, and this test is what says so.
+    expect(smoothstep(0, 1, Number.NaN)).toBe(0);
+    expect(smoothstep(Number.NaN, 1, 0.5)).toBe(0);
+    expect(smootherstep(0, 1, Number.NaN)).toBe(0);
+    expect(remapClamped(Number.NaN, 0, 1, 10, 20)).toBe(10);
+    expect(applyDeadZone(Number.NaN, 0.1)).toBe(0);
+    expect(applyDeadZone(0.5, Number.NaN)).toBe(0);
+    // `smoothing` is the clamped argument; a NaN one degrades to "no
+    // smoothing at all" (snap to target) rather than to a NaN camera.
+    expect(damp(1, 2, Number.NaN, 0.016)).toBe(2);
+    expect(dampAngle(1, 2, Number.NaN, 0.016)).toBe(2);
+  });
+
+  it('leaves `lerp` propagating, on purpose', () => {
+    // `lerp` promises no output range — extrapolation past both ends is a
+    // documented feature — so there is no bound to fall back to and nothing to
+    // guard. If this ever starts returning a number, someone has given the
+    // hottest call in the file a branch it does not need.
+    expect(lerp(0, 10, Number.NaN)).toBeNaN();
+  });
+});
+
 describe('damp', () => {
   it('is frame-rate independent: one step of dt equals two of dt/2', () => {
     // The property the function exists for. A raw `lerp(current, target, 0.1)`

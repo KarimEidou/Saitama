@@ -15,17 +15,66 @@ export const TAU = Math.PI * 2;
 /** Comparison tolerance for floats. */
 export const EPSILON = 1e-6;
 
-/** Constrain `value` to [min, max]. */
+/**
+ * Constrain `value` to [min, max]. A NaN `value` clamps to `min`.
+ *
+ * ── DO NOT "SIMPLIFY" THIS ─────────────────────────────────────────────────
+ * Neither `Math.min(max, Math.max(min, value))` nor the obvious
+ * `value < min ? min : value > max ? max : value` is correct, because EVERY
+ * comparison against NaN is false: both let NaN straight through, and a
+ * function whose entire job is "give me a number in this range" then returns
+ * something that is not a number. Every caller downstream assumes it cannot.
+ *
+ * The form below tests `value > min` FIRST, so NaN — which fails that test —
+ * falls out at `min` rather than sailing on. `min` is the deliberate choice
+ * over propagating: a shockwave attenuated to nothing, a camera pinned at its
+ * pitch limit or a stick pushed to one extreme is a WRONG FRAME the next frame
+ * corrects. A NaN in the same place is unrecoverable — it poisons every
+ * accumulator it touches for the rest of the session, nothing throws, and the
+ * symptom surfaces somewhere else entirely (usually as a character that has
+ * silently vanished, because NaN quaternions cull the whole mesh).
+ * `rank-ladder.ts` already takes exactly this stance for a NaN seat index.
+ *
+ * NaN BOUNDS are not laundered — there is no in-range answer when the range
+ * itself is broken, so `clamp(x, NaN, 1)` returns NaN. That is the caller's
+ * bug to fix, and it is better seen than papered over.
+ *
+ * Cost is unchanged: two comparisons, no calls, no allocation. This runs
+ * per-entity per-frame.
+ */
 export function clamp(value: number, min: number, max: number): number {
-  return value < min ? min : value > max ? max : value;
+  return value > min ? (value > max ? max : value) : min;
 }
 
-/** Constrain `value` to [0, 1]. */
+/**
+ * Constrain `value` to [0, 1]. A NaN `value` clamps to 0.
+ *
+ * Same trap as `clamp` above, and this is the one that bites: `clamp01` is the
+ * single most-called helper in the codebase (230-odd call sites), so ONE NaN
+ * entering anywhere propagates silently through every consumer of the value.
+ * `Math.min(1, Math.max(0, x))` and `x < 0 ? 0 : x > 1 ? 1 : x` both return NaN
+ * for NaN. Testing `value > 0` first means NaN fails and falls out at 0.
+ *
+ * `> 0` rather than `>= 0` also normalises -0 to +0, so the output is always
+ * the canonical zero. Consumers that divide by it or feed it to `Math.atan2`
+ * get +Infinity / +PI rather than a sign that depends on how the argument was
+ * computed. It costs nothing: the branch was there either way.
+ */
 export function clamp01(value: number): number {
-  return value < 0 ? 0 : value > 1 ? 1 : value;
+  return value > 0 ? (value > 1 ? 1 : value) : 0;
 }
 
-/** Linear interpolation. `t` is NOT clamped. */
+/**
+ * Linear interpolation. `t` is NOT clamped.
+ *
+ * Deliberately NOT NaN-guarded, unlike `clamp`/`clamp01`/`saturate`/`falloff`.
+ * Those four promise a bounded output and enforce it with a comparison, which
+ * is what makes a silent NaN a broken promise. `lerp` is raw arithmetic with no
+ * range contract at all — extrapolation past both ends is a documented, used
+ * feature — so there is no bound to fall back to, and a guard here would only
+ * cost the hottest call in the file. Clamp `t` at the call site when it comes
+ * from anywhere untrusted.
+ */
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -220,7 +269,13 @@ export function falloff(distance: number, maxDistance: number): number {
   // Origin first: with `maxDistance <= 0` the range test alone would attenuate
   // the epicentre of a zero-radius shockwave to nothing.
   if (distance <= 0) return 1;
-  if (distance >= maxDistance) return 0;
+  // `!(distance < maxDistance)`, NOT `distance >= maxDistance`. Identical for
+  // every real number, but NaN fails both `<=` above and `>=` here, so the `>=`
+  // form fell through to `1 - NaN / maxDistance` and multiplied a NaN impulse
+  // into every rigid body in range. Written as a negation so NaN — in EITHER
+  // argument — lands on "out of range", which is the safe end: an effect that
+  // did not happen, rather than one applied at unknown strength.
+  if (!(distance < maxDistance)) return 0;
   const t = 1 - distance / maxDistance;
   return t * t;
 }
@@ -232,8 +287,19 @@ export function falloff(distance: number, maxDistance: number): number {
  * consumer wanting a normalised intensity — camera shake, VFX scale, audio
  * gain — must run it through a saturating curve rather than dividing by an
  * assumed maximum. `half` is the value that maps to 0.5.
+ *
+ * The two guards below are the same NaN trap as `clamp01`, in the one helper
+ * whose whole purpose is to bound an input nobody bounds upstream.
  */
 export function saturate(value: number, half: number): number {
-  if (value <= 0) return 0;
+  // `!(value > 0)`, NOT `value <= 0`: NaN fails `<=`, so a non-finite punch
+  // power reached `NaN / NaN` and handed a NaN intensity to camera shake, VFX
+  // scale and audio gain — where `linearRampToValueAtTime(NaN, …)` throws out
+  // of the per-frame audio update.
+  if (!(value > 0)) return 0;
+  // `Infinity / Infinity` is also NaN, so the curve's own limit has to be
+  // spelled out rather than left to the arithmetic. An unbounded magnitude
+  // saturates completely, which is exactly what this curve means.
+  if (value === Number.POSITIVE_INFINITY) return 1;
   return value / (value + half);
 }

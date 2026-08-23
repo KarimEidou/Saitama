@@ -90,6 +90,14 @@ export class BoredomModel {
       // Combat is the authority on boredom rising; adopt its value verbatim.
       // Ignore the echo of our own emissions.
       if (this.applying) return;
+      // ...but "verbatim" stops at a number. `clamp01` floors a non-finite
+      // value at 0, so adopting it would silently WIPE boredom on one bad
+      // event — a free pardon handed out by the only mechanic in the game the
+      // player cannot buy their way out of. Keep what we had and say so.
+      if (!Number.isFinite(event.value)) {
+        log.warn(`ignoring a non-finite BoredomChanged value of ${String(event.value)}`);
+        return;
+      }
       this.value = clamp01(event.value);
     });
   }
@@ -161,6 +169,16 @@ export class BoredomModel {
    *          boredom is already pinned at an end of the range.
    */
   apply(delta: number, reason: BoredomReason): number {
+    // `clamp01` now floors NaN at 0 rather than passing it through, which stops
+    // the value being poisoned — but it turns a broken delta into a SILENT
+    // RESET TO ZERO, and `next === previous` is false for that, so the reset
+    // would be published as a real change. Boredom only comes down through
+    // heroism; wiping it because an arithmetic slip upstream produced NaN hands
+    // the player a free pardon and lies to the HUD about why. Reject instead.
+    if (!Number.isFinite(delta)) {
+      log.warn(`ignoring a non-finite boredom delta of ${String(delta)} (${reason})`);
+      return 0;
+    }
     const previous = this.value;
     const next = clamp01(previous + delta);
     if (next === previous) return 0;

@@ -132,7 +132,11 @@ export class RivalTracker {
    */
   creditIncident(id: RivalId, basePoints: number, playerPoints: number): number {
     const rival = this.rivals.get(id);
-    if (!rival || basePoints <= 0) return 0;
+    // `!(basePoints > 0)`, not `basePoints <= 0`: NaN fails both, and
+    // `rival.points` is an accumulator — one non-finite incident report would
+    // park Genos at NaN points for the rest of the session, which `compareRank`
+    // then sorts arbitrarily against the player.
+    if (!rival || !(basePoints > 0)) return 0;
 
     const previous = this.rank(id);
     const gained = basePoints * RIVAL_CREDIT_MULTIPLIER[id];
@@ -160,7 +164,9 @@ export class RivalTracker {
    * @param days In-game days elapsed since the last call.
    */
   advanceOffscreen(days: number): void {
-    if (!this.offscreenProgress || days <= 0) return;
+    // Same negated form, same reason as `creditIncident`: a NaN day count fails
+    // `days <= 0` and would credit every rival NaN points at once.
+    if (!this.offscreenProgress || !(days > 0)) return;
     for (const rival of this.rivals.values()) {
       const previous = this.rank(rival.id);
       const gained = RIVAL_OFFSCREEN_POINTS_PER_DAY[rival.id] * days;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@/util';
 import type { GameEventOf } from '@/types';
 import { BoredomModel } from '../boredom';
@@ -332,5 +332,80 @@ describe('heroism derived from the bus', () => {
     );
     standing.dispose();
     fallen.dispose();
+  });
+});
+
+/**
+ * BOREDOM IS THE ONE THING THE PLAYER CANNOT BUY OUT OF
+ *
+ * Every write to the value goes through `clamp01`, which used to pass NaN
+ * straight through — so one bad delta poisoned it permanently, and from then
+ * on `rankGainMultiplier` was NaN (throttling every award to nothing),
+ * `funFightsAvailable` was FALSE (`NaN < 0.72` is false, so the interesting
+ * encounters stopped appearing and never came back), and `Game.tickAnimators`
+ * fed `clamp01(boredom)` into `setLocomotion`'s `slouch`, from where it
+ * reached every pose angle and made the character vanish.
+ *
+ * `clamp01` now floors NaN at 0, which stops the poison — but 0 is the WRONG
+ * answer here. Boredom comes down through heroism and nothing else; silently
+ * wiping it because an arithmetic slip upstream produced NaN is a free pardon,
+ * and `next === previous` is false for it, so it would even be published as a
+ * genuine change. The value is held and the event is refused instead.
+ */
+describe('a non-finite boredom value is refused, not adopted', () => {
+  it('holds the value rather than wiping it, and says so', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const bus = new EventBus();
+    const model = new BoredomModel({ bus, initial: 0.8 });
+    const emitted: unknown[] = [];
+    bus.on('BoredomChanged', (event) => emitted.push(event));
+
+    expect(model.apply(Number.NaN, 'trivialVictory')).toBe(0);
+    expect(model.boredom).toBeCloseTo(0.8, 9);
+    expect(emitted).toHaveLength(0);
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    // Combat is the authority on boredom rising — but only when it sends a
+    // number. A NaN here would otherwise be adopted as a reset to zero.
+    bus.emit('BoredomChanged', { value: Number.NaN, previous: 0.8, reason: 'trivialVictory' });
+    expect(model.boredom).toBeCloseTo(0.8, 9);
+    expect(warn).toHaveBeenCalledTimes(2);
+
+    // ...and a real change still lands.
+    bus.emit('BoredomChanged', { value: 0.3, previous: 0.8, reason: 'challengingFight' });
+    expect(model.boredom).toBeCloseTo(0.3, 9);
+    model.dispose();
+    warn.mockRestore();
+  });
+
+  it('keeps the throttle and the fun-fight lock on numbers a NaN would have jammed', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const model = new BoredomModel({ initial: 0.1 });
+    model.apply(Number.NaN, 'trivialVictory');
+    model.apply(Number.POSITIVE_INFINITY, 'trivialVictory');
+
+    expect(Number.isFinite(model.boredom)).toBe(true);
+    // `NaN * anything` is NaN, so the multiplier used to throttle every award
+    // to nothing without ever crossing a threshold anyone checks.
+    expect(model.rankGainMultiplier).toBeGreaterThanOrEqual(BOREDOM_RANK_FLOOR);
+    expect(model.rankGainMultiplier).toBeLessThanOrEqual(1);
+    // `NaN < BOREDOM_FUN_FIGHT_LOCK` is false: the lock latched permanently.
+    expect(model.funFightsAvailable).toBe(true);
+    model.dispose();
+    warn.mockRestore();
+  });
+
+  it('degrades a non-finite save field to 0 instead of carrying it forward', () => {
+    // Unlike a live delta, a broken SAVE has no last-good value to hold, so 0
+    // — bottom of the range, the state a new game starts in — is the right
+    // answer. `clamp01` supplies it now; before, it round-tripped the NaN.
+    expect(new BoredomModel({ initial: Number.NaN }).boredom).toBe(0);
+    expect(new BoredomModel({ initial: Number.NEGATIVE_INFINITY }).boredom).toBe(0);
+    expect(new BoredomModel({ initial: Number.POSITIVE_INFINITY }).boredom).toBe(1);
+
+    const model = new BoredomModel({ initial: 0.5 });
+    model.restore(Number.NaN);
+    expect(model.boredom).toBe(0);
+    model.dispose();
   });
 });

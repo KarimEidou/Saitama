@@ -7,7 +7,7 @@
  * but every one of these silently corrupts a session that keeps playing.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@/util';
 import type { IProgressionState } from '@/types';
 import { ProgressionSystem } from '../progression-system';
@@ -142,6 +142,97 @@ describe('who a rescue belongs to', () => {
 
     // The player's own stat line, which is written straight into the save.
     expect(harness.coordinator.progression.state.civiliansSaved).toBe(1);
+    harness.dispose();
+  });
+});
+
+/**
+ * ONE NaN MUST NOT END THE CAREER
+ *
+ * `pointsValue` is an ACCUMULATOR, and `Math.max(0, NaN)` is NaN, so a single
+ * non-finite award is permanent: every later award, every rank lookup and
+ * every save is NaN from that frame on, with nothing thrown.
+ *
+ * Both guards below exist because the comparisons around them are not guards.
+ * `points === 0` is FALSE for NaN, so `addPoints`'s early-out let it through;
+ * and `publishRank`'s `next.rank === previous.rank` is FALSE for NaN too, so a
+ * broken standing always looked like a change and always published. The HUD
+ * prints what it is given — `formatRank` renders a NaN rank as a plain `0` —
+ * so the only visible symptom was a rank of zero and no explanation anywhere.
+ */
+describe('a non-finite standing is neither accumulated nor published', () => {
+  it('rejects a non-finite award instead of freezing the ladder forever', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const bus = new EventBus();
+    const system = new ProgressionSystem({ bus });
+    const changes: unknown[] = [];
+    bus.on('RankChanged', (event) => changes.push(event));
+    const before = system.points;
+
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      system.addPoints(bad, 'broken-incident');
+    }
+
+    expect(system.points).toBe(before);
+    expect(Number.isFinite(system.points)).toBe(true);
+    expect(changes).toHaveLength(0);
+    // Not swallowed: a developer has to be able to find where it came from,
+    // which is why `reason` is in the message.
+    expect(error).toHaveBeenCalledTimes(3);
+    expect(String(error.mock.calls[0]?.[1])).toMatch(/non-finite point award/);
+
+    // ...and the system is still usable afterwards. That is the whole point.
+    system.addPoints(500, 'real');
+    expect(system.points).toBeGreaterThan(before);
+    expect(changes.length).toBeGreaterThan(0);
+    system.dispose();
+    error.mockRestore();
+  });
+
+  it('refuses to put a non-finite standing on the bus', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const bus = new EventBus();
+    const system = new ProgressionSystem({ bus });
+    const changes: unknown[] = [];
+    bus.on('RankChanged', (event) => changes.push(event));
+
+    // Reach past `addPoints`'s own guard to poison the accumulator directly —
+    // this is the last line of defence, and it has to hold on its own.
+    (system as unknown as { pointsValue: number }).pointsValue = Number.NaN;
+    system.addPoints(10, 'test');
+
+    expect(changes).toHaveLength(0);
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(String(error.mock.calls[0]?.[1])).toMatch(/refusing to publish a non-finite standing/);
+    system.dispose();
+    error.mockRestore();
+  });
+
+  it('ignores a broken day count rather than freezing the rival ladder', () => {
+    // `dayCount <= lastDayCount` is false for NaN, so the calendar took the
+    // NaN, and after that no real day was ever "later" than the last one.
+    const harness = makeHarness();
+    const before = harness.coordinator.rivals.rank('genos').points;
+
+    harness.coordinator.progression.onDayElapsed(Number.NaN);
+    expect(harness.coordinator.rivals.rank('genos').points).toBe(before);
+
+    harness.coordinator.progression.onDayElapsed(3);
+    expect(harness.coordinator.rivals.rank('genos').points).toBeGreaterThan(before);
+    expect(Number.isFinite(harness.coordinator.rivals.rank('genos').points)).toBe(true);
+    harness.dispose();
+  });
+
+  it('keeps a rival off NaN when an incident scores non-finite', () => {
+    // `basePoints <= 0` is false for NaN, so `rival.points += NaN` ran and
+    // `compareRank` then sorted Genos arbitrarily against the player forever.
+    const harness = makeHarness();
+    const before = harness.coordinator.rivals.rank('genos').points;
+
+    harness.coordinator.rivals.creditIncident('genos', Number.NaN, 10);
+    expect(harness.coordinator.rivals.rank('genos').points).toBe(before);
+    harness.coordinator.rivals.advanceOffscreen(Number.NaN);
+    expect(harness.coordinator.rivals.rank('genos').points).toBe(before);
     harness.dispose();
   });
 });

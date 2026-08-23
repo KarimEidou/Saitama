@@ -60,9 +60,12 @@ function buildThresholds(): number[] {
 /**
  * Clamp an arbitrary number onto a real seat.
  *
- * `clamp()` returns NaN unchanged — NaN compares false against both bounds — which made
- * `THRESHOLDS[NaN]` undefined and put `classForIndex(NaN)` at the TOP of the ladder. NaN is
- * normalised to 0, matching the stance `indexForPoints` already takes for a NaN point total.
+ * `clamp()` USED to return NaN unchanged — NaN compares false against both bounds — which made
+ * `THRESHOLDS[NaN]` undefined and put `classForIndex(NaN)` at the TOP of the ladder. It now
+ * floors a NaN value at `min`, so this explicit test is belt-and-braces rather than the only
+ * thing standing between a bad number and the top of the ladder. It stays: it states the
+ * intended seat for NaN at the point that cares, matching the stance `indexForPoints` already
+ * takes for a NaN point total, instead of inheriting it from a shared helper.
  * +/-Infinity keep their existing, correct meanings via `clamp`.
  */
 function seatIndex(index: number): number {

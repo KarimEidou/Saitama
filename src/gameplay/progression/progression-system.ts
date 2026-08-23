@@ -242,6 +242,17 @@ export class ProgressionSystem implements IProgressionSystem {
    * and the asymmetry is deliberate: the throttle must never become a shield.
    */
   addPoints(points: number, reason: string): void {
+    // `points === 0` is FALSE for NaN, so the early-out below is not a guard —
+    // it is a hole. A non-finite award sailed straight past it into
+    // `Math.max(0, this.pointsValue + scaled)`, which is ALSO NaN (`Math.max`
+    // propagates it), and `pointsValue` is an accumulator: from that frame on
+    // every award, every rank lookup and every save is NaN, permanently, with
+    // nothing thrown. Reject it here, loudly, while `reason` still says where
+    // it came from — one bad incident report must not end the career.
+    if (!Number.isFinite(points)) {
+      log.error(`ignoring a non-finite point award of ${String(points)} (${reason})`);
+      return;
+    }
     if (points === 0) return;
     const scaled = points > 0 ? points * this.boredomModel.rankGainMultiplier : points;
     const previous = this.stateValue.rank;
@@ -299,7 +310,12 @@ export class ProgressionSystem implements IProgressionSystem {
    * ladder must not freeze while the player is at the supermarket.
    */
   onDayElapsed(dayCount: number): void {
-    if (dayCount <= this.lastDayCount) return;
+    // `!(dayCount > last)`, not `dayCount <= last`: NaN fails BOTH, so the `<=`
+    // form let a broken calendar through to `advanceOffscreen(NaN)` and then
+    // parked `lastDayCount` at NaN, after which no later day ever counts as
+    // elapsed and the rival ladder freezes for the rest of the session.
+    // `syncDayCount` above already takes this stance; this is the same door.
+    if (!(dayCount > this.lastDayCount)) return;
     this.rivals.advanceOffscreen(dayCount - this.lastDayCount);
     this.lastDayCount = dayCount;
   }
@@ -702,6 +718,26 @@ export class ProgressionSystem implements IProgressionSystem {
 
   private publishRank(previous: IHeroRank, reason: string, delta: number): void {
     const next = this.stateValue.rank;
+    // FINITENESS FIRST, because the "did anything change?" test below cannot
+    // stand in for it: `NaN === NaN` is FALSE, so a non-finite standing always
+    // looks like a change, always passes the early-out, and always publishes.
+    // `RankChanged` is the one thing this system says out loud — the HUD, the
+    // rank board and the save all read it — and every consumer prints the
+    // number rather than validating it, so a NaN rank renders as a plain `0`
+    // on the glass with nothing anywhere to say the ladder is broken.
+    //
+    // `addPoints` already refuses non-finite input, so reaching this is a bug
+    // in this file rather than in a caller: log at `error`, not `warn`, and
+    // keep the last good standing on the bus rather than replacing it with
+    // garbage. Refusing to publish is strictly better than publishing this,
+    // and being seen is what makes it fixable.
+    if (!Number.isFinite(next.rank) || !Number.isFinite(next.points)) {
+      log.error(
+        `refusing to publish a non-finite standing (${next.heroClass}-${String(next.rank)}, ` +
+          `${String(next.points)} pts) from ${reason}; holding ${formatRank(previous)}`
+      );
+      return;
+    }
     if (next.heroClass === previous.heroClass && next.rank === previous.rank) return;
     const promoted = delta > 0;
     this.bus.emit('RankChanged', {
