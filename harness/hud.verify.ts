@@ -872,12 +872,26 @@ async function main(): Promise<void> {
         const bandStats = await analyse(frame, band);
         const corridorStats = await analyse(frame, corridor);
 
+        // THE DIMENSIONS ARE THE PROOF, and nothing else here is.
+        //
+        // `analyse` materialises the pipeline with `.toBuffer({resolveWithObject:true})`
+        // and reports `info.width`/`info.height`, which are the bytes it actually
+        // decoded. So if `extract()` were silently skipped — the trap this whole
+        // block exists to demonstrate — the band would come back 1170 tall rather
+        // than 360, and this fails. That is a direct observation of the crop, not
+        // an inference from one.
+        //
+        // This used to ALSO require the band's mean luminance to differ from the
+        // whole frame's by 0.5. That was a proxy, and a bad one: it assumes the
+        // top band is always brighter or darker than the average of the frame,
+        // which is a fact about the design rather than about cropping. The HUD
+        // redesign made the two means coincide honestly — 36.6 against 36.5 — and
+        // the guard started reporting a cropping failure that had not happened.
+        // A guard against a silent no-op must not itself depend on a coincidence.
         check(
           'the region crop actually crops',
-          bandStats.width === band.width &&
-            bandStats.height === band.height &&
-            Math.abs(bandStats.meanLuma - whole.meanLuma) > 0.5,
-          `band ${bandStats.width}x${bandStats.height} mean ${bandStats.meanLuma.toFixed(1)} vs frame ${whole.width}x${whole.height} mean ${whole.meanLuma.toFixed(1)}`
+          bandStats.width === band.width && bandStats.height === band.height,
+          `band ${bandStats.width}x${bandStats.height}, asked for ${band.width}x${band.height} (frame ${whole.width}x${whole.height})`
         );
         check(
           'the HUD band carries far more detail than the empty corridor',

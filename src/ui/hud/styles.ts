@@ -634,7 +634,7 @@ ${allPalettes()}
   display:grid;row-gap:4px;align-content:center;flex:1 1 auto;
   width:min(calc(560px * var(--hud-scale)),100%);
 }
-.hud-encounter__head{display:flex;align-items:baseline;gap:9px;min-width:0}
+.hud-encounter__head{display:flex;align-items:baseline;gap:8px;min-width:0}
 /* Colour is the accelerator; the word is the message. No five-hue ramp survives
    dichromacy alone, so the tier NEVER appears without its word — as a
    classification stamp, which is what the Association would actually print.
@@ -685,11 +685,15 @@ ${allPalettes()}
    It also fixes the plate's third right edge: the collateral track is
    full-bleed (flex:1 0 100%) and ended 12 px right of the widest figure, so
    one plate had an 11 px left margin and a 23 px optical right one. The last
-   cell now ends flush with the track it sits over. */
+   cell now ends flush with the track it sits over.
+   10 px between columns rather than 12, and the two pixels are not a taste
+   change: three gaps at 130 % HUD scale is 6 px of a row that was 51 px over
+   budget, and the register is the widest plate in it. Uniform is what makes a
+   tally read as a tally; 12 was not load-bearing, evenness is. */
 .hud-ledger{
   --hud-edge:var(--hud-saved);
   display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;flex:1 1 auto;
-  column-gap:12px;row-gap:3px;
+  column-gap:10px;row-gap:3px;
 }
 .hud-ledger[data-lost='true']{--hud-edge:var(--hud-lost)}
 .hud-ledger__cell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0;flex:1 1 auto}
@@ -843,7 +847,7 @@ ${allPalettes()}
   left:var(--hud-sa-l);right:var(--hud-sa-r);
   bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift));
   width:min(calc(var(--hud-arc-w) * var(--hud-scale)),max(calc(120px * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r) - var(--hud-reserve-l) - var(--hud-reserve-r))));
-  height:var(--hud-arc-h);margin:0 auto;
+  height:calc(var(--hud-arc-h) * var(--hud-scale));margin:0 auto;
   translate:calc((var(--hud-reserve-l) - var(--hud-reserve-r)) / 2) 0;
   opacity:var(--hud-on,0);
   transform:translateY(calc((1 - var(--hud-on,0)) * 10px))
@@ -881,15 +885,23 @@ ${allPalettes()}
    the label's height. "NO RESTRAINT" cleared the stroke by under 3 px purely
    because that string happens to be the width it is; one more character, or a
    localised intent word, lands on the stroke, in the stroke's own colour.
-   50% ± .57 × --hud-arc-h is that corridor derived rather than eyeballed: the
-   148x100 viewBox is letterboxed to the box's HEIGHT, so the drawing scale is
-   --hud-arc-h/100, and the inner edge of either leg sits 57 viewBox units from
-   the centre over the label's band. Expressed against 50% it stays true when
-   the box is wider than the drawing — which it is at 130 % HUD scale, where the
-   width scales and the height does not. */
+   50% ± .57 × the box height is that corridor derived rather than eyeballed:
+   the 148x100 viewBox is letterboxed to the box's HEIGHT, so the drawing scale
+   is that height / 100, and the inner edge of either leg sits 57 viewBox units
+   from the centre over the label's band. Expressed against 50% rather than
+   against the box's own edges, it stays true when the box is wider than the
+   drawing, which it is whenever the corridor cap does not bind.
+   AND THE BOX HEIGHT NOW SCALES, which it did not: the width carried
+   var(--hud-scale) and the height did not, so at 130 % HUD scale the box got
+   wider, the SVG letterboxed to an unchanged 86 px, and the gauge stayed the
+   size it is at 100 % while the intent word inside it grew by a third. The
+   corridor stayed 98 px while "NO RESTRAINT" grew to 115 and would have
+   ellipsised inside its own gauge. A gauge is furniture for the type in it; it
+   scales with the type. The alert stack hangs off this box and takes the same
+   term so the bulletin still clears the arc it sits on. */
 .hud-charge__label{
   position:absolute;bottom:15px;text-align:center;
-  left:calc(50% - var(--hud-arc-h) * .57);right:calc(50% - var(--hud-arc-h) * .57);
+  left:calc(50% - var(--hud-arc-h) * var(--hud-scale) * .57);right:calc(50% - var(--hud-arc-h) * var(--hud-scale) * .57);
   font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
   padding-left:.06em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -1404,7 +1416,7 @@ ${allPalettes()}
      apart, is the misalignment nobody can name and everybody sees. */
   .hud-alerts{
     top:auto;
-    bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift) + var(--hud-arc-h) + var(--hud-gap));
+    bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift) + var(--hud-arc-h) * var(--hud-scale) + var(--hud-gap));
     max-width:min(calc(300px * var(--hud-scale)),38vw);
     translate:calc((var(--hud-reserve-l) - var(--hud-reserve-r)) / 2) 0;
   }
