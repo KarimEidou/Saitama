@@ -74,7 +74,14 @@ export interface AxisState {
   readonly y: number;
   /** Magnitude 0..1, already dead-zoned and clamped to the unit circle. */
   readonly magnitude: number;
-  /** Direction in radians, 0 = +X, counter-clockwise. Undefined when centred. */
+  /**
+   * Direction in radians, 0 = +X, counter-clockwise.
+   *
+   * 0 when centred — NOT undefined: `InputState` has to stay
+   * JSON-serialisable for record/replay, and a sentinel here would be
+   * indistinguishable from a stick held due east. Check `active` or
+   * `magnitude` before reading it.
+   */
   readonly angle: number;
   /** True while the stick is being actively driven. */
   readonly active: boolean;
@@ -168,21 +175,48 @@ export interface IInputSource {
   dispose(): void;
 }
 
-/** Tunable input feel. */
+/**
+ * Tunable input feel.
+ *
+ * Three fields are ADVISORY — no backend reads them, so writing them changes
+ * nothing. They are marked individually below and kept rather than deleted
+ * because each names a real concept the touch and gamepad backends express in
+ * their own concrete units; a settings screen should not offer them as if they
+ * were live.
+ */
 export interface IInputConfig {
-  /** Stick magnitude below this is treated as centred. */
+  /**
+   * ADVISORY — UNIMPLEMENTED. Normalised stick dead zone.
+   *
+   * No backend consults it: the touch stick dead-zones in CSS pixels from the
+   * floating origin and the gamepad applies its own radial dead zone, so this
+   * normalised figure has no site that could honour it without contradicting
+   * one of them.
+   */
   readonly deadZone: number;
   /** Look sensitivity multiplier. */
   readonly lookSensitivity: number;
   /** Invert the look Y axis. */
   readonly invertLookY: boolean;
-  /** Seconds a press must last to count as a hold. */
+  /**
+   * ADVISORY — UNIMPLEMENTED. Seconds a press must last to count as a hold.
+   *
+   * `ButtonState.holdTime` is reported raw and every consumer sets its own
+   * threshold; the punch charge, the only one that matters, uses its own
+   * charge-start and charge-full times.
+   */
   readonly holdThreshold: number;
   /** Seconds within which two presses count as a double-tap. */
   readonly doubleTapWindow: number;
   /** Virtual stick radius in CSS pixels. */
   readonly stickRadius: number;
-  /** Let the virtual stick re-centre where the thumb first lands. */
+  /**
+   * ADVISORY — UNIMPLEMENTED. Re-centre the virtual stick where the thumb
+   * lands.
+   *
+   * The touch stick is always floating; there is no fixed-origin path to
+   * select, so setting this false does not pin it.
+   */
   readonly floatingStick: boolean;
   /** Fire haptics on action presses. */
   readonly hapticsEnabled: boolean;

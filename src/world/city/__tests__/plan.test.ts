@@ -111,6 +111,17 @@ describe('cityz.plan.json', () => {
       expect(kinds.has(kind as never), kind).toBe(true);
     }
   });
+
+  it('publishes the real chunk grid in the streaming world config', () => {
+    // `worldRadiusChunks` reads a SYMMETRIC `(2r+1)^2` area, which an even grid
+    // cannot be: on the 16x16 plan it is 7 and the whole -8 row and column fall
+    // outside it. `worldGridChunks` is what a consumer iterating the world has
+    // to use, and both producers of `IWorldConfig` must agree on it.
+    const config = makeGenerator('box').worldConfig([]);
+    expect(config.worldGridChunks).toBe(CITY_Z_PLAN.chunkGrid);
+    expect(config.worldRadiusChunks).toBe((CITY_Z_PLAN.chunkGrid >> 1) - 1);
+    expect(config.chunkSize).toBe(CHUNK_SIZE);
+  });
 });
 
 describe('asset bindings', () => {

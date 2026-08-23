@@ -3,8 +3,7 @@
  *
  * The world's destruction record is 8 KB for the whole city — 256 chunks x 16
  * buildings x 16 pieces, one bit each. That budget is what lets damage live in
- * memory forever and go into a save file with no serialisation format, and it
- * is not negotiable.
+ * memory forever and fit in a save file whole, and it is not negotiable.
  *
  * ── THE GRANULARITY GAP, STATED HONESTLY ───────────────────────────────────
  * The bitmask's 16 pieces per building are 4 vertical bands x 4 plan quarters.
@@ -22,12 +21,20 @@
  *
  *   BITMASK (this addressing)       coarse, 1 bit per band x quarter, owned by
  *                                   the streaming system, transferable to the
- *                                   geometry worker, and the thing that
- *                                   survives a save. A far-LOD rebuild reads
+ *                                   geometry worker, and the record BUILT to
+ *                                   survive a save. A far-LOD rebuild reads
  *                                   it and omits the boxes; that rebuild is
  *                                   already a box-per-piece approximation of
  *                                   the building, so band granularity is the
  *                                   right granularity for it.
+ *
+ * "Built to" is exact, and the difference matters to anyone reading this to
+ * find out why their crater came back as an intact wall: `ChunkDamageState`
+ * has the serialiser (an 8 KB blob with a checksum, shaped to share a
+ * container with `PvsTable.serialize`), but no save payload carries it yet —
+ * `IStoredSave` (`src/gameplay/progression/save-game.ts`) has no damage field,
+ * so today the mask is a WITHIN-SESSION record like the ledger. Wiring it in is
+ * a save-format change, and it belongs there rather than here.
  *
  * ── THE FACE-TO-CORNER MAP ─────────────────────────────────────────────────
  * A fracture chunk is one FACE of one floor (+X, +Z, -X, -Z). A mask piece is

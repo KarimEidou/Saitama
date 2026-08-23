@@ -415,7 +415,7 @@ function renderWalkCycle(): WalkStats {
     const phase = solver.phase;
     const stance = [report.left, report.right].filter((f) => f.phase === 'stance').length;
     stanceCounts.push(stance);
-    const foot = (f: typeof report.left): string =>
+    const foot = (f: LocomotionReport['left']): string =>
       f.phase === 'stance'
         ? `<span class="ok">stance ${(f.progress * 100).toFixed(0)}%</span>`
         : `<span class="dim">swing  ${(f.progress * 100).toFixed(0)}%</span>`;

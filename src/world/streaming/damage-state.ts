@@ -186,7 +186,20 @@ export class ChunkDamageState {
   /* Dirty tracking — drives chunk rebuilds                             */
   /* ------------------------------------------------------------------ */
 
-  /** Chunks changed since the last `clearDirty()`. */
+  /**
+   * Chunks changed since the last call. CONSUME-ONCE, and single-consumer.
+   *
+   * One instance is shared by two systems wherever both are built (the
+   * harness does; `src/game` currently gives it to `DestructionSystem` alone,
+   * as its `IDamageSink`, and streams through its own city streamer). Every
+   * `setDestroyed` from either side lands in the one dirty set. Only the
+   * streaming system may drain it — a second caller would take entries the
+   * streamer then never rebuilds, leaving a levelled building standing until
+   * something else happened to dirty its chunk. Destruction deliberately does
+   * NOT have this on its port (`IDamageSink` is `setDestroyed`/`isDestroyed`
+   * only); a consumer that just wants to know whether anything moved should
+   * read `dirtyCount`, which does not consume.
+   */
   takeDirty(): number[] {
     const out = [...this.dirty];
     this.dirty.clear();

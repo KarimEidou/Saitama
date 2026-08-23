@@ -13,8 +13,8 @@
  * `systems.failed[scope]` keeps carrying the latest detail per scope.
  */
 
-import { describe, expect, it } from 'vitest';
-import { recordError, type IIntegrationDiagnostics } from '../diagnostics';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createDiagnostics, recordError, type IIntegrationDiagnostics } from '../diagnostics';
 
 /** Only the two fields `recordError` touches. */
 function stubDiagnostics(): IIntegrationDiagnostics {
@@ -53,5 +53,36 @@ describe('recordError', () => {
     );
     // The latest detail for the scope is never stale.
     expect(diagnostics.systems.failed['frame']).toBe('unique 499');
+  });
+});
+
+/**
+ * The stub `src/main.ts` publishes is the ONLY error sink between page load and
+ * the GPU probe — the window where a device that cannot run this game at all
+ * fails. `createDiagnostics` replaced the global outright, so those entries
+ * vanished at the exact moment the harness went looking for them.
+ *
+ * Tests run in node, where there is no `window`; the global is stubbed rather
+ * than switching the whole suite to a DOM environment for two assertions.
+ */
+describe('createDiagnostics', () => {
+  const scope = globalThis as unknown as { window?: unknown };
+
+  afterEach(() => {
+    delete scope.window;
+  });
+
+  it("carries the boot stub's errors across instead of dropping them", () => {
+    scope.window = { __GAME_DIAG__: { errors: ['uncaught: boom (main.ts:1)'] } };
+    const diagnostics = createDiagnostics('high', 'test');
+    expect(diagnostics.errors).toEqual(['uncaught: boom (main.ts:1)']);
+    // And the live object is the published one, so a harness that captured it
+    // keeps seeing fresh values.
+    expect((scope.window as { __GAME_DIAG__: unknown }).__GAME_DIAG__).toBe(diagnostics);
+  });
+
+  it('starts empty when nothing was published before it', () => {
+    scope.window = {};
+    expect(createDiagnostics('low', 'test').errors).toEqual([]);
   });
 });

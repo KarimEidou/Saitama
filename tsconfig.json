@@ -51,6 +51,7 @@
     "tools/**/*.ts",
     "scripts/**/*.ts",
     "verification/**/*.ts",
+    "harness/**/*.ts",
     "vite.config.ts",
     "capacitor.config.ts"
   ],

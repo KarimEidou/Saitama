@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { DEFAULT_INPUT_TUNING } from '@/ui/input';
 import {
   DEFAULT_CAMERA_TUNING,
   DEFAULT_LOCOMOTION_TUNING,
@@ -50,7 +51,15 @@ describe('values mirrored from other systems', () => {
   });
 
   it('matches the input look rate and charge threshold', () => {
-    // src/ui/input/config.ts — lookFullRateDegPerSec, chargeStartSec.
+    // Against the LIVE module, not a literal. `IPlayerTuning.camera` documents
+    // both of these as mirrors of `src/ui/input/config.ts`, and the settings
+    // screen scales `lookSensitivity` — the separate GAIN — at runtime, so the
+    // denominator on either side has to stay one number. A copied literal
+    // cannot notice the day the input side moves.
+    expect(C.lookFullRateDegPerSec).toBe(DEFAULT_INPUT_TUNING.lookFullRateDegPerSec);
+    expect(C.chargeStartSeconds).toBe(DEFAULT_INPUT_TUNING.chargeStartSec);
+    // Pinned separately, so a coordinated change to both still shows up in a
+    // diff rather than sliding through as "the mirror still matches".
     expect(C.lookFullRateDegPerSec).toBe(220);
     expect(C.chargeStartSeconds).toBe(0.22);
   });

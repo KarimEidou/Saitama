@@ -370,6 +370,35 @@ export class PostProcessing implements IPostProcessing {
   }
 
   /**
+   * The effect names this chain actually honours right now.
+   *
+   * Built from the LIVE passes rather than from the profile flags, because the
+   * two disagree on purpose: `AnimeCompositePass` carries all three of its
+   * sub-effects in one shader, so once it exists a settings UI may switch any
+   * of them back on even when the tier left them off. Antialiasing is the
+   * opposite case — only the variant the profile named is built, so the other
+   * name would toggle a pass the caller did not ask for.
+   *
+   * `filmGrain` and `depthOfField` are never listed: they are named in the
+   * contract but deliberately unimplemented here.
+   */
+  supportedEffects(): readonly PostEffectName[] {
+    const effects: PostEffectName[] = [];
+    if (this.bloomPass) effects.push('bloom');
+    if (this.ssaoPass) effects.push('ssao');
+    if (this.animePass) effects.push('motionBlur');
+    if (this.outputPass) effects.push('vignette');
+    if (this.animePass) effects.push('chromaticAberration');
+    // `colorGrading` needs a table to grade against: without `profile.lut` the
+    // output pass is live but `setLut` has nothing but null to install.
+    if (this.outputPass && this.lut) effects.push('colorGrading');
+    if (this.aaPass && this.profile.antialias === 'fxaa') effects.push('fxaa');
+    if (this.aaPass && this.profile.antialias === 'smaa') effects.push('smaa');
+    if (this.animePass) effects.push('speedLines');
+    return effects;
+  }
+
+  /**
    * One log line when an effect the current tier never built is addressed.
    *
    * Six of the eleven `PostEffectName`s resolve to a guarded no-op on the

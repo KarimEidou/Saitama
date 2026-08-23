@@ -896,6 +896,24 @@ export type ImpostorBuildOutput = Omit<IImpostorBuildResult, 'id'>;
  *
  * Damage is deliberately NOT applied: this is baked once at boot from the seed
  * alone, and a missing corner is not resolvable at 800 m.
+ *
+ * ── IT SILHOUETTES `chunk-layout.ts`, AND ONLY THAT ────────────────────────
+ * Both the boxes and their positions come from `layoutChunk`, this
+ * workstream's PLACEHOLDER city (see that file's OWNERSHIP note) — not from
+ * `@/world/city`, whose plan puts its blocks somewhere else entirely. The two
+ * must therefore never be mixed: a skyline baked here in front of a city
+ * generated there is a horizon whose buildings do not line up with any street.
+ * Two things keep that from happening by accident, and both must stay:
+ *
+ *  • `registerChunkGenerator(id, chunk, impostor)` takes the pair TOGETHER, so
+ *    a generator cannot register near geometry without the matching silhouette.
+ *  • `src/game` does not use this path at all. It bakes its own ring from the
+ *    real plan (`bakeSkyline` in `src/game/city-streamer.ts`) and feeds it to
+ *    `ImpostorRing` directly.
+ *
+ * Unifying the two generators is not a change that belongs here: it means
+ * shipping the plan JSON and the whole of `@/world/city` into the worker
+ * bundle.
  */
 export function buildImpostorGeometry(seed: number): ImpostorBuildOutput {
   const started = now();

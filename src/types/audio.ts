@@ -32,12 +32,28 @@ export interface IAudioBus {
 
 /** Options for a single playback. */
 export interface IPlayOptions {
-  /** Linear gain 0..1, multiplied by the bus volume. */
+  /**
+   * Linear gain, multiplied by the patch gain and then by the bus volume.
+   *
+   * 1 is the patch's designed level and 0..1 attenuates. Values ABOVE 1 are
+   * allowed and clamped at 4: a critical hit is mixed at 1.15 so it sits over
+   * the rest of the frame without every other cue having to be pulled down.
+   * Treat anything past ~1.5 as a mixing mistake rather than a loudness knob.
+   */
   readonly volume?: number;
   /** Playback rate; also shifts pitch. */
   readonly rate?: number;
   /** Random pitch variation ±this fraction. Avoids machine-gun repetition. */
   readonly pitchVariation?: number;
+  /**
+   * BEDS ONLY, and normally left alone.
+   *
+   * Looping is a property of the patch, not of the playback: a sustained voice
+   * (music, ambience) already runs until stopped, and a synthesised one-shot
+   * has a designed tail that cannot be spliced end-to-end without a click.
+   * Setting it on a one-shot key does nothing and warns once. Repeat a
+   * one-shot by playing it again.
+   */
   readonly loop?: boolean;
   /** Fade-in seconds. */
   readonly fadeIn?: number;
@@ -94,7 +110,14 @@ export interface ISoundHandle {
 export interface IAudioSystem extends IUpdatable, IDisposable {
   /** False until a user gesture has resumed the AudioContext. */
   readonly unlocked: boolean;
-  /** Currently playing voices. */
+  /**
+   * Currently playing voices, counted against `maxVoices`.
+   *
+   * EXCLUDES sustained beds (music, ambience). A bed's duration is Infinity,
+   * so counting it would permanently spend a budget slot that `update()` can
+   * never reclaim, and would make the music the lowest-priority victim of
+   * voice stealing in every dense frame.
+   */
   readonly voiceCount: number;
   /** Hard ceiling on concurrent voices. */
   readonly maxVoices: number;

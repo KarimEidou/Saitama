@@ -33,8 +33,6 @@ export interface IManagedTextureHandle extends TextureHandle {
   readonly compressed: boolean;
   /** Tier the bytes actually came from, after any downgrade. */
   readonly tier: string;
-  /** True when this is a marked stand-in for a missing asset. */
-  readonly fallback: boolean;
   /** Free the GPU texture regardless of count. Registry/shutdown only. */
   dispose(): void;
 }
@@ -148,6 +146,7 @@ function inertHandle(source: TextureHandle): TextureHandle {
     height: source.height,
     codec: source.codec,
     gpuBytes: 0,
+    fallback: source.fallback,
     refCount: 0,
     retain: () => dead,
     release: () => undefined,

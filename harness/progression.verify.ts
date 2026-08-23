@@ -102,9 +102,9 @@ interface IHarnessSnapshot {
   ready: boolean;
   assetsLoaded: boolean;
   iblMode: string;
-  skiesLoaded: string[];
-  skiesMissing: string[];
-  normalisation: {
+  skiesLoaded: readonly string[];
+  skiesMissing: readonly string[];
+  normalisation: readonly {
     sky: string;
     meanLuminance: number;
     maxLuminance: number;
@@ -121,8 +121,12 @@ interface IHarnessSnapshot {
   triangles: number;
   programs: number;
   sky: ISkySnapshot;
-  progression: Record<string, unknown>;
-  problems: string[];
+  /**
+   * The page's progression block. Opaque on purpose: this driver never reads
+   * it, and `harness/progression.ts` owns its shape.
+   */
+  progression: object;
+  problems: readonly string[];
 }
 
 interface IScenarioResult {
@@ -977,21 +981,10 @@ async function main(): Promise<void> {
   }
 }
 
-declare global {
-  interface Window {
-    __PROGRESSION_HARNESS__?: {
-      ready: boolean;
-      snapshot(): unknown;
-      meta(): unknown;
-      setTimeOfDay(t: number): void;
-      step(dt?: number): void;
-      settle(frames: number): void;
-      runScenarios(): unknown;
-      runSaveRoundTrip(): Promise<unknown>;
-      shotTimes(): unknown;
-    };
-  }
-}
+/* `window.__PROGRESSION_HARNESS__` is declared once, by the page that installs
+   it (`harness/progression.ts`). Both files are in the tsconfig program, so the
+   global reaches the `page.evaluate` callbacks below from there. Mirroring the
+   shape here as well is what let the two copies drift apart. */
 
 main().catch((error) => {
   console.error(error);

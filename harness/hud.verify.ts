@@ -774,25 +774,10 @@ async function main(): Promise<void> {
   console.log('HUD verification passed.');
 }
 
-declare global {
-  interface Window {
-    __HUD_HARNESS__?: {
-      ready: boolean;
-      scene(name: string): void;
-      setViewport(insets: { top: number; right: number; bottom: number; left: number }): void;
-      setSettings(patch: Record<string, unknown>): void;
-      setOverlays(on: boolean): void;
-      step(frames: number): void;
-      measure(frames: number): IMeasurement;
-      panels(): IPanelRect[];
-      inputGeometry(): IInputGeometry;
-      snapshot(): Record<string, unknown>;
-      back(): boolean;
-      activeScreen(): string;
-      press(selector: string): boolean;
-    };
-  }
-}
+/* `window.__HUD_HARNESS__` is declared once, by the page that installs it
+   (`harness/hud.ts`). Both files are in the tsconfig program, so the global
+   reaches the `page.evaluate` callbacks above from there. Mirroring the shape
+   here as well is what let the two copies drift apart. */
 
 main().catch((error) => {
   console.error(error);

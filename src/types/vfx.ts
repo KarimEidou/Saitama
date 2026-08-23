@@ -47,7 +47,14 @@ export interface IVFXSpawnOptions {
   readonly scale?: number;
   /** Intensity 0..1; drives particle count, brightness and lifetime. */
   readonly intensity?: number;
-  /** Tint as a hex integer. */
+  /**
+   * Tint as an sRGB hex integer.
+   *
+   * Honoured by the FLASH and SPARK populations only. Dust, debris shells and
+   * ground cracks are art-directed and ignore it: a tinted dust cloud reads as
+   * coloured fog rather than as a coloured impact. Omit to keep every module
+   * default.
+   */
   readonly color?: number;
   /** Follow this object as it moves. */
   readonly attachTo?: THREE.Object3D;
@@ -71,7 +78,14 @@ export interface IVFXHandle {
   stop(): void;
   /** Remove immediately. */
   kill(): void;
-  /** Move an unattached effect. */
+  /**
+   * Move an unattached effect or trail.
+   *
+   * On a TRAIL this also resets the velocity differencing: the trail treats
+   * the new position as a fresh start rather than as one frame's motion, so a
+   * teleport lays down a jump-length streak. Already-emitted particles keep
+   * the position they were emitted at.
+   */
   setPosition(position: THREE.Vector3): void;
 }
 
@@ -135,7 +149,14 @@ export interface IVFXSystem extends IUpdatable, IDisposable {
 
   /** Spawn an effect. Returns undefined when the budget rejected it. */
   spawn(effect: VFXEffectName, options: IVFXSpawnOptions): IVFXHandle | undefined;
-  /** Project a decal. Returns false when the decal budget is full. */
+  /**
+   * Project a decal.
+   *
+   * Returns false ONLY when the tier has zero decal capacity. A full buffer
+   * recycles its oldest entry and still returns true — losing the oldest crack
+   * is correct, refusing to draw the newest one is not — so a false return
+   * means "this tier draws no decals at all", not "try again later".
+   */
   addDecal(options: IDecalOptions): boolean;
   /** Attach a motion trail to an object, e.g. a fist during a punch. */
   addTrail(target: THREE.Object3D, materialKey: string, lifetime: number): IVFXHandle | undefined;
@@ -143,6 +164,16 @@ export interface IVFXSystem extends IUpdatable, IDisposable {
   stopAll(effect?: VFXEffectName): void;
   /** Clear everything, e.g. on fast travel. */
   clear(): void;
-  /** Pre-warm pools so the first punch of a session does not hitch. */
+  /**
+   * Pre-warm pools so the first punch of a session does not hitch.
+   *
+   * POOLS ONLY. The hitch that matters is shader linking, and this signature
+   * carries no renderer, scene or camera, so an implementation cannot compile
+   * a program from here — it warns rather than resolving silently, because a
+   * caller who asked for no hitch and got a resolved promise would have no
+   * reason to look further. Render one frame with the VFX meshes visible
+   * before the loading screen clears, or call the implementation's own
+   * `compile(renderer, scene, camera)`.
+   */
   preload(effects: readonly VFXEffectName[]): Promise<void>;
 }

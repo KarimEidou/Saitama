@@ -425,7 +425,7 @@ function buildMaterialGrid(
     // cell width, and the family is obvious from the sphere.
     labels.push({
       text: id.split('.').slice(-2).join('.'),
-      sub: `${[...tiers].join('/') || '—'} · ${albedo?.image?.width ?? 0}px`,
+      sub: `${[...tiers].join('/') || '—'} · ${(albedo?.image as { width?: number } | undefined)?.width ?? 0}px`,
       position: new THREE.Vector3(x, y - 0.62, 0),
     });
   });

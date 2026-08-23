@@ -167,9 +167,7 @@ export function buildMaterial(
     // pattern, and `missing` stays empty — which is how one absent Basis
     // transcoder painted the whole city magenta while `missingTextures`
     // reported nothing wrong and every downstream fallback stayed asleep.
-    // `TextureHandle`, the contract type, has no `fallback` field, so the flag
-    // is read structurally rather than by widening the contract.
-    if ((handle as { fallback?: boolean }).fallback === true) {
+    if (handle.fallback) {
       missing.push(key);
       log.warn(`material "${spec.id}" bound texture "${key}", which is a marked stand-in`);
       // Retained like any other bound texture, but NOT run through the slot

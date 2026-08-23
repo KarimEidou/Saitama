@@ -189,7 +189,14 @@ export interface IAssetLOD {
   readonly file: string;
   /** Triangle count after decimation. */
   readonly triangles: number;
-  /** File size in bytes. */
+  /**
+   * DECODED vertex + index bytes for this level.
+   *
+   * Not a file size: every level of a model shares ONE `.glb`, so per-level
+   * file sizes do not exist, and the summed decoded figure runs a couple of
+   * times the compressed file. Use `IAssetOutput.bytes` for what is fetched
+   * over the wire.
+   */
   readonly bytes: number;
   /** Distance in metres beyond which this LOD is used. */
   readonly screenDistance?: number;
@@ -423,8 +430,8 @@ export interface IAssetManifest {
  * A reference-counted GPU texture handle.
  *
  * Textures are shared aggressively across materials, so consumers must call
- * `release()` rather than disposing the underlying `THREE.Texture` directly —
- * the last release actually frees the GPU memory.
+ * `release()` rather than disposing the underlying `THREE.Texture` directly.
+ * A released handle becomes EVICTABLE, not freed — see `release()`.
  */
 export interface TextureHandle {
   /** Asset id this handle refers to. */
@@ -439,11 +446,31 @@ export interface TextureHandle {
   readonly codec: TextureCodec;
   /** Approximate GPU bytes, including mips. */
   readonly gpuBytes: number;
+  /**
+   * True when this handle is a MARKED STAND-IN for an asset that failed to
+   * load or transcode, not the real texture.
+   *
+   * Such a handle is fully resident — a lookup for its key SUCCEEDS and the
+   * material binds — so without this flag one absent transcoder paints the
+   * whole city in the missing-asset checker while every "is it loaded" check
+   * reports success. Treat a bound stand-in as a missing texture.
+   */
+  readonly fallback: boolean;
   /** Current reference count. */
   readonly refCount: number;
   /** Increment the reference count; returns this handle. */
   retain(): TextureHandle;
-  /** Decrement; frees GPU memory when it reaches 0. */
+  /**
+   * Decrement the reference count. At 0 the handle becomes EVICTABLE; the
+   * bytes are reclaimed by the next eviction pass, or immediately if the
+   * budget is already over.
+   *
+   * Deliberately not free-at-zero: during streaming a texture is routinely
+   * released as one chunk unloads and retained again a frame later as the next
+   * loads, and re-transcoding a 4 MB KTX2 to save 350 KB for 16 ms is a bad
+   * trade. A registry's `setEagerRelease(true)` restores literal free-at-zero
+   * for callers that want it.
+   */
   release(): void;
 }
 

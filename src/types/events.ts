@@ -276,7 +276,15 @@ export interface BoredomChangedEvent extends IEventBase {
     | 'idle'
     | 'questComplete'
     | 'civilianSaved'
-    | 'decay';
+    | 'decay'
+    /**
+     * A save was loaded. Not a change in the fiction — the number came back
+     * from disk — but it MUST travel on this event: two meters and the HUD
+     * adopt boredom by subscription and nothing else can tell them, so a
+     * restore that stayed silent left the combat meter on its baseline and the
+     * next kill emitted from that stale value, spending the restored one.
+     */
+    | 'restored';
 }
 
 /* -------------------------------------------------------------------------- */

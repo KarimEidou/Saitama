@@ -193,8 +193,19 @@ function zeroBootTimings(): IBootTimings {
  *
  * Published BEFORE anything can fail, so a boot that dies in the renderer still
  * leaves a readable `errors` array behind instead of an undefined global.
+ *
+ * ── WHAT CARRIES OVER ──────────────────────────────────────────────────────
+ * `src/main.ts` publishes a zeroed stub the moment the bundle evaluates, and
+ * its window `error` / `unhandledrejection` handlers append to whichever object
+ * is published at the time. This runs several steps into `Game.boot` — after
+ * `detectPlatform()` and the GPU probe — so replacing the global outright threw
+ * away every fault recorded in exactly the window where the diagnostic is worth
+ * the most: a module that failed to parse, a probe that threw on a driver this
+ * machine does not have. The errors are moved across; everything else is
+ * genuinely zeroed, because the stub has no real values in it.
  */
 export function createDiagnostics(quality: IQualityTier, build: string): IIntegrationDiagnostics {
+  const carried = (window.__GAME_DIAG__?.errors ?? []).slice(0, MAX_ERROR_ENTRIES);
   const diagnostics: IIntegrationDiagnostics = {
     renderer: 'unknown',
     vendor: 'unknown',
@@ -209,7 +220,7 @@ export function createDiagnostics(quality: IQualityTier, build: string): IIntegr
     quality,
     bootTimeMs: 0,
     build,
-    errors: [],
+    errors: carried,
     boot: zeroBootTimings(),
     timings: zeroFrameTimings(),
     systems: { online: [], skipped: {}, failed: {} },

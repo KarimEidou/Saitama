@@ -12,7 +12,7 @@ import type { GameEventOf } from '@/types';
 import { DayNightSystem } from '../day-night-system';
 import { parseEnvironmentMeasurements } from '../environment-blend';
 import { phaseForTime } from '../sky-lighting';
-import { DAY_LENGTH_SECONDS, EXPOSURE_MAX, EXPOSURE_MIN } from '../constants';
+import { DAY_LENGTH_SECONDS, EXPOSURE_MAX, EXPOSURE_MIN, SYNODIC_MONTH_DAYS } from '../constants';
 
 const MANIFEST = {
   environments: {
@@ -253,6 +253,29 @@ describe('quest time override', () => {
 
     system.setDayCount(Number.NaN);
     expect(system.dayCount).toBe(0);
+  });
+
+  it('restores the lunar age on its own, without touching the day count', () => {
+    // A save can carry a lunar age and no usable day count — the extras block
+    // is optional and older payloads have one but not the other — so the
+    // contract carries both setters rather than only the pair.
+    const system = makeSystem(0.5);
+    system.setDayCount(9);
+
+    system.setLunarAgeDays(3.25);
+    expect(system.lunarAgeDays).toBeCloseTo(3.25, 9);
+    expect(system.dayCount).toBe(9);
+
+    // Wrapped into 0..synodic month, from either side.
+    system.setLunarAgeDays(-1);
+    expect(system.lunarAgeDays).toBeGreaterThan(28);
+    system.setLunarAgeDays(60);
+    expect(system.lunarAgeDays).toBeLessThan(SYNODIC_MONTH_DAYS);
+
+    // Junk is ignored rather than blanking a restored phase.
+    const before = system.lunarAgeDays;
+    system.setLunarAgeDays(Number.NaN);
+    expect(system.lunarAgeDays).toBe(before);
   });
 
   it('setTimeOfDay clears an active override', () => {

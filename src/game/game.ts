@@ -114,7 +114,7 @@ import { DestructionSystem } from '@/gameplay/destruction';
 import { ProgressionCoordinator } from '@/gameplay/progression';
 
 import { VFXSystem } from '@/vfx';
-import { AudioSystem } from '@/audio';
+import { AudioSystem, type ReverbPreset } from '@/audio';
 import { createInputManager, type IInputManager } from '@/ui/input';
 import { HudManager, type IHudSettings } from '@/ui/hud';
 
@@ -191,9 +191,14 @@ export interface IBootOptions {
 /* -------------------------------------------------------------------------- */
 
 export class Game {
-  readonly bus = new EventBus();
+  // Assigned from `parts` in the constructor, NOT built here: a field
+  // initialiser runs before the constructor body, so `= new EventBus()` built a
+  // second bus per `Game` that was overwritten one statement later — a bus with
+  // no subscribers, no emitters and no way to reach it.
+  readonly bus: EventBus;
   readonly clock: GameClock;
-  readonly scene = new THREE.Scene();
+  /** Same as `bus`: assigned from `parts`, so an initialiser here is thrown away. */
+  readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
 
   readonly diagnostics: IIntegrationDiagnostics;
@@ -281,6 +286,8 @@ export class Game {
   private autosaveTimer = 0;
   private auditTimer = 0;
   private modalPaused = false;
+  /** Last district handed to the audio system, so the reverb only glides on a change. */
+  private audioDistrict: DistrictType | undefined;
   private firstFramePresented = false;
   private civiliansSaved = 0;
   private civiliansLost = 0;
@@ -631,15 +638,20 @@ export class Game {
     ragdollGroup.name = 'ragdolls';
     scene.add(ragdollGroup);
 
+    // Held in a local rather than inlined into the option bag: an INJECTED
+    // material makes `DebrisPool.ownsMaterial` false, so the pool deliberately
+    // leaves it alone at teardown and this is the only place that can free it.
+    // See the disposer registered next to `game` below.
+    const debrisMaterial = new THREE.MeshStandardMaterial({
+      color: 0x9a938a,
+      roughness: 0.95,
+      metalness: 0,
+    });
     const debris = new DebrisPool(physics, {
       container: debrisGroup,
       rng: createRng(`${WORLD_SEED_KEY}:debris`),
       groundY: 0,
-      material: new THREE.MeshStandardMaterial({
-        color: 0x9a938a,
-        roughness: 0.95,
-        metalness: 0,
-      }),
+      material: debrisMaterial,
     });
     const ragdolls = new RagdollManager(physics);
     const impulses = new ImpulsePropagator(physics);
@@ -884,17 +896,43 @@ export class Game {
     scene.add(vfx.root);
 
     let audio: AudioSystem;
+    let primaryAudio: AudioSystem | undefined;
     try {
-      audio = new AudioSystem({ seed: WORLD_SEED });
-      audio.attach(bus);
+      primaryAudio = new AudioSystem({ seed: WORLD_SEED });
+      primaryAudio.attach(bus);
+      audio = primaryAudio;
     } catch (error) {
       recordError(diagnostics, 'audio', error);
+      // Either statement above can throw. If it was `attach`, the failed system
+      // is fully built and still holding an AudioContext and every node in it,
+      // so it goes before its replacement is made.
+      primaryAudio?.dispose();
+      // The retry drops the limiter and the soft clipper — `createDynamicsCompressor`
+      // and `createWaveShaper` are the two nodes in the master chain a minimal
+      // WebAudio implementation may not provide.
       audio = new AudioSystem({ seed: WORLD_SEED, bypassMaster: true });
+      try {
+        // ATTACHED, exactly like the system it replaces. Without this the
+        // fallback subscribes to nothing: not degraded audio, a silent game
+        // with a working mixer in it and no diagnostic to say so.
+        audio.attach(bus);
+      } catch (fallbackError) {
+        recordError(diagnostics, 'audio-fallback', fallbackError);
+      }
     }
 
     const clock = new GameClock({ maxDelta: MAX_DELTA, fixedStep: FIXED_STEP });
     const freeze = new ImpactFreeze(clock, camera, bus, {
-      onImpact: (intensity) => vfx.shake.add(0.25 + intensity * 0.4),
+      // `onImpact` is documented as driving "VFX/post/audio" and only ever drove
+      // the shake. `PostProcessing.triggerImpact` had no caller anywhere, so the
+      // anime composite — the speed lines, the zoom smear and the chromatic
+      // burst that are the entire reason that pass exists on mid and high — could
+      // never fire in the shipped game. No-op on tiers without the pass, and this
+      // is the one moment it is for: the hit-stop on a lethal punch.
+      onImpact: (intensity) => {
+        vfx.shake.add(0.25 + intensity * 0.4);
+        renderer.postProcessing?.triggerImpact(intensity);
+      },
     });
 
     const input = createInputManager({ mount: document.body });
@@ -935,6 +973,21 @@ export class Game {
       log.info(`warmed ${warmed.compiled} programs in ${warmed.durationMs.toFixed(0)}ms`);
     } catch (error) {
       recordError(diagnostics, 'shader-warmup', error);
+    }
+    // ══════════════════════════════════════════════════════════════════════
+    //  AND THE POST CHAIN, WHICH IS THE OTHER HALF OF THE FIRST FRAME
+    // ══════════════════════════════════════════════════════════════════════
+    // `ShaderWarmup` compiles MATERIAL programs. The composer's own passes are
+    // compiled on first use exactly like them — the bloom chain alone is eight
+    // programs — and `PostProcessing.warmup()` says in its docstring that it is
+    // "called during loading", which nothing did. The result was a hitch on the
+    // first composed frame of every session, in the one place a hitch is most
+    // visible: the moment the loading screen clears. Its own try/catch, so a
+    // failure here cannot mask the material warmup or vice versa.
+    try {
+      renderer.postProcessing?.warmup();
+    } catch (error) {
+      recordError(diagnostics, 'post-warmup', error);
     }
     t.mark(diagnostics.boot, 'warmup');
 
@@ -977,6 +1030,9 @@ export class Game {
       playerSkin: saitama.body.material,
       deferredSkins,
     });
+    // The one GPU resource this bootstrap owns that no system it built will
+    // free — `DebrisPool` skips a material it did not create.
+    game.disposers.push(() => debrisMaterial.dispose());
     onAtlasArrived.run = (): void => game.upgradeCharacterSkins();
     hudHooks.onModal = (modal): void => game.setModalPaused(modal);
     hudHooks.onSettings = (settings): void => game.applySettings(settings);
@@ -1069,20 +1125,35 @@ export class Game {
     // The Web Audio context cannot start without a gesture, and asking for one
     // that never comes must not stop the game from running.
     //
-    // `{ once: true }` removes only the listener that FIRED, so the other one
-    // outlives the gesture — and, without a remover on `disposers`, outlives
-    // `dispose()` too, holding this `Game`, its scene and every system it owns
-    // reachable through the closure. Both are taken down by hand instead.
+    // ── DISARMED ON SUCCESS, NOT ON THE FIRST GESTURE ──────────────────────
+    // `AudioSystem.unlock()` RESOLVES when `AudioContext.resume()` rejects; it
+    // reports the outcome through `unlocked` instead. Firing once and removing
+    // both listeners therefore turned a single rejected resume — the gesture
+    // Safari decided was not activating, the tap that landed during a page
+    // transition — into a permanently silent session with no way back. They
+    // stay armed until the context really is running, so the next tap retries.
+    //
+    // Removal is by hand (no `{ once: true }`): the listener that never fires
+    // would otherwise outlive `dispose()`, holding this `Game`, its scene and
+    // every system it owns reachable through the closure.
+    let unlocking = false;
     const unlock = (): void => {
-      removeUnlock();
-      void this.audio.unlock();
+      if (unlocking || this.audio.unlocked) return;
+      unlocking = true;
+      void this.audio
+        .unlock()
+        .catch((error: unknown) => recordError(this.diagnostics, 'audio-unlock', error))
+        .finally(() => {
+          unlocking = false;
+          if (this.audio.unlocked) removeUnlock();
+        });
     };
     const removeUnlock = (): void => {
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
     };
-    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
-    window.addEventListener('keydown', unlock, { once: true, passive: true });
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    window.addEventListener('keydown', unlock, { passive: true });
     this.disposers.push(removeUnlock);
 
     // The Android back button. `handleBack` pops one HUD screen and returns
@@ -1093,6 +1164,28 @@ export class Game {
     };
     window.addEventListener('keydown', onKey);
     this.disposers.push(() => window.removeEventListener('keydown', onKey));
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  SILENCE THE APP WHEN IT LEAVES THE SCREEN
+    // ══════════════════════════════════════════════════════════════════════
+    // `IAudioSystem.setSuspended` is documented for exactly this and had no
+    // caller anywhere: a backgrounded phone kept an AudioContext running, kept
+    // the music director scheduling into it, and — because rAF stops but the
+    // context clock does not — came back with a flushed backlog of debris cues
+    // for a building that finished falling a minute ago. `visibilitychange` is
+    // the event Android actually delivers; `pagehide`/`pageshow` cover the
+    // bfcache path Safari takes instead.
+    const onVisibility = (): void => this.audio.setSuspended(document.hidden);
+    const onPageHide = (): void => this.audio.setSuspended(true);
+    const onPageShow = (): void => this.audio.setSuspended(false);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
+    this.disposers.push(() => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
+    });
   }
 
   /**
@@ -1351,9 +1444,10 @@ export class Game {
         // keyboard and gamepad, which emit a normalised rate and never see it.
         lookSensitivity: settings.lookSensitivity,
         invertLookY: settings.invertLookY,
-        // Both have a live target in `IInputTuning` and neither was ever
-        // written: haptics stayed on after the player turned them off, and the
-        // stick layout control moved nothing.
+        // Haptics were never written at all, so they stayed on after the
+        // player turned them off. `floatingStick` is written for the same
+        // reason but is ADVISORY (see `IInputConfig`): the touch stick always
+        // floats, so this records the preference rather than acting on it.
         hapticsEnabled: settings.hapticsEnabled,
         floatingStick: settings.stickLayout === 'floating',
       });
@@ -1386,6 +1480,10 @@ export class Game {
     this.crowd.dispose();
     this.player.dispose();
     this.freeze.dispose();
+    // Not an `IDisposable`, and its two bus subscriptions are the only thing it
+    // holds. `bus.clear()` below would drop them anyway, but only because this
+    // game happens to own the bus it was attached to.
+    this.impulses.detach();
     this.cityStreamer.dispose();
     this.materials.dispose();
     this.sky?.dispose();
@@ -1439,6 +1537,16 @@ export class Game {
     this.lastRawDelta = rawDt;
     const time = this.clock.elapsed;
     this.frameIndex++;
+    // ══════════════════════════════════════════════════════════════════════
+    //  STAMP THE BUS BEFORE ANYTHING CAN EMIT
+    // ══════════════════════════════════════════════════════════════════════
+    // `IEventBase.frame`/`time` are filled in by the bus from these two
+    // numbers, and nothing but the tests and the harness ever set them — so
+    // every event the shipped game emitted carried `frame: 0, time: 0`. That
+    // breaks the ordering any consumer reconstructs from an event log, and it
+    // is silent: the fields are present and plausible. Set here, at the top of
+    // the frame, so the first system to emit is already stamped.
+    this.bus.setFrame(this.frameIndex, time);
 
     /* ---- INPUT --------------------------------------------------------- */
     let mark = performance.now();
@@ -1450,13 +1558,28 @@ export class Game {
     if (dt > 0) {
       this.dayNight.update(dt);
       this.sky?.update(this.dayNight.blend);
-      this.shadows.applyLightingState(this.dayNight.lighting);
+      const lighting = this.dayNight.lighting;
+      this.shadows.applyLightingState(lighting);
+      // The VFX suite shades its own particles: without these it lit every
+      // dust plume and every debris puff with the hard-coded noon key it was
+      // constructed with, so smoke at dusk read as soot against an orange
+      // skyline and no effect ever picked up the fog. The intensities go with
+      // the colours — `setSun` multiplies them in, and `ILightingState` carries
+      // a sun intensity around 3.
+      this.vfx.setSun(
+        lighting.sunDirection,
+        lighting.sunColor,
+        lighting.ambientColor,
+        lighting.sunIntensity,
+        lighting.ambientIntensity
+      );
+      this.vfx.setFog(lighting.fogColor, lighting.fogDensity);
       this.nightUniforms.update(
         this.dayNight.derived.nightFactor,
         this.dayNight.derived.windowLitFraction,
         this.clock.unscaledElapsed
       );
-      this.renderer.setLightingState(this.dayNight.lighting);
+      this.renderer.setLightingState(lighting);
 
       // 1-2: decide and COMMAND the move. Applied by physics, below.
       this.player.update(input, dt);
@@ -1481,7 +1604,11 @@ export class Game {
       this.crowd.setPlayer(this.player.controller.position.x, this.player.controller.position.z);
       this.crowd.update(dt);
       this.destruction.update(dt);
-      this.progression.update(dt);
+      // WITH the player's position. `QuestSystem` has no other source for it,
+      // and without it every `reach` objective is evaluated at the world origin
+      // forever — which is six of the authored quests, each of which opens with
+      // one, none of them completable.
+      this.progression.update(dt, this.player.controller.position);
 
       this.witnessTimer -= dt;
       if (this.witnessTimer <= 0) {
@@ -1526,7 +1653,40 @@ export class Game {
     /* ---- AUDIO --------------------------------------------------------- */
     this.camera.getWorldDirection(this.scratchForward);
     this.audio.setListener(this.camera.position, this.scratchForward, this.scratchUp);
-    if (dt > 0) this.audio.update(dt);
+    // The CONTINUOUS parameters, documented as per-frame and both without a
+    // caller anywhere in `src/`: the wind bed ignored a 40 m/s dive off a tower
+    // and the reverb stayed on `openStreet` in the middle of a park. Each glides
+    // internally, so feeding them every frame is the intended use, not a zipper.
+    //
+    // `setCrowdDensity` is deliberately NOT driven from here even though the
+    // crowd publishes `lastStats.density` and `farPopulation` for it. Wind
+    // COMPOSES — the voice takes `max(ambientWind, speedWind)`, so the
+    // time-of-day rule in `event-map.ts` and this per-frame feed coexist — but
+    // density does not: a per-frame write would overwrite that rule's
+    // phase-by-phase population (0.08 at midnight, 1.0 at noon) on the very
+    // next frame and silently retire it. Reconciling the two is an audio design
+    // call, not a wiring one.
+    this.audio.setPlayerSpeed(this.player.controller.velocity.length());
+    const district = this.cityStreamer.districtAt(
+      this.player.controller.position.x,
+      this.player.controller.position.z
+    );
+    if (district !== this.audioDistrict) {
+      this.audioDistrict = district;
+      this.audio.setEnvironment(reverbForDistrict(district));
+    }
+    // ══════════════════════════════════════════════════════════════════════
+    //  AUDIO RUNS ON REAL TIME, ALWAYS
+    // ══════════════════════════════════════════════════════════════════════
+    // `dt` is zero while a modal sheet is open and while `ImpactFreeze` holds
+    // the world at `timeScale` 0 — and `update()` is what flushes the debris
+    // accumulator and advances the music director. Gating it on `dt > 0` stalled
+    // both for the whole of a 90 ms hit-stop (the loudest moment in the game)
+    // and for as long as the pause menu stayed open, then flushed the backlog
+    // in one frame on resume. The AudioContext's own clock never paused for
+    // either, so the only correct feed is the unscaled delta. Backgrounding is
+    // handled properly, by `setSuspended` — see `registerWindowListeners`.
+    this.audio.update(rawDt);
 
     /* ---- HUD (UNSCALED) ------------------------------------------------ */
     mark = performance.now();
@@ -1862,7 +2022,28 @@ export class Game {
       // spawn direction both looks wrong and walks the wrong way on the first
       // stick push, which immediately overwrites the restored value.
       this.player.camera.yaw = save.playerYaw;
+      // The clock, the calendar and the moon are restored by the progression
+      // coordinator (it holds `dayNight` as its `time` port and calls
+      // `setDayCount` / `setLunarAgeDays` / `setTimeOfDay`). Re-applying the
+      // time of day here is the belt to that braces: the coordinator's port is
+      // optional, this one is not, and `setTimeOfDay` is idempotent.
       this.dayNight.setTimeOfDay(save.timeOfDay);
+      // ══════════════════════════════════════════════════════════════════════
+      //  TELL EVERYONE ELSE THE BOREDOM CAME BACK
+      // ══════════════════════════════════════════════════════════════════════
+      // `BoredomModel.restore()` deliberately does not publish — replaying a
+      // restore as a delta would double-count the deeds behind it — but the
+      // combat meter and the HUD only ever learn a value from `BoredomChanged`.
+      // Without this the restored number lived in exactly one of the three
+      // places that hold it: the HUD kept showing the boot baseline, and the
+      // first kill of the session emitted from combat's stale meter, throwing
+      // the save's value away with it.
+      const boredom = this.progression.boredom.boredom;
+      this.bus.emit('BoredomChanged', {
+        value: boredom,
+        previous: this.combat.boredomMeter.value,
+        reason: 'restored',
+      });
       this.cityStreamer.setFocus(at.x, at.z);
       this.cityStreamer.buildImmediate(0);
       return true;
@@ -2061,8 +2242,26 @@ export class Game {
     const height = Math.max(1, window.innerHeight);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    // `IRenderer.setSize` takes CSS pixels and forwards its own DRAWING-BUFFER
+    // size to the post chain. Calling `postProcessing.setSize(width, height)`
+    // here as well re-sized the composer to the CSS figure — a third of the
+    // scene's resolution on a DPR-3 phone — right after the renderer had set
+    // it correctly.
     this.renderer.setSize(width, height);
-    this.renderer.postProcessing?.setSize(width, height);
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE CASCADES ARE FITTED TO A FRUSTUM THAT JUST CHANGED
+    // ══════════════════════════════════════════════════════════════════════
+    // `ShadowSystem.update()` (per frame) only REPOSITIONS the cascade lights;
+    // the splits come from the camera's near/far and aspect and are recomputed
+    // only here. Without this call the shadow cascades stayed fitted to the
+    // boot aspect for the rest of the session, so rotating a phone from
+    // portrait to landscape left the near cascade covering a slice of the wider
+    // view and the rest of the screen taking the coarsest one.
+    this.shadows.onCameraChanged();
+    // Speed lines are drawn in normalised screen space and scaled by the
+    // viewport aspect, which they otherwise keep from construction: after a
+    // rotation every streak was stretched along the wrong axis.
+    this.vfx.setViewport(width, height);
   };
 }
 
@@ -2140,6 +2339,29 @@ class PhaseTimer {
     const now = performance.now();
     into[key] += Math.round(now - this.last);
     this.last = now;
+  }
+}
+
+/**
+ * The acoustic environment a district sounds like.
+ *
+ * Deliberately COARSE. A district is the only spatial classification the world
+ * publishes per position, and `arcade` / `alley` / `indoor` / `crater` describe
+ * enclosures a district cannot tell you about — a park has alleys in it and
+ * downtown has open plazas. Mapping the districts that are open BY DEFINITION
+ * onto `openField` and everything else onto the city default is the whole of
+ * what this signal can honestly support; anything finer needs geometry, not a
+ * district id, and inventing it here would be worse than the flat `openStreet`
+ * this replaces.
+ */
+function reverbForDistrict(district: DistrictType): ReverbPreset {
+  switch (district) {
+    case 'park':
+    case 'waterfront':
+    case 'wasteland':
+      return 'openField';
+    default:
+      return 'openStreet';
   }
 }
 

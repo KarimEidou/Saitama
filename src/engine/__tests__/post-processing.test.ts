@@ -154,4 +154,49 @@ describe('PostProcessing effect routing', () => {
     }).not.toThrow();
     post.dispose();
   });
+
+  it('lists only the effects the current tier honours', () => {
+    const high = makePost(HIGH);
+    expect(high.supportedEffects()).toEqual([
+      'bloom',
+      'ssao',
+      'motionBlur',
+      'vignette',
+      'chromaticAberration',
+      'colorGrading',
+      'fxaa',
+      'speedLines',
+    ]);
+    high.dispose();
+
+    // MEDIUM builds no SSAO, no anime pass and no AA — exactly the toggles
+    // that silently do nothing above.
+    const medium = makePost(MEDIUM);
+    expect(medium.supportedEffects()).toEqual(['bloom', 'vignette', 'colorGrading']);
+    medium.dispose();
+
+    // LOW draws straight to the framebuffer: nothing is toggleable at all.
+    const low = makePost(LOW);
+    expect(low.supportedEffects()).toEqual([]);
+    low.dispose();
+  });
+
+  it('never lists the two deliberately unimplemented effects', () => {
+    for (const profile of [HIGH, MEDIUM, LOW]) {
+      const post = makePost(profile);
+      const supported = post.supportedEffects();
+      expect(supported).not.toContain('filmGrain');
+      expect(supported).not.toContain('depthOfField');
+      post.dispose();
+    }
+  });
+
+  it('re-reports after a tier change', () => {
+    const post = makePost(HIGH);
+    expect(post.supportedEffects()).toContain('ssao');
+    post.applyProfile(MEDIUM);
+    expect(post.supportedEffects()).not.toContain('ssao');
+    expect(post.supportedEffects()).toContain('bloom');
+    post.dispose();
+  });
 });

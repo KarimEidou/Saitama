@@ -180,12 +180,6 @@ export interface IStreamingSystemOptions {
 /** Everything the debug HUD and the verification harness read. */
 export interface IStreamingDetailedStats extends IStreamingStats {
   readonly frame: number;
-  /**
-   * Chunks in any state, including ones still being built. Distinct from the
-   * inherited `activeChunks`, which counts only the ones in the scene graph —
-   * this field exists so the two never have to share a name.
-   */
-  readonly residentChunks: number;
   readonly chunksByRing: readonly number[];
   readonly queued: number;
   readonly inFlight: number;
@@ -328,12 +322,12 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     this.worldConfig = {
       seed,
       chunkSize: CHUNK_SIZE,
-      // The contract reads this as a SYMMETRIC extent: the playable area is
-      // `(2r + 1)^2` chunks on a `-r..r` grid. The real world is 16x16 on an
-      // asymmetric `-8..7` grid, so publishing 8 sends a consumer that follows
-      // the documented reading to `chunkIndex(8, z)`, which is -1. Seven is the
-      // largest radius on which the documented reading is true. See the note in
-      // `typeChangeRequests`: the contract wants a `worldGridChunks` field.
+      // The real grid: 16x16 on an asymmetric `-8..7`. Iterate this.
+      worldGridChunks: CHUNK_GRID,
+      // `worldRadiusChunks` is the SYMMETRIC reading, `(2r + 1)^2` chunks on a
+      // `-r..r` grid, which an even edge length cannot express. Publishing 8
+      // would send a consumer that follows it to `chunkIndex(8, z)`, which is
+      // -1; seven is the largest radius on which it stays true.
       worldRadiusChunks: (CHUNK_GRID >> 1) - 1,
       lodLevels: STREAMING_LOD_LEVELS,
       streamingRadiusChunks: this.residentRadius,
@@ -1069,6 +1063,10 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     }
     return {
       activeChunks: active,
+      // The resident set, which the memory budget is spent on. Contract-level
+      // consumers had no way to read it while it existed only on the detailed
+      // snapshot.
+      residentChunks: this.chunks.size,
       loadingChunks: loading,
       pooledChunks: this.ready.length,
       totalMemoryBytes: this.totalBytes,
@@ -1089,7 +1087,6 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     return {
       ...this.getStats(),
       frame: this.frame,
-      residentChunks: this.chunks.size,
       chunksByRing: byRing,
       queued: this.queue.size,
       inFlight: this.pool.inFlight,

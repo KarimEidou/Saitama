@@ -7,7 +7,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRng } from '@/util';
+import type { IDayNightSystem } from '@/types';
+import { EventBus, createRng } from '@/util';
+import { ProgressionCoordinator, type ITimeController } from '../coordinator';
 import {
   LocalStorageSaveBackend,
   MemorySaveBackend,
@@ -288,6 +290,74 @@ describe('backend selection', () => {
       if (original) (globalThis as { localStorage?: Storage }).localStorage = original;
       else delete (globalThis as { localStorage?: Storage }).localStorage;
     }
+  });
+});
+
+describe('calendar restore', () => {
+  /**
+   * A clock reduced to the calendar surface `IDayNightSystem` now declares.
+   *
+   * Typed as the contract, not as a loose record: the coordinator used to
+   * reach these methods through `as unknown as { setDayCount?: ... }` casts,
+   * which typecheck against ANY object and so could not have caught the day
+   * count and moon phase quietly never being restored.
+   */
+  interface IFakeClock extends ITimeController, Partial<IDayNightSystem> {
+    lunarAgeDays: number;
+    dayCount: number;
+    timeOfDay: number;
+  }
+
+  function fakeClock(): IFakeClock {
+    return {
+      lunarAgeDays: 0,
+      dayCount: 0,
+      timeOfDay: 0.5,
+      forceTimeOfDay(t: number) {
+        this.timeOfDay = t;
+      },
+      releaseTime() {},
+      setTimeOfDay(t: number) {
+        this.timeOfDay = t;
+      },
+      setDayCount(days: number, lunarAgeDays?: number) {
+        this.dayCount = days;
+        if (lunarAgeDays !== undefined) this.lunarAgeDays = lunarAgeDays;
+      },
+      setLunarAgeDays(days: number) {
+        this.lunarAgeDays = days;
+      },
+    };
+  }
+
+  it('puts the day count, time of day and moon phase back on the clock', () => {
+    const clock = fakeClock();
+    const coordinator = new ProgressionCoordinator({
+      bus: new EventBus(),
+      saveBackend: new MemorySaveBackend(),
+      time: clock,
+    });
+
+    coordinator.applySaveGame(sampleSave());
+
+    expect(clock.dayCount).toBe(4);
+    expect(clock.timeOfDay).toBeCloseTo(0.7291666666666666, 12);
+    // The moon rides in `extras`, so it comes back through its own setter.
+    expect(clock.lunarAgeDays).toBe(14);
+    coordinator.dispose();
+  });
+
+  it('reads the lunar age back off the contract when building a save', () => {
+    const clock = fakeClock();
+    clock.setLunarAgeDays?.(21.5);
+    const coordinator = new ProgressionCoordinator({
+      bus: new EventBus(),
+      saveBackend: new MemorySaveBackend(),
+      time: clock,
+    });
+
+    expect(coordinator.buildSaveGame().extras?.lunarAgeDays).toBe(21.5);
+    coordinator.dispose();
   });
 });
 

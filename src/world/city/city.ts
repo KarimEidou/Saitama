@@ -114,6 +114,8 @@ export class CityGenerator {
     return {
       seed: this.plan.worldSeed,
       chunkSize: CHUNK_SIZE,
+      worldGridChunks: this.plan.chunkGrid,
+      // The largest symmetric radius inside an even grid; see `IWorldConfig`.
       worldRadiusChunks: (this.plan.chunkGrid >> 1) - 1,
       lodLevels,
       streamingRadiusChunks: 2,

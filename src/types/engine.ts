@@ -16,6 +16,7 @@
  */
 
 import type * as THREE from 'three';
+import type { TextureCodec } from './assets';
 import type { IRenderer } from './render';
 import type { SafeAreaInsets } from './platform';
 
@@ -78,8 +79,15 @@ export interface IQualitySettings {
   readonly anisotropy: number;
   /** Frame rate the adaptive-resolution governor aims for. */
   readonly targetFps: number;
-  /** Preferred GPU texture codec on this device. */
-  readonly textureCodec: 'astc' | 'etc1s' | 'bc7' | 'uncompressed';
+  /**
+   * Preferred GPU texture codec on this device.
+   *
+   * The SAME union as `TextureCodec` (assets.ts), deliberately: a redeclared
+   * copy here drifted — it spelled the uncompressed case 'uncompressed' where
+   * the asset layer says 'none', and could not express 'uastc' at all, so a
+   * budget could name a codec the transcoder had no case for.
+   */
+  readonly textureCodec: TextureCodec;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -108,10 +116,31 @@ export interface IPostProcessing extends IDisposable, IUpdatable {
   enabled: boolean;
   /** Render the composed frame, replacing a direct `renderer.render()`. */
   render(dt: number): void;
+  /**
+   * Resize the composer targets.
+   *
+   * DRAWING-BUFFER pixels, i.e. CSS size x device pixel ratio x resolution
+   * scale — NOT the CSS pixels `IRenderer.setSize` takes. The two differ by
+   * 2-3x on a phone, and passing CSS pixels here renders the whole post chain
+   * at a fraction of the scene's resolution.
+   *
+   * `IRenderer` already forwards its own drawing-buffer size on every resize,
+   * pixel-ratio change and tier change, so a game loop that owns a renderer
+   * should not call this at all.
+   */
   setSize(width: number, height: number): void;
   setEffectEnabled(effect: PostEffectName, enabled: boolean): void;
   /** Scalar intensity in 0..1. */
   setEffectIntensity(effect: PostEffectName, intensity: number): void;
+  /**
+   * The effect names this chain currently honours, in `PostEffectName` order.
+   *
+   * A tier builds only some of the eleven passes — six of them resolve to a
+   * guarded no-op on the medium (phone) chain, and `mode: 'off'` builds none —
+   * so without this a settings UI cannot tell a toggle that does nothing from
+   * a broken pass. Re-read it after `applyQuality`, which rebuilds the chain.
+   */
+  supportedEffects(): readonly PostEffectName[];
   applyQuality(settings: IQualitySettings): void;
 }
 

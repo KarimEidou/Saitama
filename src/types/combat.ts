@@ -186,7 +186,20 @@ export interface IPunchResult {
   readonly whiffed: boolean;
   /** Suggested camera trauma in 0..1, derived from `power`. */
   readonly cameraShake: number;
-  /** Estimated collateral damage cost, feeding the reputation penalty. */
+  /**
+   * Forecast property value the punch destroyed, IN YEN.
+   *
+   * NOT the same unit as the identically named `EncounterEnded.collateralCost`
+   * / `IEncounterResult.collateralCost`, which sum the destruction system's own
+   * per-chunk `ChunkDetached.collateralCost` estimates and run about four
+   * orders of magnitude smaller. This one is swept mass x a per-district yen
+   * rate, so a single downtown block is of order 1e9.
+   *
+   * Do not accumulate the two together, and do not feed this to a linear
+   * reputation or scoring consumer: the yen figure saturates the penalty on
+   * the first serious punch of the game. For a bounded 0..1 read take
+   * `IEncounterResult.propertyDamageScore` at the end of the fight.
+   */
   readonly collateralCost: number;
 }
 

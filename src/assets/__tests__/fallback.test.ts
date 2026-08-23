@@ -207,6 +207,21 @@ describe('buildMaterial', () => {
     for (const handle of handles.values()) expect(handle.refCount).toBe(1);
   });
 
+  it('sees a stand-in through the CONTRACT type, not just the concrete class', () => {
+    // `TextureHandle.fallback` used to exist only on the implementation, so
+    // `buildMaterial` had to read it with `(handle as { fallback?: boolean })`
+    // — a cast that would have gone on compiling if the field were renamed or
+    // dropped. Handing it handles typed as the contract is what proves the
+    // flag is now part of the contract.
+    const handles = new Map<string, TextureHandle>();
+    for (const key of requiredTextures(entry)) handles.set(key, fallbackHandleFor(key));
+    for (const handle of handles.values()) expect(handle.fallback).toBe(true);
+    expect(handleFor('mat.probe.albedo').fallback).toBe(false);
+
+    const built = buildMaterial(entry, (key) => handles.get(key));
+    expect([...built.missingTextures].sort()).toEqual([...requiredTextures(entry)].sort());
+  });
+
   it('publishes an empty gap list when every map bound for real', () => {
     const handles = new Map<string, TextureHandle>();
     for (const key of requiredTextures(entry)) handles.set(key, handleFor(key));

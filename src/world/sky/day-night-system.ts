@@ -62,6 +62,11 @@ export interface IDayNightOptions {
 /** How a forced time is being held. */
 export type TimeOverrideMode = 'none' | 'held' | 'releasing';
 
+/** Fold any lunar age — including a negative one — into 0..SYNODIC_MONTH_DAYS. */
+function wrapLunarAge(days: number): number {
+  return ((days % SYNODIC_MONTH_DAYS) + SYNODIC_MONTH_DAYS) % SYNODIC_MONTH_DAYS;
+}
+
 export class DayNightSystem implements IDayNightSystem {
   /** Published lighting for the renderer, shadows and fog. */
   readonly lighting = new MutableSkyLightingState();
@@ -270,9 +275,21 @@ export class DayNightSystem implements IDayNightSystem {
   setDayCount(days: number, lunarAgeDays?: number): void {
     this.days = Number.isFinite(days) ? Math.max(0, Math.floor(days)) : 0;
     if (lunarAgeDays !== undefined && Number.isFinite(lunarAgeDays)) {
-      this.lunarAge =
-        ((lunarAgeDays % SYNODIC_MONTH_DAYS) + SYNODIC_MONTH_DAYS) % SYNODIC_MONTH_DAYS;
+      this.lunarAge = wrapLunarAge(lunarAgeDays);
     }
+    this.derivedValue = this.recompute();
+  }
+
+  /**
+   * Restore the moon phase on its own.
+   *
+   * A save can carry a lunar age without a usable day count — the extras block
+   * is optional and older payloads have one but not the other — so the two are
+   * restorable independently rather than only as a pair.
+   */
+  setLunarAgeDays(days: number): void {
+    if (!Number.isFinite(days)) return;
+    this.lunarAge = wrapLunarAge(days);
     this.derivedValue = this.recompute();
   }
 

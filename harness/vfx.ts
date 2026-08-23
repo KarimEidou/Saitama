@@ -997,7 +997,7 @@ function main(): void {
         post: {
           mode: profile.post.mode,
           direct: profile.post.mode === 'off',
-          passNames: post.passNames ? [...post.passNames] : [],
+          passNames: [...post.getStats().passNames],
         },
         atlasBytes: Math.round(
           (vfx.profile.atlasSize * vfx.profile.atlasSize +

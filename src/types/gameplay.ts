@@ -189,8 +189,24 @@ export interface IDayNightState {
 /** Day/night driver. */
 export interface IDayNightSystem extends IUpdatable {
   readonly state: IDayNightState;
+  /** Days since the new moon, 0..29.53. Drives the moon's phase and rise time. */
+  readonly lunarAgeDays: number;
   /** Jump to a normalised time of day in 0..1. */
   setTimeOfDay(t: number): void;
+  /**
+   * Restore the elapsed-day count, and optionally the lunar age, from a save.
+   *
+   * `ISaveGame.dayCount` is otherwise write-only: a load can put the time of
+   * day back and nothing else, so a player who saved on day 5 reloads onto day
+   * 0 and every off-screen rival re-runs its accounting from zero. Call it
+   * next to `setTimeOfDay`. Non-finite input resets to day 0.
+   */
+  setDayCount(days: number, lunarAgeDays?: number): void;
+  /**
+   * Restore the moon phase alone, for a save that carries a lunar age but no
+   * day count. Wrapped into 0..29.53; non-finite input is ignored.
+   */
+  setLunarAgeDays(days: number): void;
   /** Multiplier on the passage of time; 1 is normal, 0 freezes it. */
   timeScale: number;
 }

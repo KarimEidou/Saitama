@@ -182,7 +182,21 @@ export interface ILightingState {
   readonly exposure: number;
   /** True while street lights and window emissives should be lit. */
   readonly streetLightsOn: boolean;
-  /** Shadow-camera half-extent in metres, tightened at night. */
+  /**
+   * REQUESTED shadow-camera half-extent in metres, tightened at night.
+   *
+   * Published by the day/night system, which lowers it towards 60 m after dusk
+   * because a moon shadow gains nothing from covering 200 m and the cascade
+   * resolution is better spent close to the player.
+   *
+   * It is a request, not the range in force. The shadow system's own per-tier
+   * budget — `ShadowTierProfile.maxDistance`, surfaced as `cascadeRange` — is
+   * what sizes the cascades and what bounds the shadow-map VRAM; a consumer
+   * that honours this field must apply `min(shadowRadius, cascadeRange)` and
+   * never widen the tier budget. The current cascade implementation refits its
+   * splits only on a tier or camera change, so it tracks the tier budget alone
+   * and treats this value as advisory telemetry.
+   */
   readonly shadowRadius: number;
 }
 

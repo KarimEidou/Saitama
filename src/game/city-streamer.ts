@@ -656,6 +656,13 @@ export interface ICityStreamerOptions {
    * cascade lights, which is a district rendered three times too bright. There
    * is no counter to check — the only symptom is that everything is blown out,
    * which is exactly how this was found.
+   *
+   * There is deliberately no matching `unregisterMaterials`. Every material a
+   * chunk binds comes from `CityMaterialLibrary` (keyed and shared city-wide)
+   * or from a prop model (one per asset key), so the registered set is bounded
+   * by the manifest and not by how far the player has walked. The one material
+   * this file creates — the impostor — is freed in `dispose()`, and the shadow
+   * system unregisters on the dispose event.
    */
   readonly registerMaterials?: (root: THREE.Object3D) => void;
   /** Notified whenever the resident set changes, so obstacles can be republished. */
@@ -684,6 +691,8 @@ export class CityStreamer {
 
   /** Owns the residency texture the impostor's vertex shader reads. */
   private readonly streamingMaterials: StreamingMaterials;
+  /** Built here, so freed here: `StreamingMaterials` never frees an injected one. */
+  private readonly impostorMaterial: THREE.Material;
   /** The whole far city, in one mesh, one material, one draw call. */
   private readonly impostorRing: ImpostorRing;
   private readonly impostorHeights: ReadonlyMap<number, readonly (readonly number[])[]>;
@@ -747,19 +756,22 @@ export class CityStreamer {
     // trade that this file is not the place to make.
     const bake = bakeSkyline(options.generator.index);
     this.impostorHeights = bake.heightsByChunk;
+    // The city's own material library owns every OTHER material in the world,
+    // but not this one: the impostor has no maps, no UVs and one vertex
+    // attribute nothing else declares. A Lambert is the right amount of shading
+    // for a silhouette a quarter of a kilometre away, and it is one program.
+    //
+    // INJECTING it makes `StreamingMaterials.ownsImpostor` false, so that class
+    // deliberately does not free it — the injector does, in `dispose()` below.
+    this.impostorMaterial = new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      // Stands in for the façade albedo maps the resident city samples and
+      // the impostor does not. See `IMPOSTOR_ALBEDO`.
+      color: new THREE.Color(IMPOSTOR_ALBEDO, IMPOSTOR_ALBEDO, IMPOSTOR_ALBEDO),
+      side: THREE.FrontSide,
+    });
     this.streamingMaterials = new StreamingMaterials({
-      // The city's own material library owns every OTHER material in the
-      // world, but not this one: the impostor has no maps, no UVs and one
-      // vertex attribute nothing else declares. A Lambert is the right amount
-      // of shading for a silhouette a quarter of a kilometre away, and it is
-      // one program.
-      impostorMaterial: new THREE.MeshLambertMaterial({
-        vertexColors: true,
-        // Stands in for the façade albedo maps the resident city samples and
-        // the impostor does not. See `IMPOSTOR_ALBEDO`.
-        color: new THREE.Color(IMPOSTOR_ALBEDO, IMPOSTOR_ALBEDO, IMPOSTOR_ALBEDO),
-        side: THREE.FrontSide,
-      }),
+      impostorMaterial: this.impostorMaterial,
     });
     this.streamingMaterials.impostor.name = 'city.impostor';
     this.impostorRing = new ImpostorRing(this.streamingMaterials);
@@ -1358,6 +1370,14 @@ export class CityStreamer {
     this.impostorRing.detach(this.scene);
     this.impostorRing.dispose();
     this.streamingMaterials.dispose();
+    // `StreamingMaterials` skips it (`ownsImpostor` is false for an injected
+    // material), and it is also the one material in this file the shadow system
+    // holds a strong reference to — `ShadowSystem` drops a material from its
+    // registered set on the dispose event, so this is what unregisters it.
+    // Every OTHER material a chunk binds belongs to `CityMaterialLibrary` and
+    // is shared across the whole city, which is why `evict()` frees geometry
+    // and nothing else.
+    this.impostorMaterial.dispose();
   }
 }
 

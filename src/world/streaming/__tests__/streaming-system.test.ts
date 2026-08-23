@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import type { IChunk } from '@/types';
 import { EventBus } from '@/util';
-import { CHUNK_SIZE, chunkIndex } from '@/spatial/constants';
+import { CHUNK_GRID, CHUNK_SIZE, chunkIndex } from '@/spatial/constants';
 import {
   StreamingSystem,
   type IColliderSink,
@@ -520,6 +520,37 @@ describe('stats', () => {
     expect(stats.activeChunks).toBeGreaterThan(0);
     // And `getDetailedStats` must not redefine an inherited field.
     expect(system.getStats().activeChunks).toBe(stats.activeChunks);
+  });
+
+  it('reports the resident set on the contract-level snapshot too', async () => {
+    const { system } = makeSystem({ quality: 'low' });
+    system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));
+
+    // The frame the neighbourhood is created and none of it is drawable is
+    // exactly when the two numbers must differ: `activeChunks` is what renders,
+    // `residentChunks` is what the memory budget is being spent on. Before this
+    // existed on `IStreamingStats` the resident figure was reachable only
+    // through the implementation's own detailed snapshot.
+    system.update(1 / 60);
+    const early = system.getStats();
+    expect(early.residentChunks).toBeGreaterThan(early.activeChunks);
+    expect(early.residentChunks).toBe(system.getDetailedStats().residentChunks);
+
+    await settle(system);
+    const settled = system.getStats();
+    expect(settled.residentChunks).toBeGreaterThanOrEqual(settled.activeChunks);
+    expect(settled.residentChunks).toBe(system.getDetailedStats().residentChunks);
+  });
+
+  it('publishes the real chunk grid, not just the symmetric radius', () => {
+    const { system } = makeSystem({ quality: 'low' });
+    const config = system.config;
+    // 16x16 on -8..7. `worldRadiusChunks` can only describe an odd `(2r+1)^2`
+    // area, so it reads 7 and omits the -8 row and column; a consumer that
+    // iterates the world must use `worldGridChunks`.
+    expect(config.worldGridChunks).toBe(CHUNK_GRID);
+    expect(config.worldRadiusChunks).toBe((CHUNK_GRID >> 1) - 1);
+    expect(config.worldGridChunks ** 2).toBeGreaterThan((2 * config.worldRadiusChunks + 1) ** 2);
   });
 
   it('publishes a resident radius that follows the quality tier', () => {

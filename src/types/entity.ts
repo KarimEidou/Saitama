@@ -153,11 +153,39 @@ export interface IAnimationSet {
   special?: string;
 }
 
-/** Compile-time guarantee that IAnimationSet covers every ClipName slot. */
-export type AnimationSetCoversAllClips =
-  Record<ClipName, string | undefined> extends Record<keyof IAnimationSet, string | undefined>
-    ? true
-    : never;
+/**
+ * `ClipName` slots `IAnimationSet` has no key for. Must be `never`.
+ *
+ * Named rather than inlined so a failure names the slot that drifted: the
+ * error text prints the offending union members.
+ */
+export type MissingAnimationSlots = Exclude<ClipName, keyof IAnimationSet>;
+
+/** `IAnimationSet` keys that are not `ClipName`s. Must be `never`. */
+export type ExtraAnimationSlots = Exclude<keyof IAnimationSet, ClipName>;
+
+/** Fails to instantiate unless `T` is exactly `true`. */
+type Assert<T extends true> = T;
+
+/**
+ * Compile-time guarantee that `IAnimationSet` covers EXACTLY the `ClipName`
+ * slots — no clip without a mapping, no mapping without a clip.
+ *
+ * The assertion is carried by `Assert`'s constraint, so adding a `ClipName`
+ * without an `IAnimationSet` key (or the reverse) fails `tsc` at this line.
+ * The previous version was a bare conditional alias that merely RESOLVED to
+ * `never`: nothing instantiated it, so it could never report anything — and
+ * its two sides were the wrong way round, since `Record<K, string | undefined>`
+ * is satisfied by any superset of `K` and the optional slots made every
+ * mapping assignable regardless.
+ */
+export type AnimationSetCoversAllClips = Assert<
+  [MissingAnimationSlots] extends [never]
+    ? [ExtraAnimationSlots] extends [never]
+      ? true
+      : ExtraAnimationSlots
+    : MissingAnimationSlots
+>;
 
 /* -------------------------------------------------------------------------- */
 /* Actors                                                                     */

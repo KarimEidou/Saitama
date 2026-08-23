@@ -57,7 +57,9 @@ const MAX_RECORDED_ERRORS = 64;
  * most. Without this stub, `recordDiagError` below no-ops and a harness polling
  * the global cannot tell "the bundle never parsed" from "the probe threw".
  *
- * Zeroed, and replaced wholesale by `createDiagnostics` once boot reaches it.
+ * Zeroed, and replaced by `createDiagnostics` once boot reaches it — which
+ * carries this object's `errors` across, so a fault recorded here is still
+ * readable after the swap.
  */
 function publishDiagnosticsStub(): void {
   if (window.__GAME_DIAG__) return;

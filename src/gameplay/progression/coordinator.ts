@@ -145,7 +145,7 @@ export class ProgressionCoordinator {
     // Optional fields are OMITTED rather than written as `undefined`: the save
     // validator rejects `undefined` outright, because a key that JSON silently
     // drops is indistinguishable from one the game forgot to write.
-    const lunarAgeDays = (this.time as { lunarAgeDays?: number } | undefined)?.lunarAgeDays;
+    const lunarAgeDays = this.time?.lunarAgeDays;
     return buildSave({
       worldSeed: this.worldSeed,
       progression: this.progression.snapshot(),
@@ -185,20 +185,14 @@ export class ProgressionCoordinator {
     // of off-screen work they already banked.
     if (typeof save.dayCount === 'number' && Number.isFinite(save.dayCount)) {
       this.progression.syncDayCount(save.dayCount);
-      (this.time as unknown as { setDayCount?: (d: number) => void } | undefined)?.setDayCount?.(
-        save.dayCount
-      );
+      this.time?.setDayCount?.(save.dayCount);
     }
     if (this.time && typeof save.timeOfDay === 'number') {
-      (this.time as unknown as { setTimeOfDay?: (t: number) => void }).setTimeOfDay?.(
-        save.timeOfDay
-      );
+      this.time.setTimeOfDay?.(save.timeOfDay);
     }
     const lunarAgeDays = save.extras?.lunarAgeDays;
     if (this.time && typeof lunarAgeDays === 'number' && Number.isFinite(lunarAgeDays)) {
-      (this.time as unknown as { setLunarAgeDays?: (d: number) => void }).setLunarAgeDays?.(
-        lunarAgeDays
-      );
+      this.time.setLunarAgeDays?.(lunarAgeDays);
     }
     log.info(`loaded save from ${save.savedAt}`);
   }

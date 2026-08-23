@@ -82,7 +82,20 @@ export interface IChunk extends IDisposable {
   /** Approximate GPU bytes held, for budget accounting. */
   readonly memoryBytes: number;
 
-  /** Build content. Resolves when `state` becomes 'ready'. */
+  /**
+   * Build content.
+   *
+   * Resolves once the geometry is RESIDENT — not merely when `state` reaches
+   * 'ready', which also covers "a build has arrived and is queued for upload".
+   * A caller that awaits this expects a chunk it can use.
+   *
+   * REJECTS in three cases: the build failed (`state` is then 'error' and
+   * `error` carries the reason), the chunk was disposed before its build
+   * landed (`state` is 'unloaded'), or `signal` aborted, which drops this
+   * caller's interest without cancelling the build. So `load()` must always be
+   * caught — an unhandled rejection here is how a fast-travel sequence takes
+   * the page down. Calling it again after an error starts a fresh build.
+   */
   load(signal?: AbortSignal): Promise<void>;
   /** Attach `root` to the scene. */
   activate(scene: THREE.Scene): void;
@@ -135,6 +148,17 @@ export interface IStreamingSystem extends IUpdatable, IDisposable {
   /** Point streaming is centred on — normally the player position. */
   focus: THREE.Vector3;
 
+  /**
+   * Set the focus AND the direction it is facing, in one call.
+   *
+   * `forward` need not be normalised or flat; only its XZ direction is used.
+   * It drives the angle term of the load priority, so chunks the player is
+   * walking towards are built before the ones behind them. Writing `focus`
+   * directly still works but leaves the heading stale, which degrades the
+   * queue to a pure distance sort.
+   */
+  setView(position: THREE.Vector3, forward: THREE.Vector3): void;
+
   /** Convert a world position to the chunk containing it. */
   worldToChunk(position: THREE.Vector3): IChunkCoord;
   /** World-space centre of a chunk. */
@@ -160,7 +184,16 @@ export interface IStreamingSystem extends IUpdatable, IDisposable {
 
 /** Streaming telemetry. */
 export interface IStreamingStats {
+  /** Chunks attached to the scene graph, i.e. actually drawable. */
   activeChunks: number;
+  /**
+   * Chunks held in any state, drawable or not.
+   *
+   * The resident set: what the memory budget is spent on. Always >=
+   * `activeChunks`, and the two are far apart during a stream-in — a hundred
+   * chunks can be resident on the frame two of them are in the scene.
+   */
+  residentChunks: number;
   loadingChunks: number;
   pooledChunks: number;
   totalMemoryBytes: number;
@@ -302,8 +335,24 @@ export interface IWorldConfig {
   /** Edge length of one chunk in metres. */
   readonly chunkSize: number;
   /**
-   * World extent in chunks from origin along each axis. The playable area is
-   * `(2 * worldRadiusChunks + 1)^2` chunks.
+   * Edge length of the world grid, in chunks. The playable area is
+   * `worldGridChunks^2` chunks.
+   *
+   * The grid is CENTRED on the origin, so for an even edge length the
+   * coordinate range is asymmetric: `-(worldGridChunks / 2)` up to
+   * `worldGridChunks / 2 - 1` inclusive on both axes. A 16-wide grid runs
+   * -8..7, never -8..8. Use this, not `worldRadiusChunks`, to iterate or
+   * bounds-check chunk coordinates.
+   */
+  readonly worldGridChunks: number;
+  /**
+   * Largest SYMMETRIC extent in chunks from the origin, i.e. the biggest `r`
+   * for which every coordinate in `-r..r` is inside the world.
+   *
+   * Kept for consumers that want a safe symmetric radius, but it cannot
+   * describe an even grid: `(2 * worldRadiusChunks + 1)^2` is always odd and
+   * always omits the most-negative row and column. On the shipping 16x16 world
+   * this reads 7 and leaves the -8 row/column out. Prefer `worldGridChunks`.
    */
   readonly worldRadiusChunks: number;
   /** LOD bands, ordered by ascending distance. Index 0 is highest detail. */

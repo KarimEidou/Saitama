@@ -143,7 +143,15 @@ export interface IClipOptions {
   readonly timeScale?: number;
   /** Blend weight in 0..1 for additive/layered playback. */
   readonly weight?: number;
-  /** Hold the final pose instead of resetting. Use for death. */
+  /**
+   * ADVISORY, and always on.
+   *
+   * A finished `once` clip ALWAYS holds its final pose, whatever this says:
+   * resetting to the first frame drops `block`'s guard and snaps `jump` out of
+   * full extension, so there is no second behaviour to select between. Kept in
+   * the contract because passing `true` on a death clip documents the intent
+   * at the call site; passing `false` does nothing.
+   */
   readonly clampWhenFinished?: boolean;
   /** Start offset in seconds. */
   readonly startAt?: number;
