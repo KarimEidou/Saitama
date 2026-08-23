@@ -1,16 +1,27 @@
 /**
  * APP ICONS
  *
- * Generates the home-screen icons from an inline SVG. They are build output,
- * not source: `npm run guard` rejects any tracked PNG outside docs/screenshots,
- * and weakening that rule to store six icons would be a bad trade. Run this
- * before `npm run build` (or before `cap sync`) and they land in public/icons/.
+ * Resizes ONE committed artwork master into every home-screen icon size the web
+ * app and the Capacitor builds ask for, plus the web manifest that names them.
  *
- * iOS specifics that drive the design:
+ * The derived files stay build output — `public/icons/` is gitignored and this
+ * script is the only writer — but the master is not. `npm run guard` rejects
+ * tracked images everywhere except `docs/screenshots/` and `assets/icon/`, and
+ * the second exemption exists for exactly this file: a painting cannot be
+ * regenerated from a manifest the way `npm run assets` regenerates the game
+ * binaries, so the one raster it starts from lives in git and the five sizes
+ * derived from it do not. Run this before `npm run build` (or before
+ * `cap sync`) and they land in public/icons/.
+ *
+ * iOS specifics that drive the master's shape:
  *   - Safari's "Add to Home Screen" uses `apple-touch-icon` at 180x180 and does
  *     NOT read the web manifest for it, so that file has to exist by name.
  *   - iOS applies its own rounded-rect mask and adds no background, so the art
- *     must be full-bleed and opaque or it composites onto black.
+ *     must be full-bleed and opaque or it composites onto black. The master is
+ *     stored as a square with no rounded corners of its own for that reason —
+ *     Android's adaptive mask and the manifest's `purpose: "any"` want the same
+ *     square, and baking a second set of corners inside the platform's mask
+ *     shows up as a dark ring around the icon on every device.
  *   - No transparency: an alpha channel on iOS renders as black, not as the
  *     wallpaper.
  */
@@ -29,41 +40,32 @@ import sharp from 'sharp';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'public', 'icons');
 
+/**
+ * The committed artwork, 1024x1024 and full-bleed. Every output below is a pure
+ * downscale of it, so the icons cannot drift from what the repo ships.
+ */
+const MASTER = path.join(ROOT, 'assets', 'icon', 'icon-source.png');
+
 /** Sizes iOS and Android actually ask for. 180 is the apple-touch-icon. */
 const SIZES = [180, 192, 256, 384, 512] as const;
-
-/**
- * Saitama reduced to the two shapes that survive at 40px on a home screen: the
- * bald head and the red glove. Anything with more detail turns to mush.
- */
-function icon(size: number): Buffer {
-  const s = size;
-  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#F2C230"/>
-  <circle cx="256" cy="150" r="16" fill="#FFFFFF" opacity="0.16"/>
-  <!-- cape -->
-  <path d="M256 236 L392 470 L120 470 Z" fill="#F7F3EA"/>
-  <!-- head -->
-  <ellipse cx="256" cy="196" rx="104" ry="118" fill="#F6DFC4"/>
-  <!-- the deadpan: two dots and a flat line, nothing more -->
-  <ellipse cx="218" cy="196" rx="15" ry="21" fill="#1A1A1A"/>
-  <ellipse cx="294" cy="196" rx="15" ry="21" fill="#1A1A1A"/>
-  <rect x="230" y="256" width="52" height="9" rx="4" fill="#C6836B"/>
-  <!-- glove -->
-  <circle cx="256" cy="404" r="66" fill="#C1272D"/>
-  <circle cx="256" cy="404" r="66" fill="none" stroke="#8E1B20" stroke-width="10"/>
-</svg>`);
-}
 
 async function main(): Promise<void> {
   await mkdir(OUT, { recursive: true });
 
   for (const size of SIZES) {
-    // flatten(): kill the alpha channel. iOS renders transparency as black.
-    const png = await sharp(icon(size))
-      .resize(size, size)
-      .flatten({ background: '#F2C230' })
-      .png({ compressionLevel: 9 })
+    const png = await sharp(MASTER)
+      // `cover` + centre, not the default `fit`: a master that is ever replaced
+      // with a non-square file must still yield a full-bleed square. `contain`
+      // would letterbox it and hand the platform mask a bordered icon.
+      .resize(size, size, { fit: 'cover', position: 'centre', kernel: 'lanczos3' })
+      // flatten(): kill the alpha channel. iOS renders transparency as black.
+      .flatten({ background: '#000000' })
+      // adaptiveFiltering is off by default and worth 15-18% here: the source
+      // is a painting, not the flat vector fills this script used to draw, and
+      // per-row filter selection is what PNG has for gradients. Still lossless
+      // — do NOT reach for `effort`, which silently turns on 256-colour palette
+      // quantization and bands the dark vignette.
+      .png({ compressionLevel: 9, adaptiveFiltering: true })
       .toBuffer();
     const name = size === 180 ? 'apple-touch-icon.png' : `icon-${size}.png`;
     await writeFile(path.join(OUT, name), png);
@@ -96,6 +98,9 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error: unknown) => {
+  // sharp names the missing input itself ("Input file is missing: <MASTER>"),
+  // which is the only failure a caller is likely to hit, so this needs no
+  // second path of its own.
   process.stderr.write(`icon generation failed: ${String(error)}\n`);
   process.exitCode = 1;
 });

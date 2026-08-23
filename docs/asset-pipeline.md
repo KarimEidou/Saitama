@@ -5,7 +5,8 @@ the next one reads, and every intermediate artefact is either committed (small,
 textual, reviewable) or reproducible (large, binary, gitignored). No pipeline
 output is ever committed — `npm run guard` enforces that, refusing any tracked
 file with one of eighteen game-asset extensions (`.ktx2`, `.glb`, `.hdr`,
-`.png`, `.mp3`, …) outside `docs/screenshots/`, plus any tracked file over 5 MB.
+`.png`, `.mp3`, …) outside `docs/screenshots/` and the app-icon master in
+`assets/icon/`, plus any tracked file over 5 MB.
 It is an extension list, not a general binary sniffer.
 
 ```

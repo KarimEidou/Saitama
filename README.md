@@ -116,7 +116,8 @@ allow it, or the phone just times out.
 
 All three stages are re-runnable and idempotent. Neither downloaded nor generated
 assets are committed — `npm run guard` rejects tracked binary _game assets_
-outside `docs/screenshots/`, and any tracked file over 5 MB. It works off a
+outside `docs/screenshots/` and the app-icon master in `assets/icon/`, and any
+tracked file over 5 MB. It works off a
 fixed list of eighteen extensions (`.ktx2`, `.glb`, `.hdr`, `.png`, `.mp3`, … —
 `scripts/guard-no-binaries.ts` has the whole set), so it is a guard against the
 pipeline's output, not a general binary sniffer.

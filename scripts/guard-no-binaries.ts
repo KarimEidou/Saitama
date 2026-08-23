@@ -9,7 +9,7 @@
  *   1. SIZE   — no tracked file may exceed MAX_FILE_BYTES (5 MB), measured on
  *               the larger of the STAGED BLOB and the working copy.
  *   2. FORMAT — no tracked file may carry a binary game-asset extension,
- *               except inside the allow-listed documentation directory.
+ *               except inside the two allow-listed directories.
  *               Decided from the PATH alone, so a staged-then-deleted binary
  *               cannot slip past by having no file on disk.
  *
@@ -93,9 +93,24 @@ const FORBIDDEN_EXTENSIONS = new Set([
 
 /**
  * Path prefixes exempt from the FORMAT rule (still subject to the SIZE rule).
- * Documentation screenshots are the only sanctioned committed binaries.
+ * Two, and the reason is the same both times: what lives there is NOT
+ * reproducible, so keeping it out of git would not "save" it anywhere.
+ *
+ *   docs/screenshots/  A small curated evidence copy of the verification
+ *                      harness output. The harness rewrites its own PNGs into
+ *                      gitignored paths; these are the ones a reader needs.
+ *
+ *   assets/icon/       The app icon ships from a committed raster master —
+ *                      artwork, not a build product, with no manifest to
+ *                      re-fetch it from and no `npm run assets` step that
+ *                      re-derives it. `scripts/make-icons.ts` reads it and
+ *                      writes every home-screen size into the gitignored
+ *                      `public/icons/`, so exactly one image is tracked here
+ *                      and everything generated from it still stays out.
+ *
+ * Neither exemption touches the SIZE rule: a 6 MB master is still rejected.
  */
-const ALLOWED_PREFIXES = ['docs/screenshots/'];
+const ALLOWED_PREFIXES = ['docs/screenshots/', 'assets/icon/'];
 
 interface Violation {
   readonly file: string;

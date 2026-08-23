@@ -137,4 +137,48 @@ describe('guard-no-binaries', () => {
     expect(run.output).toContain('binary guard OK');
     expect(run.status).toBe(0);
   });
+
+  it('exempts the committed app-icon master', () => {
+    // `scripts/make-icons.ts` derives every home-screen size FROM this file, so
+    // losing it loses the artwork — there is no manifest to re-fetch it from.
+    const repo = freshRepo();
+    mkdirSync(path.join(repo, 'assets', 'icon'), { recursive: true });
+    writeFileSync(path.join(repo, 'assets', 'icon', 'icon-source.png'), 'small');
+    git(repo, ['add', path.join('assets', 'icon', 'icon-source.png')]);
+
+    const run = runGuard(repo);
+    expect(run.output).toContain('binary guard OK');
+    expect(run.status).toBe(0);
+  });
+
+  it('holds the size ceiling inside assets/icon/', () => {
+    // The exemption is FORMAT-only. It buys the icon master a `.png` extension,
+    // not a hole in the rule that keeps history from growing without bound.
+    const repo = freshRepo();
+    mkdirSync(path.join(repo, 'assets', 'icon'), { recursive: true });
+    writeFileSync(
+      path.join(repo, 'assets', 'icon', 'icon-source.png'),
+      'x'.repeat(6 * 1024 * 1024)
+    );
+    git(repo, ['add', path.join('assets', 'icon', 'icon-source.png')]);
+
+    const run = runGuard(repo);
+    expect(run.status).toBe(1);
+    expect(run.output).toContain('[size]');
+    expect(run.output).toContain('icon-source.png');
+  });
+
+  it('does not exempt a sibling of the icon directory', () => {
+    // `startsWith` on a normalised path: `assets/icons/` and `assets/icon-x/`
+    // are different directories and must both still be rejected.
+    const repo = freshRepo();
+    mkdirSync(path.join(repo, 'assets', 'icons'), { recursive: true });
+    writeFileSync(path.join(repo, 'assets', 'icons', 'stray.png'), 'small');
+    git(repo, ['add', path.join('assets', 'icons', 'stray.png')]);
+
+    const run = runGuard(repo);
+    expect(run.status).toBe(1);
+    expect(run.output).toContain('[format]');
+    expect(run.output).toContain('stray.png');
+  });
 });

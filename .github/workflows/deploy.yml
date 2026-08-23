@@ -84,8 +84,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      # Refuses tracked binary game assets outside docs/screenshots/, and any
-      # tracked file over 5 MB. Needs the git metadata actions/checkout leaves.
+      # Refuses tracked binary game assets outside docs/screenshots/ and the
+      # app-icon master in assets/icon/, and any tracked file over 5 MB. Needs
+      # the git metadata actions/checkout leaves.
       - name: Binary guard
         run: npm run guard
 
