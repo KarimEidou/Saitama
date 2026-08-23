@@ -25,12 +25,20 @@
  * The STYLESHEET composes. JS writes `--fill`, CSS reads
  * `transform: scaleX(var(--fill))`. JS writes `--charge`, CSS reads
  * `stroke-dashoffset: calc(var(--circ) * (1 - var(--charge)))`. JS writes
- * `--sec`, CSS reads `counter-reset: sec var(--sec)` and prints it through
- * `content: counter(sec, decimal-leading-zero)`.
+ * `--n-text` as a quoted string, CSS reads `content: var(--n-text)`.
  *
  * That last one is the trick that makes a ticking clock legal: the digits are
  * GENERATED CONTENT derived from a custom property, so a timer counting down at
  * 60 Hz never touches a text node.
+ *
+ * It used to be `counter-reset: sec var(--sec)` printed through
+ * `content: counter(sec, decimal-leading-zero)`, which is tidier and which
+ * rendered `0` for every number in the HUD on the WebView this game ships in.
+ * `css-number.ts` documents that failure in full; the short version is that a
+ * `var()` the engine will not substitute takes its whole declaration with it,
+ * and an uninstantiated counter prints zero forever without a diagnostic.
+ * Substitution into `content` is the half of the mechanism that works
+ * everywhere, so that is the half that survived.
  *
  * ── WHY `setProperty` AND NEVER `el.style.foo = …` ─────────────────────────
  * `CSSStyleDeclaration.prototype.setProperty` is a single function, so the
@@ -58,15 +66,18 @@ export interface IFrameWriterStats {
  * Largest magnitude JS renders WITHOUT exponential notation.
  *
  * `String(1e20)` is `"100000000000000000000"`; `String(1e21)` is `"1e+21"`, and
- * `toFixed` switches at the same point. CSS number parsing rejects both forms of
- * exponent here, and a rejected `counter-reset` prints 0 forever. Nothing this
- * HUD displays is within twenty orders of magnitude of the clamp, so hitting it
- * means the value was already nonsense — the clamp only decides how it looks.
+ * `toFixed` switches at the same point. An exponent is not a CSS number, so a
+ * declaration built from one is invalid and drops silently; and where the value
+ * is printed rather than computed with — the readouts in `css-number.ts` — it is
+ * a display face rendering `1e+21` at 11 px, which is worse than a saturated
+ * number. Nothing this HUD displays is within twenty orders of magnitude of the
+ * clamp, so hitting it means the value was already nonsense — the clamp only
+ * decides how it looks.
  */
 const MAX_CSS_NUMBER = 1e20;
 
 /** Clamp to a magnitude both `String` and `toFixed` render in fixed notation. */
-function clampToFixedRange(value: number): number {
+export function clampToFixedRange(value: number): number {
   return value > MAX_CSS_NUMBER
     ? MAX_CSS_NUMBER
     : value < -MAX_CSS_NUMBER
@@ -122,12 +133,19 @@ export class FrameWriter {
   }
 
   /**
-   * Set an INTEGER custom property destined for `counter-reset`.
+   * Set an INTEGER custom property.
    *
-   * `counter-reset: n var(--n)` is invalid at computed-value time if `--n` is
-   * not an integer, and an invalid `counter-reset` does not fall back — the
-   * counter silently stays at zero and the readout prints `0` forever while the
-   * variable reads correct in devtools. Rounding here is not a nicety.
+   * A custom property substituted into a declaration that requires an
+   * `<integer>` — `z-index`, `grid-row`, `counter-reset` — invalidates that
+   * declaration at computed-value time if it resolves to `1.5`, and an invalid
+   * declaration does not fall back to anything useful: it is dropped, silently,
+   * while the variable reads correct in devtools. Rounding here is not a
+   * nicety.
+   *
+   * The HUD's readouts were the caller that motivated this and they no longer
+   * use it — `css-number.ts` writes a formatted string now, because the
+   * `counter-reset` half of that mechanism does not survive the shipping
+   * WebView. Anything that hands an integer to CSS still belongs here.
    */
   setInteger(element: Element, name: CssVarName, value: number): void {
     const safe = Number.isFinite(value) ? clampToFixedRange(Math.round(value)) : 0;
