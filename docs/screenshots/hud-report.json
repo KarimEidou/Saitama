@@ -42,7 +42,7 @@
     "inputZIndex": 1,
     "uiZIndex": 10,
     "probe": [
-      "button.hud-btn.hud-pausebtn",
+      "button.hud-btn.hud-tracker__open",
       "div.opm-input-root",
       "canvas#backdrop",
       "div#stage",
@@ -53,16 +53,16 @@
   },
   "regions": {
     "whole": {
-      "meanLuma": 37.02643262403861,
-      "stdDev": 31.44793922015774,
-      "colours": 1166,
+      "meanLuma": 36.72277220851609,
+      "stdDev": 31.89681068815518,
+      "colours": 1158,
       "width": 2532,
       "height": 1170
     },
     "band": {
-      "meanLuma": 40.52253439101057,
-      "stdDev": 35.10469323726155,
-      "colours": 647,
+      "meanLuma": 37.21425736946221,
+      "stdDev": 42.47248143566977,
+      "colours": 645,
       "width": 2532,
       "height": 360
     },
@@ -155,7 +155,7 @@
       "width": 844,
       "height": 390
     },
-    "cumulativeLayoutShift": 0.0842504913591627
+    "cumulativeLayoutShift": 0.018083225910946518
   },
   "snapshot.phone-portrait": {
     "scene": "pause",
@@ -218,7 +218,7 @@
       "width": 390,
       "height": 844
     },
-    "cumulativeLayoutShift": 0.0976438517346179
+    "cumulativeLayoutShift": 0.0009653396063741745
   },
   "snapshot.tablet": {
     "scene": "combat-charging",
@@ -281,125 +281,125 @@
       "width": 1024,
       "height": 768
     },
-    "cumulativeLayoutShift": 0.01227192514731238
+    "cumulativeLayoutShift": 0.012921203199463584
   },
   "shots": {
     "hud-loading-phone-landscape.png": {
-      "meanLuma": 17.7822888548299,
-      "stdDev": 26.276379312207926,
-      "colours": 172,
+      "meanLuma": 17.782875349813743,
+      "stdDev": 26.276090375530774,
+      "colours": 171,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-phone-landscape.png": {
-      "meanLuma": 37.02643262403861,
-      "stdDev": 31.44793922015774,
-      "colours": 1166,
+      "meanLuma": 36.72277220851609,
+      "stdDev": 31.89681068815518,
+      "colours": 1158,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-boss-phone-landscape.png": {
-      "meanLuma": 37.094336217427696,
-      "stdDev": 31.608933804081968,
-      "colours": 1227,
+      "meanLuma": 36.782951021790645,
+      "stdDev": 32.08907468476369,
+      "colours": 1219,
       "width": 2532,
       "height": 1170
     },
     "hud-quests-phone-landscape.png": {
-      "meanLuma": 21.244284347977917,
-      "stdDev": 31.06850517581245,
-      "colours": 463,
+      "meanLuma": 22.963678371397116,
+      "stdDev": 28.03934106075258,
+      "colours": 727,
       "width": 2532,
       "height": 1170
     },
     "hud-rank-phone-landscape.png": {
-      "meanLuma": 29.65850759960656,
-      "stdDev": 21.77053003102842,
-      "colours": 1081,
+      "meanLuma": 19.731944888892357,
+      "stdDev": 30.82163877013416,
+      "colours": 396,
       "width": 2532,
       "height": 1170
     },
     "hud-results-phone-landscape.png": {
-      "meanLuma": 27.351614308455495,
-      "stdDev": 19.124488980226918,
-      "colours": 923,
+      "meanLuma": 29.82339351680874,
+      "stdDev": 21.08688357651035,
+      "colours": 989,
       "width": 2532,
       "height": 1170
     },
     "hud-pause-phone-landscape.png": {
-      "meanLuma": 25.91677701502224,
-      "stdDev": 21.07562213900824,
-      "colours": 974,
+      "meanLuma": 12.980401939077092,
+      "stdDev": 23.273447022616505,
+      "colours": 291,
       "width": 2532,
       "height": 1170
     },
     "hud-settings-phone-landscape.png": {
-      "meanLuma": 17.72743006262721,
-      "stdDev": 24.618730412809576,
-      "colours": 341,
+      "meanLuma": 30.41321072415547,
+      "stdDev": 21.538470365692046,
+      "colours": 911,
       "width": 2532,
       "height": 1170
     },
     "hud-idle-phone-landscape.png": {
-      "meanLuma": 38.256777301458754,
-      "stdDev": 28.196747787620335,
-      "colours": 1039,
+      "meanLuma": 36.959980268213535,
+      "stdDev": 28.27224752530214,
+      "colours": 1044,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-alert-phone-landscape.png": {
-      "meanLuma": 37.352440083015175,
-      "stdDev": 31.863169782984013,
-      "colours": 1200,
+      "meanLuma": 37.0247427896719,
+      "stdDev": 32.198735565243595,
+      "colours": 1203,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-charging-phone-landscape.png": {
-      "meanLuma": 37.436218141809604,
-      "stdDev": 31.82654707337514,
-      "colours": 1423,
+      "meanLuma": 37.0473992301927,
+      "stdDev": 32.104754816296,
+      "colours": 1294,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-bored-phone-landscape.png": {
-      "meanLuma": 36.974743373564614,
-      "stdDev": 31.099949793515215,
-      "colours": 1174,
+      "meanLuma": 36.636853376156004,
+      "stdDev": 31.4362485839373,
+      "colours": 1176,
       "width": 2532,
       "height": 1170
     },
     "hud-markers-phone-landscape.png": {
-      "meanLuma": 37.61136380264499,
-      "stdDev": 33.097249838398895,
-      "colours": 1547,
+      "meanLuma": 37.16827509826912,
+      "stdDev": 33.25986300298251,
+      "colours": 1544,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-deuteranopia.png": {
-      "meanLuma": 37.12490886996276,
-      "stdDev": 31.914890786206996,
-      "colours": 1138,
+      "meanLuma": 36.82005744616265,
+      "stdDev": 32.17292475286374,
+      "colours": 1174,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-protanopia.png": {
-      "meanLuma": 37.21019420462078,
-      "stdDev": 32.16165622933156,
-      "colours": 1142,
+      "meanLuma": 36.678430683154225,
+      "stdDev": 32.05520387150972,
+      "colours": 1135,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-tritanopia.png": {
-      "meanLuma": 37.01982605445388,
-      "stdDev": 31.46374177232498,
-      "colours": 1213,
+      "meanLuma": 36.61166262210225,
+      "stdDev": 31.73901982506545,
+      "colours": 1204,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-highContrast.png": {
-      "meanLuma": 35.6606178277207,
-      "stdDev": 34.62816142896563,
-      "colours": 1160,
+      "meanLuma": 35.114834720273535,
+      "stdDev": 34.89543813296734,
+      "colours": 1163,
       "width": 2532,
       "height": 1170
     },
@@ -411,107 +411,107 @@
       "height": 2532
     },
     "hud-combat-phone-portrait.png": {
-      "meanLuma": 48.941793516498464,
-      "stdDev": 39.231437766388275,
-      "colours": 1016,
+      "meanLuma": 49.18329135031813,
+      "stdDev": 40.08294083782414,
+      "colours": 1020,
       "width": 1170,
       "height": 2532
     },
     "hud-combat-boss-phone-portrait.png": {
-      "meanLuma": 48.830470670410804,
-      "stdDev": 39.48316002902216,
-      "colours": 1093,
+      "meanLuma": 48.96429585569916,
+      "stdDev": 40.19203740112971,
+      "colours": 1082,
       "width": 1170,
       "height": 2532
     },
     "hud-quests-phone-portrait.png": {
-      "meanLuma": 29.151069912371817,
-      "stdDev": 35.61201916748014,
-      "colours": 765,
+      "meanLuma": 40.51129646107055,
+      "stdDev": 27.807501185804945,
+      "colours": 1221,
       "width": 1170,
       "height": 2532
     },
     "hud-rank-phone-portrait.png": {
-      "meanLuma": 25.762700266422502,
-      "stdDev": 41.5285787434632,
-      "colours": 453,
+      "meanLuma": 40.28152762030499,
+      "stdDev": 28.648890628222443,
+      "colours": 1166,
       "width": 1170,
       "height": 2532
     },
     "hud-results-phone-portrait.png": {
-      "meanLuma": 37.81996151878139,
-      "stdDev": 26.157962615327733,
-      "colours": 1165,
+      "meanLuma": 42.48003636406805,
+      "stdDev": 28.019018352950024,
+      "colours": 1145,
       "width": 1170,
       "height": 2532
     },
     "hud-pause-phone-portrait.png": {
-      "meanLuma": 27.63106043851887,
-      "stdDev": 23.25939533477072,
-      "colours": 677,
+      "meanLuma": 12.797235208696648,
+      "stdDev": 23.422425627155896,
+      "colours": 289,
       "width": 1170,
       "height": 2532
     },
     "hud-settings-phone-portrait.png": {
-      "meanLuma": 34.032200609347136,
-      "stdDev": 26.045902470668317,
-      "colours": 894,
+      "meanLuma": 38.18750332344237,
+      "stdDev": 26.16853533482389,
+      "colours": 1022,
       "width": 1170,
       "height": 2532
     },
     "hud-loading-tablet.png": {
-      "meanLuma": 15.810296958364653,
-      "stdDev": 17.534871160819822,
+      "meanLuma": 15.809820601985328,
+      "stdDev": 17.5349943350594,
       "colours": 164,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-tablet.png": {
-      "meanLuma": 43.637424824723176,
-      "stdDev": 30.44388822858608,
-      "colours": 923,
+      "meanLuma": 43.208384918369255,
+      "stdDev": 30.61228012413708,
+      "colours": 935,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-boss-tablet.png": {
-      "meanLuma": 43.71472447432024,
-      "stdDev": 30.59049101533697,
-      "colours": 981,
+      "meanLuma": 43.37096854291715,
+      "stdDev": 30.937136252393262,
+      "colours": 971,
       "width": 2048,
       "height": 1536
     },
     "hud-quests-tablet.png": {
-      "meanLuma": 33.9354808185103,
-      "stdDev": 21.693635106125218,
-      "colours": 1070,
+      "meanLuma": 33.7157070192474,
+      "stdDev": 21.76410545649629,
+      "colours": 1032,
       "width": 2048,
       "height": 1536
     },
     "hud-rank-tablet.png": {
-      "meanLuma": 36.478355654122616,
-      "stdDev": 22.395762142288696,
-      "colours": 910,
+      "meanLuma": 36.205978411038096,
+      "stdDev": 22.51667824435929,
+      "colours": 914,
       "width": 2048,
       "height": 1536
     },
     "hud-results-tablet.png": {
-      "meanLuma": 16.609789068165743,
-      "stdDev": 21.888813255736856,
-      "colours": 551,
+      "meanLuma": 34.4436729345452,
+      "stdDev": 21.762800313225416,
+      "colours": 928,
       "width": 2048,
       "height": 1536
     },
     "hud-pause-tablet.png": {
-      "meanLuma": 10.780580590203572,
-      "stdDev": 15.520635744336479,
-      "colours": 279,
+      "meanLuma": 16.9302406846223,
+      "stdDev": 14.829025966236006,
+      "colours": 433,
       "width": 2048,
       "height": 1536
     },
     "hud-settings-tablet.png": {
-      "meanLuma": 21.35482193033573,
-      "stdDev": 25.402033361728133,
-      "colours": 473,
+      "meanLuma": 31.929074215660943,
+      "stdDev": 20.708236318973846,
+      "colours": 846,
       "width": 2048,
       "height": 1536
     }
@@ -541,8 +541,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
+        "height": 53,
+        "text": "CRANKGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
@@ -550,9 +550,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -562,11 +562,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 316.34375,
+        "x": 271,
         "y": 8,
-        "width": 236.3125,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 265.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -574,10 +574,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 558.65625,
+        "x": 542.734375,
         "y": 8,
-        "width": 201.34375,
-        "height": 97,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -587,10 +587,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 59,
-        "y": 111,
-        "width": 560,
-        "height": 37,
+        "y": 70,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -627,8 +651,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
+        "height": 53,
+        "text": "CRANKGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
@@ -636,9 +660,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -648,11 +672,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 316.34375,
+        "x": 271,
         "y": 8,
-        "width": 236.3125,
-        "height": 46,
-        "text": "THREAT DRAGONDeep Sea King:"
+        "width": 265.734375,
+        "height": 44,
+        "text": "DRAGONDeep Sea King:"
       },
       {
         "id": "boss",
@@ -660,9 +684,9 @@
         "screen": "hud",
         "path": "2/0/1/0/1",
         "occluded": false,
-        "x": 327.34375,
-        "y": 42,
-        "width": 214.3125,
+        "x": 282,
+        "y": 41,
+        "width": 243.734375,
         "height": 5,
         "text": ""
       },
@@ -672,10 +696,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 558.65625,
+        "x": 542.734375,
         "y": 8,
-        "width": 201.34375,
-        "height": 97,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -685,10 +709,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 59,
-        "y": 111,
-        "width": 560,
-        "height": 37,
+        "y": 70,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -725,8 +773,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -734,9 +782,9 @@
         "screen": "quests",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -747,10 +795,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 59,
-        "y": 71,
-        "width": 560,
-        "height": 37,
+        "y": 67,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "quests",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 59,
+        "y": 67,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "quests",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 766,
+        "y": 67,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -811,8 +883,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -820,9 +892,9 @@
         "screen": "rank",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -833,10 +905,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 59,
-        "y": 71,
-        "width": 560,
-        "height": 37,
+        "y": 67,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "rank",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 59,
+        "y": 67,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "rank",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 766,
+        "y": 67,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -909,8 +1005,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -918,9 +1014,9 @@
         "screen": "results",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -931,10 +1027,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 59,
-        "y": 71,
-        "width": 560,
-        "height": 37,
+        "y": 67,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "results",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 59,
+        "y": 67,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "results",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 766,
+        "y": 67,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -995,8 +1115,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -1004,9 +1124,9 @@
         "screen": "pause",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -1016,11 +1136,11 @@
         "screen": "pause",
         "path": "2/0/1/0",
         "occluded": true,
-        "x": 316.34375,
+        "x": 271,
         "y": 8,
-        "width": 236.3125,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 265.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -1028,10 +1148,10 @@
         "screen": "pause",
         "path": "2/0/2/0",
         "occluded": true,
-        "x": 558.65625,
+        "x": 542.734375,
         "y": 8,
-        "width": 201.34375,
-        "height": 97,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -1041,10 +1161,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 59,
-        "y": 111,
-        "width": 560,
-        "height": 37,
+        "y": 70,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "pause",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 59,
+        "y": 70,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "pause",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1141,8 +1285,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -1150,9 +1294,9 @@
         "screen": "settings",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -1163,10 +1307,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 59,
-        "y": 71,
-        "width": 560,
-        "height": 37,
+        "y": 67,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "settings",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 59,
+        "y": 67,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "settings",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 766,
+        "y": 67,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1347,8 +1515,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -1356,9 +1524,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -1369,10 +1537,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 59,
-        "y": 71,
-        "width": 560,
-        "height": 37,
+        "y": 67,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 67,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 67,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1409,8 +1601,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -1418,9 +1610,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -1430,11 +1622,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 316.34375,
+        "x": 271,
         "y": 8,
-        "width": 236.3125,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 265.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -1442,10 +1634,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 558.65625,
+        "x": 542.734375,
         "y": 8,
-        "width": 201.34375,
-        "height": 97,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -1455,10 +1647,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 59,
-        "y": 111,
-        "width": 560,
-        "height": 37,
+        "y": 70,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1490,10 +1706,10 @@
         "screen": "hud",
         "path": "8/0",
         "occluded": false,
-        "x": 59,
-        "y": 233.3125,
-        "width": 751,
-        "height": 33.6875,
+        "x": 312.03125,
+        "y": 235.3125,
+        "width": 244.921875,
+        "height": 31.6875,
         "text": "DEMONThreat to an entire city"
       },
       {
@@ -1503,9 +1719,9 @@
         "path": "8/0/0",
         "occluded": false,
         "x": 312.03125,
-        "y": 233.3125,
+        "y": 235.3125,
         "width": 244.921875,
-        "height": 33.6875,
+        "height": 31.6875,
         "text": "DEMONThreat to an entire city"
       }
     ],
@@ -1519,8 +1735,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
+        "height": 53,
+        "text": "CRANKGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
@@ -1528,9 +1744,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -1540,11 +1756,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 316.34375,
+        "x": 271,
         "y": 8,
-        "width": 236.3125,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 265.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -1552,10 +1768,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 558.65625,
+        "x": 542.734375,
         "y": 8,
-        "width": 201.34375,
-        "height": 97,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -1565,10 +1781,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 59,
-        "y": 111,
-        "width": 560,
-        "height": 37,
+        "y": 70,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1605,8 +1845,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyNUMBGAIN"
+        "height": 53,
+        "text": "CRANKNUMBGAIN"
       },
       {
         "id": "boredom",
@@ -1614,9 +1854,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -1626,11 +1866,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 316.34375,
+        "x": 271,
         "y": 8,
-        "width": 236.3125,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 265.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -1638,10 +1878,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 558.65625,
+        "x": 542.734375,
         "y": 8,
-        "width": 201.34375,
-        "height": 97,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -1651,10 +1891,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 59,
-        "y": 111,
-        "width": 560,
-        "height": 37,
+        "y": 70,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1751,8 +2015,8 @@
         "x": 59,
         "y": 8,
         "width": 206,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -1760,9 +2024,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 105,
-        "y": 53,
-        "width": 149,
+        "x": 104,
+        "y": 50,
+        "width": 150,
         "height": 5,
         "text": ""
       },
@@ -1772,11 +2036,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 316.34375,
+        "x": 271,
         "y": 8,
-        "width": 236.3125,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 265.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -1784,10 +2048,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 558.65625,
+        "x": 542.734375,
         "y": 8,
-        "width": 201.34375,
-        "height": 97,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -1797,10 +2061,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 59,
-        "y": 111,
-        "width": 560,
-        "height": 37,
+        "y": 70,
+        "width": 751,
+        "height": 44,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 701,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1850,9 +2138,9 @@
         "occluded": false,
         "x": 8,
         "y": 59,
-        "width": 183,
-        "height": 57,
-        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
+        "width": 232,
+        "height": 53,
+        "text": "CRANKGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
@@ -1860,9 +2148,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 54,
-        "y": 104,
-        "width": 126,
+        "x": 53,
+        "y": 101,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -1873,10 +2161,10 @@
         "path": "2/0/1/0",
         "occluded": false,
         "x": 8,
-        "y": 201,
-        "width": 300,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "y": 172.9375,
+        "width": 374,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -1884,10 +2172,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 199,
-        "y": 59,
-        "width": 133,
-        "height": 136,
+        "x": 8,
+        "y": 213.9375,
+        "width": 374,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -1897,10 +2185,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 8,
-        "y": 244,
+        "y": 118,
         "width": 374,
-        "height": 50.9375,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -1924,9 +2236,9 @@
         "occluded": false,
         "x": 8,
         "y": 59,
-        "width": 183,
-        "height": 57,
-        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
+        "width": 232,
+        "height": 53,
+        "text": "CRANKGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
@@ -1934,9 +2246,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 54,
-        "y": 104,
-        "width": 126,
+        "x": 53,
+        "y": 101,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -1947,10 +2259,10 @@
         "path": "2/0/1/0",
         "occluded": false,
         "x": 8,
-        "y": 201,
-        "width": 300,
-        "height": 46,
-        "text": "THREAT DRAGONDeep Sea King:"
+        "y": 172.9375,
+        "width": 374,
+        "height": 44,
+        "text": "DRAGONDeep Sea King:"
       },
       {
         "id": "boss",
@@ -1959,8 +2271,8 @@
         "path": "2/0/1/0/1",
         "occluded": false,
         "x": 19,
-        "y": 235,
-        "width": 278,
+        "y": 205.9375,
+        "width": 352,
         "height": 5,
         "text": ""
       },
@@ -1970,10 +2282,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 199,
-        "y": 59,
-        "width": 133,
-        "height": 136,
+        "x": 8,
+        "y": 222.9375,
+        "width": 374,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -1983,10 +2295,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 8,
-        "y": 253,
+        "y": 118,
         "width": 374,
-        "height": 50.9375,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2010,9 +2346,9 @@
         "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 183,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "width": 232,
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -2020,9 +2356,9 @@
         "screen": "quests",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 104,
-        "width": 126,
+        "x": 53,
+        "y": 101,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2033,10 +2369,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 128,
+        "y": 118,
         "width": 374,
-        "height": 50.9375,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "quests",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "quests",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2084,9 +2444,9 @@
         "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 183,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "width": 232,
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -2094,9 +2454,9 @@
         "screen": "rank",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 104,
-        "width": 126,
+        "x": 53,
+        "y": 101,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2107,10 +2467,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 128,
+        "y": 118,
         "width": 374,
-        "height": 50.9375,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "rank",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "rank",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2170,9 +2554,9 @@
         "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 183,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "width": 232,
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -2180,9 +2564,9 @@
         "screen": "results",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 104,
-        "width": 126,
+        "x": 53,
+        "y": 101,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2193,10 +2577,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 128,
+        "y": 118,
         "width": 374,
-        "height": 50.9375,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "results",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "results",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2256,9 +2664,9 @@
         "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 183,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "width": 232,
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -2266,9 +2674,9 @@
         "screen": "pause",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 104,
-        "width": 126,
+        "x": 53,
+        "y": 101,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2279,10 +2687,10 @@
         "path": "2/0/1/0",
         "occluded": true,
         "x": 8,
-        "y": 201,
-        "width": 300,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "y": 172.9375,
+        "width": 374,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -2290,10 +2698,10 @@
         "screen": "pause",
         "path": "2/0/2/0",
         "occluded": true,
-        "x": 199,
-        "y": 59,
-        "width": 133,
-        "height": 136,
+        "x": 8,
+        "y": 213.9375,
+        "width": 374,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -2303,10 +2711,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 244,
+        "y": 118,
         "width": 374,
-        "height": 50.9375,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "pause",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "pause",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2390,9 +2822,9 @@
         "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 183,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "width": 232,
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -2400,9 +2832,9 @@
         "screen": "settings",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 104,
-        "width": 126,
+        "x": 53,
+        "y": 101,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2413,10 +2845,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 128,
+        "y": 118,
         "width": 374,
-        "height": 50.9375,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "settings",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "settings",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2731,8 +3187,8 @@
         "x": 8,
         "y": 8,
         "width": 232,
-        "height": 57,
-        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
+        "height": 53,
+        "text": "CRANKGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
@@ -2740,9 +3196,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 54,
-        "y": 53,
-        "width": 175,
+        "x": 53,
+        "y": 50,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2752,11 +3208,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 362,
+        "x": 248,
         "y": 8,
-        "width": 300,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 492.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -2764,10 +3220,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 670,
+        "x": 748.734375,
         "y": 8,
-        "width": 296,
-        "height": 58,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -2777,10 +3233,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 8,
-        "y": 74,
-        "width": 560,
-        "height": 50.9375,
+        "y": 72,
+        "width": 1008,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 8,
+        "y": 72,
+        "width": 760,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 972,
+        "y": 72,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2817,8 +3297,8 @@
         "x": 8,
         "y": 8,
         "width": 232,
-        "height": 57,
-        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
+        "height": 53,
+        "text": "CRANKGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
@@ -2826,9 +3306,9 @@
         "screen": "hud",
         "path": "2/0/0/0/1/2",
         "occluded": false,
-        "x": 54,
-        "y": 53,
-        "width": 175,
+        "x": 53,
+        "y": 50,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2838,11 +3318,11 @@
         "screen": "hud",
         "path": "2/0/1/0",
         "occluded": false,
-        "x": 362,
+        "x": 248,
         "y": 8,
-        "width": 300,
-        "height": 46,
-        "text": "THREAT DRAGONDeep Sea King:"
+        "width": 492.734375,
+        "height": 44,
+        "text": "DRAGONDeep Sea King:"
       },
       {
         "id": "boss",
@@ -2850,9 +3330,9 @@
         "screen": "hud",
         "path": "2/0/1/0/1",
         "occluded": false,
-        "x": 373,
-        "y": 42,
-        "width": 278,
+        "x": 259,
+        "y": 41,
+        "width": 470.734375,
         "height": 5,
         "text": ""
       },
@@ -2862,10 +3342,10 @@
         "screen": "hud",
         "path": "2/0/2/0",
         "occluded": false,
-        "x": 670,
+        "x": 748.734375,
         "y": 8,
-        "width": 296,
-        "height": 58,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -2875,10 +3355,34 @@
         "path": "2/0/3",
         "occluded": false,
         "x": 8,
-        "y": 74,
-        "width": 560,
-        "height": 50.9375,
+        "y": 72,
+        "width": 1008,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 8,
+        "y": 72,
+        "width": 760,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 972,
+        "y": 72,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -2915,8 +3419,8 @@
         "x": 8,
         "y": 8,
         "width": 232,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -2924,9 +3428,9 @@
         "screen": "quests",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 53,
-        "width": 175,
+        "x": 53,
+        "y": 50,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -2937,10 +3441,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 73,
-        "width": 560,
-        "height": 50.9375,
+        "y": 69,
+        "width": 1008,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "quests",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 69,
+        "width": 760,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "quests",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 972,
+        "y": 69,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -3001,8 +3529,8 @@
         "x": 8,
         "y": 8,
         "width": 232,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -3010,9 +3538,9 @@
         "screen": "rank",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 53,
-        "width": 175,
+        "x": 53,
+        "y": 50,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -3023,10 +3551,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 73,
-        "width": 560,
-        "height": 50.9375,
+        "y": 69,
+        "width": 1008,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "rank",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 69,
+        "width": 760,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "rank",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 972,
+        "y": 69,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -3099,8 +3651,8 @@
         "x": 8,
         "y": 8,
         "width": 232,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -3108,9 +3660,9 @@
         "screen": "results",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 53,
-        "width": 175,
+        "x": 53,
+        "y": 50,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -3121,10 +3673,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 73,
-        "width": 560,
-        "height": 50.9375,
+        "y": 69,
+        "width": 1008,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "results",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 69,
+        "width": 760,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "results",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 972,
+        "y": 69,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -3197,8 +3773,8 @@
         "x": 8,
         "y": 8,
         "width": 232,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -3206,9 +3782,9 @@
         "screen": "pause",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 53,
-        "width": 175,
+        "x": 53,
+        "y": 50,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -3218,11 +3794,11 @@
         "screen": "pause",
         "path": "2/0/1/0",
         "occluded": true,
-        "x": 362,
+        "x": 248,
         "y": 8,
-        "width": 300,
-        "height": 37,
-        "text": "THREAT DEMONMosquito Girl:"
+        "width": 492.734375,
+        "height": 35,
+        "text": "DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
@@ -3230,10 +3806,10 @@
         "screen": "pause",
         "path": "2/0/2/0",
         "occluded": true,
-        "x": 670,
+        "x": 748.734375,
         "y": 8,
-        "width": 296,
-        "height": 58,
+        "width": 217.265625,
+        "height": 56,
         "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
@@ -3243,10 +3819,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 74,
-        "width": 560,
-        "height": 50.9375,
+        "y": 72,
+        "width": 1008,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "pause",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 72,
+        "width": 760,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "pause",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 972,
+        "y": 72,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -3343,8 +3943,8 @@
         "x": 8,
         "y": 8,
         "width": 232,
-        "height": 57,
-        "text": "CRANKCaped BaldyRESTLESSGAIN"
+        "height": 53,
+        "text": "CRANKRESTLESSGAIN"
       },
       {
         "id": "boredom",
@@ -3352,9 +3952,9 @@
         "screen": "settings",
         "path": "2/0/0/0/1/2",
         "occluded": true,
-        "x": 54,
-        "y": 53,
-        "width": 175,
+        "x": 53,
+        "y": 50,
+        "width": 176,
         "height": 5,
         "text": ""
       },
@@ -3365,10 +3965,34 @@
         "path": "2/0/3",
         "occluded": true,
         "x": 8,
-        "y": 73,
-        "width": 560,
-        "height": 50.9375,
+        "y": 69,
+        "width": 1008,
+        "height": 48.9375,
         "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "settings",
+        "path": "2/0/3/0",
+        "occluded": true,
+        "x": 8,
+        "y": 69,
+        "width": 760,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "settings",
+        "path": "2/0/3/1",
+        "occluded": true,
+        "x": 972,
+        "y": 69,
+        "width": 44,
+        "height": 48.9375,
+        "text": "LOG"
       },
       {
         "id": "pause-button",
@@ -3756,120 +4380,7 @@
       }
     ]
   },
-  "stolenTouches": {
-    "combat@phone-portrait": [
-      "left/grid@40,280 -> div.hud-tracker__obj",
-      "left/grid@80,280 -> span.hud-tracker__what",
-      "left/grid@120,280 -> span.hud-tracker__what",
-      "left/grid@160,280 -> span.hud-tracker__what",
-      "right/grid@40,280 -> div.hud-tracker__obj",
-      "right/grid@80,280 -> span.hud-tracker__what",
-      "right/grid@120,280 -> span.hud-tracker__what",
-      "right/grid@160,280 -> span.hud-tracker__what"
-    ],
-    "combat-boss@phone-portrait": [
-      "left/grid@40,280 -> div.hud-tracker__obj",
-      "left/grid@80,280 -> span.hud-tracker__what",
-      "left/grid@120,280 -> span.hud-tracker__what",
-      "left/grid@160,280 -> span.hud-tracker__what",
-      "right/grid@40,280 -> div.hud-tracker__obj",
-      "right/grid@80,280 -> span.hud-tracker__what",
-      "right/grid@120,280 -> span.hud-tracker__what",
-      "right/grid@160,280 -> span.hud-tracker__what"
-    ],
-    "combat@tablet": [
-      "left/grid@40,80 -> div.hud-tracker__title",
-      "left/grid@40,120 -> div.hud-panel.hud-tracker",
-      "left/grid@80,80 -> div.hud-tracker__title",
-      "left/grid@80,120 -> div.hud-panel.hud-tracker",
-      "left/grid@120,80 -> div.hud-tracker__title",
-      "left/grid@120,120 -> div.hud-panel.hud-tracker",
-      "left/grid@160,80 -> div.hud-tracker__title",
-      "left/grid@160,120 -> div.hud-panel.hud-tracker",
-      "left/grid@200,80 -> div.hud-tracker__title",
-      "left/grid@200,120 -> div.hud-panel.hud-tracker",
-      "left/grid@240,80 -> div.hud-tracker__title",
-      "left/grid@240,120 -> div.hud-panel.hud-tracker",
-      "left/grid@280,80 -> div.hud-tracker__title",
-      "left/grid@280,120 -> div.hud-panel.hud-tracker",
-      "left/grid@320,80 -> div.hud-tracker__title",
-      "left/grid@320,120 -> div.hud-panel.hud-tracker",
-      "left/grid@360,80 -> div.hud-tracker__title",
-      "left/grid@360,120 -> div.hud-panel.hud-tracker",
-      "left/grid@400,80 -> div.hud-tracker__title",
-      "left/grid@400,120 -> div.hud-panel.hud-tracker",
-      "left/grid@440,80 -> div.hud-tracker__title",
-      "left/grid@440,120 -> div.hud-panel.hud-tracker",
-      "right/grid@40,80 -> div.hud-tracker__title",
-      "right/grid@40,120 -> div.hud-panel.hud-tracker",
-      "right/grid@80,80 -> div.hud-tracker__title",
-      "right/grid@80,120 -> div.hud-panel.hud-tracker",
-      "right/grid@120,80 -> div.hud-tracker__title",
-      "right/grid@120,120 -> div.hud-panel.hud-tracker",
-      "right/grid@160,80 -> div.hud-tracker__title",
-      "right/grid@160,120 -> div.hud-panel.hud-tracker",
-      "right/grid@200,80 -> div.hud-tracker__title",
-      "right/grid@200,120 -> div.hud-panel.hud-tracker",
-      "right/grid@240,80 -> div.hud-tracker__title",
-      "right/grid@240,120 -> div.hud-panel.hud-tracker",
-      "right/grid@280,80 -> div.hud-tracker__title",
-      "right/grid@280,120 -> div.hud-panel.hud-tracker",
-      "right/grid@320,80 -> div.hud-tracker__title",
-      "right/grid@320,120 -> div.hud-panel.hud-tracker",
-      "right/grid@360,80 -> div.hud-tracker__title",
-      "right/grid@360,120 -> div.hud-panel.hud-tracker",
-      "right/grid@400,80 -> div.hud-tracker__title",
-      "right/grid@400,120 -> div.hud-panel.hud-tracker",
-      "right/grid@440,80 -> div.hud-tracker__title",
-      "right/grid@440,120 -> div.hud-panel.hud-tracker"
-    ],
-    "combat-boss@tablet": [
-      "left/grid@40,80 -> div.hud-tracker__title",
-      "left/grid@40,120 -> div.hud-panel.hud-tracker",
-      "left/grid@80,80 -> div.hud-tracker__title",
-      "left/grid@80,120 -> div.hud-panel.hud-tracker",
-      "left/grid@120,80 -> div.hud-tracker__title",
-      "left/grid@120,120 -> div.hud-panel.hud-tracker",
-      "left/grid@160,80 -> div.hud-tracker__title",
-      "left/grid@160,120 -> div.hud-panel.hud-tracker",
-      "left/grid@200,80 -> div.hud-tracker__title",
-      "left/grid@200,120 -> div.hud-panel.hud-tracker",
-      "left/grid@240,80 -> div.hud-tracker__title",
-      "left/grid@240,120 -> div.hud-panel.hud-tracker",
-      "left/grid@280,80 -> div.hud-tracker__title",
-      "left/grid@280,120 -> div.hud-panel.hud-tracker",
-      "left/grid@320,80 -> div.hud-tracker__title",
-      "left/grid@320,120 -> div.hud-panel.hud-tracker",
-      "left/grid@360,80 -> div.hud-tracker__title",
-      "left/grid@360,120 -> div.hud-panel.hud-tracker",
-      "left/grid@400,80 -> div.hud-tracker__title",
-      "left/grid@400,120 -> div.hud-panel.hud-tracker",
-      "left/grid@440,80 -> div.hud-tracker__title",
-      "left/grid@440,120 -> div.hud-panel.hud-tracker",
-      "right/grid@40,80 -> div.hud-tracker__title",
-      "right/grid@40,120 -> div.hud-panel.hud-tracker",
-      "right/grid@80,80 -> div.hud-tracker__title",
-      "right/grid@80,120 -> div.hud-panel.hud-tracker",
-      "right/grid@120,80 -> div.hud-tracker__title",
-      "right/grid@120,120 -> div.hud-panel.hud-tracker",
-      "right/grid@160,80 -> div.hud-tracker__title",
-      "right/grid@160,120 -> div.hud-panel.hud-tracker",
-      "right/grid@200,80 -> div.hud-tracker__title",
-      "right/grid@200,120 -> div.hud-panel.hud-tracker",
-      "right/grid@240,80 -> div.hud-tracker__title",
-      "right/grid@240,120 -> div.hud-panel.hud-tracker",
-      "right/grid@280,80 -> div.hud-tracker__title",
-      "right/grid@280,120 -> div.hud-panel.hud-tracker",
-      "right/grid@320,80 -> div.hud-tracker__title",
-      "right/grid@320,120 -> div.hud-panel.hud-tracker",
-      "right/grid@360,80 -> div.hud-tracker__title",
-      "right/grid@360,120 -> div.hud-panel.hud-tracker",
-      "right/grid@400,80 -> div.hud-tracker__title",
-      "right/grid@400,120 -> div.hud-panel.hud-tracker",
-      "right/grid@440,80 -> div.hud-tracker__title",
-      "right/grid@440,120 -> div.hud-panel.hud-tracker"
-    ]
-  },
+  "stolenTouches": {},
   "checks": [
     {
       "name": "thumb reserve exceeds the input layer’s own arc reach",
@@ -3889,7 +4400,7 @@
     {
       "name": "loading @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 26.3, colours 172"
+      "detail": "stdDev 26.3, colours 171"
     },
     {
       "name": "loading @ phone-landscape respects the safe area",
@@ -3904,32 +4415,32 @@
     {
       "name": "combat @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.4, colours 1166"
+      "detail": "stdDev 31.9, colours 1158"
     },
     {
       "name": "combat @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "combat @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat @ phone-landscape keeps the thumb corners clear",
-      "pass": false,
-      "detail": "tracker"
+      "pass": true,
+      "detail": "no readable panel inside either hand"
     },
     {
       "name": "combat @ phone-landscape keeps the top band above the hands",
-      "pass": false,
-      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
     },
     {
       "name": "combat @ phone-landscape row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
     },
     {
       "name": "combat @ phone-landscape lets the controls own every touch they need",
@@ -3939,32 +4450,32 @@
     {
       "name": "combat-boss @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.6, colours 1227"
+      "detail": "stdDev 32.1, colours 1219"
     },
     {
       "name": "combat-boss @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "10 panels inside the safe box"
     },
     {
       "name": "combat-boss @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "8 panels, no pair sharing more than 4px²"
+      "detail": "10 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-boss @ phone-landscape keeps the thumb corners clear",
-      "pass": false,
-      "detail": "tracker"
+      "pass": true,
+      "detail": "no readable panel inside either hand"
     },
     {
       "name": "combat-boss @ phone-landscape keeps the top band above the hands",
-      "pass": false,
-      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
     },
     {
       "name": "combat-boss @ phone-landscape row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, boss, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, boss, ledger)"
     },
     {
       "name": "combat-boss @ phone-landscape lets the controls own every touch they need",
@@ -3974,92 +4485,92 @@
     {
       "name": "quests @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.1, colours 463"
+      "detail": "stdDev 28.0, colours 727"
     },
     {
       "name": "quests @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "quests @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "rank @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 21.8, colours 1081"
+      "detail": "stdDev 30.8, colours 396"
     },
     {
       "name": "rank @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "10 panels inside the safe box"
     },
     {
       "name": "rank @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "8 panels, no pair sharing more than 4px²"
+      "detail": "10 panels, no pair sharing more than 4px²"
     },
     {
       "name": "results @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 19.1, colours 923"
+      "detail": "stdDev 21.1, colours 989"
     },
     {
       "name": "results @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "results @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "pause @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 21.1, colours 974"
+      "detail": "stdDev 23.3, colours 291"
     },
     {
       "name": "pause @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "12 panels inside the safe box"
+      "detail": "14 panels inside the safe box"
     },
     {
       "name": "pause @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "12 panels, no pair sharing more than 4px²"
+      "detail": "14 panels, no pair sharing more than 4px²"
     },
     {
       "name": "settings @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 24.6, colours 341"
+      "detail": "stdDev 21.5, colours 911"
     },
     {
       "name": "settings @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "17 panels inside the safe box"
+      "detail": "19 panels inside the safe box"
     },
     {
       "name": "settings @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "17 panels, no pair sharing more than 4px²"
+      "detail": "19 panels, no pair sharing more than 4px²"
     },
     {
       "name": "idle @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 28.2, colours 1039"
+      "detail": "stdDev 28.3, colours 1044"
     },
     {
       "name": "idle @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "5 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
     },
     {
       "name": "idle @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "5 panels, no pair sharing more than 4px²"
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "idle @ phone-landscape keeps the thumb corners clear",
@@ -4074,7 +4585,7 @@
     {
       "name": "idle @ phone-landscape row 1 fits its declared budget",
       "pass": true,
-      "detail": "row 1 runs 65.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom)"
+      "detail": "row 1 runs 61.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom)"
     },
     {
       "name": "idle @ phone-landscape lets the controls own every touch they need",
@@ -4084,32 +4595,32 @@
     {
       "name": "combat-alert @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.9, colours 1200"
+      "detail": "stdDev 32.2, colours 1203"
     },
     {
       "name": "combat-alert @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "9 panels inside the safe box"
+      "detail": "11 panels inside the safe box"
     },
     {
       "name": "combat-alert @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "9 panels, no pair sharing more than 4px²"
+      "detail": "11 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-alert @ phone-landscape keeps the thumb corners clear",
-      "pass": false,
-      "detail": "tracker, alerts"
+      "pass": true,
+      "detail": "no readable panel inside either hand"
     },
     {
       "name": "combat-alert @ phone-landscape keeps the top band above the hands",
-      "pass": false,
-      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
     },
     {
       "name": "combat-alert @ phone-landscape row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
     },
     {
       "name": "combat-alert @ phone-landscape lets the controls own every touch they need",
@@ -4119,32 +4630,32 @@
     {
       "name": "combat-charging @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.8, colours 1423"
+      "detail": "stdDev 32.1, colours 1294"
     },
     {
       "name": "combat-charging @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "combat-charging @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-charging @ phone-landscape keeps the thumb corners clear",
-      "pass": false,
-      "detail": "tracker"
+      "pass": true,
+      "detail": "no readable panel inside either hand"
     },
     {
       "name": "combat-charging @ phone-landscape keeps the top band above the hands",
-      "pass": false,
-      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
     },
     {
       "name": "combat-charging @ phone-landscape row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
     },
     {
       "name": "combat-charging @ phone-landscape lets the controls own every touch they need",
@@ -4154,32 +4665,32 @@
     {
       "name": "combat-bored @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.1, colours 1174"
+      "detail": "stdDev 31.4, colours 1176"
     },
     {
       "name": "combat-bored @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "combat-bored @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-bored @ phone-landscape keeps the thumb corners clear",
-      "pass": false,
-      "detail": "tracker"
+      "pass": true,
+      "detail": "no readable panel inside either hand"
     },
     {
       "name": "combat-bored @ phone-landscape keeps the top band above the hands",
-      "pass": false,
-      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
     },
     {
       "name": "combat-bored @ phone-landscape row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
     },
     {
       "name": "combat-bored @ phone-landscape lets the controls own every touch they need",
@@ -4189,32 +4700,32 @@
     {
       "name": "markers @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 33.1, colours 1547"
+      "detail": "stdDev 33.3, colours 1544"
     },
     {
       "name": "markers @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "12 panels inside the safe box"
+      "detail": "14 panels inside the safe box"
     },
     {
       "name": "markers @ phone-landscape has no panel painting on another",
       "pass": true,
-      "detail": "12 panels, no pair sharing more than 4px²"
+      "detail": "14 panels, no pair sharing more than 4px²"
     },
     {
       "name": "markers @ phone-landscape keeps the thumb corners clear",
-      "pass": false,
-      "detail": "tracker"
+      "pass": true,
+      "detail": "no readable panel inside either hand"
     },
     {
       "name": "markers @ phone-landscape keeps the top band above the hands",
-      "pass": false,
-      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
     },
     {
       "name": "markers @ phone-landscape row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
     },
     {
       "name": "markers @ phone-landscape lets the controls own every touch they need",
@@ -4223,13 +4734,13 @@
     },
     {
       "name": "the region crop actually crops",
-      "pass": true,
-      "detail": "band 2532x360 mean 40.5 vs frame 2532x1170 mean 37.0"
+      "pass": false,
+      "detail": "band 2532x360 mean 37.2 vs frame 2532x1170 mean 36.7"
     },
     {
       "name": "the HUD band carries far more detail than the empty corridor",
       "pass": true,
-      "detail": "band stdDev 35.1 vs corridor 18.7"
+      "detail": "band stdDev 42.5 vs corridor 18.7"
     },
     {
       "name": "the 60 Hz path writes ONLY custom properties",
@@ -4259,22 +4770,22 @@
     {
       "name": "deuteranopia palette renders",
       "pass": true,
-      "detail": "stdDev 31.9, colours 1138"
+      "detail": "stdDev 32.2, colours 1174"
     },
     {
       "name": "protanopia palette renders",
       "pass": true,
-      "detail": "stdDev 32.2, colours 1142"
+      "detail": "stdDev 32.1, colours 1135"
     },
     {
       "name": "tritanopia palette renders",
       "pass": true,
-      "detail": "stdDev 31.5, colours 1213"
+      "detail": "stdDev 31.7, colours 1204"
     },
     {
       "name": "highContrast palette renders",
       "pass": true,
-      "detail": "stdDev 34.6, colours 1160"
+      "detail": "stdDev 34.9, colours 1163"
     },
     {
       "name": "the layout survives HUD scale at 130%",
@@ -4283,8 +4794,8 @@
     },
     {
       "name": "the top band still clears the hands at HUD scale 130%",
-      "pass": false,
-      "detail": "tracker[59,132 728x44] reaches y=176"
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
     },
     {
       "name": "loading @ phone-portrait is a real frame",
@@ -4304,17 +4815,17 @@
     {
       "name": "combat @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 39.2, colours 1016"
+      "detail": "stdDev 40.1, colours 1020"
     },
     {
       "name": "combat @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "6 panels inside the safe box"
+      "detail": "8 panels inside the safe box"
     },
     {
       "name": "combat @ phone-portrait has no panel painting on another",
       "pass": true,
-      "detail": "6 panels, no pair sharing more than 4px²"
+      "detail": "8 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat @ phone-portrait keeps the thumb corners clear",
@@ -4328,28 +4839,28 @@
     },
     {
       "name": "combat @ phone-portrait row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 136.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 53.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom)"
     },
     {
       "name": "combat @ phone-portrait lets the controls own every touch they need",
-      "pass": false,
-      "detail": "left/grid@40,280 -> div.hud-tracker__obj; left/grid@80,280 -> span.hud-tracker__what; left/grid@120,280 -> span.hud-tracker__what; left/grid@160,280 -> span.hud-tracker__what; +4 more"
+      "pass": true,
+      "detail": "230 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "combat-boss @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 39.5, colours 1093"
+      "detail": "stdDev 40.2, colours 1082"
     },
     {
       "name": "combat-boss @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "combat-boss @ phone-portrait has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-boss @ phone-portrait keeps the thumb corners clear",
@@ -4363,88 +4874,88 @@
     },
     {
       "name": "combat-boss @ phone-portrait row 1 fits its declared budget",
-      "pass": false,
-      "detail": "row 1 runs 136.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, ledger)"
+      "pass": true,
+      "detail": "row 1 runs 53.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom)"
     },
     {
       "name": "combat-boss @ phone-portrait lets the controls own every touch they need",
-      "pass": false,
-      "detail": "left/grid@40,280 -> div.hud-tracker__obj; left/grid@80,280 -> span.hud-tracker__what; left/grid@120,280 -> span.hud-tracker__what; left/grid@160,280 -> span.hud-tracker__what; +4 more"
+      "pass": true,
+      "detail": "230 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "quests @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 35.6, colours 765"
+      "detail": "stdDev 27.8, colours 1221"
     },
     {
       "name": "quests @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "6 panels inside the safe box"
+      "detail": "8 panels inside the safe box"
     },
     {
       "name": "quests @ phone-portrait has no panel painting on another",
       "pass": true,
-      "detail": "6 panels, no pair sharing more than 4px²"
+      "detail": "8 panels, no pair sharing more than 4px²"
     },
     {
       "name": "rank @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 41.5, colours 453"
+      "detail": "stdDev 28.6, colours 1166"
     },
     {
       "name": "rank @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "rank @ phone-portrait has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "results @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 26.2, colours 1165"
+      "detail": "stdDev 28.0, colours 1145"
     },
     {
       "name": "results @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "results @ phone-portrait has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "pause @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 23.3, colours 677"
+      "detail": "stdDev 23.4, colours 289"
     },
     {
       "name": "pause @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "11 panels inside the safe box"
+      "detail": "13 panels inside the safe box"
     },
     {
       "name": "pause @ phone-portrait has no panel painting on another",
       "pass": true,
-      "detail": "11 panels, no pair sharing more than 4px²"
+      "detail": "13 panels, no pair sharing more than 4px²"
     },
     {
       "name": "settings @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 26.0, colours 894"
+      "detail": "stdDev 26.2, colours 1022"
     },
     {
       "name": "settings @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "27 panels inside the safe box"
+      "detail": "29 panels inside the safe box"
     },
     {
       "name": "settings @ phone-portrait has no panel painting on another",
       "pass": true,
-      "detail": "27 panels, no pair sharing more than 4px²"
+      "detail": "29 panels, no pair sharing more than 4px²"
     },
     {
       "name": "pause is reachable from the combat HUD",
@@ -4519,17 +5030,17 @@
     {
       "name": "combat @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 30.4, colours 923"
+      "detail": "stdDev 30.6, colours 935"
     },
     {
       "name": "combat @ tablet respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "combat @ tablet has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat @ tablet keeps the thumb corners clear",
@@ -4544,27 +5055,27 @@
     {
       "name": "combat @ tablet row 1 fits its declared budget",
       "pass": true,
-      "detail": "row 1 runs 66.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, encounter, ledger)"
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, encounter, ledger)"
     },
     {
       "name": "combat @ tablet lets the controls own every touch they need",
-      "pass": false,
-      "detail": "left/grid@40,80 -> div.hud-tracker__title; left/grid@40,120 -> div.hud-panel.hud-tracker; left/grid@80,80 -> div.hud-tracker__title; left/grid@80,120 -> div.hud-panel.hud-tracker; +40 more"
+      "pass": true,
+      "detail": "490 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "combat-boss @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 30.6, colours 981"
+      "detail": "stdDev 30.9, colours 971"
     },
     {
       "name": "combat-boss @ tablet respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "10 panels inside the safe box"
     },
     {
       "name": "combat-boss @ tablet has no panel painting on another",
       "pass": true,
-      "detail": "8 panels, no pair sharing more than 4px²"
+      "detail": "10 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-boss @ tablet keeps the thumb corners clear",
@@ -4579,87 +5090,87 @@
     {
       "name": "combat-boss @ tablet row 1 fits its declared budget",
       "pass": true,
-      "detail": "row 1 runs 66.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, encounter, boss, ledger)"
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, encounter, boss, ledger)"
     },
     {
       "name": "combat-boss @ tablet lets the controls own every touch they need",
-      "pass": false,
-      "detail": "left/grid@40,80 -> div.hud-tracker__title; left/grid@40,120 -> div.hud-panel.hud-tracker; left/grid@80,80 -> div.hud-tracker__title; left/grid@80,120 -> div.hud-panel.hud-tracker; +40 more"
+      "pass": true,
+      "detail": "490 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "quests @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 21.7, colours 1070"
+      "detail": "stdDev 21.8, colours 1032"
     },
     {
       "name": "quests @ tablet respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
     },
     {
       "name": "quests @ tablet has no panel painting on another",
       "pass": true,
-      "detail": "7 panels, no pair sharing more than 4px²"
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "rank @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 22.4, colours 910"
+      "detail": "stdDev 22.5, colours 914"
     },
     {
       "name": "rank @ tablet respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "10 panels inside the safe box"
     },
     {
       "name": "rank @ tablet has no panel painting on another",
       "pass": true,
-      "detail": "8 panels, no pair sharing more than 4px²"
+      "detail": "10 panels, no pair sharing more than 4px²"
     },
     {
       "name": "results @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 21.9, colours 551"
+      "detail": "stdDev 21.8, colours 928"
     },
     {
       "name": "results @ tablet respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "10 panels inside the safe box"
     },
     {
       "name": "results @ tablet has no panel painting on another",
       "pass": true,
-      "detail": "8 panels, no pair sharing more than 4px²"
+      "detail": "10 panels, no pair sharing more than 4px²"
     },
     {
       "name": "pause @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 15.5, colours 279"
+      "detail": "stdDev 14.8, colours 433"
     },
     {
       "name": "pause @ tablet respects the safe area",
       "pass": true,
-      "detail": "12 panels inside the safe box"
+      "detail": "14 panels inside the safe box"
     },
     {
       "name": "pause @ tablet has no panel painting on another",
       "pass": true,
-      "detail": "12 panels, no pair sharing more than 4px²"
+      "detail": "14 panels, no pair sharing more than 4px²"
     },
     {
       "name": "settings @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 25.4, colours 473"
+      "detail": "stdDev 20.7, colours 846"
     },
     {
       "name": "settings @ tablet respects the safe area",
       "pass": true,
-      "detail": "35 panels inside the safe box"
+      "detail": "37 panels inside the safe box"
     },
     {
       "name": "settings @ tablet has no panel painting on another",
       "pass": true,
-      "detail": "35 panels, no pair sharing more than 4px²"
+      "detail": "37 panels, no pair sharing more than 4px²"
     },
     {
       "name": "no console errors from any profile",
@@ -4667,5 +5178,5 @@
       "detail": "clean"
     }
   ],
-  "generatedAt": "2026-08-23T21:00:19.102Z"
+  "generatedAt": "2026-08-23T21:15:14.329Z"
 }

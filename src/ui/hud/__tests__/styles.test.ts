@@ -160,14 +160,23 @@ describe('the palette reaches the panels', () => {
     expect(ruleBody('.hud-loading')).toContain('background:var(--hud-panel)');
   });
 
-  it('lays the surface down twice, which is the daylight fix', () => {
+  it('lays the surface down repeatedly, which is the daylight fix', () => {
     // --hud-surface is 82% opaque, tuned against the dusk sky in the reference
     // shots; the shipping game is DAYTIME and ~18% of a lit facade came through
-    // as visible banding across the rank chip. Two layers compose to
-    // 1-(1-a)^2, so every palette gets denser by ITS OWN colour rather than by
-    // a literal that would make four of the five surfaces dead data again.
+    // as visible banding across the rank chip. n layers compose to 1-(1-a)^n,
+    // so every palette gets denser by ITS OWN colour rather than by a literal
+    // that would make four of the five surfaces dead data again.
     const panel = /--hud-panel:([^;]*);/.exec(CSS)?.[1] ?? '';
-    expect(panel.split('var(--hud-surface)').length - 1).toBeGreaterThanOrEqual(2);
+    expect(panel.split('var(--hud-surface)').length - 1).toBeGreaterThanOrEqual(3);
+  });
+
+  it('puts no vertical gradient on a plate', () => {
+    // The old panel was "a barely-there vertical gradient", which is the house
+    // style of every card in every framework and half of why six panels read as
+    // interchangeable. A stamped plate gets a hard lit top edge instead.
+    const panel = /--hud-panel:([^;]*);/.exec(CSS)?.[1] ?? '';
+    expect(panel).not.toContain('180deg');
+    expect(ruleBody('.hud-panel::before')).toContain('inset 0 1px 0 0 var(--hud-line)');
   });
 
   it('publishes every palette surface, and consumes it', () => {
@@ -261,18 +270,13 @@ describe('tap targets', () => {
   /**
    * Everything the player is meant to hit.
    *
-   * `.hud-tracker` is on the list because the duty strip opens the quest log —
-   * everywhere except the landscape phone, where the stylesheet takes its
-   * `pointer-events` away again because it sits inside the rectangle
-   * `src/ui/input` treats as stick input.
+   * The duty STRIP is deliberately not on it: `src/ui/input` claims the leading
+   * 45 % of the viewport at every height, the strip spans the band, and a
+   * tappable strip is therefore a strip that eats movement touches. Its 44 px
+   * `.hud-tracker__open` button — a `.hud-btn`, at the strip's trailing end —
+   * is the control, and the harness's hit-ownership grid is what settles it.
    */
-  const CONTROLS = [
-    '.hud-btn',
-    '.hud-pausebtn',
-    '.hud-seg__opt',
-    '.hud-row--button',
-    '.hud-tracker',
-  ];
+  const CONTROLS = ['.hud-btn', '.hud-pausebtn', '.hud-seg__opt', '.hud-row--button'];
   /** Layer containers, which take the touch in order to BLOCK it. */
   const LAYERS = ['.hud-screen', '.hud-loading'];
 
@@ -361,8 +365,15 @@ describe('HUD scale', () => {
     // term at all: 184 px wide, in a corridor between the two hands that
     // measures 286 px on the shipping profile. `.hud-boredom` and `.hud-boss`
     // have left it because neither declares a width any more — they are rows
-    // inside the plates they belong to.
-    for (const selector of ['.hud-rankchip', '.hud-encounter', '.hud-tracker', '.hud-charge']) {
+    // inside the plates they belong to — and the duty strip is listed as its
+    // PLATE, because the row around it spans the band by grid stretch and has
+    // no width of its own to scale.
+    for (const selector of [
+      '.hud-rankchip',
+      '.hud-encounter',
+      '.hud-tracker__plate',
+      '.hud-charge',
+    ]) {
       const sized = ruleBodies(selector).filter((body) => /(?:^|[;\s])width:/.test(body));
       expect(sized.length, selector).toBeGreaterThan(0);
       for (const body of sized) {

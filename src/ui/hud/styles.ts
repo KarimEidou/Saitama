@@ -291,18 +291,21 @@ ${CSS_NUMBER_STYLES}
      screen. .36 over the composed panel measures ~3.2:1. */
   --hud-track:rgba(255,255,255,.36);
   --hud-halftone:rgba(255,255,255,.055);
-  /* THE PLATE FILL. Four layers, no colour, top to bottom:
-       1. the halftone dot screen — one dot per 3 px cell,
-       2. a top sheen, so the plate has a light source,
-       3. the palette's surface,
-       4. the palette's surface AGAIN.
-     Doubling layer 3 is the whole fix for daylight bleed: alpha composes to
-     1-(1-a)^2, so the default 0.82 becomes 0.968 and High contrast's 0.92
-     becomes 0.994 — each palette denser BY ITS OWN COLOUR rather than by a
-     literal, which is what keeps five palettes from becoming dead data. */
+  /* THE PLATE FILL. Four layers, no colour: the halftone dot screen — one dot
+     per 3 px cell — over the palette's own surface, laid down THREE TIMES.
+     Alpha composes to 1-(1-a)^n, so the default 0.82 becomes 0.994 and High
+     contrast's 0.92 becomes 0.9995: every palette gets denser BY ITS OWN COLOUR
+     rather than by a literal, which is what keeps five surface values from
+     becoming dead data again. Measured, that takes the daylight bleed through
+     a panel from ~18 % to under 1 %, and the rank chip stops changing colour
+     with the windows behind it.
+     There is no vertical gradient on the plate. There used to be one and it was
+     part of the problem — a barely-there wash is the house style of every card
+     in every framework. What a stamped plate has instead is a LIT TOP EDGE, one
+     hard pixel, declared with the edge rule on the backing layer below. */
   --hud-panel:
     radial-gradient(circle at 0 0,var(--hud-halftone) 0 0.8px,transparent 0.9px) 0 0/3px 3px,
-    linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 55%),
+    linear-gradient(var(--hud-surface),var(--hud-surface)),
     linear-gradient(var(--hud-surface),var(--hud-surface)),
     linear-gradient(var(--hud-surface),var(--hud-surface));
   ${paletteVars('default')};
@@ -330,15 +333,18 @@ ${allPalettes()}
    getBoundingClientRect() and for the type inside it. contain:layout makes
    the panel a containing block AND a stacking context, which is what lets the
    backing sit at z-index -1 — behind the content, in front of nothing. */
+/* 5/6 px of vertical padding rather than 6/7. Two pixels a plate does not sound
+   like a decision until the band is 121 px tall at 130 % HUD scale, at which
+   point it is most of the margin. */
 .hud-panel{
   position:relative;
-  padding:6px 11px 7px;
+  padding:5px 11px 6px;
   contain:layout style;
 }
 .hud-panel::before{
   content:'';position:absolute;inset:0;z-index:-1;
   background:var(--hud-panel);
-  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge);
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge),inset 0 1px 0 0 var(--hud-line);
   clip-path:var(--hud-plate);
   transform:skewX(var(--hud-skew));
 }
@@ -383,7 +389,7 @@ ${allPalettes()}
 .hud-btn::before{
   content:'';position:absolute;inset:0;z-index:-1;
   background:var(--hud-panel);
-  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge);
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge),inset 0 1px 0 0 var(--hud-line);
   clip-path:var(--hud-plate);
   transform:skewX(var(--hud-skew));
 }
@@ -402,14 +408,19 @@ ${allPalettes()}
   position:absolute;
   top:var(--hud-sa-t);left:var(--hud-sa-l);right:var(--hud-sa-r);
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  grid-template-columns:auto minmax(0,1fr) auto;
   grid-template-rows:auto auto;
   align-items:start;
   gap:var(--hud-gap);
   pointer-events:none;
 }
+/* The flanks size to their plates and the MIDDLE takes what is left, which is
+   the opposite of the old 1fr / auto / 1fr. Two equal side columns look tidy in
+   a diagram and are wrong here: the register on the right is the widest thing
+   in the band and it was being handed the same width as the hero file, so it
+   wrapped to two rows and drove row one from 57 px to 97 px. */
 .hud-top__left{grid-area:1 / 1;display:flex;flex-direction:column;align-items:flex-start;min-width:0}
-.hud-top__centre{grid-area:1 / 2;display:flex;flex-direction:column;align-items:center;min-width:0}
+.hud-top__centre{grid-area:1 / 2;display:flex;flex-direction:column;align-items:stretch;min-width:0}
 /* The reserve for the pause affordance, which is absolutely positioned in the
    same corner. Expressed in terms of --hud-pause-size so the button and the
    space kept clear for it cannot drift apart. */
@@ -421,14 +432,22 @@ ${allPalettes()}
 
 /* ---- the hero file ----------------------------------------------------- */
 /* Rank chip and boredom meter, which were two panels saying two halves of one
-   sentence: who the Association thinks you are, and how much you care about
-   it. Three rows, and every one of them had to be argued for against a 121 px
-   band — the seat-progress sliver lost, and the report says what that cost.
+   sentence: who the Association thinks you are, and how much you care about it.
+   THREE ROWS, and every one of them had to be argued for against a 121 px band:
+     1  the caption row — RANK, and the mood word that captions the meter,
+     2  the seat row — the class stencil, the number, and the gain it is earning,
+     3  the meter.
+   Two things lost that argument and the report says what they cost. The
+   SEAT-PROGRESS sliver: an unlabelled 2 px dash whose content is on the rank
+   board in words. The HERO NAME: it never changes, it captions nothing, and at
+   130 % HUD scale it was competing with the mood word for the same 160 px —
+   "CAPED BALDY" is on the pause screen and the rank board, and C-388 is who the
+   Association says he is, which is the joke.
    The rank is now the largest thing in the corner by 2.4x with RANK demoted to
    an overline, which is what turns a widget into a title card. */
 .hud-rankchip{
   --hud-edge:var(--hud-class,var(--hud-accent));
-  display:flex;align-items:center;gap:10px;
+  display:flex;align-items:center;gap:9px;
   width:min(calc(232px * var(--hud-scale)),44vw);
 }
 .hud-rankchip__class{
@@ -438,19 +457,13 @@ ${allPalettes()}
   padding:3px 7px 1px;border:1px solid currentColor;
   clip-path:var(--hud-plate);--hud-chamfer:4px;
 }
-.hud-rankchip__file{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
-.hud-rankchip__head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.hud-rankchip__file{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.hud-rankchip__head{display:flex;align-items:baseline;gap:8px;min-width:0}
 /* The overline. 10 px, tracked, muted — the WORD is the caption and the number
    under it is the content, which is the exact inverse of how it read before. */
 .hud-rankchip__overline{
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
-  color:var(--hud-ink-muted);line-height:1.1;
-}
-.hud-rankchip__name{
-  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
-  text-transform:uppercase;color:var(--hud-ink-muted);line-height:1.1;
-  max-width:min(calc(128px * var(--hud-scale)),24vw);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--hud-ink-muted);line-height:1.1;flex:0 0 auto;
 }
 .hud-rankchip__seat{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
 .hud-rankchip__rank{
@@ -463,11 +476,16 @@ ${allPalettes()}
    and a fill that drains of colour rather than filling up with it. The mood
    word and the gain share the seat row's baseline, so the meter costs the
    plate one 5 px rule rather than a row of its own. */
-.hud-boredom{display:flex;align-items:baseline;gap:8px;min-width:0;overflow:hidden}
+/* The mood word captions the meter from the row above it, right-aligned so the
+   two captions bracket the plate. .06em rather than .14em because it is not a
+   label — "NOTHING FEELS LIKE ANYTHING" is twenty-seven characters, and heavy
+   tracking on twenty-seven characters costs 49 px that a 121 px band does not
+   have to give it. */
 .hud-boredom__mood{
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);
-  letter-spacing:.14em;text-transform:uppercase;
-  color:var(--hud-mood,var(--hud-ink-muted));
+  letter-spacing:.06em;text-transform:uppercase;
+  color:var(--hud-mood,var(--hud-ink-muted));line-height:1.1;
+  text-align:right;flex:1 1 auto;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
 }
 /* GAIN, not RANK. The overline two lines above says "RANK" and means a ladder
@@ -479,7 +497,7 @@ ${allPalettes()}
   font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
   color:var(--hud-ink-muted);white-space:nowrap;flex:0 0 auto;
 }
-.hud-boredom[data-throttled='true'] .hud-boredom__mult{color:var(--hud-lost)}
+.hud-boredom__mult[data-throttled='true']{color:var(--hud-lost)}
 .hud-boredom__track{
   position:relative;height:5px;overflow:hidden;
   background:var(--hud-track);border-radius:var(--hud-radius);
@@ -516,15 +534,16 @@ ${allPalettes()}
 .hud-encounter{
   --hud-edge:var(--hud-tier,var(--hud-accent));
   display:grid;row-gap:4px;
-  width:min(calc(300px * var(--hud-scale)),34vw);
+  width:min(calc(560px * var(--hud-scale)),100%);
 }
 .hud-encounter__head{display:flex;align-items:baseline;gap:9px;min-width:0}
-/* Colour is the accelerator; the word is the message. No five-hue ramp
-   survives dichromacy alone, so the tier NEVER appears without its word. */
-.hud-encounter__tier{
-  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
-  color:var(--hud-tier,var(--hud-accent));white-space:nowrap;
-}
+/* Colour is the accelerator; the word is the message. No five-hue ramp survives
+   dichromacy alone, so the tier NEVER appears without its word — as a
+   classification stamp, which is what the Association would actually print.
+   The word "THREAT" that used to precede it is gone: this is the incident
+   plate, and the alert banner that also said THREAT is no longer lying on top
+   of it. */
+.hud-encounter__tier{--hud-chip-color:var(--hud-tier,var(--hud-accent));align-self:center}
 .hud-encounter__name{
   font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
   flex:1 1 auto;min-width:0;
@@ -562,7 +581,7 @@ ${allPalettes()}
 .hud-ledger{
   --hud-edge:var(--hud-saved);
   display:flex;flex-wrap:wrap;align-items:flex-start;
-  column-gap:15px;row-gap:3px;
+  column-gap:12px;row-gap:3px;
 }
 .hud-ledger[data-lost='true']{--hud-edge:var(--hud-lost)}
 .hud-ledger__cell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
@@ -607,9 +626,27 @@ ${allPalettes()}
 .hud-tracker{
   grid-area:2 / 1 / auto / -1;
   --hud-edge:var(--hud-accent);
-  pointer-events:auto;cursor:pointer;min-height:${MIN_TAP_PX}px;
-  display:flex;align-items:center;gap:12px;
-  width:min(calc(560px * var(--hud-scale)),100%);
+  display:flex;align-items:stretch;justify-content:space-between;
+  gap:6px;min-height:${MIN_TAP_PX}px;
+}
+/* The ROW spans the band so its button lands under the pause button on every
+   profile; the PLATE inside it is capped for reading. A duty line 1008 px wide
+   on a tablet is not a line, it is a horizon. */
+.hud-tracker__plate{
+  flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:12px;
+  width:min(calc(760px * var(--hud-scale)),100%);
+}
+/* THE ONE WAY INTO THE QUEST LOG FROM A FIGHT, and it is a separate 44 px
+   button rather than the strip itself for a reason the harness measures:
+   src/ui/input treats the leading 45 % of the viewport as stick input AT EVERY
+   HEIGHT, so a tappable strip spanning the band steals a movement touch — the
+   hit-ownership grid caught the old centre-column card doing exactly that. The
+   button sits at the TRAILING end of a strip that spans the whole band, which
+   puts it in the trailing 55 % on every profile the harness drives. */
+.hud-tracker__open{
+  flex:0 0 auto;width:${MIN_TAP_PX}px;padding:0;
+  display:grid;place-items:center;
+  font-size:var(--t-micro);letter-spacing:.14em;color:var(--hud-ink-muted);
 }
 .hud-tracker[data-urgency='soon']{--hud-edge:var(--hud-collateral)}
 .hud-tracker[data-urgency='critical']{--hud-edge:var(--hud-lost)}
@@ -630,7 +667,7 @@ ${allPalettes()}
 }
 .hud-tracker__obj[data-complete='true']{color:var(--hud-saved)}
 .hud-tracker__count{font-variant-numeric:tabular-nums;color:var(--hud-ink);flex:0 0 auto}
-.hud-tracker .hud-tracker__obj{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hud-tracker__plate .hud-tracker__obj{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hud-tracker__what{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .hud-tracker__clock{
   display:flex;align-items:baseline;gap:2px;flex:0 0 auto;
@@ -726,8 +763,9 @@ ${allPalettes()}
 .hud-alerts{
   position:absolute;
   top:calc(var(--hud-sa-t) + var(--hud-band-h) + var(--hud-gap));
-  left:var(--hud-sa-l);right:var(--hud-sa-r);
-  display:flex;flex-direction:column;align-items:center;gap:5px;
+  left:var(--hud-sa-l);right:var(--hud-sa-r);margin:0 auto;
+  width:max-content;max-width:min(calc(340px * var(--hud-scale)),74vw);
+  display:flex;flex-direction:column;align-items:stretch;gap:5px;
   pointer-events:none;
 }
 /* Sized to its CONTENT, capped, never a fixed 420 px slab. The old banner held
@@ -737,9 +775,7 @@ ${allPalettes()}
    the edges of anything. */
 .hud-alert{
   --hud-edge:var(--hud-alert-color,var(--hud-accent));
-  display:flex;align-items:baseline;gap:9px;
-  width:auto;max-width:min(calc(340px * var(--hud-scale)),74vw);
-  text-align:left;
+  display:flex;align-items:baseline;gap:9px;text-align:left;
   animation:hud-stamp .12s cubic-bezier(.2,.9,.3,1);
 }
 /* SPEED LINES. One shot, scaled out from the leading edge and then faded — a
@@ -830,7 +866,7 @@ ${allPalettes()}
   display:flex;flex-direction:column;
   width:100%;max-width:640px;max-height:100%;margin:0 auto;
   background:var(--hud-panel);background-color:var(--hud-surface);
-  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge);
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge),inset 0 1px 0 0 var(--hud-line);
   clip-path:var(--hud-plate);
   overflow:hidden;
 }
@@ -1055,61 +1091,48 @@ ${allPalettes()}
 /* 121 px of band, and the arithmetic is at the top of this file. Everything
    below is what fitting in it costs. */
 @media (max-height:520px){
-  .hud-root{--hud-gap:6px;--hud-band-row:60px;--hud-band-h:112px;--hud-arc-w:150px;--hud-arc-h:86px}
-  .hud-rankchip{width:min(calc(206px * var(--hud-scale)),30vw)}
-  .hud-encounter{width:min(calc(240px * var(--hud-scale)),28vw)}
-  .hud-tracker{width:min(calc(560px * var(--hud-scale)),100%)}
+  .hud-root{--hud-gap:6px;--hud-band-row:64px;--hud-band-h:114px;--hud-arc-w:150px;--hud-arc-h:86px}
+  .hud-rankchip{width:min(calc(206px * var(--hud-scale)),26vw)}
   /* ONE LINE. The strip's two rows become one row so the band closes above the
      hands at 130 % HUD scale as well as at 100 %; the quest name and its lead
      objective share a baseline instead of stacking. */
   .hud-tracker__main{flex-direction:row;align-items:baseline;gap:10px}
-  /* AND IT STOPS BEING A BUTTON. src/ui/input treats the left 45 % of the
-     viewport below 28 % of its height as stick input, and on this profile the
-     strip is inside that rectangle — the harness's hit-ownership grid caught it
-     winning three probes off the movement stick. A tap there is a movement
-     input in the real game whatever the HUD believes, so the strip is a readout
-     here and the quest log is reached from pause. On every other shape of
-     screen the strip sits well above the stick band and stays a control. */
-  .hud-tracker{pointer-events:none;cursor:default;min-height:0}
   .hud-sheet{max-height:100%}
   /* THE BULLETIN GOES TO THE CORRIDOR. There is no room under the band on this
      profile — the band ends where the hands begin — and the corridor between
      the two hands, above the charge arc, is the only rectangle left. Anchored
      to the arc's own box so the two cannot collide when a threat is classified
-     mid-charge. */
+     mid-charge, and low enough that the bulletin starts below the vertical
+     midpoint rather than reaching back up towards a plate. */
   .hud-alerts{
     top:auto;
     bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift) + var(--hud-arc-h) + var(--hud-gap));
+    max-width:min(calc(300px * var(--hud-scale)),38vw);
   }
   /* One at a time, here only. Three stacked bulletins is already more than
      anyone reads mid-fight — alerts.ts says exactly that about its own queue —
      and a stack of three reaches back up into the band on a 390 px viewport.
      The queue still holds three; this screen shows the newest. */
-  .hud-alert{max-width:min(calc(300px * var(--hud-scale)),38vw)}
   .hud-alerts > *:nth-child(n+2){display:none}
-  /* Below this height the invoice cannot show everything at once, so it
-     scrolls rather than shrinking the type past readable. */
   .hud-setting{min-height:${MIN_TAP_PX}px}
 }
 
-/* Narrow portrait: the band stacks into three rows and there is height to
-   spare, so nothing has to be given up — the strip keeps both of its lines and
-   stays a control, because in portrait it sits ~60 px above the top of the
-   stick band rather than inside it. */
+/* Narrow portrait: ONE COLUMN, and the order is the order it is read in.
+   Two columns of 184 px could not hold the register — four cells of a printed
+   tally do not fit in half of a 390 px phone, and it wrapped to three rows and
+   drove the band to 136 px. Full width fits all four on one line with room
+   over.
+   The persistent plates come first and the TRANSIENT ones last: the incident
+   and its cost appear and disappear together when a fight starts and ends, so
+   putting them at the bottom means nothing above them ever moves. */
 @media (orientation:portrait) and (max-width:460px){
-  .hud-top{grid-template-columns:minmax(0,1fr) minmax(0,1fr);row-gap:6px}
+  .hud-root{--hud-band-h:216px}
+  .hud-top{grid-template-columns:minmax(0,1fr);row-gap:6px}
   .hud-top__left{grid-area:1 / 1}
-  .hud-top__right{grid-area:1 / 2}
-  .hud-top__centre{grid-area:2 / 1 / auto / -1;align-items:stretch}
-  .hud-root{--hud-band-h:170px}
+  .hud-tracker{grid-area:2 / 1}
+  .hud-top__centre{grid-area:3 / 1;align-items:stretch}
+  .hud-top__right{grid-area:4 / 1;padding-right:0}
   .hud-rankchip{width:min(calc(232px * var(--hud-scale)),100%)}
-  .hud-encounter{width:min(calc(300px * var(--hud-scale)),100%)}
-  /* The strip used to be position:fixed in the bottom-left corner, "above the
-     thumb". It was above the thumb and INSIDE THE STICK, which is a bigger
-     rectangle than the reserve: the stick zone is the left 45 % of the viewport
-     below 28 % of its height, and no reserve value can move a bottom-left panel
-     out of it. The harness found 24 stolen probes there. It joins the band. */
-  .hud-tracker{grid-area:3 / 1 / auto / -1;width:min(calc(560px * var(--hud-scale)),100%)}
   .hud-sheet{max-width:100%}
 }
 

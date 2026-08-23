@@ -174,8 +174,7 @@ export class CombatHudScreen extends HudScreen {
   /* the hero file */
   private readonly rankClass: HTMLElement;
   private readonly rankNumber: CssNumber;
-  private readonly rankName: HTMLElement;
-  private readonly boredom: HTMLElement;
+  private readonly boredomGain: HTMLElement;
   private readonly boredomMood: HTMLElement;
   private readonly boredomFill: HTMLElement;
   private readonly boredomBreath: HTMLElement;
@@ -203,6 +202,7 @@ export class CombatHudScreen extends HudScreen {
 
   /* the duty strip */
   private readonly tracker: HTMLElement;
+  private readonly trackerPlate: HTMLElement;
   private readonly trackerTitle: HTMLElement;
   private readonly trackerObj: HTMLElement;
   private readonly trackerCount: HTMLElement;
@@ -229,7 +229,6 @@ export class CombatHudScreen extends HudScreen {
     /* ---- the hero file ---- */
     this.rankClass = el(doc, 'span', { className: 'hud-rankchip__class', text: 'C' });
     this.rankNumber = new CssNumber(doc, { id: 'rank' });
-    this.rankName = el(doc, 'div', { className: 'hud-rankchip__name', text: '' });
     this.boredomMood = el(doc, 'span', { className: 'hud-boredom__mood', text: 'ENGAGED' });
     // GAIN, not RANK. See the note in `styles.ts` on `.hud-boredom__mult`: the
     // overline two lines above this says RANK and means a seat on a ladder.
@@ -239,16 +238,10 @@ export class CombatHudScreen extends HudScreen {
     // shimmer. Over the track it was an indeterminate spinner on an empty bar.
     this.boredomBreath = el(doc, 'span', { className: 'hud-boredom__breath' });
     this.boredomFill.appendChild(this.boredomBreath);
-    this.boredom = el(doc, 'div', {
-      className: 'hud-boredom',
+    this.boredomGain = el(doc, 'span', {
+      className: 'hud-boredom__mult',
       dataset: { throttled: 'false' },
-      children: [
-        this.boredomMood,
-        el(doc, 'span', {
-          className: 'hud-boredom__mult',
-          children: [doc.createTextNode('GAIN '), this.boredomMult.element],
-        }),
-      ],
+      children: [doc.createTextNode('GAIN '), this.boredomMult.element],
     });
     const rankChip = el(doc, 'div', {
       className: 'hud-panel hud-rankchip',
@@ -258,11 +251,13 @@ export class CombatHudScreen extends HudScreen {
         el(doc, 'div', {
           className: 'hud-rankchip__file',
           children: [
+            // The caption row: what the number under it is, and what the meter
+            // under that currently reads. Two captions bracketing one plate.
             el(doc, 'div', {
               className: 'hud-rankchip__head',
               children: [
                 el(doc, 'span', { className: 'hud-rankchip__overline', text: 'RANK' }),
-                this.rankName,
+                this.boredomMood,
               ],
             }),
             el(doc, 'div', {
@@ -272,7 +267,7 @@ export class CombatHudScreen extends HudScreen {
                   className: 'hud-rankchip__rank',
                   children: [this.rankNumber.element],
                 }),
-                this.boredom,
+                this.boredomGain,
               ],
             }),
             el(doc, 'div', {
@@ -286,7 +281,10 @@ export class CombatHudScreen extends HudScreen {
     });
 
     /* ---- the incident ---- */
-    this.encounterTier = el(doc, 'span', { className: 'hud-encounter__tier', text: '' });
+    this.encounterTier = el(doc, 'span', {
+      className: 'hud-chip hud-encounter__tier',
+      text: '',
+    });
     this.encounterName = el(doc, 'span', { className: 'hud-encounter__name', text: '' });
     this.clockMinutes = new CssNumber(doc, { id: 'enc-m' });
     this.clockSeconds = new CssNumber(doc, { pad2: true, id: 'enc-s' });
@@ -376,10 +374,8 @@ export class CombatHudScreen extends HudScreen {
         this.trackerSeconds.element,
       ],
     });
-    this.tracker = el(doc, 'div', {
-      className: 'hud-panel hud-tracker',
-      attrs: { 'data-hud': 'tracker', role: 'button', tabindex: '0' },
-      dataset: { urgency: 'none', errand: 'false' },
+    this.trackerPlate = el(doc, 'div', {
+      className: 'hud-panel hud-tracker__plate',
       children: [
         el(doc, 'div', {
           className: 'hud-tracker__main',
@@ -388,15 +384,30 @@ export class CombatHudScreen extends HudScreen {
         this.trackerClock,
       ],
     });
+    // The strip is a READOUT and the button beside it is the control, which is
+    // not a style choice: `src/ui/input` treats the leading 45% of the viewport
+    // as stick input AT EVERY HEIGHT, and the strip spans the whole band. A
+    // tappable strip is a strip that eats movement touches — the harness's
+    // hit-ownership grid caught the old centre-column card doing exactly that,
+    // on all three profiles. The button lives at the strip's TRAILING end,
+    // which is inside the trailing 55% wherever the band is.
+    const openButton = button(doc, 'Open the request log', () => options.onOpenQuests?.(), {
+      className: 'hud-tracker__open',
+      text: 'LOG',
+      attrs: { 'data-hud': 'quest-log-button' },
+    });
+    this.tracker = el(doc, 'div', {
+      className: 'hud-tracker',
+      attrs: { 'data-hud': 'tracker' },
+      dataset: { urgency: 'none', errand: 'false' },
+      children: [this.trackerPlate, openButton],
+    });
     this.tracker.hidden = true;
     if (options.onOpenQuests) {
       const open = options.onOpenQuests;
-      // NOT `style.pointerEvents = 'auto'`. The stylesheet owns whether this is
-      // a control, because the answer depends on the viewport: on a landscape
-      // phone the strip sits inside the rectangle `src/ui/input` treats as
-      // stick input, so a tap there is a movement input whatever the HUD
-      // believes — the harness's hit-ownership grid measured it stealing three
-      // probes. An inline style would have overridden that media query.
+      // The row, not the button, so a `pointerup` dispatched at the duty row —
+      // which is what the harness's reachability journey does, and what a tap
+      // on the button bubbles up to — opens the log either way.
       this.tracker.addEventListener('pointerup', open);
       this.onDispose(() => this.tracker.removeEventListener('pointerup', open));
     }
@@ -502,20 +513,16 @@ export class CombatHudScreen extends HudScreen {
       this.rankClass.textContent = model.rank.heroClass;
       this.rankClass.style.setProperty('--hud-class', CLASS_COLOR[model.rank.heroClass]);
     }
-    if (this.rankName.textContent !== model.rank.heroName) {
-      this.rankName.textContent = model.rank.heroName;
-    }
-
     /* boredom band — word, colour and breath change on band crossings only */
     const band = boredomBand(model.boredom);
     if (band.label !== this.lastMood) {
       this.lastMood = band.label;
       this.boredomMood.textContent = band.label;
-      this.boredom.style.setProperty('--hud-mood', band.color);
+      this.boredomMood.style.setProperty('--hud-mood', band.color);
       this.boredomFill.style.setProperty('--hud-mood', band.color);
       this.boredomBreath.style.setProperty('--hud-breath', `${band.breathSeconds}s`);
     }
-    this.boredom.dataset.throttled = model.rank.rankGainMultiplier < 0.55 ? 'true' : 'false';
+    this.boredomGain.dataset.throttled = model.rank.rankGainMultiplier < 0.55 ? 'true' : 'false';
 
     /* encounter */
     const encounter = model.encounter;
@@ -532,7 +539,7 @@ export class CombatHudScreen extends HudScreen {
       this.encounterName.textContent = encounter.name;
       // The tier word ALWAYS prints beside the tier colour. No five-hue ramp
       // survives dichromacy as colour alone.
-      this.encounterTier.textContent = `THREAT ${TIER_LABEL[encounter.tier]}`;
+      this.encounterTier.textContent = TIER_LABEL[encounter.tier];
       this.encounterCard.style.setProperty('--hud-tier', TIER_COLOR[encounter.tier]);
       this.lastLostCount = 0;
     } else if (!encounter) {
