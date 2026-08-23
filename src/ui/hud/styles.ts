@@ -628,13 +628,18 @@ ${allPalettes()}
   --hud-edge:var(--hud-accent);
   display:flex;align-items:stretch;justify-content:space-between;
   gap:6px;min-height:${MIN_TAP_PX}px;
+  background:linear-gradient(var(--hud-line),var(--hud-line)) 0 50% / 100% 1px no-repeat;
 }
 /* The ROW spans the band so its button lands under the pause button on every
-   profile; the PLATE inside it is capped for reading. A duty line 1008 px wide
-   on a tablet is not a line, it is a horizon. */
+   profile; the PLATE inside it is sized to what it is SAYING, capped for
+   reading. Two reasons, and the second is the one that matters: a duty line
+   1008 px wide on a tablet is not a line, it is a horizon — and a full-width
+   plate is the heaviest single object in a 121 px band, mostly to hold its own
+   emptiness. Sized to content it reads as a strip torn off a longer document,
+   with the city visible in the gap before the button. */
 .hud-tracker__plate{
   flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:12px;
-  width:min(calc(760px * var(--hud-scale)),100%);
+  width:max-content;max-width:min(calc(760px * var(--hud-scale)),100%);
 }
 /* THE ONE WAY INTO THE QUEST LOG FROM A FIGHT, and it is a separate 44 px
    button rather than the strip itself for a reason the harness measures:
@@ -646,7 +651,7 @@ ${allPalettes()}
 .hud-tracker__open{
   flex:0 0 auto;width:${MIN_TAP_PX}px;padding:0;
   display:grid;place-items:center;
-  font-size:var(--t-micro);letter-spacing:.14em;color:var(--hud-ink-muted);
+  font-size:var(--t-body);letter-spacing:.06em;color:var(--hud-ink-muted);
 }
 .hud-tracker[data-urgency='soon']{--hud-edge:var(--hud-collateral)}
 .hud-tracker[data-urgency='critical']{--hud-edge:var(--hud-lost)}
@@ -807,8 +812,8 @@ ${allPalettes()}
 @keyframes hud-stamp{from{opacity:0;transform:scale(1.06)}to{opacity:1;transform:none}}
 @keyframes hud-stamp-mark{0%{transform:scale(1)}30%{transform:scale(1.28)}100%{transform:scale(1)}}
 @keyframes hud-sweep{
-  0%{transform:skewX(var(--hud-skew)) scaleX(0);opacity:.55}
-  70%{transform:skewX(var(--hud-skew)) scaleX(1);opacity:.3}
+  0%{transform:skewX(var(--hud-skew)) scaleX(0);opacity:.42}
+  70%{transform:skewX(var(--hud-skew)) scaleX(1);opacity:.22}
   100%{transform:skewX(var(--hud-skew)) scaleX(1);opacity:0}
 }
 

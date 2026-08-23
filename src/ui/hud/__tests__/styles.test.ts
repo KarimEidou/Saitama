@@ -374,11 +374,16 @@ describe('HUD scale', () => {
       '.hud-tracker__plate',
       '.hud-charge',
     ]) {
-      const sized = ruleBodies(selector).filter((body) => /(?:^|[;\s])width:/.test(body));
-      expect(sized.length, selector).toBeGreaterThan(0);
-      for (const body of sized) {
-        const declaration = /(?:^|[;\s])width:([^;]*)/.exec(body)?.[1] ?? '';
-        expect(declaration, selector).toContain('var(--hud-scale)');
+      const declarations = ruleBodies(selector).flatMap((body) => [
+        ...body.matchAll(/(?:^|[;\s])(?:max-)?width:([^;]*)/g),
+      ]);
+      expect(declarations.length, selector).toBeGreaterThan(0);
+      for (const [, value] of declarations) {
+        // An INTRINSIC width states "I have no size of my own, ask the box
+        // around me" and carries nothing that could go stale at 130 %. Anything
+        // that does name a size has to name --hud-scale with it.
+        if (/^(?:100%|auto|max-content|min-content|fit-content)$/.test(value!.trim())) continue;
+        expect(value, selector).toContain('var(--hud-scale)');
       }
     }
   });
