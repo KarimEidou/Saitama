@@ -228,8 +228,26 @@ export const IMPOSTOR_GROUND_DEPTH = 0.06;
 /* Population                                                                 */
 /* -------------------------------------------------------------------------- */
 
-/** Civilians registered with progression as witnesses, nearest first. */
-export const MAX_TRACKED_WITNESSES = 96;
+/**
+ * Civilians registered with progression as witnesses, nearest first.
+ *
+ * EVERY SIMULATED CIVILIAN, which is what "the crowd feeds the witness field"
+ * has to mean. `CrowdSystem` simulates `NEAR_CAP + MID_CAP` = 266 agents out to
+ * 150 m, so a cap of 96 left roughly three fifths of the crowd unregistered —
+ * and because the cut is nearest-to-the-PLAYER, the people it dropped were
+ * exactly the ones standing around an incident that happened somewhere else.
+ * `WitnessField.report` then answered "nobody saw it" for a civilian killed in
+ * a full street sixty metres away, which is the one number the whole rank
+ * system hangs on (`collateralReportRate` floors at 0.55 with no audience and
+ * reaches 1.0 with one).
+ *
+ * The cost is a register of 266 rather than 96: `report()` runs on incident
+ * resolution rather than per frame and linear-scans the field, and its own
+ * header budgets that scan for "dozens", swapping to a spatial index only at
+ * "thousands". The nearest-first sort in `WitnessBridge` stays — it is what
+ * decides who is dropped if the crowd caps ever rise past this.
+ */
+export const MAX_TRACKED_WITNESSES = 266;
 
 /** Metres a civilian may drift before its witness record is re-published. */
 export const WITNESS_RESYNC_DISTANCE = 4;
@@ -249,3 +267,14 @@ export const MAX_DELTA = 1 / 15;
 
 /** Autosave period, in seconds of unscaled time. */
 export const AUTOSAVE_INTERVAL = 60;
+
+/**
+ * Seconds between quest re-pushes while a quest clock is running.
+ *
+ * `HudStore.setQuests` takes a SNAPSHOT — `timeRemaining` is a number on the
+ * row, not a live read of the quest — so a bootstrap that only pushes on
+ * `QuestStateChanged` draws an evacuation timer frozen at the second it was
+ * accepted. One second is the cadence the digits actually move at; anything
+ * faster only re-renders the log to draw the same two numbers.
+ */
+export const QUEST_CLOCK_INTERVAL = 1;

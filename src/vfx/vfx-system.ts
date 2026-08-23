@@ -44,6 +44,7 @@ import {
   CrackTile,
   INTENT_POWER,
   SHOCK_COLOR,
+  VFX_REFERENCE_GROUND_IRRADIANCE,
   effectCapacityFor,
   vfxProfileFor,
   type CrackTileValue,
@@ -64,6 +65,18 @@ import { SpriteLayer } from './sprite-layer';
 import { Speedlines } from './speedlines';
 
 const log = createLogger('vfx');
+
+/**
+ * Rec. 709 relative luminance of a LINEAR colour.
+ *
+ * Used to collapse the key and ambient colours to the one number
+ * `uSurfaceLight` needs. Weighted, not a plain average: the sun is warm and the
+ * night ambient is blue, and an unweighted mean would report the two as closer
+ * in brightness than the eye reads them.
+ */
+function luminance(r: number, g: number, b: number): number {
+  return r * 0.2126 + g * 0.7152 + b * 0.0722;
+}
 
 export interface IVFXSystemOptions {
   /** Render tier. Sizes every pool and picks the shader complexity. */
@@ -234,6 +247,8 @@ export class VFXSystem implements IVFXSystem {
   private readonly cameraPosition = new THREE.Vector3();
   private readonly cameraForward = new THREE.Vector3(0, 0, -1);
   private readonly sunDirection = new THREE.Vector3(-0.62, -0.52, -0.59).normalize();
+  /** Ground light pinned by `setSurfaceLight`; undefined = inferred from the key. */
+  private surfaceLightOverride: number | undefined;
   private readonly scratchVector = new THREE.Vector3();
   private readonly scratchVectorB = new THREE.Vector3();
   private readonly scratchColor = new THREE.Color();
@@ -364,6 +379,55 @@ export class VFXSystem implements IVFXSystem {
     if (ambient !== undefined) {
       this.shared.uAmbientColor.value.set(ambient).multiplyScalar(ambientIntensity);
     }
+    this.refreshSurfaceLight();
+  }
+
+  /**
+   * State the ground light DIRECTLY, for a composition whose `setSun` key is
+   * not the scene's own.
+   *
+   * `setSun` infers this from the key it is handed, which is right for a caller
+   * that passes `ILightingState` through unchanged — and wrong for one that
+   * pre-attenuates the key for the DUST, as `harness/vfx.ts` deliberately does
+   * ("dust is translucent, so it takes a little under half the scene's direct
+   * sun"). Inferring a ground irradiance from a third of the sun would darken
+   * that page's cracks by four times under a sun that never moves.
+   *
+   * Sticky: it survives later `setSun` calls, because a composition that has to
+   * say this once has to mean it for good. Pass `undefined` to hand the value
+   * back to `setSun`.
+   */
+  setSurfaceLight(level: number | undefined): void {
+    this.surfaceLightOverride = level === undefined ? undefined : clamp01(level);
+    this.refreshSurfaceLight();
+  }
+
+  /**
+   * How much light the GROUND is getting, over the noon key the crack palette
+   * was authored against.
+   *
+   * Read off the LIVE uniforms rather than `setSun`'s arguments, so a caller
+   * that updates only the direction still gets a correct answer.
+   * `sunDirection` is the sun's TRAVEL direction, so a sun overhead has
+   * `y = -1` and the cosine against an upward-facing road is `-y`; below the
+   * horizon it clamps to zero and only the ambient term is left, which is what
+   * a moonlit street is.
+   *
+   * Clamped at 1: the reference IS full daylight, and a key brighter than it
+   * (a scripted flash, a composition with its own light scale) must not start
+   * bleaching permanent damage into the road.
+   */
+  private refreshSurfaceLight(): void {
+    if (this.surfaceLightOverride !== undefined) {
+      this.shared.uSurfaceLight.value = this.surfaceLightOverride;
+      return;
+    }
+    const sun = this.shared.uSunColor.value;
+    const ambient = this.shared.uAmbientColor.value;
+    const cosine = Math.max(0, -this.sunDirection.y);
+    const irradiance =
+      luminance(ambient.r, ambient.g, ambient.b) + luminance(sun.r, sun.g, sun.b) * cosine;
+    this.shared.uSurfaceLight.value = clamp01(irradiance / VFX_REFERENCE_GROUND_IRRADIANCE);
   }
 
   /** Match the scene's exponential-squared fog. */

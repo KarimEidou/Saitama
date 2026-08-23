@@ -40,6 +40,18 @@ export interface IVFXSharedUniforms {
   readonly uIntensity: { value: number };
   /** Colour of freshly exposed concrete at a crack lip. */
   readonly uDecalRim: { value: THREE.Color };
+  /**
+   * How much light the GROUND is receiving, relative to the clear-noon key the
+   * crack palette was authored against. 0..1; 1 is full daylight.
+   *
+   * Only the ground-crack branch reads it. Dust, flashes and shells are shaded
+   * (or deliberately emissive) and already follow the light on their own — a
+   * crack is a surface painted onto the road and would otherwise keep its noon
+   * radiance through the night. Inferred by `VfxSystem.setSun` from the key it
+   * is handed, or stated outright with `setSurfaceLight`; a composition that
+   * calls neither keeps 1 and the pre-existing look.
+   */
+  readonly uSurfaceLight: { value: number };
 }
 
 /** Build the shared uniform block. */
@@ -52,6 +64,7 @@ export function createSharedUniforms(): IVFXSharedUniforms {
     uFogDensity: { value: 0.0022 },
     uIntensity: { value: 1 },
     uDecalRim: { value: new THREE.Color(0xbdb6ab) },
+    uSurfaceLight: { value: 1 },
   };
 }
 
@@ -104,6 +117,7 @@ export function createSpriteMaterial(
       uFogDensity: shared.uFogDensity,
       uIntensity: shared.uIntensity,
       uDecalRim: shared.uDecalRim,
+      uSurfaceLight: shared.uSurfaceLight,
     },
     // Streaks and surface quads can be seen from either face.
     side: THREE.DoubleSide,
@@ -141,6 +155,7 @@ export function createDecalMaterial(
       uFogDensity: shared.uFogDensity,
       uIntensity: shared.uIntensity,
       uDecalRim: shared.uDecalRim,
+      uSurfaceLight: shared.uSurfaceLight,
     },
     side: THREE.DoubleSide,
     depthTest: true,

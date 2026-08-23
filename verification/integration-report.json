@@ -1,0 +1,197 @@
+{
+  "boot": {
+    "probe": 0,
+    "renderer": 35,
+    "assets": 648,
+    "physics": 270,
+    "sky": 2,
+    "crowd": 241,
+    "world": 378,
+    "systems": 302,
+    "warmup": 580,
+    "firstFrame": 2696
+  },
+  "timings": {
+    "input": 0,
+    "simulation": 1.3999999985098839,
+    "physics": 22.200000002980232,
+    "camera": 0.6999999992549419,
+    "streaming": 0,
+    "render": 9.800000000745058,
+    "hud": 0.09999999776482582,
+    "total": 34.19999999925494
+  },
+  "world": {
+    "assetTier": "mobile",
+    "assetTierRequested": "high",
+    "assetTierReason": "desktop-class defaults; clamped to 'mobile' (built: mobile)",
+    "assetTierMisses": 0,
+    "assetTiersUnavailable": [],
+    "assetsMissing": 0,
+    "isNative": false,
+    "platform": "web",
+    "chunkIndex": 120,
+    "residentChunks": 25,
+    "pendingChunks": 0,
+    "registeredStructures": 272,
+    "chunksDetached": 1654,
+    "debrisLive": 300,
+    "impostorBuildings": 2947,
+    "impostorTriangles": 29472,
+    "impostorBakeMs": 22.799999998882413,
+    "impostorUploadMs": 0.10000000149011612,
+    "impostorDrift": 0,
+    "monsters": 14,
+    "civilians": 250,
+    "civiliansLost": 87,
+    "civiliansSaved": 0,
+    "allies": 2,
+    "alliesDown": 1,
+    "witnesses": 98,
+    "playerPosition": {
+      "x": 8.994390487670898,
+      "y": 0.8950977325439453,
+      "z": -27.981069564819336
+    },
+    "playerState": "idle",
+    "timeOfDay": 0.9253490166062083,
+    "dayPhase": "night",
+    "exposure": 1.9556508561774575,
+    "sunIntensity": 0.08443782527005433,
+    "ambientIntensity": 0.008313653583120705,
+    "envMapIntensity": 0.01511573378749219,
+    "rank": "390",
+    "boredom": 0.015200000000000005,
+    "physicsBodies": 419,
+    "vfxEffects": 2,
+    "shaderPrograms": 48,
+    "resolutionScale": 0.8,
+    "timeScale": 1,
+    "rosterLoadMs": 3464,
+    "rosterResident": 8,
+    "rosterBytes": 47134386
+  },
+  "shots": [
+    {
+      "name": "integration-01-spawn",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 43.47620789794542,
+      "mean": 104.22713939525464,
+      "colors": 2576,
+      "blank": false
+    },
+    {
+      "name": "integration-02a-pre-turn",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 53.194428226147885,
+      "mean": 100.81117476851851,
+      "colors": 2578,
+      "blank": false
+    },
+    {
+      "name": "integration-02-traverse",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 45.28476586795539,
+      "mean": 78.68982711226852,
+      "colors": 2033,
+      "blank": false
+    },
+    {
+      "name": "integration-03-punch",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 41.901750381077164,
+      "mean": 107.92634006076389,
+      "colors": 2138,
+      "blank": false
+    },
+    {
+      "name": "integration-04-charging",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 53.56124102464357,
+      "mean": 62.30447591145833,
+      "colors": 2088,
+      "blank": false
+    },
+    {
+      "name": "integration-05-serious-punch",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 53.3686519509183,
+      "mean": 144.70481807002315,
+      "colors": 2163,
+      "blank": false
+    },
+    {
+      "name": "integration-06-collapse",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 54.37550293357771,
+      "mean": 93.91704463252314,
+      "colors": 1568,
+      "blank": false
+    },
+    {
+      "name": "integration-07-night",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 10.22553137905773,
+      "mean": 3.2014963107638885,
+      "colors": 295,
+      "blank": false
+    },
+    {
+      "name": "integration-08-hud-pause",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 13.246123892473145,
+      "mean": 7.724474464699074,
+      "colors": 303,
+      "blank": false
+    },
+    {
+      "name": "integration-08-hud-quests",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 8.396205755664178,
+      "mean": 6.2282975260416675,
+      "colors": 225,
+      "blank": true
+    },
+    {
+      "name": "integration-08-hud-rank",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 19.155753230739776,
+      "mean": 11.617744502314816,
+      "colors": 565,
+      "blank": false
+    },
+    {
+      "name": "integration-08-hud-settings",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 23.723756794086345,
+      "mean": 19.877658058449075,
+      "colors": 880,
+      "blank": false
+    },
+    {
+      "name": "integration-09-native-mobile-tier",
+      "width": 720,
+      "height": 1280,
+      "stdDev": 39.770741973107185,
+      "mean": 111.94958441840278,
+      "colors": 1906,
+      "blank": false
+    }
+  ],
+  "notes": [
+    "upper-frame mean before the turn 90.0, after 85.9",
+    "native page requested 72 mobile-tier files"
+  ]
+}

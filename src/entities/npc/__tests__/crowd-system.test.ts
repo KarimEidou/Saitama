@@ -819,6 +819,67 @@ describe('CrowdSystem allies', () => {
     expect(downed).toEqual([]);
     system.dispose();
   });
+
+  /**
+   * POINT BLANK IS THE MOST LETHAL RANGE, NOT A DEAD ZONE.
+   *
+   * `MonsterBrain.release` puts the wave's apex a body radius in front of the
+   * monster, and a melee archetype closes to inside that radius — so the apex
+   * lands just PAST whoever it is swinging at. Measured as a point against a
+   * point, the offset from apex to victim then points BACKWARDS: `dot` is -1
+   * and a forward cone rejects the one target it was aimed at, on every swing.
+   * That is what a god-tier monster standing on Genos used to do to him:
+   * nothing at all, for as long as the fight lasted.
+   *
+   * Combat's own `sphereInCone` already answers this — the apex inside the
+   * body accepts — and this is the crowd's half of the same rule.
+   */
+  it('lands a wave whose apex has already passed the ally', () => {
+    const bus = new EventBus();
+    const system = makeSystem(bus);
+    const genos = system.addHero('genos', 0, 0);
+    run(system, 1);
+
+    // Apex 4 cm BEYOND Genos, pointing away from him: the exact geometry a
+    // monster standing on him produces.
+    bus.emit('ShockwaveFired', {
+      origin: { x: 0, y: 2, z: 0.04 },
+      direction: { x: 0, y: 0, z: 1 },
+      power: 120000,
+      range: 18,
+      angle: Math.PI / 3,
+      intent: 'full',
+      punchKind: 'heavy',
+      sourceId: 'monster',
+    });
+    run(system, 0.2);
+
+    expect(genos.health).toBeLessThan(genos.maxHealth);
+    system.dispose();
+  });
+
+  /** The cone still has a back: somebody a cone-length behind it is spared. */
+  it('still spares an ally standing well behind the cone', () => {
+    const bus = new EventBus();
+    const system = makeSystem(bus);
+    const genos = system.addHero('genos', 0, -10);
+    run(system, 1);
+
+    bus.emit('ShockwaveFired', {
+      origin: { x: 0, y: 2, z: 0 },
+      direction: { x: 0, y: 0, z: 1 },
+      power: 120000,
+      range: 18,
+      angle: Math.PI / 3,
+      intent: 'full',
+      punchKind: 'heavy',
+      sourceId: 'monster',
+    });
+    run(system, 0.2);
+
+    expect(genos.health).toBe(genos.maxHealth);
+    system.dispose();
+  });
 });
 
 describe('CrowdSystem moods', () => {

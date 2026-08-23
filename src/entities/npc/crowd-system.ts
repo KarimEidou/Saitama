@@ -66,6 +66,7 @@ import { NearCivilian, type ICivilianHost } from './near-civilian';
 import { ObstacleField, cellCentreX, cellCentreZ, cellX, cellZ } from './obstacles';
 import { CrowdLedger, gatherWitnesses } from './witness';
 import {
+  AGENT_RADIUS,
   ENDANGERED_ALARM,
   FIELD_DIM,
   MID_CAP,
@@ -483,7 +484,11 @@ export class CrowdSystem implements ICrowdSink {
       const dz = this.agents.posZ[i]! - origin.z;
       const distance = Math.sqrt(dx * dx + dz * dz);
       if (distance > range) continue;
-      if (distance > 1e-3 && angle < Math.PI) {
+      // APEX INSIDE THE BODY WINS, exactly as combat's `sphereInCone` resolves
+      // it (`src/gameplay/combat/cone.ts`, case 2): a cone that starts inside
+      // somebody has engulfed them and there is no bearing left to measure.
+      // See `applyShockwaveToAllies` for the failure this guards against.
+      if (distance > AGENT_RADIUS && angle < Math.PI) {
         const dot = (dx * direction.x + dz * direction.z) / distance;
         if (dot < cos) continue;
       }
@@ -514,6 +519,19 @@ export class CrowdSystem implements ICrowdSink {
    * usefully, and a system where walking into a fight kills the person you
    * came to help turns the allies into a hazard to route around instead of
    * people to save.
+   *
+   * ── THE POINT-BLANK DEAD ZONE ────────────────────────────────────────────
+   * `MonsterBrain.release` puts the apex a body radius IN FRONT of the monster
+   * (`position + forward * radiusMetres`), and a melee archetype closes to
+   * inside that radius — so the apex lands just PAST the target it is swinging
+   * at. Measured as a point, the offset from apex to target then points
+   * backwards: `dot === -1` against a 60 degree cone, every single swing, and
+   * the most lethal configuration in the game — a god-tier Harbinger standing
+   * on Genos — did exactly nothing. Combat's own geometry already answers
+   * this: `sphereInCone` accepts as soon as the apex is inside the target's
+   * sphere, because a cone that starts inside somebody has engulfed them. The
+   * bearing test is therefore skipped inside the body's own radius rather than
+   * inside a 1 mm epsilon.
    */
   private applyShockwaveToAllies(
     origin: Vec3,
@@ -540,7 +558,7 @@ export class CrowdSystem implements ICrowdSink {
       const dz = hero.transform.position.z - origin.z;
       const distance = Math.sqrt(dx * dx + dz * dz);
       if (distance > range) continue;
-      if (distance > 1e-3 && cos > -1) {
+      if (distance > hero.radius && cos > -1) {
         const dot = (dx * direction.x + dz * direction.z) / distance;
         if (dot < cos) continue;
       }

@@ -7,9 +7,10 @@
  * this game needs are not events — they are continuous mirrors of one system's
  * state into another's index, re-established every frame:
  *
- *   monsters  -> combat's target registry      (what can be punched)
- *   monsters  -> the crowd's threat list       (what people run from)
- *   civilians -> progression's witness field   (who saw it)
+ *   monsters   -> combat's target registry      (what can be punched)
+ *   monsters   -> the crowd's threat list       (what people run from)
+ *   civilians  -> progression's witness field   (who saw it)
+ *   structures -> combat's structure index      (what a punch would cost)
  *
  * Each of those would be a cyclic import if either side did it. They live here
  * because the composition root is the one module allowed to hold both ends.
@@ -35,8 +36,9 @@
  * on every position update, and `assertAimOffset` proves it at runtime.
  */
 
-import type { EntityId, Faction, IQualityTier, Vec3 } from '@/types';
+import type { DistrictType, EntityId, Faction, IQualityTier, Vec3 } from '@/types';
 import type { CombatSystem } from '@/gameplay/combat';
+import type { DestructionSystem } from '@/gameplay/destruction';
 import type { MonsterSystem, IMonsterCombatDescriptor, IMonsterTarget } from '@/entities/monster';
 import type { CrowdSystem, IThreatSource } from '@/entities/npc';
 import { makeThreat } from '@/entities/npc';
@@ -571,6 +573,99 @@ export class WitnessBridge {
       this.published.delete(id);
     }
     this.tracked = witnesses.size;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Resident structures -> combat's structure index                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ *  THE STRUCTURE BRIDGE — the third index nothing was filling
+ * ══════════════════════════════════════════════════════════════════════════
+ * There are TWO structure indexes and they answer two different questions.
+ *
+ *   `DestructionSystem.structures` decides what BREAKS. `CityStreamer` fills it
+ *   on every chunk build and it is what a Serious Punch actually fractures.
+ *
+ *   `CombatSystem.structures` decides what a punch would COST. It is swept by
+ *   `chargeForecast()`, which is what the charge ring's property-damage price
+ *   tag renders, and — because `addStructure()` had no caller anywhere in
+ *   `src/` — it was permanently empty. The forecast therefore returned zero
+ *   structures and ¥0 for every charge, in a game whose entire tension is the
+ *   player weighing that number before releasing.
+ *
+ * Neither system may import the other, and the streamer already publishes into
+ * destruction, so the mirror belongs here — the same shape as
+ * `CombatTargetBridge`: add on arrival, remove on eviction, never touch what is
+ * already registered.
+ *
+ * A structure's world AABB is computed once, at registration, and never moves,
+ * so unlike a monster there is nothing to update per frame. Mass comes from the
+ * fracture layout (`totalMass`, the INTACT mass — which is what a forecast
+ * wants: it reads high, and a warning should) and the zoning band comes from
+ * the streamer, which is the only thing that knows which district a chunk was
+ * generated as.
+ */
+export class StructureBridge {
+  /** Registered id -> the sync tick that last saw it resident. */
+  private readonly registered = new Map<string, number>();
+  private tick = 0;
+
+  /** Structures registered with combat by the last sweep. */
+  added = 0;
+  /** Structures dropped because their chunk was evicted. */
+  removed = 0;
+
+  constructor(
+    private readonly destruction: DestructionSystem,
+    private readonly combat: CombatSystem,
+    private readonly districtAt: (x: number, z: number) => DistrictType
+  ) {}
+
+  /**
+   * Re-establish the mirror.
+   *
+   * A FULL pass over the resident structures, stamping each with this tick, so
+   * that a frame which both builds and evicts a chunk — leaving the count
+   * unchanged while the membership moved — is still exact. It is a few hundred
+   * `Map` writes against no allocation, and the removal scan below runs only
+   * when the counts actually disagree.
+   */
+  sync(): void {
+    this.added = 0;
+    this.removed = 0;
+    const tick = ++this.tick;
+    const live = this.destruction.orderedStructures;
+
+    for (const structure of live) {
+      const id = structure.id;
+      if (!this.registered.has(id)) {
+        const b = structure.worldBounds;
+        this.combat.addStructure({
+          id,
+          bounds: { minX: b[0]!, minY: b[1]!, minZ: b[2]!, maxX: b[3]!, maxY: b[4]!, maxZ: b[5]! },
+          massKg: structure.layout.totalMass,
+          district: this.districtAt(structure.originX, structure.originZ),
+        });
+        this.added++;
+      }
+      this.registered.set(id, tick);
+    }
+
+    if (this.registered.size === live.length) return;
+    for (const [id, seen] of [...this.registered]) {
+      if (seen === tick) continue;
+      this.combat.structures.remove(id);
+      this.registered.delete(id);
+      this.removed++;
+    }
+  }
+
+  clear(): void {
+    for (const id of this.registered.keys()) this.combat.structures.remove(id);
+    this.registered.clear();
   }
 }
 

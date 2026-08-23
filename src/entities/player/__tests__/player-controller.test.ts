@@ -318,8 +318,39 @@ describe('jump', () => {
     h.player.stateMachine.onEnter('jumpLaunch', () => launches++);
     h.input.press('jump');
     h.run(400);
-    // The button is still held on landing, but `pressed` is an EDGE: a held
+    // The button is still held on landing, but the down-EDGE is spent: a held
     // button must not re-arm the buffer.
+    expect(launches).toBe(1);
+  });
+
+  it('jumps even when the frame carrying the press is never simulated', () => {
+    // THE COMPOSED-GAME CASE. The game loop polls input on every frame but
+    // runs the simulation band only on frames with time in them, so a press
+    // can be consumed by a poll this controller is never handed. `pressed` is
+    // true for exactly one poll and the button stays DOWN afterwards, so there
+    // is no second edge to catch: reading `pressed` alone loses the jump for
+    // good and the character just stands there. Measured in the playthrough as
+    // a 0.0 m "held jump" against a 27 m design apex.
+    const h = setup();
+    h.input.press('jump');
+    h.input.poll(DT); // the dropped frame: polled, never given to the player
+    let apex = 0;
+    h.run(400, () => {
+      apex = Math.max(apex, h.player.heightAboveGround);
+    });
+    expect(apex).toBeCloseTo(heldJumpApex(L), 0);
+  });
+
+  it('does not re-arm the jump when a whole flight is dropped mid-hold', () => {
+    // The other half of the same rule: re-deriving the edge from `held` must
+    // not turn dropped frames into extra jumps.
+    const h = setup();
+    let launches = 0;
+    h.player.stateMachine.onEnter('jumpLaunch', () => launches++);
+    h.input.press('jump');
+    h.run(120);
+    for (let i = 0; i < 20; i++) h.input.poll(DT);
+    h.run(280);
     expect(launches).toBe(1);
   });
 });

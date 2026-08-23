@@ -8,7 +8,7 @@
  * ── WHAT COMES FROM THE BUS AND WHAT HAS TO BE PUSHED ──────────────────────
  * The architectural rule is that a system never imports another system's
  * implementation, so everything the bus carries is subscribed to here and
- * nothing else is imported. Three things the HUD needs are NOT on the bus, and
+ * nothing else is imported. Four things the HUD needs are NOT on the bus, and
  * each is an explicit setter with a reason:
  *
  *   setRivals()       `RankChangedEvent` HAS NO HERO ID. It is the player's
@@ -31,6 +31,17 @@
  *   setCharge()       Charge ratio lives in the input layer's `ChargeTracker`
  *                     and never reaches the bus, because a value that changes
  *                     every frame has no business being an event.
+ *
+ *   setQuests()       `QuestStateChangedEvent` carries an id, the old state and
+ *                     the new one — no title, tier, objectives, reward or clock,
+ *                     because those are the quest system's authored data and not
+ *                     an event payload. The bus is therefore enough to TOAST a
+ *                     quest and not enough to LIST one, so the rows come from
+ *                     `QuestSystem.runtimeQuests` through the bootstrap, the
+ *                     same shape of wiring `setRivals` needs. Same failure mode
+ *                     too, and a louder one: a bootstrap that never calls this
+ *                     leaves the log reading "No requests on file" for the whole
+ *                     session while ten authored requests sit in the catalogue.
  *
  * ── WHY POINT DELTAS ARE DERIVED HERE ──────────────────────────────────────
  * `RankChangedEvent` carries the new point TOTAL, not the movement. The feed
@@ -76,7 +87,7 @@ export function displayRankGainMultiplier(boredom: number): number {
   return floor + (1 - floor) * (1 - clamp01(boredom) ** exponent);
 }
 
-/** A quest row plus the ids it would cancel, as the bootstrap supplies it. */
+/** How the bootstrap (or the harness) constructs the store. */
 export interface IHudStoreOptions {
   readonly bus?: IEventBus;
   /** Seeds `model.settings`. */
@@ -358,7 +369,15 @@ export class HudStore {
     this.markDirty();
   }
 
-  /** Replace the quest list. Cheap enough to call whenever a quest changes. */
+  /**
+   * Replace the quest list. Cheap enough to call whenever a quest changes.
+   *
+   * The rows are a SNAPSHOT, and `timeRemaining` is a number on it rather than
+   * a live read — so a caller that only pushes on `QuestStateChanged` gets a
+   * log whose clocks are frozen at the moment the quest was accepted. A timed
+   * quest needs a re-push at roughly the cadence the digits move, which is once
+   * a second and not once a frame.
+   */
   setQuests(rows: readonly IQuestRow[], trackedId?: string): void {
     this.model.quests = [...rows];
     this.model.trackedQuestId = trackedId ?? this.model.trackedQuestId;

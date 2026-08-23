@@ -547,6 +547,73 @@ describe('VFXSystem', () => {
     vfx.dispose();
   });
 
+  it('darkens permanent ground cracks with the scene light', () => {
+    // Decals are the only VFX that outlive the moment, and the crack branch of
+    // the sprite shader has no light term of its own: its palette is authored
+    // as absolute daylight radiance. `uSurfaceLight` is what makes a city
+    // carpeted in craters go dark at night — without it a permanent crack keeps
+    // its noon brightness, and because night exposure adapts UPWARDS the road
+    // ends up darker than the damage cut into it.
+    const { vfx } = makeSystem();
+    const surfaceLight = (): number => {
+      const material = vfx.meshes[0]!.material as THREE.ShaderMaterial;
+      return material.uniforms.uSurfaceLight!.value as number;
+    };
+    // Untouched: a composition that never calls `setSun` keeps the authored look.
+    expect(surfaceLight()).toBe(1);
+
+    // Noon: the shipped sky's own key, straight down. Clamped at 1, never above.
+    const down = new THREE.Vector3(0, -1, 0);
+    vfx.setSun(down, 0xfff4e2, 0xfaf9ff, 3.075, 0.55);
+    expect(surfaceLight()).toBe(1);
+
+    // Midnight: the moon is the key, two orders of magnitude down.
+    vfx.setSun(new THREE.Vector3(0.3, -0.6, 0.7), 0xa8c4ff, 0x8596ff, 0.084, 0.0077);
+    const night = surfaceLight();
+    expect(night).toBeGreaterThan(0);
+    expect(night).toBeLessThan(0.05);
+
+    // Below the horizon there is no key at all, only ambient — and it must not
+    // go negative or wrap.
+    vfx.setSun(new THREE.Vector3(0, 1, 0), 0xa8c4ff, 0x8596ff, 0.084, 0.0077);
+    expect(surfaceLight()).toBeGreaterThanOrEqual(0);
+    expect(surfaceLight()).toBeLessThan(night);
+
+    vfx.dispose();
+  });
+
+  it('lets a composition pin the ground light against its own key scale', () => {
+    // `harness/vfx.ts` hands `setSun` a key pre-attenuated for the DUST, so the
+    // inference would read a fixed midday scene as late dusk. The pin has to
+    // survive every later `setSun`, or a page that states it once still drifts.
+    const { vfx } = makeSystem();
+    const surfaceLight = (): number => {
+      const material = vfx.meshes[0]!.material as THREE.ShaderMaterial;
+      return material.uniforms.uSurfaceLight!.value as number;
+    };
+    vfx.setSurfaceLight(1);
+    vfx.setSun(new THREE.Vector3(0.55, -0.66, -0.52).normalize(), 0xfff2e2, 0x8ba3c4, 1.08, 0.44);
+    expect(surfaceLight()).toBe(1);
+
+    // Handing it back restores the inference — and that key is a long way under
+    // full daylight, which is the whole reason the page has to pin it.
+    vfx.setSurfaceLight(undefined);
+    expect(surfaceLight()).toBeLessThan(0.4);
+    expect(surfaceLight()).toBeGreaterThan(0.1);
+
+    vfx.dispose();
+  });
+
+  it('shares the surface-light uniform between the sprite and decal materials', () => {
+    // One object, two materials: the decal layer and the sprite layer run the
+    // same program and must never disagree about the time of day.
+    const { vfx } = makeSystem();
+    const decal = vfx.meshes[0]!.material as THREE.ShaderMaterial;
+    const sprite = vfx.meshes[2]!.material as THREE.ShaderMaterial;
+    expect(decal.uniforms.uSurfaceLight).toBe(sprite.uniforms.uSurfaceLight);
+    vfx.dispose();
+  });
+
   it('holds the frame during an impact freeze instead of running through it', () => {
     // The renderer drops the clock to 4% for 90 ms. Fed the scaled delta, an
     // effect should barely advance — that hang IS the beat.

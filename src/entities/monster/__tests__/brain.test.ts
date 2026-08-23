@@ -238,6 +238,41 @@ describe('attacks', () => {
     expect(wave.range).toBeGreaterThan(0);
   });
 
+  /**
+   * THE APEX MUST NOT OVERSHOOT WHAT IT IS SWINGING AT.
+   *
+   * The wave leaves the monster's SURFACE — `position + forward * radiusMetres`
+   * — which is right at every range except the one that matters. Most
+   * archetypes carry `standoffMetres: 0` and a melee attack closes until the
+   * gap is well under a metre, so an unclamped muzzle put the apex PAST the
+   * victim; and a cone measured from an apex that is already past you points
+   * away from you. Everything downstream that resolves a cone — the crowd, the
+   * allies — then rejected the one target the swing was aimed at.
+   */
+  it('never places the wave apex beyond the target it is swinging at', () => {
+    const recorder = recordingBus();
+    // A Harbinger's body radius is ~1 m; the target is parked well inside it.
+    const brain = makeBrain('mob.god.harbinger', recorder.bus);
+    const target = makeTarget('hero-genos', 0, 0.4);
+    const view = world([target]);
+
+    tick(brain, view, 12);
+    const waves = recorder.ofType('ShockwaveFired');
+    expect(waves.length).toBeGreaterThanOrEqual(1);
+    for (const wave of waves) {
+      const apexToTarget = Math.hypot(
+        target.position.x - wave.origin.x,
+        target.position.z - wave.origin.z
+      );
+      const brainToTarget = Math.hypot(
+        target.position.x - brain.position.x,
+        target.position.z - brain.position.z
+      );
+      // The apex sits between the monster and the victim, never past them.
+      expect(apexToTarget).toBeLessThanOrEqual(brainToTarget + 1e-6);
+    }
+  });
+
   it('respects cooldowns rather than machine-gunning', () => {
     const recorder = recordingBus();
     const brain = makeBrain('mob.wolf.pest', recorder.bus);

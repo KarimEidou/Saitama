@@ -147,6 +147,7 @@ uniform vec3 uAmbientColor;
 uniform vec3 uFogColor;
 uniform vec3 uDecalRim;
 uniform float uIntensity;
+uniform float uSurfaceLight;
 
 varying vec2 vUv;
 varying vec4 vColor;
@@ -176,6 +177,17 @@ void main() {
        grey smear would be worse on LOW than anywhere else. */
     float lip = clamp(tex.g * 1.25 - tex.r * 0.85, 0.0, 1.0);
     rgb = mix(vColor.rgb * (0.20 + 0.30 * (1.0 - tex.r)), uDecalRim, lip * 0.85);
+    /* A crack is a SURFACE cut into the road, not a light. Both colours above
+       are absolute radiances authored for full daylight, and decals are the one
+       effect in this suite that lives forever — so without this the cracks kept
+       their noon brightness all night, and the night exposure lift then made
+       them brighter on screen than at noon while the road around them went
+       dark. uSurfaceLight is the ground's irradiance over the noon reference,
+       so daylight is untouched and everything below it darkens with the world.
+       The lit branch below cannot do this job: it is a volumetric wrap term for
+       billboards, and it is an else-if precisely because a flat surface quad
+       must not be shaded as a sphere. */
+    rgb *= uSurfaceLight;
   }
   else if (vExtra.z > 0.001) {
     /* Fake volume, on EVERY tier including LOW.

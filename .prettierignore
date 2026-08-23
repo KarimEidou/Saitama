@@ -15,6 +15,11 @@ test-results/
 # creates a permanent churn loop — the next pipeline run reverts the formatting.
 docs/screenshots/*.json
 verification/playthrough-report.json
+# Written by `verification/integration.verify.ts` exactly as the line above is
+# written by the playthrough driver. Untracked, so a clean checkout never has
+# it — and a tree that has just run the integration driver failed `format:check`
+# on an artefact nobody authored.
+verification/integration-report.json
 assets/district/cityz.plan.json
 assets/assets.lock.json
 tools/manifest/characters.json

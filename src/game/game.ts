@@ -123,6 +123,7 @@ import {
   BOOT_RADIUS,
   FIXED_STEP,
   MAX_DELTA,
+  QUEST_CLOCK_INTERVAL,
   SPAWN_POSITION,
   SPAWN_YAW,
   START_TIME_OF_DAY,
@@ -134,6 +135,7 @@ import { CityMaterialLibrary } from './city-materials';
 import { CityStreamer } from './city-streamer';
 import {
   CombatTargetBridge,
+  StructureBridge,
   ThreatBridge,
   WitnessBridge,
   auditAimPoints,
@@ -261,6 +263,7 @@ export class Game {
   readonly combatTargets: CombatTargetBridge;
   readonly threats: ThreatBridge;
   readonly witnesses: WitnessBridge;
+  readonly combatStructures: StructureBridge;
 
   readonly playerId: EntityId = 'player';
 
@@ -285,6 +288,9 @@ export class Game {
   private witnessTimer = 0;
   private autosaveTimer = 0;
   private auditTimer = 0;
+  private questClockTimer = 0;
+  /** True while at least one pushed quest row carries a running clock. */
+  private questClocksRunning = false;
   private modalPaused = false;
   /** Last district handed to the audio system, so the reverb only glides on a change. */
   private audioDistrict: DistrictType | undefined;
@@ -335,6 +341,9 @@ export class Game {
     this.combatTargets = new CombatTargetBridge(this.monsters, this.combat);
     this.threats = new ThreatBridge(this.monsters, this.crowd);
     this.witnesses = new WitnessBridge(this.crowd, this.progression);
+    this.combatStructures = new StructureBridge(this.destruction, this.combat, (x, z) =>
+      this.cityStreamer.districtAt(x, z)
+    );
 
     this.subscribe();
   }
@@ -1631,6 +1640,28 @@ export class Game {
         this.witnessTimer = WITNESS_SYNC_INTERVAL;
         this.witnesses.sync(this.player.controller.position);
       }
+
+      // ════════════════════════════════════════════════════════════════════
+      //  A QUEST CLOCK ONLY MOVES IF SOMEBODY RE-PUSHES IT
+      // ════════════════════════════════════════════════════════════════════
+      // The rows the log and the tracker draw are SNAPSHOTS, so `timeRemaining`
+      // is whatever it was at the last push — an evacuation accepted with 150
+      // seconds on it reads 2:30 until the moment it fails. `QuestStateChanged`
+      // fires at the two ends of that window and never inside it, so the clock
+      // needs its own cadence.
+      //
+      // On SCALED time, deliberately: the clock this mirrors is decremented by
+      // `quests.update(dt)` with exactly this delta, so a hit-stop that slows
+      // the countdown slows the re-push with it. Gated on the flag the push
+      // itself sets, so a session with no timed quest accepted pays one
+      // comparison a frame and never allocates.
+      if (this.questClocksRunning) {
+        this.questClockTimer -= dt;
+        if (this.questClockTimer <= 0) {
+          this.questClockTimer = QUEST_CLOCK_INTERVAL;
+          this.pushQuests();
+        }
+      }
     }
     timings.simulation = performance.now() - mark;
 
@@ -1664,6 +1695,12 @@ export class Game {
       this.player.controller.position.z
     );
     this.cityStreamer.update(rawDt);
+    // The structure mirror, in the same section and immediately after the build
+    // and eviction that changes it. `CityStreamer` publishes into
+    // `DestructionSystem` — what BREAKS — and combat's own index, which is what
+    // `chargeForecast()` sweeps for the charge ring's price tag, had no feed at
+    // all. See `StructureBridge`.
+    this.combatStructures.sync();
     timings.streaming = performance.now() - mark;
 
     /* ---- AUDIO --------------------------------------------------------- */
@@ -2063,6 +2100,17 @@ export class Game {
         previous: this.combat.boredomMeter.value,
         reason: 'restored',
       });
+      // ══════════════════════════════════════════════════════════════════════
+      //  AND THE QUESTS, FOR EXACTLY THE SAME REASON
+      // ══════════════════════════════════════════════════════════════════════
+      // `QuestSystem.restoreState()` assigns `quest.state` directly rather than
+      // going through `setState`, so a restore publishes no `QuestStateChanged`
+      // — correctly, since replaying ten of them would toast a save load as ten
+      // fresh requests. But the subscription above is the only other thing that
+      // pushes rows, so without this the log opens on the boot snapshot: the
+      // restored active quest missing, its objectives at zero and its clock
+      // back at the full limit.
+      this.pushQuests();
       this.cityStreamer.setFocus(at.x, at.z);
       this.cityStreamer.buildImmediate(0);
       return true;
@@ -2097,9 +2145,17 @@ export class Game {
       // rows are pushed on every player rank change and on every incident,
       // which is when a rival's standing relative to the player can move.
       bus.on('RankChanged', () => this.pushRivals()),
-      bus.on('EncounterEnded', () => this.pushRivals())
+      bus.on('EncounterEnded', () => this.pushRivals()),
+      // Same gap, one storey louder: `QuestStateChangedEvent` carries an id and
+      // two states and nothing a log can draw — no title, tier, objectives,
+      // reward or clock — so the store's own header calls the rows out as a
+      // bootstrap push. Nothing called `setQuests`, and the quest log read "No
+      // requests on file" for the whole session with ten authored requests
+      // sitting in the catalogue.
+      bus.on('QuestStateChanged', () => this.pushQuests())
     );
     this.pushRivals();
+    this.pushQuests();
   }
 
   /** Publish the rival ladder. `seatsAbovePlayer` needs the player's own rank. */
@@ -2116,6 +2172,60 @@ export class Game {
         offscreenCredit: rival.offscreenCredit,
         jointIncidents: rival.jointIncidents,
       }))
+    );
+  }
+
+  /**
+   * Publish the quest log.
+   *
+   * EVERY runtime quest, including the locked ones. Two screens need them: the
+   * log draws a locked row as "LOCKED · <description>", which is how a player
+   * learns a request exists before it unlocks, and `conflictTitles` resolves a
+   * `conflictsWith` id to a TITLE by looking it up in the pushed list — so
+   * filtering the list down to what is currently offerable would turn the
+   * supermarket warning, the one choice the screen exists to make the player
+   * feel, back into a raw quest id.
+   *
+   * The rows are a snapshot; `questClocksRunning` is what tells `frame` whether
+   * any clock on them is still moving. See `QUEST_CLOCK_INTERVAL`.
+   */
+  private pushQuests(): void {
+    const quests = this.progression.quests;
+    // ONE call to the getter: `runtimeQuests` copies the map into a new array
+    // on every read, and this runs on a timer as well as on every state change.
+    const runtime = quests.runtimeQuests;
+    let running = false;
+    for (const quest of runtime) {
+      // `complete()` and `fail()` both clear `timeRemaining` before they
+      // publish, so a resolved quest stops the cadence on its own.
+      if (Number.isFinite(quest.timeRemaining)) {
+        running = true;
+        break;
+      }
+    }
+    this.questClocksRunning = running;
+    this.hud.store.setQuests(
+      runtime.map((quest) => ({
+        id: quest.id,
+        title: quest.title,
+        description: quest.description,
+        state: quest.state,
+        tier: quest.threatTier,
+        objectives: quest.objectives.map((objective) => ({
+          id: objective.id,
+          description: objective.description,
+          current: objective.current,
+          required: objective.required,
+          complete: objective.complete,
+          hidden: objective.hidden,
+        })),
+        timeRemaining: quest.timeRemaining,
+        timeLimitSeconds: quest.timeLimitSeconds,
+        errand: quest.rules.errand === true,
+        conflictsWith: quest.rules.conflictsWith,
+        rewardPoints: quest.rewardPoints,
+      })),
+      quests.trackedQuestId
     );
   }
 

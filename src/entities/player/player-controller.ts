@@ -211,6 +211,8 @@ export class PlayerController {
    */
   private timeSinceGrounded = Number.POSITIVE_INFINITY;
   private jumpBuffer = 0;
+  /** Whether jump was DOWN on the previous frame this controller was given. */
+  private jumpWasDown = false;
   private jumpConsumed = false;
   private jumpHolding = false;
   private jumpElapsed = 0;
@@ -365,7 +367,38 @@ export class PlayerController {
    * physics world afterwards, then call `postStep()`.
    */
   update(input: InputState, dt: number): void {
-    if (this.disposed || !Number.isFinite(dt) || dt <= 0) return;
+    if (this.disposed) return;
+
+    /* ---- 0. the jump edge, BEFORE any guard can return ---------------- */
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE EDGE IS RE-DERIVED FROM THE LEVEL, NOT TAKEN FROM `pressed`
+    // ══════════════════════════════════════════════════════════════════════
+    // `ButtonState.pressed` is true for exactly ONE poll, and this controller
+    // is not guaranteed to see every poll. The game loop reads input on every
+    // frame but runs the simulation band only when the frame has time in it
+    // (`dt = modalPaused ? 0 : clock.delta`, then `if (dt > 0) player.update`),
+    // so a press that lands on a paused, dropped or zero-length frame is
+    // consumed by the input manager and never reaches here. The button is
+    // still DOWN, so no second edge is ever produced: the held jump then does
+    // nothing at all until the player lets go and presses again.
+    //
+    // MEASURED in the composed game — a single unsimulated frame turned the
+    // 27 m held leap into a 0.0 m one, permanently, with the character left
+    // standing in `idle` as if the button had never been touched.
+    //
+    // Deriving the down-edge from `held` is frame-for-frame identical while
+    // every poll is consumed, and survives the polls that are not. It cannot
+    // re-fire under a continuous hold either — `jumpWasDown` stays true — so
+    // "one press, one jump" is unchanged.
+    const jump = input.buttons.jump;
+    const jumpDown = jump.held || jump.pressed;
+    const jumpPressed = jumpDown && !this.jumpWasDown;
+    this.jumpWasDown = jumpDown;
+    // Buffered BEFORE the eligibility test, so a press on the exact frame of
+    // touchdown is honoured rather than racing it.
+    if (jumpPressed) this.jumpBuffer = this.tuning.locomotion.jumpBufferSeconds;
+
+    if (!Number.isFinite(dt) || dt <= 0) return;
     // Cheap safety net for a caller that skipped postStep(): the state below
     // would otherwise be a whole frame stale in a way that is very hard to see.
     if (this.pendingPostStep) this.postStep();
@@ -375,7 +408,6 @@ export class PlayerController {
     const cam = this.tuning.camera;
 
     /* ---- 1. intent -------------------------------------------------- */
-    const jump = input.buttons.jump;
     const sprint = input.buttons.sprint;
     const punch = input.buttons.punch;
 
@@ -406,10 +438,9 @@ export class PlayerController {
     this.dashing = sprint.held && hasIntent;
 
     /* ---- 2. jump buffering ------------------------------------------ */
-    // Buffered BEFORE the eligibility test, so a press on the exact frame of
-    // touchdown is honoured rather than racing it.
-    if (jump.pressed) this.jumpBuffer = loco.jumpBufferSeconds;
-    else this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    // The press itself was latched in step 0, above, where nothing can return
+    // before it; this is the decay of a press that has not been spent yet.
+    if (!jumpPressed) this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
 
     /* ---- 3. target velocity ----------------------------------------- */
     this.controlScale = this.computeControlScale();

@@ -272,3 +272,25 @@ export const DUST_COLOR_DARK = 0x55524d;
 export const SHOCK_COLOR = 0xdfeaff;
 export const SPARK_COLOR = 0xffd9a0;
 export const CLOUD_COLOR = 0xd9e2ee;
+
+/**
+ * Ground irradiance the CRACK PALETTE IS AUTHORED AGAINST — a clear noon.
+ *
+ * The crack colours (and `uDecalRim`) are absolute radiances chosen to read as
+ * torn concrete under full daylight. Everything else in the suite is shaded by
+ * `uSunColor`/`uAmbientColor` and so follows the day/night curve on its own; a
+ * ground crack is a SURFACE painted onto the road and had no light term at all,
+ * so a permanent decal kept its noon radiance all night — and because night
+ * exposure ADAPTS UPWARDS (~1.98x at midnight), the cracks then rendered
+ * BRIGHTER at midnight than at noon while the road they are cut into fell to
+ * ~1.4% of its noon radiance. A city carpeted in craters read as a bright grey
+ * field with dark buildings standing in it.
+ *
+ * The number is the luminance of `ambientColor * ambientIntensity +
+ * sunColor * sunIntensity * (N·L)` at t = 0.5 with the shipped sky, measured
+ * against a ground-facing normal: ambient ~0.52 plus a sun of ~2.79 at an
+ * elevation of 77 degrees. `VfxSystem.setSun` divides the live irradiance by
+ * this and clamps at 1, so full daylight leaves the authored look untouched
+ * and everything below it darkens with the world.
+ */
+export const VFX_REFERENCE_GROUND_IRRADIANCE = 3.25;

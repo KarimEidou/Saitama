@@ -475,6 +475,14 @@ function main(): void {
   // it is blowing off. Dust is translucent, so it takes a little under half the
   // scene's direct sun and a little over half its ambient.
   vfx.setSun(lighting.sunDirection, 0xfff2e2, 0x8ba3c4, 1.08, 0.44);
+  // ...which is exactly why the ground light has to be stated rather than
+  // inferred. `setSun` reads its key as the SCENE's, and the crack decals — the
+  // only VFX with no light term of their own — are scaled by it so a permanent
+  // crater goes dark at night instead of glowing through it. This page is a
+  // fixed midday scene with a sun that never moves, and the key above is a
+  // third of it: left to infer, the cracks this page exists to show would
+  // render at a quarter of their authored brightness.
+  vfx.setSurfaceLight(1);
   vfx.setFog(lighting.fogColor.getHex(), lighting.fogDensity);
   vfx.setViewport(window.innerWidth, window.innerHeight);
   // NOT added to the scene yet. `ShaderWarmup` calls `renderer.compile()`,

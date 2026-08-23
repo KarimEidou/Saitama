@@ -890,9 +890,23 @@ export class MonsterBrain {
     const forwardZ = Math.cos(this.yaw);
     const originY = this.position.y + this.archetype.bodyHeightMetres * 0.55;
 
-    this.scratch.x = this.position.x + forwardX * this.archetype.radiusMetres;
+    // ── THE APEX MUST NOT OVERSHOOT WHAT IT IS SWINGING AT ─────────────────
+    // The wave leaves the monster's SURFACE, not its centre, which is right
+    // everywhere except the one place it matters most. Most archetypes have
+    // `standoffMetres: 0` and a melee attack closes until the gap is under a
+    // metre, so a body radius of pushing a metre put the apex PAST the target
+    // — and a cone measured from an apex that is past you points away from
+    // you. `dot === -1` against a 60 degree cone, on every swing: a god-tier
+    // Harbinger standing on Genos did literally nothing to him, and the crowd
+    // system that resolves the damage cannot see why (see the header of
+    // `CrowdSystem.applyShockwaveToAllies`). Clamping the muzzle to the
+    // target's own distance leaves ranged attacks untouched — the clamp only
+    // binds inside one body radius — and makes point blank the most lethal
+    // configuration rather than the only harmless one.
+    const muzzle = Math.min(this.archetype.radiusMetres, this.targetDistance);
+    this.scratch.x = this.position.x + forwardX * muzzle;
     this.scratch.y = originY;
-    this.scratch.z = this.position.z + forwardZ * this.archetype.radiusMetres;
+    this.scratch.z = this.position.z + forwardZ * muzzle;
 
     this.bus.emit('ShockwaveFired', {
       origin: this.scratch,
