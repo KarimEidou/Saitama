@@ -129,10 +129,6 @@ interface LayerState {
   pingpong: boolean;
   weight: number;
   finished: boolean;
-  /** Normalised time last frame, for marker crossing detection. */
-  lastPhase: number;
-  /** Wall-clock seconds this state has existed, for one-shot bookkeeping. */
-  age: number;
 }
 
 interface Overlay {
@@ -177,7 +173,22 @@ export class ProceduralAnimator implements IAnimator {
   private readonly eventListeners = new Set<AnimEventListener>();
   private readonly bakedClips = new Map<string, THREE.AnimationClip>();
   private readonly modelMatrices: THREE.Matrix4[] = [];
-  private readonly prevBonePositions: Float32Array;
+  /**
+   * LAST frame's pose, kept so the ragdoll handoff can recover velocities.
+   *
+   * The pose, not the resolved bone positions. Both carry the same
+   * information, but a pose snapshot is two `Float32Array.set` calls (756
+   * bytes) while resolving the positions is a full forward-kinematics pass —
+   * 27 `Matrix4.compose`, 26 `premultiply` and 27 `setFromMatrixPosition`. A
+   * handoff happens at most once in a character's life; this ran ~60 times a
+   * second for every skeletal character in the scene. The FK is deferred into
+   * `handoffToRagdoll`, which is already doing exactly that work for the
+   * current pose, and the velocities come out bit-identical because it is the
+   * same function of the same pose, only later.
+   */
+  private readonly prevPose: Pose;
+  /** FK scratch for `prevPose`. Grown on demand by `poseToModelMatrices`. */
+  private readonly prevMatrices: THREE.Matrix4[] = [];
 
   private base: LayerState;
   private previous: LayerState | undefined;
@@ -212,7 +223,7 @@ export class ProceduralAnimator implements IAnimator {
     this.scratchB = createPose(this.rig.boneCount);
     this.scratchMask = createPose(this.rig.boneCount);
     this.locoPose = createPose(this.rig.boneCount);
-    this.prevBonePositions = new Float32Array(this.rig.boneCount * 3);
+    this.prevPose = createPose(this.rig.boneCount);
     for (let i = 0; i < this.rig.boneCount; i++) this.modelMatrices.push(new THREE.Matrix4());
 
     this.solver = new LocomotionSolver(this.rig, {
@@ -230,7 +241,7 @@ export class ProceduralAnimator implements IAnimator {
     // ~1.6 m of head travel in one 16 ms step and fire the corpse off the map
     // at 96 m/s.
     copyPose(this.output, this.rig.rest);
-    this.recordBonePositions();
+    copyPose(this.prevPose, this.output);
   }
 
   /* ------------------------------------------------------------------ */
@@ -432,6 +443,9 @@ export class ProceduralAnimator implements IAnimator {
    * away everything the character was doing a frame ago.
    */
   handoffToRagdoll(duration = 0.12): RagdollHandoff {
+    // Both forward-kinematics passes happen HERE rather than one per frame:
+    // see `prevPose`. This runs at most once per character.
+    poseToModelMatrices(this.prevPose, this.rig, this.prevMatrices);
     poseToModelMatrices(this.output, this.rig, this.modelMatrices);
     const matrices = this.modelMatrices.map((m) => m.clone());
     const pose = copyPose(createPose(this.rig.boneCount), this.output);
@@ -439,9 +453,10 @@ export class ProceduralAnimator implements IAnimator {
     const dt = Math.max(1e-4, this.lastDt);
     for (let i = 0; i < this.rig.boneCount; i++) {
       _v0.setFromMatrixPosition(matrices[i]!);
-      velocities[i * 3] = (_v0.x - this.prevBonePositions[i * 3]!) / dt;
-      velocities[i * 3 + 1] = (_v0.y - this.prevBonePositions[i * 3 + 1]!) / dt;
-      velocities[i * 3 + 2] = (_v0.z - this.prevBonePositions[i * 3 + 2]!) / dt;
+      _v1.setFromMatrixPosition(this.prevMatrices[i]!);
+      velocities[i * 3] = (_v0.x - _v1.x) / dt;
+      velocities[i * 3 + 1] = (_v0.y - _v1.y) / dt;
+      velocities[i * 3 + 2] = (_v0.z - _v1.z) / dt;
     }
     const data: RagdollHandoff = {
       modelMatrices: matrices,
@@ -481,19 +496,25 @@ export class ProceduralAnimator implements IAnimator {
 
   update(dt: number): void {
     if (this.disposed) return;
-    const step = Math.max(0, dt) * this.timeScale;
+    // A non-finite `dt` (a stalled clock) or `timeScale` (set from a tween that
+    // divided by zero) would otherwise reach the solver's phase accumulator,
+    // which never recovers: every bone goes NaN and the character vanishes for
+    // the rest of the session with nothing thrown and nothing logged.
+    const scale = Number.isFinite(this.timeScale) ? this.timeScale : 1;
+    const step = Number.isFinite(dt) ? Math.max(0, dt) * scale : 0;
     this.lastDt = Math.max(1e-4, step);
-    // Snapshot LAST frame's bone positions before anything overwrites the
-    // output pose. Recording them afterwards would make every velocity zero,
-    // and a ragdoll handed a zero-velocity pose visibly stalls in the air
-    // before it starts to fall.
+    // Snapshot LAST frame's pose before anything overwrites the output; the
+    // handoff differences it against the new one to recover per-bone
+    // velocities. Snapshotting afterwards would make every velocity zero, and
+    // a ragdoll handed a zero-velocity pose visibly stalls in the air before it
+    // starts to fall.
     //
     // Except on the very first frame, where there IS no last frame: `output`
     // still holds the bind pose, whose arms are in a shallow T, and charging
     // the bind-to-idle transition as one frame of motion reports ~36 m/s at the
     // hands. A character killed on its first animated frame gets zero
     // velocities instead, which is the honest answer.
-    if (this.hasPrevBones) this.recordBonePositions();
+    if (this.hasPrevBones) copyPose(this.prevPose, this.output);
 
     if (this.ragdoll !== undefined) {
       // Hand over and stop writing bones: the physics solver owns them from
@@ -554,7 +575,7 @@ export class ProceduralAnimator implements IAnimator {
 
     applyPose(this.output, this.rig);
     if (!this.hasPrevBones) {
-      this.recordBonePositions();
+      copyPose(this.prevPose, this.output);
       this.hasPrevBones = true;
     }
     this.emitFootfalls();
@@ -582,8 +603,6 @@ export class ProceduralAnimator implements IAnimator {
       pingpong: loopMode === 'pingpong',
       weight: options.weight ?? 1,
       finished: false,
-      lastPhase: 0,
-      age: 0,
     };
   }
 
@@ -591,7 +610,6 @@ export class ProceduralAnimator implements IAnimator {
     const duration = Math.max(1e-4, clipDuration(state.entry, this.rig));
     const before = state.time / duration;
     state.time += dt * state.timeScale;
-    state.age += dt;
     const after = state.time / duration;
 
     if (!state.loop && after >= 1) {
@@ -600,7 +618,6 @@ export class ProceduralAnimator implements IAnimator {
       // `block`'s guard and snaps `jump` out of full extension, so the option
       // has no implementation to switch between and the flag is not stored.
       state.time = duration;
-      state.lastPhase = 1;
       if (!state.finished) {
         state.finished = true;
         // Markers between the last frame and the end still have to fire; a
@@ -618,7 +635,6 @@ export class ProceduralAnimator implements IAnimator {
       return;
     }
     this.fireMarkers(state, before, after, state.loop);
-    state.lastPhase = after;
   }
 
   /**
@@ -654,10 +670,19 @@ export class ProceduralAnimator implements IAnimator {
     phase: number,
     marker: { name: AnimEvent['name']; strength?: number; bone?: BoneName }
   ): void {
-    const position = marker.bone === undefined ? undefined : _v0.clone();
+    let position: THREE.Vector3 | undefined;
     if (marker.bone !== undefined) {
       const index = this.rig.index[marker.bone];
-      if (index !== undefined) this.rig.bones[index]!.getWorldPosition(position!);
+      // No bone, no position. `resolveRig` is tolerant by design — a rig
+      // missing fingers, toes or a whole hand still animates — and four of the
+      // library's markers name `RightHand` or `Hips`. Pre-cloning the module
+      // scratch handed VFX whatever `_v0` happened to hold, which in the normal
+      // frame order is another bone's MODEL-space position: a plausible-looking
+      // number in the wrong space. `AnimEvent.position` means a real world
+      // point, and `undefined` is the honest answer.
+      if (index !== undefined) {
+        position = this.rig.bones[index]!.getWorldPosition(new THREE.Vector3());
+      }
     }
     this.emit({
       name: marker.name,
@@ -807,16 +832,6 @@ export class ProceduralAnimator implements IAnimator {
     entry.evaluate({ rig: this.rig, params: this.params }, t, this.scratchMask);
     blendPoseMasked(out, this.scratchMask, 1, region === 'lower' ? this.lowerMask : this.upperMask);
   }
-
-  private recordBonePositions(): void {
-    poseToModelMatrices(this.output, this.rig, this.modelMatrices);
-    for (let i = 0; i < this.rig.boneCount; i++) {
-      _v0.setFromMatrixPosition(this.modelMatrices[i]!);
-      this.prevBonePositions[i * 3] = _v0.x;
-      this.prevBonePositions[i * 3 + 1] = _v0.y;
-      this.prevBonePositions[i * 3 + 2] = _v0.z;
-    }
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -840,3 +855,4 @@ export function allClips(): readonly ClipEntry[] {
 }
 
 const _v0 = new THREE.Vector3();
+const _v1 = new THREE.Vector3();

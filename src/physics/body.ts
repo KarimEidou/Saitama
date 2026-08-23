@@ -41,7 +41,25 @@ interface MutableVec {
   z: number;
 }
 
+/** Reusable quaternion shape, for reads that would otherwise allocate. */
+interface MutableQuat {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
 const scratchVec: MutableVec = { x: 0, y: 0, z: 0 };
+
+/**
+ * Read targets handed to Rapier's accessors. Without a target every accessor
+ * allocates a fresh object; with one it fills and returns this. Two distinct
+ * objects because `snapshot()` holds a translation and a rotation at once, and
+ * both are kept distinct from `scratchVec` so a read can never clobber a
+ * pending write.
+ */
+const readVec: MutableVec = { x: 0, y: 0, z: 0 };
+const readQuat: MutableQuat = { x: 0, y: 0, z: 0, w: 1 };
 
 /** A live rigid body. Created by the world; never constructed directly. */
 export class PhysicsBody implements IRigidBody {
@@ -168,8 +186,8 @@ export class PhysicsBody implements IRigidBody {
 
   /** Read the solver transform into the `curr` slot. Called after a step. */
   snapshot(): void {
-    const t = this.raw.translation();
-    const r = this.raw.rotation();
+    const t = this.raw.translation(readVec);
+    const r = this.raw.rotation(readQuat);
     this.cx = t.x;
     this.cy = t.y;
     this.cz = t.z;
@@ -223,8 +241,8 @@ export class PhysicsBody implements IRigidBody {
   /* ------------------------------------------------------------------ */
 
   getTransform(position: THREE.Vector3, rotation: THREE.Quaternion): void {
-    const t = this.raw.translation();
-    const r = this.raw.rotation();
+    const t = this.raw.translation(readVec);
+    const r = this.raw.rotation(readQuat);
     position.set(t.x, t.y, t.z);
     rotation.set(r.x, r.y, r.z, r.w);
   }
@@ -243,7 +261,7 @@ export class PhysicsBody implements IRigidBody {
   }
 
   getLinearVelocity(out: THREE.Vector3): THREE.Vector3 {
-    const v = this.raw.linvel();
+    const v = this.raw.linvel(readVec);
     return out.set(v.x, v.y, v.z);
   }
 
@@ -255,7 +273,7 @@ export class PhysicsBody implements IRigidBody {
   }
 
   getAngularVelocity(out: THREE.Vector3): THREE.Vector3 {
-    const v = this.raw.angvel();
+    const v = this.raw.angvel(readVec);
     return out.set(v.x, v.y, v.z);
   }
 

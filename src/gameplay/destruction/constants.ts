@@ -7,6 +7,8 @@
  * together to be judged.
  */
 
+import type { LethalIntent } from '@/types';
+
 /**
  * Byte written into the per-vertex `aDestroyed` attribute to remove a vertex.
  *
@@ -87,8 +89,13 @@ export const COLLAPSE_OUTWARD_DELTA_V = 2.4;
 /** Random Δv jitter (m/s), from a seeded stream. Never `Math.random()`. */
 export const DETACH_JITTER_DELTA_V = 1.1;
 
-/** Intent multiplier on blast Δv. Restraint is a gameplay resource. */
-export const INTENT_BLAST_SCALE: Readonly<Record<string, number>> = {
+/**
+ * Intent multiplier on blast Δv. Restraint is a gameplay resource.
+ *
+ * Keyed by the union, so adding a `LethalIntent` fails to compile HERE rather
+ * than silently scaling by the `?? 1` fallback at the call site.
+ */
+export const INTENT_BLAST_SCALE: Readonly<Record<LethalIntent, number>> = {
   restrained: 0.25,
   normal: 0.55,
   serious: 1,
@@ -102,8 +109,16 @@ export const INTENT_BLAST_SCALE: Readonly<Record<string, number>> = {
  */
 export const MINIMUM_DESTRUCTIVE_INTENT_RANK = 1;
 
-/** Rank per intent, for the threshold above. */
-export const INTENT_RANK: Readonly<Record<string, number>> = {
+/**
+ * Rank per intent, for the threshold above.
+ *
+ * Keyed by the union, so adding a `LethalIntent` fails to compile here rather
+ * than silently ranking 0 (= restrained = harmless): the call sites read
+ * `INTENT_RANK[intent] ?? 0`, and a fifth intent that resolved to `undefined`
+ * would be a punch that simply cannot damage the city, which is invisible in a
+ * diff and indistinguishable from "destruction was never wired up".
+ */
+export const INTENT_RANK: Readonly<Record<LethalIntent, number>> = {
   restrained: 0,
   normal: 1,
   serious: 2,

@@ -36,6 +36,7 @@ import type { BuildingStyle, StructureMaterial } from '@/types';
 import { MatSlot, MeshBuilder, type AABB6, type IGeometryBuffers } from './mesh-builder';
 import { shadeTint, tintToRgb, uvScaleFor } from './materials';
 import {
+  PANEL_KINDS,
   emitPanel,
   panelSupport,
   type FacadeDetail,
@@ -54,7 +55,7 @@ import {
   type IFractureLayout,
   type IFractureSlotRange,
 } from './fracture';
-import { polygonCentroid, triangulate, type Polygon, type Vec2 } from './polygon';
+import { polygonCentroid, type Polygon, type Vec2 } from './polygon';
 
 /** Nominal facade module. See `facade.ts` for why it is 2.4 m. */
 export const PANEL_WIDTH = 2.4;
@@ -156,6 +157,16 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
   const rng = createRng(recipe.seed);
   const panels = planPanels(recipe, edges, rng);
 
+  // Panels are CHOSEN in (floor, edge, panel) order and EMITTED in
+  // (floor, quadrant) order. Bucketing once keeps emission O(panels); the
+  // filtered scan it replaces cost `panels x floors x QUADRANTS` comparisons.
+  // Push order inside a bucket is plan order, which is exactly what the scan
+  // produced, so the geometry is byte-identical.
+  const panelsByChunk: IPanelPlan[][] = Array.from({ length: recipe.floors * QUADRANTS }, () => []);
+  for (const panel of panels) {
+    panelsByChunk[panel.floor * QUADRANTS + panel.quadrant].push(panel);
+  }
+
   const builder = new MeshBuilder();
   const attachments: IFacadeAttachment[] = [];
   const facadeUv = uvScaleFor(recipe.facadeMaterial);
@@ -164,7 +175,6 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
   const baseTint = tintToRgb(recipe.tint);
   const roofTintBase = shadeTint(baseTint, 0.62);
 
-  const slabTris = triangulate(footprint);
   const clutter = planRoofClutter(recipe, footprint, height, createRng(recipe.seed ^ 0x5eed1a));
 
   const chunks: IBuildingFractureChunk[] = [];
@@ -197,8 +207,7 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
       let support = 0;
 
       // --- facade panels ------------------------------------------------
-      for (const panel of panels) {
-        if (panel.floor !== f || panel.quadrant !== q) continue;
+      for (const panel of panelsByChunk[f * QUADRANTS + q]) {
         const edge = edges[panel.edge];
         support += panelSupport(panel.kind) * edge.panelWidth;
         emitOnePanel(
@@ -222,7 +231,6 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
       emitWedge(
         builder,
         footprint,
-        slabTris,
         y0 + 0.02,
         q,
         MatSlot.Facade,
@@ -232,7 +240,7 @@ export function generateBuilding(recipe: IBuildingRecipe): IBuildingBuild {
 
       // --- roof, parapet, plant ----------------------------------------
       if (isTop) {
-        emitWedge(builder, footprint, slabTris, y1, q, MatSlot.Roof, roofUv, roofTintBase);
+        emitWedge(builder, footprint, y1, q, MatSlot.Roof, roofUv, roofTintBase);
         emitParapet(builder, edges, y1, recipe.parapetHeight, q, facadeUv, baseTint);
         for (const item of clutter) {
           if (item.quadrant !== q) continue;
@@ -432,15 +440,8 @@ function normaliseWeights(weights: Readonly<Partial<Record<PanelKind, number>>>)
   // Iterate a FIXED kind order, not Object.keys, so the table is
   // insertion-order independent and the city cannot drift when the plan JSON
   // is reformatted.
-  for (const kind of [
-    'window',
-    'shopfront',
-    'door',
-    'blank',
-    'balcony',
-    'ac_unit',
-    'fire_escape_anchor',
-  ] as const) {
+  // PANEL_KINDS, not a local copy: a kind missing here is silently unselectable.
+  for (const kind of PANEL_KINDS) {
     const w = weights[kind];
     if (w !== undefined && w > 0) {
       kinds.push(kind);
@@ -555,7 +556,6 @@ function emitFlatBay(
 function emitWedge(
   builder: MeshBuilder,
   footprint: Polygon,
-  _tris: readonly number[],
   y: number,
   quadrant: number,
   slot: number,

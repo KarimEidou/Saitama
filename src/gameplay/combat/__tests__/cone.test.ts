@@ -83,14 +83,77 @@ describe('pointInCone', () => {
   });
 
   it('accepts the whole sphere when the half-angle is PI', () => {
+    // Run it against a TILTED axis as well as a world axis: the world axes
+    // have exactly-representable components, so an axis-aligned sweep alone
+    // never exercises the rounding the tilted one does.
+    const tilted = normalise(0.31, -0.77, 0.55);
+    const axes = [
+      { x: 0, y: 1, z: 0 },
+      { x: tilted.x, y: tilted.y, z: tilted.z },
+    ];
     const rng = createRng('radial');
     for (let i = 0; i < 2000; i++) {
       const x = rng.range(-9, 9);
       const y = rng.range(-9, 9);
       const z = rng.range(-9, 9);
       const inside = Math.hypot(x, y, z) <= 10;
-      expect(pointInCone(x, y, z, 0, 1, 0, 10, Math.PI)).toBe(inside);
+      for (const axis of axes) {
+        expect(pointInCone(x, y, z, axis.x, axis.y, axis.z, 10, Math.PI)).toBe(inside);
+      }
     }
+  });
+
+  it('accepts a point directly behind a tilted axis at half-angle PI', () => {
+    // A fully radial sector contains EVERY point inside its range, including
+    // the ones directly opposite the axis. For a near-antipodal point off the
+    // world axes the dot-product quotient can round a ulp under -1 while
+    // `Math.cos(Math.PI)` is exactly -1 — so without a clamp the predicate
+    // this file describes as EXACT reports a false negative, and it is the
+    // reference `sphereInConeBrute` and `aabbInConeBrute` are built on.
+    const rng = createRng('antipodal');
+    for (let i = 0; i < 400; i++) {
+      const n = normalise(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1));
+      for (const d of [0.5, 1, 5, 9.999]) {
+        expect(pointInCone(-n.x * d, -n.y * d, -n.z * d, n.x, n.y, n.z, 10, Math.PI)).toBe(true);
+      }
+    }
+  });
+
+  it('the brute-force references are airtight at half-angle PI', () => {
+    // Both references short-circuit on `pointInCone` for a zero-extent
+    // subject, so a false negative there is a false negative in the very
+    // thing every other assertion in this file is measured against.
+    const n = normalise(-0.99, -0.99, -0.7);
+    const d = 4;
+    const cx = -n.x * d;
+    const cy = -n.y * d;
+    const cz = -n.z * d;
+
+    expect(sphereInConeBrute(cx, cy, cz, 0, n.x, n.y, n.z, 10, Math.PI)).toBe(true);
+    expect(sphereInConeBrute(cx, cy, cz, 0.4, n.x, n.y, n.z, 10, Math.PI)).toBe(true);
+
+    const point: ICombatAabb = {
+      minX: cx,
+      minY: cy,
+      minZ: cz,
+      maxX: cx,
+      maxY: cy,
+      maxZ: cz,
+    };
+    expect(aabbInConeBrute(point, 0, 0, 0, n.x, n.y, n.z, 10, Math.PI)).toBe(true);
+    expect(
+      aabbInConeBrute(
+        aabbFromCentre(cx, cy, cz, 0.5, 0.5, 0.5),
+        0,
+        0,
+        0,
+        n.x,
+        n.y,
+        n.z,
+        10,
+        Math.PI
+      )
+    ).toBe(true);
   });
 });
 

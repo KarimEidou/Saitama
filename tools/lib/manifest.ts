@@ -219,8 +219,28 @@ function validateTiers(
   }
 }
 
-function validateEntry(entry: AnySourceEntry, expectedKind: string, problems: string[]): void {
+/**
+ * Validate one entry, reporting EVERY problem it has.
+ *
+ * Takes `unknown` rather than `AnySourceEntry` because the input is a
+ * hand-edited JSON file: the declared type is what the manifest is supposed to
+ * contain, not what it does contain. Dereferencing an unchecked `entry.id` or
+ * `entry.files` here threw a bare `TypeError` — with no manifest name, no entry
+ * id and none of the other problems — for exactly the malformed input this
+ * function exists to reject.
+ */
+function validateEntry(raw: unknown, expectedKind: string, problems: string[]): void {
+  if (typeof raw !== 'object' || raw === null) {
+    problems.push(`${expectedKind} manifest: entry must be an object, got ${JSON.stringify(raw)}`);
+    return;
+  }
+  const entry = raw as AnySourceEntry;
   const where = entry.id ?? '<missing id>';
+
+  // Everything after the `Array.isArray` check below reads the file list; a
+  // missing one is already reported there, so the rest of the pass runs against
+  // an empty list rather than throwing four lines later and losing the report.
+  const files: readonly ISourceFile[] = Array.isArray(entry.files) ? entry.files : [];
 
   if (!entry.id || !ID_RE.test(entry.id)) {
     problems.push(`${where}: id must be lowercase dot-namespaced, e.g. 'mat.wall.brick.red'`);
@@ -279,16 +299,16 @@ function validateEntry(entry: AnySourceEntry, expectedKind: string, problems: st
   if (!Array.isArray(entry.files)) {
     problems.push(`${where}: files must be an array`);
   } else {
-    if (entry.provider === 'procedural' && entry.files.length > 0) {
+    if (entry.provider === 'procedural' && files.length > 0) {
       problems.push(`${where}: procedural entries must declare no files`);
     }
-    if (entry.provider !== 'procedural' && entry.files.length === 0) {
+    if (entry.provider !== 'procedural' && files.length === 0) {
       problems.push(
         `${where}: provider '${entry.provider}' entries must declare at least one file`
       );
     }
     const seenPaths = new Set<string>();
-    for (const file of entry.files) {
+    for (const file of files) {
       validateFile(`${where}.files[${file.key}]`, file, problems);
       if (seenPaths.has(file.path)) {
         problems.push(`${where}: duplicate file path ${file.path}`);
@@ -306,8 +326,15 @@ function validateEntry(entry: AnySourceEntry, expectedKind: string, problems: st
     } else if (material.spec.id !== entry.id) {
       problems.push(`${where}: spec.id '${material.spec.id}' must equal the entry id`);
     }
-    const roles = new Set(entry.files.map((f) => f.role).filter(Boolean));
-    for (const [role, key] of Object.entries(material.textureKeys ?? {})) {
+    const roles = new Set(files.map((f) => f.role).filter(Boolean));
+    // A `textureKeys` that is not an object is a manifest problem, not a reason
+    // to iterate a string's character indices and report three invented roles.
+    const textureKeys =
+      material.textureKeys && typeof material.textureKeys === 'object' ? material.textureKeys : {};
+    if (material.textureKeys !== undefined && textureKeys !== material.textureKeys) {
+      problems.push(`${where}: textureKeys must be an object mapping role -> texture id`);
+    }
+    for (const [role, key] of Object.entries(textureKeys)) {
       if (key !== `${entry.id}.${role}`) {
         problems.push(`${where}: textureKeys.${role} must be '${entry.id}.${role}', got '${key}'`);
       }
@@ -325,13 +352,13 @@ function validateEntry(entry: AnySourceEntry, expectedKind: string, problems: st
     if (!Number.isInteger(hdri.resolution) || hdri.resolution <= 0) {
       problems.push(`${where}: hdri resolution must be a positive integer width in px`);
     }
-    if (entry.files.filter((f) => f.root).length !== 1) {
+    if (files.filter((f) => f.root).length !== 1) {
       problems.push(`${where}: hdri entries need exactly one file marked root:true`);
     }
   }
 
   if (entry.kind === 'model') {
-    if (entry.provider !== 'procedural' && entry.files.filter((f) => f.root).length !== 1) {
+    if (entry.provider !== 'procedural' && files.filter((f) => f.root).length !== 1) {
       problems.push(`${where}: model entries need exactly one file marked root:true (the .gltf)`);
     }
   }
@@ -410,6 +437,10 @@ export async function loadSourceManifests(dir: string = MANIFEST_DIR): Promise<I
 
     for (const entry of manifest.entries) {
       validateEntry(entry, manifest.kind, problems);
+      // `validateEntry` has already recorded it; there is nothing on a
+      // non-object entry that the cross-entry checks below can read without
+      // throwing, and throwing here would discard every other problem found.
+      if (typeof entry !== 'object' || entry === null) continue;
       const previous = seenIds.get(entry.id);
       if (previous) {
         problems.push(`${entry.id}: duplicate id, already declared in ${previous}`);

@@ -140,6 +140,15 @@ export class DebrisShapePool {
     this.capacity = Math.max(1, capacity | 0);
     const normals = buildBoxNormals();
     const indices = buildBoxIndices();
+    // ONE attribute each, not one per slot. `WebGLAttributes` keys its buffer
+    // cache on the attribute OBJECT (`buffers = new WeakMap()`), so a fresh
+    // wrapper around the same array per slot uploads `capacity` byte-identical
+    // copies — at the 300-slot default, ~105 KB of VRAM and 600 buffer
+    // creations for data that never changes, plus 598 dead `BufferAttribute`s
+    // on the JS heap. Safe because slots are only ever disposed TOGETHER, in
+    // `dispose()`: do not add a per-slot dispose without splitting these.
+    const normalAttribute = new THREE.BufferAttribute(normals, 3);
+    const indexAttribute = new THREE.BufferAttribute(indices, 1);
 
     for (let i = 0; i < this.capacity; i++) {
       const positions = new Float32Array(BOX_VERTICES * 3);
@@ -148,10 +157,8 @@ export class DebrisShapePool {
 
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', positionAttribute);
-      // Normals and indices are identical for every box, so every slot shares
-      // one copy of each. Only the corners are per-slot.
-      geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-      geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+      geometry.setAttribute('normal', normalAttribute);
+      geometry.setIndex(indexAttribute);
       geometry.boundingSphere = new THREE.Sphere();
       geometry.boundingBox = new THREE.Box3();
 

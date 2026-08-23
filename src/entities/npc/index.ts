@@ -34,12 +34,7 @@
  * merely intended.
  */
 
-export {
-  CrowdSystem,
-  chunkIndexForCrowd,
-  makeThreat,
-  type ICrowdSystemOptions,
-} from './crowd-system';
+export { CrowdSystem, makeThreat, type ICrowdSystemOptions } from './crowd-system';
 
 export { AlarmField } from './alarm-field';
 

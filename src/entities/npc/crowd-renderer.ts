@@ -476,8 +476,16 @@ export class CrowdRenderer {
  */
 export function clipForMood(mood: number, velX: number, velZ: number): number {
   switch (mood) {
-    case MOOD_FLEE:
-      return CROWD_CLIP_FLEE;
+    case MOOD_FLEE: {
+      // The same guard as `commute`, for the same reason: a fleeing civilian
+      // pinned against a façade or wedged in a jam is not moving, and a
+      // full-speed run cycle played in place is exactly the foot sliding this
+      // switch exists to avoid. `chooseMood` already promotes a genuinely
+      // cornered civilian to `MOOD_COWER`, so idle is the honest "blocked, not
+      // yet cowering" pose. 0.09 = (0.3 m/s)^2.
+      const speedSq = velX * velX + velZ * velZ;
+      return speedSq < 0.09 ? CROWD_CLIP_IDLE : CROWD_CLIP_FLEE;
+    }
     case MOOD_GAWK:
       return CROWD_CLIP_GAWK;
     case MOOD_COWER:

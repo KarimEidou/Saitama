@@ -42,7 +42,10 @@ export const CROWD_ATTRIBUTES = [
 /** Deterministic colours for one civilian seed. */
 export function crowdColors(seed: number): CrowdColors {
   const profile = civilianProfile(seed);
-  const palette = civilianOptions(profile, 2).palette as Palette;
+  // The wardrobe palette is a pure function of `profile.seed`; the LOD argument
+  // only lands in `options.lod`, which we discard. Left at the default so nobody
+  // reads the number as a palette variant.
+  const palette = civilianOptions(profile).palette as Palette;
   return {
     skin: palette.skin.clone(),
     cloth: palette.cloth.clone(),
@@ -148,12 +151,16 @@ export function attachSoloCrowdColors(geometry: THREE.BufferGeometry, colors: Cr
  */
 export function distinctCrowdPalettes(attributes: CrowdAttributes): number {
   const seen = new Set<string>();
+  // Every one of the twelve components, not a sample of four: two civilians
+  // who differ only in, say, `cloth.g` are two wardrobes, and counting them as
+  // one made the metric under-report exactly the variety it exists to measure.
+  const channels = [attributes.skin, attributes.cloth, attributes.accent, attributes.hair];
+  const key: number[] = [];
   for (let i = 0; i < attributes.count; i++) {
     const o = i * 3;
-    seen.add(
-      `${attributes.cloth[o]!.toFixed(3)},${attributes.accent[o + 1]!.toFixed(3)},` +
-        `${attributes.skin[o + 2]!.toFixed(3)},${attributes.hair[o]!.toFixed(3)}`
-    );
+    key.length = 0;
+    for (const channel of channels) key.push(channel[o]!, channel[o + 1]!, channel[o + 2]!);
+    seen.add(key.map((value) => value.toFixed(3)).join(','));
   }
   return seen.size;
 }

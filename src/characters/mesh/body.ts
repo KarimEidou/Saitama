@@ -707,7 +707,3 @@ export function buildFootStrand(ctx: BodyContext, side: 'Left' | 'Right'): Stran
     smoothGroup: SMOOTH.foot,
   });
 }
-
-/** Exposed so the garment layer can drape off the same numbers. */
-export { TORSO_SECTIONS, ARM_SECTIONS, LEG_SECTIONS, filterSections, resolveShapeAt };
-export type { ResolveOptions };

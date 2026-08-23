@@ -42,7 +42,6 @@ import {
   DEBRIS_MIN_PHYSICS_SIZE,
   DEBRIS_REST_SECONDS,
   DEFAULT_DEBRIS_DENSITY,
-  GRAVITY_Y,
 } from './constants';
 
 /** Pool configuration. */
@@ -119,6 +118,12 @@ const tmpPos = new THREE.Vector3();
 const tmpQuat = new THREE.Quaternion();
 const tmpVec = new THREE.Vector3();
 const tmpEuler = new THREE.Euler();
+/**
+ * World-space centroid during `spawn`. Its own scratch, because `tmpPos`,
+ * `tmpQuat` and `tmpVec` are all reused by `writeMeshTransform` /
+ * `syncMeshFromBody` later in the same call.
+ */
+const tmpCentroid = new THREE.Vector3();
 
 /** Geometry every free slot points at, so a mesh always has one. */
 const placeholderGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
@@ -137,6 +142,12 @@ export class DebrisPool implements IDebrisPool {
   private readonly material: THREE.Material;
   private readonly ownsMaterial: boolean;
   private readonly groundY: number;
+  /**
+   * The world's gravity, cached at construction so the per-piece per-frame
+   * ballistic path is a plain field read. `world.gravity` is a read-only clone
+   * taken in the world's own constructor, so it cannot drift from this.
+   */
+  private readonly gravityY: number;
   private readonly rng: IRandom;
   private readonly minPhysicsSize: number;
   private readonly restSeconds: number;
@@ -152,6 +163,7 @@ export class DebrisPool implements IDebrisPool {
     this.capacity = Math.max(1, Math.min(options.capacity ?? DEBRIS_HARD_CAP, DEBRIS_HARD_CAP));
     this.container = options.container ?? new THREE.Group();
     this.groundY = options.groundY ?? 0;
+    this.gravityY = world.gravity.y;
     this.rng = options.rng ?? createRng('debris');
     this.minPhysicsSize = options.minPhysicsSize ?? DEBRIS_MIN_PHYSICS_SIZE;
     this.restSeconds = options.restSeconds ?? DEBRIS_REST_SECONDS;
@@ -277,7 +289,10 @@ export class DebrisPool implements IDebrisPool {
 
     // World transform of the chunk's centre of mass.
     worldMatrix.decompose(tmpPos, tmpQuat, tmpVec);
-    const centroidWorld = tmpPos.clone().add(chunk.centroid.clone().applyQuaternion(tmpQuat));
+    // A 300-piece collapse used to allocate 600 Vector3s here, in exactly the
+    // frame this pool exists to protect. Consumed on both branches below
+    // before any helper touches the shared scratches.
+    const centroidWorld = tmpCentroid.copy(chunk.centroid).applyQuaternion(tmpQuat).add(tmpPos);
 
     const extent = chunkMaxExtent(chunk);
     const mass = chunk.mass > 0 ? chunk.mass : Math.max(0.1, chunk.volume * this.density);
@@ -458,7 +473,10 @@ export class DebrisPool implements IDebrisPool {
       this.writeMeshTransform(slot, slot.position, slot.mesh.quaternion);
       return;
     }
-    slot.velocity.y += GRAVITY_Y * dt;
+    // The world's gravity, not the constant: the ballistic path is meant to be
+    // an invisible optimisation, and gravel falling at a different rate from
+    // the rubble beside it is the one way it becomes observable.
+    slot.velocity.y += this.gravityY * dt;
     slot.position.addScaledVector(slot.velocity, dt);
 
     tmpEuler.set(slot.spin.x * dt, slot.spin.y * dt, slot.spin.z * dt);

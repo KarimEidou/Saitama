@@ -29,6 +29,17 @@ import type { HumanoidBuild } from './assemble';
 import { SLOT_NAMES } from './types';
 
 /**
+ * Margin on the bind-pose bounds, as a multiplier on the bounding radius.
+ *
+ * The bind pose is a T-pose, so its box already spans the arm reach; the margin
+ * covers a punch that extends past it, a jump that lifts the feet, and a cape
+ * that swings. Generous is correct here — the sphere is a broad-phase reject,
+ * and being slightly too big costs a draw call while being too small deletes a
+ * visible character.
+ */
+const ANIMATION_REACH = 1.4;
+
+/**
  * A constructed character, minus animation.
  *
  * Field-for-field compatible with `ICharacterInstance` so the factory can
@@ -68,6 +79,18 @@ export function createSkinnedMesh(
   root.add(mesh);
   root.updateMatrixWorld(true);
   mesh.bind(build.rig.skeleton, new THREE.Matrix4());
+
+  // three.js computes a SkinnedMesh's bounding sphere lazily and exactly ONCE,
+  // from whatever pose is current at the first frustum test, then reuses it
+  // forever (Frustum.intersectsObject -> SkinnedMesh.computeBoundingSphere).
+  // Publishing a conservative sphere up front replaces that snapshot with
+  // something that cannot go stale.
+  const box = build.geometry.boundingBox;
+  if (box !== null) {
+    const centre = box.getCenter(new THREE.Vector3());
+    const radius = box.getSize(new THREE.Vector3()).length() * 0.5 * ANIMATION_REACH;
+    mesh.boundingSphere = new THREE.Sphere(centre, radius);
+  }
 
   return { mesh, root };
 }

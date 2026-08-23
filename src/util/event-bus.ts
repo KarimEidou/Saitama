@@ -11,10 +11,12 @@
  *     never break sibling handlers or kill the frame.
  *  3. MUTATION SAFETY — subscribing/unsubscribing during dispatch is safe and
  *     takes effect on the NEXT emit. We iterate a snapshot, so a handler that
- *     unsubscribes itself does not shift the array out from under the loop.
+ *     unsubscribes itself does not shift the array out from under the loop —
+ *     this holds for `on`, `once` and `onAny` alike.
  *  4. VECTOR COPYING — `Vec3` fields are copied on emit, so callers may pass
  *     reused scratch vectors (e.g. a `THREE.Vector3` temp) without handlers
- *     observing mutated values later.
+ *     observing mutated values later. Only the keys in `VECTOR_KEYS` are
+ *     copied; other object and array payload fields are passed by reference.
  *  5. ORDERING — handlers for a type run in subscription order.
  */
 
@@ -48,6 +50,28 @@ const VECTOR_KEYS = [
   'point',
   'impulse',
 ] as const satisfies readonly string[];
+
+/**
+ * Compile-time proof that `VECTOR_KEYS` names every `Vec3`-typed field on every
+ * member of `GameEvent`. Add a `Vec3` field to a payload without listing its
+ * key above and `tsc --noEmit` fails on `_vectorKeyCoverage` below, rather than
+ * the bus silently handing handlers the emitter's live scratch vector.
+ *
+ * The `const` is what makes this bite: a bare `type` alias that resolves to
+ * `never` produces no diagnostic at all. `_`-prefixed, so eslint's
+ * `varsIgnorePattern` covers the unused binding, and unexported, so it
+ * tree-shakes away.
+ */
+type Vec3KeysOfMember<E> = { [K in keyof E]-?: E[K] extends Vec3 ? K : never }[keyof E];
+type Vec3PayloadKeys = GameEvent extends infer E
+  ? E extends unknown
+    ? Vec3KeysOfMember<E>
+    : never
+  : never;
+type UncoveredVectorKeys = Exclude<Vec3PayloadKeys, (typeof VECTOR_KEYS)[number]>;
+// The tuple wrapping is required: it stops the conditional distributing over
+// the union of uncovered keys, which would resolve to `true` again.
+const _vectorKeyCoverage: [UncoveredVectorKeys] extends [never] ? true : never = true;
 
 function isVec3(value: unknown): value is Vec3 {
   if (typeof value !== 'object' || value === null) return false;
@@ -151,7 +175,7 @@ export class EventBus implements IEventBus {
     if (!list) return;
     const index = list.findIndex((r) => r.handler === (handler as (event: GameEvent) => void));
     if (index !== -1) list.splice(index, 1);
-    if (list.length === 0) this.handlers.delete(type);
+    this.afterRemoval(type, list);
   }
 
   /** Remove one exact registration record, leaving every other one alone. */
@@ -160,6 +184,21 @@ export class EventBus implements IEventBus {
     if (!list) return;
     const index = list.indexOf(registration);
     if (index !== -1) list.splice(index, 1);
+    this.afterRemoval(type, list);
+  }
+
+  /**
+   * Bookkeeping shared by both removal paths.
+   *
+   * Re-arms leak detection: `warned` is a one-shot latch so a leak warns once
+   * rather than every frame, but a type that has come back under the threshold
+   * is healthy again and must be able to warn on the NEXT leak. Without this,
+   * the ordinary lifecycle — a system unsubscribing everything on `dispose()`
+   * and a later one re-subscribing — permanently disarms the detector for the
+   * event type most likely to leak next.
+   */
+  private afterRemoval(type: GameEventType, list: Registration[]): void {
+    if (list.length <= this.leakThreshold) this.warned.delete(type);
     if (list.length === 0) this.handlers.delete(type);
   }
 
@@ -187,11 +226,17 @@ export class EventBus implements IEventBus {
     }
     const finalEvent = event as unknown as GameEventOf<T>;
 
+    // Snapshot BOTH lists before any handler runs. Guarantee #3 says a
+    // subscription or unsubscription made during dispatch takes effect on the
+    // NEXT emit; that has to hold for `onAny` as much as for `on`/`once`.
+    // Reading `anyHandlers` after the typed loop instead made a typed handler's
+    // `onAny(...)` fire on the current event and its `offAny()` skip it.
     const list = this.handlers.get(type);
-    if (list && list.length > 0) {
-      // Snapshot: handlers may subscribe/unsubscribe during dispatch.
-      const snapshot = list.slice();
-      for (const reg of snapshot) {
+    const typedSnapshot = list && list.length > 0 ? list.slice() : undefined;
+    const anySnapshot = this.anyHandlers.length > 0 ? this.anyHandlers.slice() : undefined;
+
+    if (typedSnapshot) {
+      for (const reg of typedSnapshot) {
         if (reg.once) this.removeRecord(type, reg);
         try {
           reg.handler(finalEvent as GameEvent);
@@ -201,8 +246,8 @@ export class EventBus implements IEventBus {
       }
     }
 
-    if (this.anyHandlers.length > 0) {
-      for (const handler of this.anyHandlers.slice()) {
+    if (anySnapshot) {
+      for (const handler of anySnapshot) {
         try {
           handler(finalEvent as GameEvent);
         } catch (error) {

@@ -47,10 +47,12 @@
  */
 
 import type { EntityId, IEventBus, Vec3 } from '@/types';
-import { clamp01, type IRandom } from '@/util';
+import { clamp01, createLogger, type IRandom } from '@/util';
 import { intentForPower } from './brain';
 import type { MonsterBrain } from './brain';
 import type { IBossPhaseState, IBossScript, IMutableVec3 } from './types';
+
+const log = createLogger('monster:encounter');
 
 /* -------------------------------------------------------------------------- */
 /* Stall guard                                                                */
@@ -287,11 +289,23 @@ export class BossEncounter {
     /* ---- engagement ---------------------------------------------------- */
     const dx = playerPosition.x - this.boss.position.x;
     const dz = playerPosition.z - this.boss.position.z;
-    const engaged = Math.hypot(dx, dz) <= phase.engageRadiusMetres;
+    const distance = Math.hypot(dx, dz);
+    const engaged = distance <= phase.engageRadiusMetres;
     if (engaged) this.engagedSeconds += dt;
 
     /* ---- scripted pressure --------------------------------------------- */
-    if (phase.pulsePeriodSeconds > 0) {
+    // Only while the player is within REACH — the engage radius or the pulse's
+    // own range, whichever is longer. Vaccine Man's descent pulses further than
+    // it engages on purpose (28 m of cone against an 18 m clock), and a player
+    // beyond both is in neither the fight nor the cone. Without this a Boros
+    // survival phase keeps firing a 1.4e6-power, 130 m cone every 1.1 s at
+    // somebody who left the county, for ever — `canAdvance` is frozen while
+    // they are away — and destruction, the crowd, VFX and audio all do real
+    // work on every one of them.
+    const pulseReach = Math.max(phase.engageRadiusMetres, phase.pulseRangeMetres);
+    if (phase.pulsePeriodSeconds > 0 && distance <= pulseReach) {
+      // The timer decrement stays inside the gate on purpose: a returning
+      // player gets a fresh period of grace rather than an instant pulse.
       this.pulseTimer -= dt;
       if (this.pulseTimer <= 0) {
         this.pulseTimer = phase.pulsePeriodSeconds;
@@ -312,8 +326,8 @@ export class BossEncounter {
     if (!this.canAdvance(phase)) {
       if (this.engagedSeconds <= PHASE_STALL_SECONDS) return;
       this.stallTrips++;
-      console.warn(
-        `[monster.encounter] '${this.script.encounterId}' phase '${phase.id}' stalled for ` +
+      log.warn(
+        `'${this.script.encounterId}' phase '${phase.id}' stalled for ` +
           `${this.engagedSeconds.toFixed(1)}s of engaged time; force-advancing`
       );
     }

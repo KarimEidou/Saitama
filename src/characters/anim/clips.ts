@@ -41,7 +41,7 @@ import {
   strikeCurve,
 } from './posture';
 import { solveGait } from './locomotion';
-import { REFERENCE_LEG } from './rig';
+import { clipTimeScale } from './rig';
 import type { AnimRig, ClipDefinition, ClipParams, ClipVariant, Pose } from './types';
 
 /** Everything a clip function is allowed to read. */
@@ -95,16 +95,20 @@ const SIDES = [-1, 1] as const;
  * Neutral idle: breathing, a slow weight shift, and nothing else.
  *
  * Idle is the pose the player looks at longest, so the failure mode to avoid
- * is not "boring" but "frozen". Three oscillators at mutually irrational
- * periods (breath, sway, head) never line up, so the loop does not visibly
- * repeat even though it is a one-shot 5.4 s cycle.
+ * is not "boring" but "frozen". Three oscillators (breath, sway, head) each
+ * complete a WHOLE number of cycles per loop — 1, 1 and 2 — so the clip closes
+ * on itself exactly and the 5.4 s wrap is invisible. Fractional multipliers
+ * would decorrelate them, but the evaluator replays from `t = 0` every 5.4 s
+ * regardless, so all they buy is a hard pop at the seam. What keeps breath,
+ * sway and head from peaking together is their differing phase CONSTANTS,
+ * which cost nothing at the wrap.
  */
 const idleDefault: ClipFn = (ctx, t, pose) => {
   const { rig, params } = ctx;
   const p = t + params.phaseOffset;
   const v = params.vigour;
   const breath = Math.sin(TAU * p) * 0.5 + 0.5;
-  const sway = Math.sin(TAU * (p * 0.63 + 0.2));
+  const sway = Math.sin(TAU * (p + 0.2));
   const alert = params.alertness;
 
   posePelvis(
@@ -122,7 +126,7 @@ const idleDefault: ClipFn = (ctx, t, pose) => {
     twist: -sway * 0.03,
     side: -sway * 0.02,
   });
-  poseHead(pose, rig, -0.02 + breath * 0.02, Math.sin(TAU * (p * 0.41 + 0.7)) * 0.09, sway * 0.02);
+  poseHead(pose, rig, -0.02 + breath * 0.02, Math.sin(TAU * (p * 2 + 0.7)) * 0.09, sway * 0.02);
   for (const side of SIDES) {
     poseArm(pose, rig, side, {
       abduct: 0.1 + breath * 0.012 + alert * 0.08,
@@ -158,7 +162,7 @@ const idleBored: ClipFn = (ctx, t, pose) => {
   const m = rig.metrics;
   const b = clamp01(0.45 + 0.55 * params.boredom);
   const p = t + params.phaseOffset * 0.31;
-  const breath = Math.sin(TAU * p * 0.86) * 0.5 + 0.5;
+  const breath = Math.sin(TAU * p) * 0.5 + 0.5;
 
   // The yawn: a slow inhale-and-stretch, a held peak, then the collapse back.
   const YAWN_IN = 0.6;
@@ -176,8 +180,9 @@ const idleBored: ClipFn = (ctx, t, pose) => {
   const y = yawn * params.vigour * (0.82 + 0.18 * params.boredom);
 
   // Weight parked on one leg, shifting over about eight seconds because
-  // standing on one hip is only comfortable for so long.
-  const shift = Math.sin(TAU * (p * 0.37 + 0.15));
+  // standing on one hip is only comfortable for so long. One whole cycle per
+  // 9.2 s loop, so the shift is back where it started at the wrap.
+  const shift = Math.sin(TAU * (p + 0.15));
 
   posePelvis(
     pose,
@@ -256,8 +261,8 @@ const idleCivilian: ClipFn = (ctx, t, pose) => {
   const { rig, params } = ctx;
   const m = rig.metrics;
   const p = t + params.phaseOffset;
-  const breath = Math.sin(TAU * p * 1.1) * 0.5 + 0.5;
-  const shift = Math.sin(TAU * (p * 0.43 + 0.6));
+  const breath = Math.sin(TAU * p) * 0.5 + 0.5;
+  const shift = Math.sin(TAU * (p + 0.6));
   const glance = smoothstep(0.3, 0.42, t) - smoothstep(0.55, 0.7, t);
 
   posePelvis(
@@ -296,7 +301,7 @@ const idleCivilian: ClipFn = (ctx, t, pose) => {
 const idlePanicked: ClipFn = (ctx, t, pose) => {
   const { rig, params } = ctx;
   const p = t + params.phaseOffset;
-  const tremble = Math.sin(TAU * p * 7.3) * 0.5 + Math.sin(TAU * p * 11.1) * 0.5;
+  const tremble = Math.sin(TAU * p * 7) * 0.5 + Math.sin(TAU * p * 11) * 0.5;
   const phi = 0.26;
 
   posePelvis(pose, rig, 0, squatPelvis(rig, phi), 0, -0.05, tremble * 0.03, 0);
@@ -329,7 +334,7 @@ const noop: ClipFn = () => {};
 const fleeStyle: ClipFn = (ctx, t, pose) => {
   const { rig, params } = ctx;
   const p = t + params.phaseOffset;
-  const flail = Math.sin(TAU * p * 2.4);
+  const flail = Math.sin(TAU * p * 2);
   poseSpine(pose, rig, { bend: 0.2, twist: flail * 0.12, side: 0 });
   poseHead(pose, rig, -0.16, flail * 0.3, 0);
   for (const side of SIDES) {
@@ -387,7 +392,7 @@ const jumpClip: ClipFn = (ctx, t, pose) => {
 /** Falling: legs trail, arms out for balance, torso pitched forward. */
 const fallClip: ClipFn = (ctx, t, pose) => {
   const { rig, params } = ctx;
-  const flutter = Math.sin(TAU * (t + params.phaseOffset) * 1.4);
+  const flutter = Math.sin(TAU * (t + params.phaseOffset));
   // Pelvis and chest both pitch FORWARD (positive), per the docstring; the
   // head holds a level gaze by pitching back against them.
   posePelvis(pose, rig, 0, rig.metrics.hipHeight, 0, 0.12, flutter * 0.05, flutter * 0.03);
@@ -973,10 +978,30 @@ export function findClip(slot: ClipName, variant: ClipVariant = 'default'): Clip
   );
 }
 
-/** True when the library has a real entry for this slot and variant. */
+/**
+ * True when the library can serve this slot, by this variant or by the default
+ * fallback.
+ *
+ * Not "has this exact variant": `findClip` falls back variant-first, so a slot
+ * with only a `default` entry is still fully playable and `IAnimator.has` must
+ * say so. A caller that guards with `if (!animator.has(clip)) return;` is
+ * therefore guarding against a slot the library does not cover at all.
+ */
 export function hasClip(slot: ClipName, variant: ClipVariant = 'default'): boolean {
   return BY_KEY.has(`${slot}:${variant}`) || BY_KEY.has(`${slot}:default`);
 }
+
+/**
+ * Memo for `clipDuration`, keyed by rig and then by clip entry.
+ *
+ * The value is a pure function of the clip definition and the rig's measured
+ * leg length — `ClipDefinition` is fully `readonly` and `BodyMetrics` is built
+ * once in `resolveRig` — so it is computed once per (body, clip). The animator
+ * asks for it twice per layer per frame (four times during a crossfade, plus
+ * two per active overlay), and the locomotive answer costs a whole `solveGait`.
+ * A `WeakMap` so a retired body's entry goes with it.
+ */
+const _durations = new WeakMap<AnimRig, Map<ClipEntry, number>>();
 
 /**
  * Clip duration for a specific body, in seconds.
@@ -990,11 +1015,18 @@ export function hasClip(slot: ClipName, variant: ClipVariant = 'default'): boole
  * the stride.
  */
 export function clipDuration(entry: ClipEntry, rig: AnimRig): number {
-  if (entry.def.locomotive) {
-    const gait = solveGait(clipSpeed(entry, rig), rig.metrics.legLength);
-    return 1 / Math.max(1e-3, gait.cycleFrequency);
+  let byEntry = _durations.get(rig);
+  if (byEntry === undefined) {
+    byEntry = new Map<ClipEntry, number>();
+    _durations.set(rig, byEntry);
   }
-  return entry.def.duration * Math.sqrt(Math.max(rig.metrics.legLength, 0.05) / REFERENCE_LEG);
+  const cached = byEntry.get(entry);
+  if (cached !== undefined) return cached;
+  const duration = entry.def.locomotive
+    ? 1 / Math.max(1e-3, solveGait(clipSpeed(entry, rig), rig.metrics.legLength).cycleFrequency)
+    : entry.def.duration * clipTimeScale(rig.metrics);
+  byEntry.set(entry, duration);
+  return duration;
 }
 
 /** Ground speed a locomotive slot means for this body, in m/s. */

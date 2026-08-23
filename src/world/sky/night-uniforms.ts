@@ -41,6 +41,17 @@ import { createLogger } from '@/util';
 
 const log = createLogger('world.sky.lights');
 
+/** Key prefix every hook this module installs carries. */
+const NIGHT_HOOK_PREFIX = 'skyNight:';
+
+/**
+ * Angular rate of the sodium buzz, rad/s. Shared by the GLSL below and by the
+ * phase wrap in `update()` — they MUST stay equal: the wrap is only
+ * behaviour-preserving because `sin(x * RATE)` has period `2π / RATE` in `x`.
+ */
+const LAMP_FLICKER_RATE = 22;
+const LAMP_PHASE_PERIOD = (Math.PI * 2) / LAMP_FLICKER_RATE;
+
 /* -------------------------------------------------------------------------- */
 /* onBeforeCompile interop                                                    */
 /* -------------------------------------------------------------------------- */
@@ -80,9 +91,38 @@ interface IHookedMaterial {
   engineShaderHooks?: IHookRecord[];
 }
 
+/**
+ * True when `userData.engineShaderHooks` exists but nothing is left to run it.
+ *
+ * `THREE.Material.copy()` is `this.userData = JSON.parse(JSON.stringify(
+ * source.userData))` and does NOT copy `onBeforeCompile` /
+ * `customProgramCacheKey` — those are own properties this module assigns, not
+ * prototype members. So a clone of any attached material carries the hook KEYS
+ * with every `fn` dropped by JSON, behind the prototype's no-op slot. An array
+ * with no OWN `onBeforeCompile` behind it is orphaned by definition: appending
+ * to it installs a hook nothing will ever call, and the next system to build a
+ * dispatcher over it calls `undefined` and throws inside `onBeforeCompile`.
+ */
+function hasOrphanedHooks(material: THREE.Material): boolean {
+  const hooks = (material.userData as IHookedMaterial).engineShaderHooks;
+  return hooks !== undefined && !Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile');
+}
+
 function addComposableHook(material: THREE.Material, key: string, fn: ComposableHook): void {
   const data = material.userData as IHookedMaterial;
   let hooks = data.engineShaderHooks;
+
+  // Rebuild rather than extend an orphaned chain — see `hasOrphanedHooks`.
+  if (hooks && hasOrphanedHooks(material)) {
+    if (hooks.length > 0) {
+      log.warn(
+        `material "${material.name || '(unnamed)'}" carried ${hooks.length} orphaned ` +
+          `shader hook(s) (cloned userData); rebuilding the chain`
+      );
+    }
+    hooks = undefined;
+    delete data.engineShaderHooks;
+  }
 
   if (!hooks) {
     // Nothing has hooked this material through the shared convention yet. A
@@ -166,6 +206,8 @@ export class NightUniforms {
   readonly uLampPhase = { value: 0 };
 
   private readonly attached = new WeakSet<THREE.Material>();
+  /** Materials another block already owns. Keeps the warning to one per material. */
+  private readonly refused = new WeakSet<THREE.Material>();
   private attachedCount = 0;
 
   constructor(options: INightUniformOptions = {}) {
@@ -188,12 +230,21 @@ export class NightUniforms {
 
   /**
    * Push the frame's values. THE only per-frame cost of the whole system:
-   * four number writes, regardless of how many lit surfaces exist.
+   * three number writes, regardless of how many lit surfaces exist.
+   *
+   * `elapsedSeconds` is wrapped into ONE flicker period before it reaches the
+   * GPU. Callers feed an unbounded clock, GLSL floats are fp32, and the shader
+   * multiplies the phase by 22 — so after a day of uptime the argument's ulp is
+   * ~0.13 rad and the buzz becomes a visible stair-step, while a driver
+   * resolving the uniform at `mediump` saturates outright after ~18 h. `sin` is
+   * periodic, so the wrap is exact and keeps the argument inside [0, 2π).
    */
   update(nightFactor: number, windowLitFraction: number, elapsedSeconds: number): void {
     this.uNightFactor.value = nightFactor;
     this.uWindowLitFraction.value = windowLitFraction;
-    this.uLampPhase.value = elapsedSeconds;
+    this.uLampPhase.value = Number.isFinite(elapsedSeconds)
+      ? elapsedSeconds % LAMP_PHASE_PERIOD
+      : 0;
   }
 
   /**
@@ -204,15 +255,40 @@ export class NightUniforms {
    * shadow system registers the same material.
    *
    * @returns true when this call wired the material, false when it was already
-   *          attached. Callers counting materials must not count the repeats —
-   *          a hundred meshes sharing one material is ONE attachment.
+   *          attached OR is already owned by another block. Callers counting
+   *          materials must not count the repeats — a hundred meshes sharing
+   *          one material is ONE attachment.
    */
   attach(material: THREE.Material, mode: NightEmissiveMode): boolean {
     if (this.attached.has(material)) return false;
+
+    // A LIVE chain that already carries one of this module's hooks belongs to
+    // another `NightUniforms`; `attached` is per-instance, so nothing else
+    // notices. A second block would declare `vSkyWorldPos` twice on both
+    // stages, GLSL rejects the redeclaration, the material compiles to nothing
+    // and every facade is black at midnight. Both `src/game/game.ts` and
+    // `harness/progression.ts` construct their own instance.
+    //
+    // An ORPHANED chain is not that case: its keys are a JSON husk of a clone's
+    // source and `addComposableHook` rebuilds over them.
+    const existing = hasOrphanedHooks(material)
+      ? undefined
+      : (material.userData as IHookedMaterial).engineShaderHooks;
+    if (existing?.some((hook) => hook.key.startsWith(NIGHT_HOOK_PREFIX)) === true) {
+      if (!this.refused.has(material)) {
+        this.refused.add(material);
+        log.warn(
+          `material "${material.name || '(unnamed)'}" is already wired to another ` +
+            `NightUniforms; skipping`
+        );
+      }
+      return false;
+    }
+
     this.attached.add(material);
     this.attachedCount++;
 
-    addComposableHook(material, `skyNight:${mode}`, (shader) => {
+    addComposableHook(material, `${NIGHT_HOOK_PREFIX}${mode}`, (shader) => {
       // `String.replace` with an absent needle returns the subject unchanged,
       // so a material whose shader has no emissive stage (MeshBasicMaterial,
       // MeshLambertMaterial's older chunks, any custom ShaderMaterial) would
@@ -305,7 +381,7 @@ ${
     // One lamp in a dozen buzzes. The hash keeps it the SAME lamp every night.
     float lampId = skyHash(floor(vSkyWorldPos * 0.35));
     float flickerAmount = step(0.92, lampId);
-    float flicker = mix(1.0, 0.72 + 0.28 * sin(uLampPhase * 22.0 + lampId * 40.0), flickerAmount);
+    float flicker = mix(1.0, 0.72 + 0.28 * sin(uLampPhase * ${LAMP_FLICKER_RATE.toFixed(1)} + lampId * 40.0), flickerAmount);
     totalEmissiveRadiance += uLampColor * uLampIntensity * uNightFactor * flicker;
   }`
     : `  {

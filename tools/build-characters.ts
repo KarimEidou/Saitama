@@ -2,7 +2,7 @@
  * CHARACTER BAKER — roster in, shippable character assets out
  *
  *   npx tsx tools/build-characters.ts [--only saitama,genos] [--size 1024]
- *                                     [--no-ao] [--no-vat] [--no-glb]
+ *                                     [--no-ao] [--no-vat] [--no-glb] [--no-manifest]
  *
  * For every entry in `@/characters/roster` this writes, into
  * `public/assets/chr/<name>/` (gitignored, re-derivable):
@@ -50,6 +50,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import * as THREE from 'three';
 import sharp from 'sharp';
 import { Document, NodeIO, type Accessor } from '@gltf-transform/core';
@@ -93,8 +94,20 @@ const OUT_ROOT = path.join(REPO_ROOT, 'public', 'assets');
 const MANIFEST_FILE = path.join(REPO_ROOT, 'tools', 'manifest', 'characters.json');
 const TEXTURE_MANIFEST = path.join(REPO_ROOT, 'tools', 'manifest', 'textures.json');
 
-/** Atlas edge per quality tier. `ultra` reuses the `high` bake. */
-const TIER_SIZE: Readonly<Record<string, number>> = { mobile: 512, high: 1024, ultra: 1024 };
+/**
+ * Atlas edge per quality tier. `ultra` reuses the `high` bake.
+ *
+ * Typed by its ACTUAL keys rather than `Record<string, number>`: the open type
+ * made every lookup `number | undefined`, which is why three call sites carried
+ * a `!` and a fourth (`atlas.tiers`) would have written `undefined` straight
+ * into the committed manifest if a tier were ever renamed. Closed, `tsc` is the
+ * thing that catches the rename.
+ */
+const TIER_SIZE: Readonly<Record<Tier | 'ultra', number>> = {
+  mobile: 512,
+  high: 1024,
+  ultra: 1024,
+};
 const TIERS = ['mobile', 'high'] as const;
 type Tier = (typeof TIERS)[number];
 
@@ -108,6 +121,9 @@ const AO_RADIUS = 0.34;
 
 /** LODs baked into the GLB. LOD2 is the crowd tier and ships via the VAT. */
 const GLB_LODS: readonly LodLevel[] = [0, 1];
+
+/** Frames baked per clip. One constant: the payload and `vat.json` must agree. */
+const VAT_FRAMES = 32;
 
 /** Our own attribution block. Every mesh and every synthesised map is ours. */
 const PROJECT_ATTRIBUTION = {
@@ -124,7 +140,7 @@ const PROJECT_ATTRIBUTION = {
 /* CLI                                                                        */
 /* -------------------------------------------------------------------------- */
 
-interface Options {
+export interface Options {
   readonly only: readonly string[];
   readonly size: number;
   readonly ao: boolean;
@@ -152,9 +168,14 @@ function parseSize(raw: string | undefined): number {
   return value;
 }
 
-function parseArgs(argv: readonly string[]): Options {
+/** Every flag this tool accepts, in one string, used by the throw below. */
+const USAGE =
+  'usage: build-characters [--only a,b] [--size 1024] [--no-ao] [--no-vat] ' +
+  '[--no-glb] [--no-manifest]';
+
+export function parseArgs(argv: readonly string[]): Options {
   let only: string[] = [];
-  let size = TIER_SIZE.high!;
+  let size = TIER_SIZE.high;
   let ao = true;
   let vat = true;
   let glb = true;
@@ -167,11 +188,17 @@ function parseArgs(argv: readonly string[]): Options {
     else if (arg === '--no-vat') vat = false;
     else if (arg === '--no-glb') glb = false;
     else if (arg === '--no-manifest') manifest = false;
+    // No final `else` used to mean an unrecognised argument was DISCARDED: a
+    // typo (`--no-mainfest`, `--onlY saitama`) ran the slowest job in the
+    // repository to completion with the flag ignored, and in the `--only` case
+    // rewrote the very manifest the flag was meant to leave alone. The sibling
+    // tool in this directory already throws; this half now matches it.
+    else throw new Error(`unknown argument: ${arg}\n${USAGE}`);
   }
   return { only, size, ao, vat, glb, manifest };
 }
 
-function matches(entry: RosterEntry, only: readonly string[]): boolean {
+export function matches(entry: RosterEntry, only: readonly string[]): boolean {
   if (only.length === 0) return true;
   return only.some((filter) => entry.id === filter || entry.id.endsWith(`.${filter}`));
 }
@@ -323,13 +350,26 @@ async function loadDetailTile(id: string): Promise<DetailTile | undefined> {
   return tile;
 }
 
-function srgbToLinear(value: number): number {
+export function srgbToLinear(value: number): number {
   return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Faces                                                                      */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Width or height of the face patch in atlas texels.
+ *
+ * MUST stay identical to `compositeFace` in `src/characters/roster/atlas.ts`,
+ * which fills `round(edge1 * size) - round(edge0 * size)` texels. Rasterising
+ * `round((edge1 - edge0) * size)` instead — which is not the same number for
+ * most rectangles — made `compositeFace` nearest-neighbour resample the patch,
+ * dropping or doubling one row and one column of every face.
+ */
+export function atlasPatchSize(edge0: number, edge1: number, size: number): number {
+  return Math.max(1, Math.round(edge1 * size) - Math.round(edge0 * size));
+}
 
 /**
  * Rasterise an SVG into the atlas' orientation.
@@ -440,14 +480,22 @@ function makeOcclusion(build: HumanoidBuild): OcclusionSampler {
  */
 const SRGB_ROLES: ReadonlySet<string> = new Set(['albedo', 'emissive']);
 
-async function writePng(
+/**
+ * Encode and write one PNG, returning the ENCODED BYTES.
+ *
+ * Returning the buffer rather than its length is what lets the caller hash and
+ * embed what it just wrote instead of reading the file straight back off disk —
+ * 10-15 redundant reads per character, and the only place where what was hashed
+ * was not provably what was written.
+ */
+export async function writePng(
   file: string,
   data: Uint8Array,
   size: number,
   channels: 1 | 3 | 4,
   resizeTo?: number,
   srgb = false
-): Promise<number> {
+): Promise<Buffer> {
   let image = sharp(Buffer.from(data.buffer, data.byteOffset, data.byteLength), {
     raw: { width: size, height: size, channels },
   });
@@ -460,10 +508,10 @@ async function writePng(
   }
   const png = await image.png({ compressionLevel: 9, effort: 8 }).toBuffer();
   await writeFile(file, png);
-  return png.byteLength;
+  return png;
 }
 
-function sha256(data: Uint8Array | Buffer): string {
+export function sha256(data: Uint8Array | Buffer): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
@@ -481,6 +529,24 @@ interface GlbInput {
 }
 
 /**
+ * Index of the one bone whose parent lies outside the skinned set.
+ *
+ * `Math.max(0, findIndex(...))` used to stand in for this in two places, which
+ * turned "this rig has no root" into "root the skin at whatever bone came
+ * first" — an arm, in practice — with nothing written to the console. A rig
+ * with no root is a cycle or a detached hierarchy, not a skeleton.
+ */
+export function rootBoneIndex(bones: readonly THREE.Bone[]): number {
+  const index = bones.findIndex((bone) => !bones.includes(bone.parent as THREE.Bone));
+  if (index < 0) {
+    throw new Error(
+      `rig has no root bone: all ${bones.length} bones have a parent inside the skin`
+    );
+  }
+  return index;
+}
+
+/**
  * Write one character as a self-contained, skinned GLB.
  *
  * The ORM packing is not a convention we invented — it is exactly glTF's:
@@ -488,7 +554,7 @@ interface GlbInput {
  * embedded image serves both slots and any glTF viewer shows the character
  * correctly without knowing anything about this project.
  */
-async function writeGlb(input: GlbInput, file: string): Promise<number> {
+async function writeGlb(input: GlbInput, file: string): Promise<Uint8Array> {
   const doc = new Document();
   doc.createBuffer();
   const buffer = doc.getRoot().listBuffers()[0]!;
@@ -534,8 +600,8 @@ async function writeGlb(input: GlbInput, file: string): Promise<number> {
     const parentIndex = parent === null ? -1 : bones.indexOf(parent as THREE.Bone);
     if (parentIndex >= 0) nodes[parentIndex]!.addChild(nodes[i]!);
   }
-  const rootIndex = bones.findIndex((bone) => !bones.includes(bone.parent as THREE.Bone));
-  scene.addChild(nodes[Math.max(0, rootIndex)]!);
+  const rootIndex = rootBoneIndex(bones);
+  scene.addChild(nodes[rootIndex]!);
 
   const inverses = new Float32Array(bones.length * 16);
   primary.rig.skeleton.boneInverses.forEach((matrix, i) => {
@@ -543,10 +609,7 @@ async function writeGlb(input: GlbInput, file: string): Promise<number> {
   });
   const ibm = doc.createAccessor('ibm').setType('MAT4').setArray(inverses).setBuffer(buffer);
 
-  const skin = doc
-    .createSkin('rig')
-    .setInverseBindMatrices(ibm)
-    .setSkeleton(nodes[Math.max(0, rootIndex)]!);
+  const skin = doc.createSkin('rig').setInverseBindMatrices(ibm).setSkeleton(nodes[rootIndex]!);
   for (const node of nodes) skin.addJoint(node);
 
   for (const { lod, build } of input.builds) {
@@ -582,7 +645,7 @@ async function writeGlb(input: GlbInput, file: string): Promise<number> {
   const io = new NodeIO();
   const glb = await io.writeBinary(doc);
   await writeFile(file, glb);
-  return glb.byteLength;
+  return glb;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -604,14 +667,14 @@ interface VatResult {
  * half-float RGBA — a `.bin` rather than a PNG, because a PNG cannot carry
  * half floats and the runtime wants a `DataTexture` anyway.
  */
-async function writeVat(build: HumanoidBuild, dir: string): Promise<VatResult | undefined> {
+async function writeVat(build: HumanoidBuild, dir: string): Promise<VatResult> {
   const anim = await import('@/characters/anim');
   const rig = anim.resolveRig({
     skeleton: build.rig.skeleton,
     profile: build.profile,
     getBone: (name) => build.rig.bones[build.rig.index[name]],
   });
-  const bake = anim.bakeVat(rig, anim.allClips(), { frames: 32, halfFloat: true });
+  const bake = anim.bakeVat(rig, anim.allClips(), { frames: VAT_FRAMES, halfFloat: true });
   const data = bake.data as Uint16Array;
   const bytes = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
   await writeFile(path.join(dir, 'vat.bin'), bytes);
@@ -624,7 +687,7 @@ async function writeVat(build: HumanoidBuild, dir: string): Promise<VatResult | 
         boneCount: bake.boneCount,
         halfFloat: bake.halfFloat,
         format: 'RGBA16F',
-        frames: 32,
+        frames: VAT_FRAMES,
         clips: bake.clips,
       },
       null,
@@ -711,14 +774,11 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
   const region = faceRegion(entry.face, head);
   const rest = entry.restExpression ?? 'neutral';
 
-  const atlasFaceWidth = Math.max(
-    8,
-    Math.round((region.atlas.u1 - region.atlas.u0) * options.size)
-  );
-  const atlasFaceHeight = Math.max(
-    8,
-    Math.round((region.atlas.v1 - region.atlas.v0) * options.size)
-  );
+  // Sized with `compositeFace`'s own formula, not `round((u1 - u0) * size)`:
+  // the two disagree by one texel for roughly half of all rectangles, and when
+  // they do the compositor nearest-neighbour resamples the patch it was handed.
+  const atlasFaceWidth = atlasPatchSize(region.atlas.u0, region.atlas.u1, options.size);
+  const atlasFaceHeight = atlasPatchSize(region.atlas.v0, region.atlas.v1, options.size);
 
   const face = await rasteriseFace(
     faceSvg(entry.face, rest, region, 'albedo'),
@@ -763,17 +823,20 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
 
   // --- write maps ---------------------------------------------------------
   const files: BuiltFile[] = [];
-  const gpuBytes = { mobile: 0, high: 0 } as Record<Tier, number>;
+  const gpuBytes: Record<Tier, number> = { mobile: 0, high: 0 };
+  // The high-tier encodings, kept so the GLB embeds and the manifest hashes the
+  // exact bytes just written rather than reading each PNG back off disk.
+  const highPng = new Map<string, Buffer>();
 
   for (const tier of TIERS) {
-    const size = Math.min(TIER_SIZE[tier]!, maps.size);
+    const size = Math.min(TIER_SIZE[tier], maps.size);
     const write = async (
       role: 'albedo' | 'orm' | 'normal' | 'emissive' | 'mask',
       data: Uint8Array,
       channels: 1 | 3 | 4
     ): Promise<void> => {
       const name = mapFileName(role, tier);
-      const bytes = await writePng(
+      const png = await writePng(
         path.join(dir, name),
         data,
         maps.size,
@@ -781,13 +844,14 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
         size,
         SRGB_ROLES.has(role)
       );
+      if (tier === 'high') highPng.set(role, png);
       files.push({
         key: mapAssetId(entry, role),
         role,
         tier,
         file: `${characterDir(entry)}/${name}`,
-        bytes,
-        sha256: sha256(await readFile(path.join(dir, name))),
+        bytes: png.byteLength,
+        sha256: sha256(png),
         width: size,
         height: size,
       });
@@ -870,17 +934,14 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
   // --- GLB ----------------------------------------------------------------
   if (options.glb) {
     const glbFile = path.join(dir, 'model.glb');
-    const bytes = await writeGlb(
+    const glb = await writeGlb(
       {
         entry,
         builds: builds.filter(({ lod }) => GLB_LODS.includes(lod)),
-        albedo: await readFile(path.join(dir, mapFileName('albedo', 'high'))),
-        orm: await readFile(path.join(dir, mapFileName('orm', 'high'))),
-        normal: await readFile(path.join(dir, mapFileName('normal', 'high'))),
-        emissive:
-          maps.emissive === undefined
-            ? undefined
-            : await readFile(path.join(dir, mapFileName('emissive', 'high'))),
+        albedo: highPng.get('albedo')!,
+        orm: highPng.get('orm')!,
+        normal: highPng.get('normal')!,
+        emissive: maps.emissive === undefined ? undefined : highPng.get('emissive')!,
       },
       glbFile
     );
@@ -888,8 +949,8 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
       key: entry.id,
       role: 'model',
       file: `${characterDir(entry)}/model.glb`,
-      bytes,
-      sha256: sha256(await readFile(glbFile)),
+      bytes: glb.byteLength,
+      sha256: sha256(glb),
     });
   }
 
@@ -898,17 +959,15 @@ async function buildCharacter(entry: RosterEntry, options: Options): Promise<Cha
   if (options.vat) {
     try {
       vat = await writeVat(primary, dir);
-      if (vat !== undefined) {
-        files.push({
-          key: `${entry.id}.vat`,
-          role: 'vat',
-          file: `${characterDir(entry)}/vat.bin`,
-          bytes: vat.bytes,
-          sha256: sha256(await readFile(path.join(dir, 'vat.bin'))),
-          width: vat.width,
-          height: vat.height,
-        });
-      }
+      files.push({
+        key: `${entry.id}.vat`,
+        role: 'vat',
+        file: `${characterDir(entry)}/vat.bin`,
+        bytes: vat.bytes,
+        sha256: sha256(await readFile(path.join(dir, 'vat.bin'))),
+        width: vat.width,
+        height: vat.height,
+      });
     } catch (error) {
       // Never a warning. A swallowed VAT failure exits 0 and then writes a
       // committed manifest whose `vat` block has silently vanished while
@@ -1047,7 +1106,7 @@ async function writeSourceManifest(reports: readonly CharacterReport[]): Promise
           // The roster's tier edge, never `report.atlasSize` — that is this
           // run's `--size`, and writing it here would contradict `atlas.tiers`
           // below, which is built from the same constant.
-          size: TIER_SIZE[tier]!,
+          size: TIER_SIZE[tier],
         })),
       })),
       face: {
@@ -1147,7 +1206,18 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
-});
+/**
+ * Only run the CLI when invoked directly, never when imported by a test.
+ *
+ * `pathToFileURL` rather than `new URL(import.meta.url).pathname`: a URL
+ * pathname mangles a Windows drive letter, and this round-trips exactly.
+ */
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

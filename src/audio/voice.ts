@@ -501,8 +501,15 @@ export class VoiceBank<T extends SynthVoice> {
     }
   }
 
+  /** Release every instance and reset the pool to empty. Idempotent. */
   dispose(): void {
     for (const v of this.voices) v?.dispose();
     this.voices.length = 0;
+    // The parallel bookkeeping must go with them: otherwise `activeCount`
+    // keeps counting slots that no longer exist, and a stale lease still
+    // reports `isCurrent`.
+    this.freeAt.length = 0;
+    this.priority.length = 0;
+    this.generation.length = 0;
   }
 }

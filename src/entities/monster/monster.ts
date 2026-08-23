@@ -42,10 +42,12 @@ import type {
   ITransform,
   IActor,
 } from '@/types';
-import type { IRandom } from '@/util';
+import { createLogger, type IRandom } from '@/util';
 import { MonsterBrain, type IMonsterBrainOptions } from './brain';
 import type { MonsterFsm } from './fsm';
 import type { IMonsterArchetype, IMonsterSnapshot, IMonsterWorld, MonsterState } from './types';
+
+const log = createLogger('monster:adapter');
 
 /* -------------------------------------------------------------------------- */
 /* Transform                                                                  */
@@ -216,6 +218,8 @@ export class Monster implements IMonster {
   private readonly bus: IEventBus;
   private characterInstance: ICharacterInstance | undefined;
   private lastClip: ClipName | undefined;
+  /** The scale the factory built the attached body at, restored by `detach`. */
+  private instanceBaseScale = 1;
   private disposed = false;
 
   constructor(options: IMonsterOptions) {
@@ -340,8 +344,10 @@ export class Monster implements IMonster {
     this.detach();
     this.characterInstance = instance;
     this.root.add(instance.root);
-    const scale = this.archetype.scale;
-    instance.root.scale.setScalar(scale);
+    // Remember what the factory built it at: the scale below is OURS, and the
+    // instance goes back into a shared pool when we let go of it.
+    this.instanceBaseScale = instance.root.scale.x;
+    instance.root.scale.setScalar(this.archetype.scale);
     this.lastClip = undefined;
   }
 
@@ -350,6 +356,10 @@ export class Monster implements IMonster {
     const instance = this.characterInstance;
     if (instance === undefined) return undefined;
     this.root.remove(instance.root);
+    // Hand it back the size it arrived at. The next caller to draw this pooled
+    // instance must not inherit a 0.28x mosquito body.
+    instance.root.scale.setScalar(this.instanceBaseScale);
+    this.instanceBaseScale = 1;
     this.characterInstance = undefined;
     return instance;
   }
@@ -387,7 +397,10 @@ export class Monster implements IMonster {
   private syncFromBrain(_dt: number): void {
     const brain = this.brain;
     this.transform.position.set(brain.position.x, brain.position.y, brain.position.z);
-    this.transform.yaw = brain.yaw;
+    // The setter rebuilds a quaternion AND the forward vector — four trig calls.
+    // A monster that did not turn this frame (holding standoff, mid-swing, or
+    // dead and no longer stepping its brain at all) needs neither rebuilt.
+    if (brain.yaw !== this.transform.yaw) this.transform.yaw = brain.yaw;
 
     const clip = brain.clip;
     if (clip !== this.lastClip) {
@@ -437,8 +450,8 @@ export class Monster implements IMonster {
       // A boss that died at 0 HP is the one outcome `types.ts` says never
       // happens. Refusing loudly beats a silently immortal-then-suddenly-dead
       // boss, and beats a caller assuming this worked.
-      console.warn(
-        `[monster] refused to kill '${this.id}': the boss phase has not resolved. ` +
+      log.warn(
+        `refused to kill '${this.id}': the boss phase has not resolved. ` +
           `Only BossPhaseChanged { isFinalPhase: true } opens the gate.`
       );
       return;

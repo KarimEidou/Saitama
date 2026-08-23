@@ -85,6 +85,14 @@ export interface IWorldDiagnostics {
   isNative: boolean;
   platform: string;
 
+  /**
+   * Dense 0..255 index of the chunk the last cull's CAMERA stood in, not the
+   * player's — it is `SpatialIndex.currentChunk`. They differ by up to one
+   * chunk at a boundary, because the camera trails the player by a few metres.
+   * Documented rather than changed: a harness has been sampling it as the
+   * player's, and the value is defensible (it is the chunk the renderer culled
+   * from), so say which one it is instead of silently swapping it.
+   */
   chunkIndex: number;
   residentChunks: number;
   pendingChunks: number;

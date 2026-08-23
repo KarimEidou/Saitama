@@ -16,7 +16,7 @@ Every asset in this repository is either released under a public-domain dedicati
 | Third-party character or monster assets | **0**       | —                          |
 | Audio files of any kind                 | **0**       | — (synthesised at runtime) |
 | Runtime npm packages                    | 12 declared | all permissive             |
-| Build-only npm packages                 | 28 declared | mixed                      |
+| Build-only npm packages                 | 26 declared | mixed                      |
 
 Downloaded source material: **376 files, 1.65 GB** (1,774,041,132 bytes), every byte of it CC0, recorded with a provider-published md5 and a locally computed sha256 in [`assets/assets.lock.json`](assets/assets.lock.json).
 
@@ -245,7 +245,6 @@ Compilers, bundlers, texture encoders and test runners. These run on a developer
 | `@gltf-transform/extensions` | 4.4.2   | [MIT](https://spdx.org/licenses/MIT.html)                     |
 | `@gltf-transform/functions`  | 4.4.2   | [MIT](https://spdx.org/licenses/MIT.html)                     |
 | `@gpu-tex-enc/basis`         | 1.16.4  | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)     |
-| `@playwright/test`           | 1.56.1  | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)     |
 | `@types/node`                | 22.20.1 | [MIT](https://spdx.org/licenses/MIT.html)                     |
 | `@types/three`               | 0.185.4 | [MIT](https://spdx.org/licenses/MIT.html)                     |
 | `draco3dgltf`                | 1.5.7   | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)     |
@@ -257,7 +256,6 @@ Compilers, bundlers, texture encoders and test runners. These run on a developer
 | `meshoptimizer`              | 1.2.0   | [MIT](https://spdx.org/licenses/MIT.html)                     |
 | `playwright`                 | 1.56.1  | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)     |
 | `prettier`                   | 3.9.6   | [MIT](https://spdx.org/licenses/MIT.html)                     |
-| `rollup-plugin-visualizer`   | 7.1.1   | [MIT](https://spdx.org/licenses/MIT.html)                     |
 | `sharp`                      | 0.35.3  | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)     |
 | `tsx`                        | 4.23.12 | [MIT](https://spdx.org/licenses/MIT.html)                     |
 | `typescript`                 | 6.0.3   | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)     |
@@ -281,20 +279,20 @@ Building the APK downloads the Android SDK under the [Android Software Developme
 
 ### 5.4 Full transitive tree
 
-Rolled up from `package-lock.json`, which lists every optional platform build for every platform — so this audit says the same thing on Linux, macOS and Windows. 569 packages resolve in total; **15** of them are reachable at runtime and therefore distributed.
+Rolled up from `package-lock.json`, which lists every optional platform build for every platform — so this audit says the same thing on Linux, macOS and Windows. 537 packages resolve in total; **15** of them are reachable at runtime and therefore distributed.
 
 | Licence                                                         | Total | Distributed | Build-only |
 | --------------------------------------------------------------- | ----- | ----------- | ---------- |
-| [MIT](https://spdx.org/licenses/MIT.html)                       | 419   | 10          | 409        |
-| [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)       | 50    | 1           | 49         |
-| [ISC](https://spdx.org/licenses/ISC.html)                       | 27    | 1           | 26         |
+| [MIT](https://spdx.org/licenses/MIT.html)                       | 393   | 10          | 383        |
+| [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)       | 49    | 1           | 48         |
+| [ISC](https://spdx.org/licenses/ISC.html)                       | 23    | 1           | 22         |
 | [LGPL-3.0-or-later](https://www.gnu.org/licenses/lgpl-3.0.html) | 20    | 0           | 20         |
 | [BlueOak-1.0.0](https://blueoakcouncil.org/license/1.0.0)       | 13    | 0           | 13         |
 | [MPL-2.0](https://www.mozilla.org/MPL/2.0/)                     | 12    | 0           | 12         |
 | Apache-2.0 AND LGPL-3.0-or-later                                | 6     | 0           | 6          |
 | [BSD-2-Clause](https://spdx.org/licenses/BSD-2-Clause.html)     | 6     | 0           | 6          |
-| [BSD-3-Clause](https://spdx.org/licenses/BSD-3-Clause.html)     | 4     | 0           | 4          |
 | (none declared)                                                 | 3     | 0           | 3          |
+| [BSD-3-Clause](https://spdx.org/licenses/BSD-3-Clause.html)     | 3     | 0           | 3          |
 | Apache-2.0 AND LGPL-3.0-or-later AND MIT                        | 2     | 0           | 2          |
 | [OFL-1.1](https://openfontlicense.org/)                         | 2     | 2           | 0          |
 | [Unlicense](https://unlicense.org/)                             | 2     | 0           | 2          |

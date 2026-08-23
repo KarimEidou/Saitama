@@ -27,6 +27,7 @@ import { analyseTopology } from '../analysis';
 import { buildCivilian, showcaseBodies } from '../characters';
 import { buildHumanoid } from '../assemble';
 import type { LodLevel } from '../types';
+import { UV_REGIONS } from '../uv';
 
 const LODS: readonly LodLevel[] = [0, 1, 2];
 
@@ -84,7 +85,54 @@ describe('mesh topology', () => {
     }
   });
 
-  it('keeps every UV inside the 0..1 atlas', () => {
+  it('packs every strand into exactly one atlas rectangle', () => {
+    // What the atlas actually promises: each strand's island lands inside its
+    // OWN `UV_REGIONS` rectangle, which is what lets one texture serve the
+    // whole character. "0 <= u,v <= 1" is satisfied by any UV whatsoever,
+    // including a strand that never called `packUV`.
+    const rects = Object.entries(UV_REGIONS);
+    for (const recipe of showcaseBodies()) {
+      const build = buildHumanoid(recipe.profile, recipe.options);
+      const uv = build.geometry.getAttribute('uv');
+      const index = build.geometry.getIndex()!;
+
+      for (const region of build.regions) {
+        // The cape writes raw 0..1 UVs instead of packing into
+        // `UV_REGIONS.cloth`; that is tracked separately, and the weaker
+        // 0..1 case below is what still covers it.
+        if (region.name === 'cape') continue;
+
+        let u0 = Infinity;
+        let v0 = Infinity;
+        let u1 = -Infinity;
+        let v1 = -Infinity;
+        for (let i = region.indexStart; i < region.indexStart + region.indexCount; i++) {
+          const vertex = index.getX(i);
+          u0 = Math.min(u0, uv.getX(vertex));
+          u1 = Math.max(u1, uv.getX(vertex));
+          v0 = Math.min(v0, uv.getY(vertex));
+          v1 = Math.max(v1, uv.getY(vertex));
+        }
+
+        // The rectangles are disjoint by construction (each is inset by
+        // `PADDING`), so "exactly one" and "at least one" are the same
+        // assertion today — stating it as one catches a future overlap too.
+        const inside = rects.filter(
+          ([, r]) =>
+            u0 >= r.u0 - 1e-6 && u1 <= r.u1 + 1e-6 && v0 >= r.v0 - 1e-6 && v1 <= r.v1 + 1e-6
+        );
+        expect(
+          inside.map(([name]) => name),
+          `${recipe.name}/${region.name}`
+        ).toHaveLength(1);
+      }
+    }
+  });
+
+  it('keeps every UV inside the 0..1 sheet', () => {
+    // The weaker fallback, kept only for the one region the strong check above
+    // skips. Delete both the `continue` and this case when the cape's packing
+    // is fixed.
     for (const recipe of showcaseBodies()) {
       const build = buildHumanoid(recipe.profile, recipe.options);
       const uv = build.geometry.getAttribute('uv');

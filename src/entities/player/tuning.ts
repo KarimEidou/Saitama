@@ -270,7 +270,9 @@ export interface IPlayerCameraTuning {
   /**
    * Radius of the virtual sphere swept along the arm. The five-ray cross is a
    * cheap stand-in for a sphere cast: the contract exposes rays, not shape
-   * casts, and five rays cost ~8 µs against the BVH.
+   * casts, and five rays is a budget the arm can afford every frame — see
+   * `applyCollision()` in `camera-rig.ts` for which backend actually serves
+   * them.
    */
   readonly probeRadiusM: number;
   /** Extra gap kept between the camera and whatever the probe hit. */
@@ -461,12 +463,31 @@ export interface IPlayerTuningPatch {
   readonly camera?: Partial<IPlayerCameraTuning>;
 }
 
+/**
+ * Copy `patch` over `base`, ignoring keys explicitly set to `undefined`.
+ *
+ * `exactOptionalPropertyTypes` is off, so `Partial<IPlayerLocomotionTuning>`
+ * accepts `{ runSpeed: undefined }` — exactly the shape a device profile built
+ * from optional fields produces. A plain spread copies that `undefined` over
+ * the default, and the first multiplication turns the character's speed,
+ * position and camera into `NaN` with no type error anywhere.
+ */
+function mergeDefined<T extends object>(base: T, patch: Partial<T> | undefined): T {
+  if (patch === undefined) return base;
+  const out: { -readonly [K in keyof T]: T[K] } = { ...base };
+  for (const key of Object.keys(patch) as (keyof T)[]) {
+    const value = patch[key];
+    if (value !== undefined) out[key] = value as T[keyof T];
+  }
+  return out;
+}
+
 /** Merge a patch over the defaults. Returns a frozen profile. */
 export function resolvePlayerTuning(patch?: IPlayerTuningPatch): IPlayerTuning {
   if (patch === undefined) return DEFAULT_PLAYER_TUNING;
   return Object.freeze({
-    locomotion: Object.freeze({ ...DEFAULT_LOCOMOTION_TUNING, ...patch.locomotion }),
-    camera: Object.freeze({ ...DEFAULT_CAMERA_TUNING, ...patch.camera }),
+    locomotion: Object.freeze(mergeDefined(DEFAULT_LOCOMOTION_TUNING, patch.locomotion)),
+    camera: Object.freeze(mergeDefined(DEFAULT_CAMERA_TUNING, patch.camera)),
   });
 }
 

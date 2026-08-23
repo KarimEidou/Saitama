@@ -13,10 +13,10 @@
  * import graph stays clean), capability is probed BEFORE calling, and every
  * promise is caught. `play()` is fire-and-forget and can never throw.
  *
- * The three cues the design calls for are `chargeComplete`, `kill` and
- * `landing`. Input owns `chargeComplete` because it owns the charge timer;
- * combat and the player controller fire the other two through this same
- * object, reachable as `inputManager.haptics`.
+ * Input owns `chargeComplete` (it owns the charge timer) and `gesture` (it owns
+ * gesture recognition and the dash toggle). Combat, the player controller and
+ * the HUD fire the rest — `kill`, `landing`, `hit`, `uiTap`, `error` — through
+ * this same object, reachable as `inputManager.haptics`.
  */
 
 import type { HapticPattern } from '@/types';

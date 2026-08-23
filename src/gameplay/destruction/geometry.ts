@@ -134,10 +134,23 @@ function withinCone(
  * Normalise into the three-slot scratch array, returning the original length.
  * Degenerate input becomes +X, which is arbitrary but never NaN — a NaN axis
  * silently destroys the whole city.
+ *
+ * The guard tests FINITENESS and not just smallness, because both ends of the
+ * range fall through a bare `length < 1e-6` into a NaN axis:
+ *
+ *   NaN        every comparison against it is false, so `length < 1e-6` does
+ *              not fire and the divide yields `x / NaN`.
+ *   Infinity   an infinite (or merely astronomical — `1e200 * 1e200` overflows)
+ *              component makes `length` infinite, and `Infinity / Infinity` is
+ *              NaN too.
+ *
+ * Either way the caller gets +X with a reported length of 0, which is arbitrary
+ * but survivable; a NaN axis is not, because it makes every reject downstream
+ * fall through and sweeps the whole city.
  */
 export function normaliseInto(out: Float64Array, x: number, y: number, z: number): number {
   const length = Math.sqrt(x * x + y * y + z * z);
-  if (length < 1e-6) {
+  if (!Number.isFinite(length) || length < 1e-6) {
     out[0] = 1;
     out[1] = 0;
     out[2] = 0;

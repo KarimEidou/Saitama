@@ -54,7 +54,7 @@ import {
   STEP_ORTHO,
   WALL_HUG_PENALTY,
 } from './constants';
-import { cellCentreX, cellCentreZ, cellX, cellZ } from './obstacles';
+import { cellCentreX, cellCentreZ, cellIndexAt, cellX, cellZ } from './obstacles';
 import type { ObstacleField } from './obstacles';
 import type { IThreatSource } from './types';
 
@@ -241,7 +241,12 @@ export class FlowField {
 
     this.accumulator += dt;
     if (this.accumulator >= FLOW_DT || dirty) {
-      this.accumulator = 0;
+      // Subtract, do not zero: zeroing discards the remainder, so at 60 fps the
+      // rebuild lands every sixteenth frame (3.75 Hz) rather than the 4 Hz
+      // `FLOW_HZ` promises. A forced rebuild still restarts the clock, and the
+      // carried remainder is capped at one period so a hitch cannot bank a
+      // burst of catch-up rebuilds.
+      this.accumulator = dirty ? 0 : Math.min(this.accumulator - FLOW_DT, FLOW_DT);
       const start = performance.now();
       this.rebuildFlee(obstacles, threats);
       spent += performance.now() - start;
@@ -317,7 +322,7 @@ export class FlowField {
   private rebuildFlee(obstacles: ObstacleField, threats: readonly IThreatSource[]): void {
     this.threatCells.length = 0;
     for (const threat of threats) {
-      const cell = cellZ(threat.position.z) * FIELD_DIM + cellX(threat.position.x);
+      const cell = cellIndexAt(threat.position.x, threat.position.z);
       const open = obstacles.isWalkableCell(cell) ? cell : nearestWalkableIndex(obstacles, cell);
       if (open >= 0) this.threatCells.push(open);
     }
@@ -432,19 +437,19 @@ export class FlowField {
 
   /** Bilinear-free nearest-cell sample of a direction field. */
   sampleDirection(field: IDirectionField, x: number, z: number, out: [number, number]): void {
-    const i = cellZ(z) * FIELD_DIM + cellX(x);
+    const i = cellIndexAt(x, z);
     out[0] = field.dirX[i]!;
     out[1] = field.dirZ[i]!;
   }
 
   /** Cost at a world position, or `COST_UNREACHABLE`. */
   sampleCost(field: IDirectionField, x: number, z: number): number {
-    return field.cost[cellZ(z) * FIELD_DIM + cellX(x)]!;
+    return field.cost[cellIndexAt(x, z)]!;
   }
 
   /** Metres from the nearest threat, following walkable ground. */
   threatDistance(x: number, z: number): number {
-    const c = this.flee.cost[cellZ(z) * FIELD_DIM + cellX(x)]!;
+    const c = this.flee.cost[cellIndexAt(x, z)]!;
     if (c === COST_UNREACHABLE) return Infinity;
     return (c / STEP_ORTHO) * FIELD_CELL;
   }

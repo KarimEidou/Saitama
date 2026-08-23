@@ -157,34 +157,25 @@ export function createSyntheticSource(): ISyntheticInput {
       if (!enabled) return;
       if (script.length > 0) advanceScript();
 
-      if (move) {
-        out.setMove(move.x, move.y);
-        out.active = true;
-      }
-      if (look) {
-        out.setLook(look.x, look.y);
-        out.active = true;
-      }
+      if (move) out.setMove(move.x, move.y);
+      if (look) out.setLook(look.x, look.y);
       for (const [action, value] of latchedButtons) out.hold(action, value);
       for (const [action, value] of pulses) out.pulse(action, value);
       pulses.clear();
 
-      if (pointers.length > 0) {
-        out.pointers = pointers.map((p) => ({ ...p }));
-        out.active = true;
-      }
+      if (pointers.length > 0) out.pointers = pointers.map((p) => ({ ...p }));
       if (pinchOnce !== 1) {
         out.pinchDelta = pinchOnce;
-        out.active = true;
         pinchOnce = 1;
       }
       if (twistOnce !== 0) {
         out.twistDelta = twistOnce;
-        out.active = true;
         twistOnce = 0;
       }
       // A synthetic driver that is enabled is, by definition, driving — even a
-      // deliberately neutral frame is an assertion about the input.
+      // deliberately neutral frame is an assertion about the input. This is the
+      // SINGLE writer: a per-branch `out.active = true` above would only make
+      // this line look conditional.
       out.active = true;
     },
 

@@ -101,6 +101,12 @@ interface MutableContact {
 
 const tmpVecA = new THREE.Vector3();
 const tmpVecB = new THREE.Vector3();
+/**
+ * Read target for the contact normal; Rapier fills this instead of allocating.
+ * The object literal structurally satisfies Rapier's `Vector`, and the value is
+ * copied into the pooled record on the next line, so one shared target is safe.
+ */
+const tmpForceDir = { x: 0, y: 0, z: 0 };
 
 export class PhysicsWorld implements IPhysicsWorld {
   readonly gravity: THREE.Vector3;
@@ -489,7 +495,13 @@ export class PhysicsWorld implements IPhysicsWorld {
   }
 
   private stepOnce(stepLength = this.fixedStep): void {
-    for (const body of this.bodyList) body.advanceInterpolation();
+    // Disabled bodies (a debris pool is mostly free slots) cannot move, and
+    // every path that enables one re-seeds both interpolation slots itself.
+    // `isEnabled` is the wrapper's cached JS boolean, so the test is free while
+    // each body it skips saves three wasm crossings per step.
+    for (const body of this.bodyList) {
+      if (body.isEnabled) body.advanceInterpolation();
+    }
 
     this.queriesDirty = false;
     this.raw.step(this.eventQueue);
@@ -506,8 +518,10 @@ export class PhysicsWorld implements IPhysicsWorld {
     }
 
     // Sleeping bodies do not move, so only refresh the ones that can have.
+    // A DISABLED body does not report itself as sleeping, so it needs its own
+    // test — without it an idle 300-slot pool costs 900 wasm calls per step.
     for (const body of this.bodyList) {
-      if (!body.isSleeping) body.snapshot();
+      if (body.isEnabled && !body.isSleeping) body.snapshot();
     }
 
     if (this.eventQueue !== undefined) this.collectContacts();
@@ -537,7 +551,7 @@ export class PhysicsWorld implements IPhysicsWorld {
 
       // Impulse = force * dt, the quantity gameplay compares against.
       record.impulse = event.totalForceMagnitude() * this.fixedStep;
-      const dir = event.maxForceDirection();
+      const dir = event.maxForceDirection(tmpForceDir);
       record.normal.set(dir.x, dir.y, dir.z);
 
       // Approach speed along the contact normal, for audio/VFX intensity.

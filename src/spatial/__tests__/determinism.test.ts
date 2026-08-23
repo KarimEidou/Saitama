@@ -11,7 +11,7 @@
  * through `@/util`'s mulberry32 streams.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { SpatialIndex } from '../spatial-index';
 import { Quadtree } from '../quadtree';
 import { Frustum, composeViewProjection } from '../frustum';
@@ -20,7 +20,7 @@ import { buildPvs, PvsTable } from '../pvs';
 import { DynamicEntityGrid } from '../entity-grid';
 import { generateSyntheticCity, sampleStreetCameras } from '../synthetic-city';
 import { CHUNK_COUNT, CHUNK_SIZE, PVS_MASK_WORDS, chunkIndexAt } from '../constants';
-import { createRng } from '@/util';
+import { createRng, resetLogState } from '@/util';
 import { randomBoxes, randomPoses, poseMatrix, MOBILE_PORTRAIT_LENS } from './fixtures';
 
 /** A stable fingerprint of an index list, order included. */
@@ -237,6 +237,54 @@ describe('SpatialIndex facade', () => {
 
     index.dispose();
     expect(index.getStats().staticInstances).toBe(0);
+  });
+
+  it('hands out a stats snapshot that does not change under the caller', () => {
+    // `getStats()` is documented as a snapshot and every other field in
+    // `ISpatialStats` is a copied number. `lastCull` used to hand back the live
+    // object `cullFrustum` rewrites in place every frame, so a debug overlay
+    // that captured it and rendered a frame later showed the NEXT frame's cull
+    // counters beside seven fields that were a frame old.
+    const index = buildIndex();
+    const matrix = new Float64Array(16);
+    composeViewProjection(matrix, 0, 2, 0, 0, 0, (60 * Math.PI) / 180, 1, 0.3, 400);
+    index.cullFromViewProjection(matrix, 0, 0);
+
+    const snapshot = index.getStats().lastCull;
+    const visited = snapshot.nodesVisited;
+    const visible = snapshot.itemsVisible;
+
+    composeViewProjection(matrix, 300, 40, -300, 2.1, -0.3, (60 * Math.PI) / 180, 1, 0.3, 400);
+    index.cullFromViewProjection(matrix, 300, -300);
+
+    expect(snapshot.nodesVisited).toBe(visited);
+    expect(snapshot.itemsVisible).toBe(visible);
+    // ...and the live field did move on.
+    expect(index.cullStats).not.toBe(snapshot);
+  });
+
+  it('warns once when the quadtree cannot map onto streaming chunks', () => {
+    // A non-canonical tree makes `chunkNode()` -1 for every chunk, so
+    // `visibleChunks` — the documented handoff to the streaming workstream —
+    // stays empty forever. The observable failure is "nothing ever streams",
+    // with no error and no clue where to look.
+    resetLogState();
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const ok = new SpatialIndex();
+      expect(ok.quadtree.canonical).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+
+      const odd = new SpatialIndex({ quadtree: { size: 512, depth: 5 } });
+      expect(odd.quadtree.canonical).toBe(false);
+      expect(spy).toHaveBeenCalledTimes(1);
+      // warnOnce: a second offender does not repeat.
+      new SpatialIndex({ quadtree: { depth: 3 } });
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+      resetLogState();
+    }
   });
 
   it('reports a chunk whose contents overhang it even when the PVS hides it', () => {

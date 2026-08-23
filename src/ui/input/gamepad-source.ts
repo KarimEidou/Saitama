@@ -66,6 +66,11 @@ const DPAD: Readonly<Record<number, readonly [number, number]>> = Object.freeze(
   15: [1, 0],
 });
 
+/** `DPAD` pre-flattened: `sample()` runs every frame and must not allocate. */
+const DPAD_ENTRIES: readonly (readonly [number, readonly [number, number]])[] = Object.freeze(
+  Object.entries(DPAD).map(([index, vector]) => [Number(index), vector] as const)
+);
+
 /** Indices whose analogue value should be used verbatim. */
 const ANALOGUE_BUTTONS = new Set([6, 7]);
 
@@ -172,8 +177,7 @@ export function createGamepadSource(
       let mx = lx;
       let my = ly;
       // D-pad merges into the left stick, in the same square domain.
-      for (const [indexText, vector] of Object.entries(DPAD)) {
-        const index = Number(indexText);
+      for (const [index, vector] of DPAD_ENTRIES) {
         if (pad.buttons[index]?.pressed) {
           mx += vector[0];
           my += vector[1];

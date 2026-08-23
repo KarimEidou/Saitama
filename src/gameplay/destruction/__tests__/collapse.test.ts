@@ -12,10 +12,17 @@
 
 import { describe, expect, it } from 'vitest';
 import { createEventBus } from '@/util';
-import type { GameEventOf } from '@/types';
+import type { GameEventOf, LethalIntent } from '@/types';
 import { collapsingFloors as cityCollapsingFloors } from '@/world/city';
 import { DestructionSystem } from '../destruction-system';
-import { COLLAPSE_STAGGER_FRAMES } from '../constants';
+import {
+  BLAST_DELTA_V_NEAR,
+  COLLAPSE_STAGGER_FRAMES,
+  DETACH_JITTER_DELTA_V,
+  INTENT_BLAST_SCALE,
+  INTENT_RANK,
+  MINIMUM_DESTRUCTIVE_INTENT_RANK,
+} from '../constants';
 import { makeTower } from './fixtures';
 
 function setup(floors = 12) {
@@ -224,6 +231,112 @@ describe('structural collapse', () => {
       punchKind: 'normal',
     });
     expect(structure.destroyedCount).toBe(0);
+    system.dispose();
+  });
+});
+
+/**
+ * The tables are keyed by `LethalIntent`, not by `string`, so a fifth intent is
+ * a compile error in `constants.ts` rather than a punch that silently resolves
+ * to `INTENT_RANK[intent] ?? 0` — rank 0, i.e. restrained, i.e. unable to
+ * damage the city at all. That failure is invisible in a diff and
+ * indistinguishable from "destruction was never wired up".
+ */
+describe('intent tables', () => {
+  const INTENTS = [
+    'restrained',
+    'normal',
+    'serious',
+    'full',
+  ] as const satisfies readonly LethalIntent[];
+
+  it('has a finite entry per intent in both tables', () => {
+    for (const intent of INTENTS) {
+      expect(Number.isFinite(INTENT_RANK[intent])).toBe(true);
+      expect(Number.isFinite(INTENT_BLAST_SCALE[intent])).toBe(true);
+      expect(INTENT_BLAST_SCALE[intent]).toBeGreaterThan(0);
+    }
+    expect(Object.keys(INTENT_RANK).sort()).toEqual([...INTENTS].sort());
+    expect(Object.keys(INTENT_BLAST_SCALE).sort()).toEqual([...INTENTS].sort());
+  });
+
+  it('ranks and scales strictly increase with escalation', () => {
+    for (let i = 1; i < INTENTS.length; i++) {
+      expect(INTENT_RANK[INTENTS[i]!]).toBeGreaterThan(INTENT_RANK[INTENTS[i - 1]!]);
+      expect(INTENT_BLAST_SCALE[INTENTS[i]!]).toBeGreaterThan(INTENT_BLAST_SCALE[INTENTS[i - 1]!]);
+    }
+  });
+
+  it('puts the destructive threshold exactly between restrained and normal', () => {
+    // The invariant `constants.ts` states in prose: a restrained punch leaves
+    // the city alone, and a normal one does not.
+    expect(INTENT_RANK.restrained).toBeLessThan(MINIMUM_DESTRUCTIVE_INTENT_RANK);
+    expect(MINIMUM_DESTRUCTIVE_INTENT_RANK).toBeLessThanOrEqual(INTENT_RANK.normal);
+  });
+});
+
+describe('zero-mass chunks', () => {
+  it('emits the mass the impulse was built from, so impulse / mass is the delta-v', () => {
+    // `detachChunk` clamps a zero mass to 1 before multiplying the Δv by it.
+    // Emitting the raw `chunk.mass` alongside that impulse tells every consumer
+    // — `debris-pool.ts` included — that the Δv was Infinity.
+    const { layout, attribute } = makeTower({ floors: 4, massPerChunk: 0 });
+    const bus = createEventBus();
+    const detached: GameEventOf<'ChunkDetached'>[] = [];
+    bus.on('ChunkDetached', (event) => detached.push({ ...event, impulse: { ...event.impulse } }));
+    const system = new DestructionSystem({
+      bus,
+      collapsingFloors: cityCollapsingFloors,
+      seed: 'zero-mass',
+    });
+    const structure = system.register({
+      id: 'tower',
+      layout,
+      target: { destroyed: attribute },
+      position: { x: 0, y: 0, z: 0 },
+    });
+
+    expect(system.detachChunk(structure, 5, 'blast')).toBe(true);
+    expect(detached.length).toBe(1);
+    const event = detached[0]!;
+
+    expect(event.mass).toBe(1);
+    // Combat's invoice is priced from the REAL mass, which is still zero.
+    expect(event.collateralCost).toBe(0);
+    expect(system.diagnostics.destroyedMassKg).toBe(0);
+
+    for (const component of [event.impulse.x, event.impulse.y, event.impulse.z]) {
+      expect(Number.isFinite(component / event.mass)).toBe(true);
+    }
+    // ...and the reconstructed Δv lands in the band the constants describe,
+    // rather than at Infinity.
+    const deltaV = Math.hypot(event.impulse.x, event.impulse.y, event.impulse.z) / event.mass;
+    expect(deltaV).toBeGreaterThan(0);
+    expect(deltaV).toBeLessThan(BLAST_DELTA_V_NEAR + DETACH_JITTER_DELTA_V);
+    system.dispose();
+  });
+
+  it('leaves a normal chunk reporting its real mass', () => {
+    const { layout, attribute } = makeTower({ floors: 4, massPerChunk: 5200 });
+    const bus = createEventBus();
+    const detached: GameEventOf<'ChunkDetached'>[] = [];
+    bus.on('ChunkDetached', (event) => detached.push({ ...event }));
+    const system = new DestructionSystem({
+      bus,
+      collapsingFloors: cityCollapsingFloors,
+      seed: 'real-mass',
+    });
+    const structure = system.register({
+      id: 'tower',
+      layout,
+      target: { destroyed: attribute },
+      position: { x: 0, y: 0, z: 0 },
+    });
+
+    system.detachChunk(structure, 5, 'blast');
+    expect(detached[0]!.mass).toBe(5200);
+    expect(detached[0]!.collateralCost).toBe(5200);
+    expect(system.diagnostics.destroyedMassKg).toBe(5200);
     system.dispose();
   });
 });

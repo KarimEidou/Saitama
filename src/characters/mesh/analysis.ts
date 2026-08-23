@@ -226,6 +226,11 @@ export interface SkinReport {
   readonly unsortedVertices: number;
   /** How many vertices have 1, 2, 3 or 4 non-zero influences. */
   readonly influenceHistogram: readonly [number, number, number, number];
+  /**
+   * Every contract check passed: weights sum to 1, none negative, every index
+   * in range, and the four slots sorted weight-descending so slot 0 is the
+   * dominant bone. A caller that reads only one field should read this one.
+   */
   readonly ok: boolean;
 }
 
@@ -280,7 +285,7 @@ export function analyseSkinning(geometry: THREE.BufferGeometry, boneCount: numbe
     outOfRangeIndices: outOfRange,
     unsortedVertices: unsorted,
     influenceHistogram: histogram,
-    ok: maxError < 1e-5 && negative === 0 && outOfRange === 0,
+    ok: maxError < 1e-5 && negative === 0 && outOfRange === 0 && unsorted === 0,
   };
 }
 

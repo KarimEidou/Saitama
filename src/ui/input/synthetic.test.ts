@@ -328,3 +328,44 @@ describe('state helpers', () => {
     expect(inputStatesEqual(a, b, { ignoreDevice: false })).toBe(false);
   });
 });
+
+describe('the contract stays finite', () => {
+  it('a non-finite or non-positive pinch never reaches InputState', () => {
+    // `!== 1` is TRUE for NaN, so an unguarded fold lands it in a frozen
+    // snapshot; and `pinchDelta` is a RATIO the camera divides by, which makes
+    // zero and negatives as invalid as NaN.
+    const manager = makeManager();
+    manager.syntheticEnabled = true;
+    manager.synthetic.setPinch(Number.NaN);
+    expect(step(manager, 0).pinchDelta).toBe(1);
+    manager.synthetic.setPinch(0);
+    expect(step(manager, 1).pinchDelta).toBe(1);
+    manager.synthetic.setTwist(Number.NaN);
+    expect(step(manager, 2).twistDelta).toBe(0);
+  });
+
+  it('a non-finite axis component cannot poison move', () => {
+    const manager = makeManager();
+    manager.setState({ move: { x: Number.NaN, y: 0 } });
+    const state = step(manager, 0);
+    expect(Number.isFinite(state.move.magnitude)).toBe(true);
+    expect(Number.isFinite(state.move.angle)).toBe(true);
+    expect(state.move.magnitude).toBe(0);
+  });
+});
+
+describe('dispose', () => {
+  it('a disposed manager stays disposed', () => {
+    // Teardown that is not total shows up as a mystery on the second soft
+    // restart: a settings-apply after `dispose()` re-enabling a haptics sink
+    // whose plugin reference is already gone, or a stray `setState` re-arming
+    // a disposed synthetic driver.
+    const manager = createInputManager({ headless: true, exposeTestBridge: false });
+    manager.dispose();
+    manager.setTuning({ hapticsEnabled: true });
+    expect(manager.haptics.enabled).toBe(false);
+    manager.setState({ move: { x: 1, y: 0 } });
+    expect(manager.syntheticEnabled).toBe(false);
+    expect(() => manager.dispose()).not.toThrow();
+  });
+});

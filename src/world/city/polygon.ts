@@ -122,35 +122,6 @@ export function pointInPolygon(poly: Polygon, x: number, z: number): boolean {
   return inside;
 }
 
-/** True when the rectangle is entirely inside the polygon (corner test). */
-export function rectInPolygon(poly: Polygon, rect: IRect2): boolean {
-  return (
-    pointInPolygon(poly, rect.minX, rect.minZ) &&
-    pointInPolygon(poly, rect.maxX, rect.minZ) &&
-    pointInPolygon(poly, rect.maxX, rect.maxZ) &&
-    pointInPolygon(poly, rect.minX, rect.maxZ)
-  );
-}
-
-/** Squared distance from a point to the closest polygon edge. */
-export function distanceToPolygonEdgeSq(poly: Polygon, x: number, z: number): number {
-  let best = Infinity;
-  for (let i = 0, n = poly.length; i < n; i++) {
-    const a = poly[i];
-    const b = poly[(i + 1) % n];
-    const dx = b[0] - a[0];
-    const dz = b[1] - a[1];
-    const lenSq = dx * dx + dz * dz;
-    let t = lenSq > 0 ? ((x - a[0]) * dx + (z - a[1]) * dz) / lenSq : 0;
-    t = t < 0 ? 0 : t > 1 ? 1 : t;
-    const px = a[0] + dx * t - x;
-    const pz = a[1] + dz * t - z;
-    const d = px * px + pz * pz;
-    if (d < best) best = d;
-  }
-  return best;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Construction                                                               */
 /* -------------------------------------------------------------------------- */
@@ -163,26 +134,6 @@ export function rectPolygon(rect: IRect2): Polygon {
     [rect.maxX, rect.maxZ],
     [rect.minX, rect.maxZ],
   ];
-}
-
-/**
- * Inset a rectangle by a per-edge amount. Edge order is
- * `[west(-X), east(+X), north(-Z), south(+Z)]`, which is how the plan records
- * the road half-widths that bound a block.
- */
-export function insetRect(
-  rect: IRect2,
-  west: number,
-  east: number,
-  north: number,
-  south: number
-): IRect2 {
-  return {
-    minX: rect.minX + west,
-    maxX: rect.maxX - east,
-    minZ: rect.minZ + north,
-    maxZ: rect.maxZ - south,
-  };
 }
 
 /**
@@ -232,12 +183,6 @@ function edgeInwardNormal(a: Vec2, b: Vec2): Vec2 {
   if (len < 1e-9) return [0, 0];
   // Left-hand normal of the travel direction points inwards for CCW winding.
   return [-dz / len, dx / len];
-}
-
-/** Outward unit normal of edge a->b for a CCW ring. */
-export function edgeOutwardNormal(a: Vec2, b: Vec2): Vec2 {
-  const n = edgeInwardNormal(a, b);
-  return [-n[0], -n[1]];
 }
 
 /**

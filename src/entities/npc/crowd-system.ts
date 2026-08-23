@@ -39,7 +39,6 @@ import * as THREE from 'three';
 import type { EntityId, IEventBus, IQualityTier, Vec3 } from '@/types';
 import type { ICrowdSink, ICrowdSlot, CrowdMode } from '@/world/streaming';
 import { clamp01, createRng, type IRandom } from '@/util';
-import { CHUNK_SIZE } from '@/spatial/constants';
 import { ProceduralAnimator } from '@/characters/anim';
 import {
   buildHumanoid,
@@ -210,6 +209,8 @@ export class CrowdSystem implements ICrowdSink {
   private readonly callouts: IHeroCallout[] = [];
   private readonly debris: { x: number; y: number; z: number; mass: number }[] = [];
   private readonly avoidBodies: IAvoidBody[] = [];
+  /** Mutable backing records for `avoidBodies`. Grown once, reused for ever. */
+  private readonly avoidPool: { x: number; z: number; radius: number; layer: number }[] = [];
 
   /** Crowd slots published by the streaming system, keyed by chunk index. */
   private readonly chunkSlots = new Map<number, readonly ICrowdSlot[]>();
@@ -662,31 +663,21 @@ export class CrowdSystem implements ICrowdSink {
     this.avoidBodies.length = 0;
     for (const hero of this.heroes) {
       if (hero.isDead) continue;
-      this.avoidBodies.push({
-        x: hero.transform.position.x,
-        z: hero.transform.position.z,
-        radius: hero.radius,
-        layer: LAYER_HERO,
-      });
+      this.pushAvoidBody(
+        hero.transform.position.x,
+        hero.transform.position.z,
+        hero.radius,
+        LAYER_HERO
+      );
     }
     for (const threat of this.threats) {
-      this.avoidBodies.push({
-        x: threat.position.x,
-        z: threat.position.z,
-        // Monsters are big and civilians give them a very wide berth. This is
-        // avoidance radius, not collision radius: the flee field already points
-        // away, and this stops the few who are gawking from standing on its foot.
-        radius: 3.5,
-        layer: LAYER_THREAT,
-      });
+      // Monsters are big and civilians give them a very wide berth. This is
+      // avoidance radius, not collision radius: the flee field already points
+      // away, and this stops the few who are gawking from standing on its foot.
+      this.pushAvoidBody(threat.position.x, threat.position.z, 3.5, LAYER_THREAT);
     }
     if (this.playerRegistered) {
-      this.avoidBodies.push({
-        x: this.player.x,
-        z: this.player.z,
-        radius: 0.55,
-        layer: LAYER_PLAYER,
-      });
+      this.pushAvoidBody(this.player.x, this.player.z, 0.55, LAYER_PLAYER);
     }
 
     this.steering.update(this.agents, dt, this.alarm, this.flow, this.obstacles, this.avoidBodies);
@@ -710,6 +701,29 @@ export class CrowdSystem implements ICrowdSink {
 
     this.simMs = performance.now() - started;
     this.stats = this.buildStats();
+  }
+
+  /**
+   * Append one avoidance body, reusing the record from the pool.
+   *
+   * These records are write-only scratch consumed synchronously by
+   * `steering.update` in the same frame, so nothing observes their identity —
+   * and rebuilding the list from object literals would allocate four to six
+   * short-lived objects per tick of a system that is meant to be
+   * allocation-free once warm. The pool is indexed by `avoidBodies.length`, so
+   * the record handed out is always the free one.
+   */
+  private pushAvoidBody(x: number, z: number, radius: number, layer: number): void {
+    let record = this.avoidPool[this.avoidBodies.length];
+    if (record === undefined) {
+      record = { x: 0, z: 0, radius: 0, layer: 0 };
+      this.avoidPool.push(record);
+    }
+    record.x = x;
+    record.z = z;
+    record.radius = radius;
+    record.layer = layer;
+    this.avoidBodies.push(record);
   }
 
   /* ------------------------------------------------------------------ */
@@ -784,21 +798,23 @@ export class CrowdSystem implements ICrowdSink {
     this.ensureNearBodies();
   }
 
-  /** Give a near-tier agent a real body, at most one build per frame. */
+  /** Give a near-tier agent a real body, at most one BUILD per frame. */
   private ensureNearBodies(): void {
     if (this.headless) return;
     for (let i = 0; i < this.agents.extent; i++) {
       if (this.agents.active[i] === 0) continue;
       if (this.agents.tier[i] !== TIER_NEAR) continue;
       if (this.nearBodies.has(i)) continue;
+      // Only a fresh BUILD costs the ~10 ms this rate limit exists for: doing
+      // sixteen in the frame the player rounds a corner is a 160 ms stall. A
+      // POOLED body costs a map insert and `visible = true`, so throttling it
+      // buys nothing and leaves the near tier instanced for up to sixteen
+      // frames every time the band shifts.
+      const pooled = this.freeBodies.length > 0;
       const body = this.acquireBody(i);
       if (body === undefined) return;
       this.nearBodies.set(i, body);
-      // One per frame. Building a civilian mesh is ~10 ms; doing sixteen in the
-      // frame the player rounds a corner is a 160 ms stall, which is a far
-      // worse artefact than a pedestrian who is instanced for a few more
-      // frames than strictly necessary.
-      return;
+      if (!pooled) return;
     }
   }
 
@@ -1269,13 +1285,6 @@ export function makeThreat(
   tier?: IThreatSource['tier']
 ): IThreatSource {
   return { id, position, intensity, tier };
-}
-
-/** Chunk index a world position falls in, matching the streaming convention. */
-export function chunkIndexForCrowd(x: number, z: number): number {
-  const cx = Math.floor(x / CHUNK_SIZE);
-  const cz = Math.floor(z / CHUNK_SIZE);
-  return (cz + 8) * 16 + (cx + 8);
 }
 
 function emptyStats(): ICrowdStats {

@@ -133,6 +133,20 @@ describe('overrides', () => {
   it('returns the shared default when there is nothing to patch', () => {
     expect(resolvePlayerTuning()).toBe(DEFAULT_PLAYER_TUNING);
   });
+
+  it('ignores patch fields explicitly set to undefined', () => {
+    // `exactOptionalPropertyTypes` is off, so this is the shape a device
+    // profile built out of optional fields actually produces. A plain spread
+    // copies the `undefined` over the default and the first multiplication
+    // NaNs the character, with no type error anywhere.
+    const patched = resolvePlayerTuning({
+      locomotion: { runSpeed: undefined, dashSpeed: 30 },
+      camera: { armLengthM: undefined },
+    });
+    expect(patched.locomotion.runSpeed).toBe(L.runSpeed);
+    expect(patched.locomotion.dashSpeed).toBe(30);
+    expect(patched.camera.armLengthM).toBe(C.armLengthM);
+  });
 });
 
 describe('camera arm ordering', () => {

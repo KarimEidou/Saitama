@@ -58,7 +58,7 @@ import {
   IMPULSE_SEED_SECONDS,
   THREAT_SEED_RADIUS,
 } from './constants';
-import { cellCentreX, cellCentreZ, cellX, cellZ } from './obstacles';
+import { cellCentreX, cellCentreZ, cellIndexAt, cellX, cellZ } from './obstacles';
 import type { IAlarmImpulse, IThreatSource } from './types';
 
 /** Diagonal transfer is weaker by the extra distance travelled. */
@@ -127,7 +127,7 @@ export class AlarmField {
 
   /** Alarm at a world position, 0..1. Nearest-cell; agents are not sub-metre. */
   sample(x: number, z: number): number {
-    return this.valueBuffer[cellZ(z) * FIELD_DIM + cellX(x)]!;
+    return this.valueBuffer[cellIndexAt(x, z)]!;
   }
 
   /** Alarm at a cell index. */

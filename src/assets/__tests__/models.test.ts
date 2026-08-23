@@ -8,55 +8,82 @@
  * three child names in every part of a model, so the matcher has to survive
  * `LOD0_191` as well as `LOD0`.
  *
- * The scenes here are built by hand and handed to `parseModel` through a stub
- * loader: the real path needs meshopt, Draco and Basis, none of which belong in
- * a unit test, and none of which this file is about.
+ * The scenes here are built by hand and handed to `parseModel`/`parseCharacter`
+ * through a stub loader: the real path needs meshopt, Draco and Basis, none of
+ * which belong in a unit test, and none of which this file is about.
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { disposeSceneGraph, extractLodGroups, parseModel } from '../models';
+import type { IAssetLOD, IModelAsset } from '@/types';
+import { disposeSceneGraph, extractLodGroups, parseCharacter, parseModel } from '../models';
 import { missingTexture } from '../fallback';
 
-/** A `GLTFLoader` that hands back a scene the test built itself. */
-function loaderFor(scene: THREE.Object3D): GLTFLoader {
+/**
+ * A `GLTFLoader` that hands back a scene the test built itself.
+ *
+ * `parseModel` and `parseCharacter` only ever touch `loader.parseAsync`, so a
+ * five-line fake covers both of them in the default node environment — there is
+ * no GPU, meshopt or Basis obstacle to testing either.
+ */
+function loaderFor(scene: THREE.Object3D, animations: THREE.AnimationClip[] = []): GLTFLoader {
   return {
     parseAsync: async (): Promise<{
       scene: THREE.Object3D;
       animations: THREE.AnimationClip[];
     }> => ({
       scene,
-      animations: [],
+      animations,
     }),
   } as unknown as GLTFLoader;
 }
+
+/** A cube: 36 indices, i.e. 12 triangles once `countTriangles` divides. */
+function boxMesh(name: string): THREE.Mesh {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+  mesh.name = name;
+  return mesh;
+}
+
+/** The declared triangle ladder the pipeline emits: full, ~35%, ~12%. */
+const TRIANGLE_LADDER = [100, 35, 12] as const;
 
 /**
  * One part of a model, exactly as it arrives from `GLTFLoader`.
  *
  * `suffix` is what `createUniqueName` appends to every repeat of a name it has
  * already seen — every part after the first, since the pipeline names all of
- * them `LOD0`/`LOD1`/`LOD2`.
+ * them `LOD0`/`LOD1`/`LOD2`. `levelCount` goes below three for the parts a
+ * decimator stopped early on, which is what `setLodLevel`'s per-group clamp is
+ * for.
  */
-function part(name: string, suffix = ''): THREE.Object3D {
+function part(name: string, suffix = '', levelCount = 3): THREE.Object3D {
   const group = new THREE.Group();
   group.name = `${name}__LOD${suffix}`;
   group.userData = {
     lod: {
-      levels: [
-        { level: 0, triangles: 100 },
-        { level: 1, triangles: 35 },
-        { level: 2, triangles: 12 },
-      ],
+      levels: TRIANGLE_LADDER.slice(0, levelCount).map((triangles, level) => ({
+        level,
+        triangles,
+      })),
     },
   };
-  for (let level = 0; level < 3; level++) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
-    mesh.name = `LOD${level}${suffix}`;
-    group.add(mesh);
+  for (let level = 0; level < levelCount; level++) {
+    group.add(boxMesh(`LOD${level}${suffix}`));
   }
   return group;
+}
+
+/** Manifest LOD rows carrying the switch distances the pipeline baked. */
+function manifestLods(distances: readonly number[]): IAssetLOD[] {
+  return distances.map((screenDistance, level) => ({
+    level,
+    file: `mdl/x/lod${level}.glb`,
+    triangles: TRIANGLE_LADDER[level] ?? 1,
+    bytes: 1000,
+    screenDistance,
+  }));
 }
 
 function sceneOf(...parts: readonly THREE.Object3D[]): THREE.Object3D {
@@ -92,6 +119,51 @@ describe('extractLodGroups', () => {
     bare.name = 'artist_named__LOD';
     bare.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
     expect(extractLodGroups(sceneOf(bare))).toEqual([]);
+  });
+
+  it('sorts the levels even when the graph lists them out of order', () => {
+    // Node order in a GLB is whatever the exporter wrote; `setLodLevel` indexes
+    // `levels` positionally, so an unsorted group would show LOD2 for level 0.
+    const group = new THREE.Group();
+    group.name = 'wall__LOD';
+    group.add(boxMesh('LOD2'), boxMesh('LOD0'), boxMesh('LOD1'));
+    const groups = extractLodGroups(sceneOf(group));
+    expect(groups[0]!.levels.map((level) => level.level)).toEqual([0, 1, 2]);
+  });
+
+  it('counts the geometry when the node declares no triangle counts', () => {
+    const declared = part('wall');
+    expect(extractLodGroups(sceneOf(declared))[0]!.levels[0]!.triangles).toBe(100);
+
+    const undeclared = part('wall');
+    undeclared.userData = {};
+    // A `BoxGeometry(1,1,1)` is 36 indices, i.e. 12 triangles.
+    expect(extractLodGroups(sceneOf(undeclared))[0]!.levels[0]!.triangles).toBe(12);
+  });
+
+  it('falls back to a 0/25/50 ladder when the manifest declares no distances', () => {
+    // `screenDistance` is optional on `IAssetLOD`. Storing `?? 0` for an absent
+    // one made the ladder below unreachable, every level switched at 0, and
+    // `THREE.LOD` then picked level 0 at every distance — distance-based LOD
+    // silently became a no-op.
+    const lods = [0, 1, 2].map(
+      (level) =>
+        ({
+          level,
+          file: `mdl/x/lod${level}.glb`,
+          triangles: 100,
+          bytes: 10,
+        }) as unknown as IAssetLOD
+    );
+    const groups = extractLodGroups(sceneOf(part('wall')), lods);
+    expect(groups[0]!.levels.map((level) => level.screenDistance)).toEqual([0, 25, 50]);
+  });
+
+  it('keeps an explicit screenDistance of 0', () => {
+    // The shipped shape: `model.prop.barrel_stove` really is 0 / 6 / 17.1. A
+    // declared 0 is a real distance, not an absent one.
+    const groups = extractLodGroups(sceneOf(part('wall')), manifestLods([0, 6, 17.1]));
+    expect(groups[0]!.levels.map((level) => level.screenDistance)).toEqual([0, 6, 17.1]);
   });
 });
 
@@ -139,6 +211,138 @@ describe('parseModel', () => {
     // Each level carries both parts.
     expect(lod.levels.map((level) => level.object.children.length)).toEqual([2, 2, 2]);
   });
+
+  it('gives THREE.LOD the manifest switch distances', async () => {
+    const scene = sceneOf(part('wall'), part('roof', '_1'));
+    const entry = {
+      outputs: [{ tier: 'mobile', lods: manifestLods([0, 25, 60]) }],
+    } as unknown as IModelAsset;
+    const model = await parseModel(loaderFor(scene), 'model.x', bytes, entry, 1);
+    const lod = model.toThreeLOD();
+    expect(lod.name).toBe('model.x:LOD');
+    expect(lod.levels.map((level) => level.distance)).toEqual([0, 25, 60]);
+  });
+
+  it('clamps the requested level per group instead of hiding a short part', async () => {
+    // A part the decimator stopped early on has fewer levels than its
+    // neighbours. Indexing past its end would leave it invisible at range.
+    const scene = sceneOf(part('wall'), part('roof', '_1', 2));
+    const model = await parseModel(loaderFor(scene), 'model.mixed', bytes, undefined, 1);
+    model.setLodLevel(2);
+    expect(model.lodGroups[0]!.levels.map((level) => level.object.visible)).toEqual([
+      false,
+      false,
+      true,
+    ]);
+    expect(model.lodGroups[1]!.levels.map((level) => level.object.visible)).toEqual([false, true]);
+  });
+
+  it('floors and clamps a nonsensical level rather than showing nothing', async () => {
+    const model = await parseModel(
+      loaderFor(sceneOf(part('wall'))),
+      'model.x',
+      bytes,
+      undefined,
+      1
+    );
+    model.setLodLevel(-3);
+    expect(model.activeLevel).toBe(0);
+    model.setLodLevel(1.7);
+    expect(model.activeLevel).toBe(1);
+    expect(model.lodGroups[0]!.levels.map((level) => level.object.visible)).toEqual([
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  it('reports lodCount as the deepest group and triangles as the chosen level', async () => {
+    const scene = sceneOf(part('wall'), part('roof', '_1', 2));
+    const model = await parseModel(loaderFor(scene), 'model.mixed', bytes, undefined, 1);
+    expect(model.lodCount).toBe(3);
+    expect(model.triangles).toBe(200);
+    model.setLodLevel(1);
+    expect(model.triangles).toBe(70);
+    // The two-level group clamps, so it contributes its LAST level, not zero.
+    model.setLodLevel(2);
+    expect(model.triangles).toBe(47);
+  });
+
+  it('counts the scene itself when there is no LOD group to read', async () => {
+    const scene = sceneOf(boxMesh('a'), boxMesh('b'));
+    const model = await parseModel(loaderFor(scene), 'model.plain', bytes, undefined, 1);
+    expect(model.lodGroups).toHaveLength(0);
+    expect(model.triangles).toBe(24);
+  });
+
+  it('frees the graph through disposeSceneGraph on dispose()', async () => {
+    const scene = sceneOf(part('wall'));
+    const model = await parseModel(loaderFor(scene), 'model.x', bytes, undefined, 1);
+    const geometry = (model.lodGroups[0]!.levels[0]!.object as THREE.Mesh).geometry;
+    const dispose = vi.spyOn(geometry, 'dispose');
+    model.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('mesh preparation', () => {
+  const bytes = new ArrayBuffer(8);
+  const SLOTS = [
+    'map',
+    'normalMap',
+    'roughnessMap',
+    'metalnessMap',
+    'aoMap',
+    'emissiveMap',
+  ] as const;
+
+  /** A mesh with every sampled slot bound, and aoMap on glTF's UV1 convention. */
+  function texturedMaterial(): THREE.MeshStandardMaterial {
+    const material = new THREE.MeshStandardMaterial();
+    for (const slot of SLOTS) material[slot] = new THREE.Texture();
+    material.aoMap!.channel = 1;
+    return material;
+  }
+
+  function expectPrepared(material: THREE.MeshStandardMaterial, anisotropy: number): void {
+    for (const slot of SLOTS) expect(material[slot]?.anisotropy).toBe(anisotropy);
+    // These meshes have UV0 only; glTF puts occlusion on its own texCoord.
+    expect(material.aoMap?.channel).toBe(0);
+  }
+
+  it('prepares every sampled slot of a model mesh', async () => {
+    const material = texturedMaterial();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
+    const scene = await parseModel(loaderFor(sceneOf(mesh)), 'model.x', bytes, undefined, 8);
+    expectPrepared(material, 8);
+    expect(mesh.castShadow).toBe(true);
+    expect(mesh.receiveShadow).toBe(true);
+    expect(scene.scene.name).toBe('model.x');
+  });
+
+  it('prepares a character mesh the same way a model mesh is prepared', async () => {
+    // Characters are the closest thing on screen: their normal and ORM atlases
+    // shimmer at grazing angles exactly where anisotropy matters, and the
+    // character path used to apply it to `map` alone.
+    const material = texturedMaterial();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), material);
+    const clips = [new THREE.AnimationClip('idle', 1, [])];
+    const parsed = await parseCharacter(loaderFor(sceneOf(mesh), clips), 'chr.saitama', bytes, 8);
+    expectPrepared(material, 8);
+    expect(mesh.castShadow).toBe(true);
+    expect(mesh.receiveShadow).toBe(true);
+    expect(parsed.scene.name).toBe('chr.saitama');
+    expect(parsed.clips).toBe(clips);
+  });
+
+  it('prepares every material of a multi-material mesh', async () => {
+    const first = texturedMaterial();
+    const second = texturedMaterial();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), [first, second]);
+    await parseModel(loaderFor(sceneOf(mesh)), 'model.x', bytes, undefined, 4);
+    expectPrepared(first, 4);
+    expectPrepared(second, 4);
+  });
 });
 
 describe('disposeSceneGraph', () => {
@@ -184,5 +388,23 @@ describe('disposeSceneGraph', () => {
     disposeSceneGraph(sceneOf(new THREE.Mesh(geometry, material)));
     expect(geometryDispose).toHaveBeenCalledTimes(1);
     expect(materialDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('frees every material of a multi-material mesh', () => {
+    const first = new THREE.MeshStandardMaterial();
+    const second = new THREE.MeshStandardMaterial();
+    const firstDispose = vi.spyOn(first, 'dispose');
+    const secondDispose = vi.spyOn(second, 'dispose');
+    disposeSceneGraph(sceneOf(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), [first, second])));
+    expect(firstDispose).toHaveBeenCalledTimes(1);
+    expect(secondDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('walks past a node that is not a mesh without throwing', () => {
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const dispose = vi.spyOn(geometry, 'dispose');
+    const scene = sceneOf(new THREE.Group(), new THREE.Mesh(geometry));
+    expect(() => disposeSceneGraph(scene, { textures: true })).not.toThrow();
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 });

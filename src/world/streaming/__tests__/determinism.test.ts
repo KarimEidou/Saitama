@@ -16,7 +16,14 @@ import { describe, expect, it } from 'vitest';
 import { buildChunkGeometry, buildImpostorGeometry } from '../chunk-geometry';
 import { layoutChunk } from '../chunk-layout';
 import { damageSlot } from '../damage-state';
-import { DAMAGE_WORDS_PER_CHUNK, RING_R0, RING_R1, RING_R2 } from '../constants';
+import {
+  DAMAGE_WORDS_PER_CHUNK,
+  FRACTURE_HEIGHT_BANDS,
+  FRACTURE_PLAN_DIVISIONS,
+  RING_R0,
+  RING_R1,
+  RING_R2,
+} from '../constants';
 
 const SEED = 0x0c17972;
 
@@ -92,6 +99,42 @@ describe('chunk determinism', () => {
     expect(pristine.standingBuildings).toBe(9);
     expect(a.contentHash).not.toBe(pristine.contentHash);
     expect(a.buffers.vertexCount).toBeLessThan(pristine.buffers.vertexCount);
+  });
+
+  it('does not leave a parapet floating over a destroyed roof quadrant', () => {
+    // Chunk (-1, 0) is the nine-tower downtown block. Destroy ONLY the top
+    // band's +X/+Z plan cell of building 0: three cells of that band survive, so
+    // `survivingHeight` is unchanged and the parapet is still emitted at the
+    // full height. The question is whether it covers the hole.
+    const topBand = FRACTURE_HEIGHT_BANDS - 1;
+    const topCell =
+      topBand * FRACTURE_PLAN_DIVISIONS * FRACTURE_PLAN_DIVISIONS + 1 * FRACTURE_PLAN_DIVISIONS + 1;
+    const built = buildChunkGeometry(SEED, -1, 0, RING_R0, maskWith([damageSlot(0, topCell)]));
+
+    const building = layoutChunk(SEED, -1, 0).buildings[0]!;
+    const midX = (building.minX + building.maxX) * 0.5;
+    const midZ = (building.minZ + building.maxZ) * 0.5;
+    const bandTop = (building.height / FRACTURE_HEIGHT_BANDS) * topBand;
+
+    // The buffer holds the whole chunk, so the window is clamped to building 0's
+    // own footprint (plus the parapet's 0.25 m overhang and the 0.06 m a window
+    // pane stands proud) — otherwise every neighbouring tower to the +X/+Z is
+    // swept up and the case fails vacuously.
+    const margin = 0.3;
+    const p = built.buffers.positions;
+    let sampled = 0;
+    for (let i = 0; i < p.length; i += 3) {
+      const x = p[i]!;
+      const z = p[i + 2]!;
+      if (x <= midX + 1e-3 || x > building.maxX + margin) continue;
+      if (z <= midZ + 1e-3 || z > building.maxZ + margin) continue;
+      // Nothing may sit above the destroyed cell's floor in that quadrant.
+      expect(p[i + 1]!).toBeLessThanOrEqual(bandTop + 1e-3);
+      sampled++;
+    }
+    // The quadrant is not empty: the surviving bands below it are still there,
+    // so an assertion that never ran would be the real failure.
+    expect(sampled).toBeGreaterThan(0);
   });
 
   it('bakes the same impostor ring every time', () => {

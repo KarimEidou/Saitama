@@ -288,6 +288,27 @@ describe('collision', () => {
     expect(r.rig.isOccluded).toBe(false);
     expect(r.rig.diagnostics().nearestBlocker).toBe(Number.POSITIVE_INFINITY);
   });
+
+  it('clamps the over-the-shoulder offset against a wall on that side', () => {
+    // A pivot shoved into a wall is the one failure the arm sweep cannot
+    // recover from: every probe would start inside solid geometry and report
+    // zero. yaw 0 aims the arm at +Z, so the arm sweep's direction has NO x
+    // component and `wallProbe` misses all five of its rays — only the pivot's
+    // own side ray can see this wall.
+    const r = setup({ probe: wallProbe(0.2), yaw: 0 });
+    r.run(60);
+    expect(r.rig.pivotPosition.x).toBeCloseTo(0, 6); // max(0, 0.2 - probeClearanceM)
+    expect(r.rig.armLength).toBeCloseTo(C.armLengthM, 3);
+    expect(r.rig.isOccluded).toBe(false);
+  });
+
+  it('keeps the full shoulder offset when nothing is beside the character', () => {
+    // The same geometry beyond the side ray's reach: 40 m is past
+    // `pivotSideM + probeClearanceM`, so the probe misses and the offset stands.
+    const r = setup({ probe: wallProbe(40), yaw: 0 });
+    r.run(60);
+    expect(r.rig.pivotPosition.x).toBeCloseTo(C.pivotSideM, 6);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -584,5 +605,17 @@ describe('lifecycle', () => {
     r.rig.dispose();
     expect(bus.listenerCount('ShockwaveFired')).toBe(0);
     expect(() => r.run(5)).not.toThrow();
+  });
+
+  it('ignores a non-finite frame time', () => {
+    // `readLook()` multiplies the look rate by `dt`, so a NaN frame time makes
+    // even a completely idle stick destroy the yaw — permanently, since every
+    // later frame multiplies NaN by something.
+    const r = setup();
+    r.run(60);
+    const at = r.camera.position.clone();
+    r.rig.update(r.input.poll(DT), Number.NaN);
+    expect(r.camera.position.equals(at)).toBe(true);
+    expect(Number.isFinite(r.rig.yaw)).toBe(true);
   });
 });

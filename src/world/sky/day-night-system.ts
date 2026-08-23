@@ -27,6 +27,7 @@ import { DAY_LENGTH_SECONDS, INITIAL_LUNAR_AGE_DAYS, SYNODIC_MONTH_DAYS } from '
 import {
   blendSH9,
   sampleSkyBlend,
+  wrap01,
   type EnvironmentMeasurements,
   type ISkyBlend,
 } from './environment-blend';
@@ -326,8 +327,7 @@ export class DayNightSystem implements IDayNightSystem {
         lunarAgeDays: this.lunarAge,
       },
       this.lighting,
-      derived,
-      this.solar
+      derived
     );
     return derived;
   }
@@ -344,12 +344,6 @@ export class DayNightSystem implements IDayNightSystem {
       dayCount: this.days,
     });
   }
-}
-
-function wrap01(t: number): number {
-  if (!Number.isFinite(t)) return 0;
-  const w = t % 1;
-  return w < 0 ? w + 1 : w;
 }
 
 /** Signed distance from `a` to `b` around a unit circle, in (-0.5, 0.5]. */

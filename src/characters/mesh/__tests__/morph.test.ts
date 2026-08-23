@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { analyseTopology } from '../analysis';
 import { buildHumanoid, CROWD_MORPHS } from '../assemble';
 import { buildCivilian, civilianProfile, showcaseBodies } from '../characters';
 
@@ -74,6 +75,19 @@ describe('morph targets', () => {
     const b = morphed.geometry.getAttribute('position').array as Float32Array;
     expect(b.length).toBe(a.length);
     for (let i = 0; i < a.length; i++) expect(b[i]).toBe(a[i]);
+  });
+
+  it('still audits the returned build, not the discarded variants', () => {
+    // Morph variants are built through the raw path, which skips the topology
+    // audit: they are used for their position buffer alone, and the audit is
+    // the most expensive step of a build after normals. The build that IS
+    // returned must still carry a real component count.
+    const recipe = showcaseBodies()[4]!;
+    const build = buildHumanoid(recipe.profile, {
+      ...recipe.options,
+      morphTargets: CROWD_MORPHS,
+    });
+    expect(build.stats.components).toBe(analyseTopology(build.geometry).components);
   });
 
   it('emits no morph attributes when none were asked for', () => {

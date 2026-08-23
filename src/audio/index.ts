@@ -34,6 +34,7 @@ export {
   ReverbSend,
   REVERB_PRESETS,
   REVERB_PRESET_NAMES,
+  isReverbPreset,
   feedbackForRt60,
   type IReverbSettings,
   type ReverbPreset,

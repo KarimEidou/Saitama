@@ -88,7 +88,6 @@ export function hudStyles(): string {
 @property --charge{syntax:'<number>';inherits:true;initial-value:0}
 @property --fill{syntax:'<number>';inherits:true;initial-value:0}
 @property --collateral{syntax:'<number>';inherits:false;initial-value:0}
-@property --urgency{syntax:'<number>';inherits:true;initial-value:0}
 
 ${SAFE_AREA_STYLES}
 ${CSS_NUMBER_STYLES}

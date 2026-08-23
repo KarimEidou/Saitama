@@ -154,6 +154,19 @@ describe('crowd tinting', () => {
     expect(crowdColors(1234).cloth.getHex()).toBe(crowdColors(1234).cloth.getHex());
     expect(crowdColors(1234).cloth.getHex()).not.toBe(crowdColors(9999).cloth.getHex());
   });
+
+  it('counts a wardrobe that differs in any single channel as distinct', () => {
+    // The count sampled four of the twelve components and called these clones.
+    const attributes = {
+      count: 2,
+      skin: new Float32Array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5]),
+      cloth: new Float32Array([0.2, 0.3, 0.4, 0.2, 0.9, 0.4]), // only cloth.g differs
+      accent: new Float32Array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]),
+      hair: new Float32Array([0.7, 0.7, 0.7, 0.7, 0.7, 0.7]),
+      seeds: new Int32Array([1, 2]),
+    };
+    expect(distinctCrowdPalettes(attributes)).toBe(2);
+  });
 });
 
 describe('the committed manifest', () => {

@@ -133,6 +133,30 @@ const VOWELS: readonly (readonly [number, number])[] = [
   [660, 1720], // "a"
 ];
 
+/**
+ * Pick a blip unit for time `t`: the first one already free, or — when every
+ * unit is still sounding — the one that frees soonest, so an overflowing burst
+ * spreads its interruptions instead of hammering unit 0.
+ *
+ * `crowd.panic` at full intensity schedules 22 onsets across a 1.4 s spread
+ * against 10 units, each occupied for ~0.57 s, so the busy path is reached
+ * whenever the draw clusters. Falling back to unit 0 turned every overflow in a
+ * cluster into another interrupted envelope on the SAME blip — pan and formants
+ * jumping mid-note — instead of three separate voices on the three units that
+ * free first.
+ */
+export function pickBlipUnit<T extends { readonly freeAt: number }>(
+  units: readonly T[],
+  t: number
+): T | undefined {
+  let earliest: T | undefined;
+  for (const unit of units) {
+    if (unit.freeAt <= t) return unit;
+    if (earliest === undefined || unit.freeAt < earliest.freeAt) earliest = unit;
+  }
+  return earliest;
+}
+
 /* -------------------------------------------------------------------------- */
 /* The bed                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -242,6 +266,11 @@ export class CrowdBedVoice extends SustainedVoice {
 
   /** Map a nearby-civilian count onto the 0..1 density knob. */
   static densityForCount(count: number): number {
+    // A broken civilian counter must not be able to write NaN into an
+    // `AudioParam`: `clamp01` passes NaN straight through, so a NaN count
+    // reached `setIntensity` and then `linearRampToValueAtTime(NaN, …)`, which
+    // throws a `TypeError` out of the per-frame audio update.
+    if (!Number.isFinite(count)) return 0;
     // Logarithmic: the difference between 0 and 5 people is far more audible
     // than the difference between 60 and 65.
     return clamp01(Math.log10(1 + Math.max(count, 0)) / Math.log10(81));
@@ -465,7 +494,7 @@ export class CrowdReactionVoice extends SynthVoice {
     let end = t;
     for (const offset of onsets) {
       const at = t + offset;
-      const unit = this.blips.find((b) => b.freeAt <= at) ?? this.blips[0]!;
+      const unit = pickBlipUnit(this.blips, at) ?? this.blips[0]!;
       const vowel = VOWELS[rng.int(0, VOWELS.length - 1)]!;
       const hz = lerp(s.hzLo, s.hzHi, rng.next()) * p.rate;
       const bend = lerp(s.bendLo, s.bendHi, rng.next());

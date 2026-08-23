@@ -74,7 +74,11 @@ const LOOK_KEYS: Readonly<Record<string, readonly [number, number]>> = Object.fr
   Period: [1, 0],
 });
 
-/** Degrees/second applied by a held look key. Matches a full stick deflection. */
+/**
+ * Normalised deflection a held look key contributes, in the same -1..1 rate
+ * space as a gamepad right stick. 1 == full deflection ==
+ * `tuning.lookFullRateDegPerSec` after the manager folds it.
+ */
 const KEY_LOOK_RATE = 1;
 
 export interface IKeyboardSourceOptions {
@@ -142,14 +146,18 @@ export function createKeyboardSource(
 
   function onKeyDown(event: Event): void {
     const e = event as KeyboardEvent;
-    if (e.repeat) return;
     const code = e.code;
-    if (!code) return;
-    if (isBound(code)) {
-      // Tab would move focus out of the canvas; F3/backquote open dev panels.
-      if (code === 'Tab' || code === 'F3') e.preventDefault();
-      keyDown(code);
-    }
+    if (!code || !isBound(code)) return;
+    // Suppress the browser default for EVERY bound key, and do it BEFORE the
+    // auto-repeat filter: a held Space or arrow key keeps firing repeat events,
+    // and each one that escapes scrolls the host page. Space and Enter also
+    // re-activate whatever control still has focus, Tab moves focus out of the
+    // canvas, and F3/backquote open dev panels. Modifier combinations belong to
+    // the browser/OS (Ctrl+R, Cmd+L, Alt+Tab), so those are never swallowed —
+    // the modifier key's own keydown is bound and harmless to prevent.
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();
+    if (e.repeat) return;
+    keyDown(code);
   }
 
   function onKeyUp(event: Event): void {

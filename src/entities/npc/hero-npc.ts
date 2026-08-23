@@ -310,7 +310,12 @@ export class HeroNpc implements IActor {
   /* ------------------------------------------------------------------ */
 
   takeDamage(amount: number, source?: IActor, _impulse?: THREE.Vector3): number {
-    if (this.isDead || amount <= 0) return 0;
+    // A disposed ally is off the scene graph and its bus handlers are gone, but
+    // the composition root still holds a reference — so a combat resolver or a
+    // queued callback can still reach these mutators. `AllyDowned` is a
+    // headline event the HUD and progression react to, and firing it for an
+    // ally that no longer exists is a phantom failure state.
+    if (this.disposed || this.isDead || amount <= 0) return 0;
     const dealt = Math.min(this.health, amount);
     this.health -= dealt;
     this.lastAttacker = source?.id;
@@ -338,12 +343,12 @@ export class HeroNpc implements IActor {
   }
 
   heal(amount: number): void {
-    if (this.isDead) return;
+    if (this.disposed || this.isDead) return;
     this.health = Math.min(this.maxHealth, this.health + Math.max(0, amount));
   }
 
   kill(): void {
-    if (this.isDead) return;
+    if (this.disposed || this.isDead) return;
     this.health = 0;
     this.die();
   }
@@ -356,7 +361,7 @@ export class HeroNpc implements IActor {
    * without reaching inside him.
    */
   knockdown(seconds = MUMEN_DOWN_SECONDS): void {
-    if (this.isDead) return;
+    if (this.disposed || this.isDead) return;
     this.downTimer = Math.max(this.downTimer, seconds);
     this.stateMachine.transition('stagger', true);
     this.clipRequest = 'stagger';
@@ -450,6 +455,9 @@ export class HeroNpc implements IActor {
    * that way.
    */
   fireAttack(target: IThreatSource, powerScale = 1, kindOverride?: PunchKind): void {
+    // `ShockwaveFired` and `seedAlarm` both reach systems that are still alive,
+    // so a disposed ally must not still be able to hit the city.
+    if (this.disposed) return;
     const origin = this.transform.position;
     const dx = target.position.x - origin.x;
     const dz = target.position.z - origin.z;

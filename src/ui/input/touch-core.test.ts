@@ -848,4 +848,15 @@ describe('pointer samples', () => {
     const ids = rig.frame().contribution.pointers.map((p) => p.id);
     expect(ids).toEqual([2, 5, 9]);
   });
+
+  it('reset() does not allocate a new pointer list', () => {
+    // The manager resets the scratch buffer once per enabled backend per frame.
+    // Backends that have pointers ASSIGN a fresh array; the empty case must
+    // reuse the shared frozen one rather than littering the poll path.
+    const c = new InputContribution();
+    const first = c.pointers;
+    c.reset();
+    expect(c.pointers).toBe(first);
+    expect(c.pointers).toHaveLength(0);
+  });
 });

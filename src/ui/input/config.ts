@@ -12,6 +12,9 @@
  */
 
 import type { IInputConfig } from '@/types';
+import { createLogger } from '@/util';
+
+const log = createLogger('input.config');
 
 /* -------------------------------------------------------------------------- */
 /* Tuning                                                                     */
@@ -154,6 +157,10 @@ export const DEFAULT_INPUT_TUNING: IInputTuning = Object.freeze({
   gamepadDeadZone: 0.15,
 } satisfies IInputTuning);
 
+/** Default dead-zone fraction, reused when an override inverts the two radii. */
+const DEAD_ZONE_RATIO =
+  DEFAULT_INPUT_TUNING.stickDeadZonePx / DEFAULT_INPUT_TUNING.stickFullDeflectionPx;
+
 /**
  * Merge a partial override over `base` (the shipping defaults unless told
  * otherwise), keeping `stickRadius` and `stickFullDeflectionPx` in sync (they
@@ -177,5 +184,28 @@ export function resolveTuning(
   } else if (patch.stickRadius !== undefined && patch.stickFullDeflectionPx === undefined) {
     merged.stickFullDeflectionPx = patch.stickRadius;
   }
+
+  // Invariants the maths silently depends on. `radialDeflection` divides by
+  // (full - dead) and `LookSmoother` divides by `lookFullRateDegPerSec`; both
+  // clamp the denominator with an epsilon, which turns an inverted or zeroed
+  // knob into a stick with no analogue band and a camera pinned at full rate.
+  // Repair loudly rather than shipping a control that looks right and is not.
+  // (`!(a < b)` also rejects NaN.) Stays LAST so it repairs whatever the
+  // stickRadius mirror above produced.
+  if (!(merged.stickDeadZonePx < merged.stickFullDeflectionPx)) {
+    log.warn(
+      `stickDeadZonePx (${merged.stickDeadZonePx}) must be below stickFullDeflectionPx ` +
+        `(${merged.stickFullDeflectionPx}); repairing to the default ratio`
+    );
+    merged.stickDeadZonePx = merged.stickFullDeflectionPx * DEAD_ZONE_RATIO;
+  }
+  if (!(merged.lookFullRateDegPerSec > 0)) {
+    log.warn(
+      `lookFullRateDegPerSec (${merged.lookFullRateDegPerSec}) must be positive; ` +
+        `falling back to the default`
+    );
+    merged.lookFullRateDegPerSec = DEFAULT_INPUT_TUNING.lookFullRateDegPerSec;
+  }
+
   return Object.freeze(merged);
 }

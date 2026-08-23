@@ -590,6 +590,12 @@ export class Game {
     shadows.applyLightingState(dayNight.lighting);
     renderer.setLightingState(dayNight.lighting);
 
+    // Hoisted out of the `try` so the boot report can tell "the pass is running"
+    // from "the pass was asked for and threw". `systems.online` is read by
+    // somebody trying to find out why a boot went wrong, and a subsystem that
+    // appears there AND in `systems.failed` is the report lying at the one
+    // moment it matters.
+    let postOnline = false;
     if (profile.post.mode !== 'off') {
       try {
         const post = new PostProcessing({
@@ -624,6 +630,7 @@ export class Game {
         tuneBloomThreshold(post, BLOOM_THRESHOLD);
         post.setEffectIntensity('bloom', BLOOM_STRENGTH);
         renderer.setPostProcessing(post);
+        postOnline = true;
       } catch (error) {
         recordError(diagnostics, 'post-processing', error);
       }
@@ -897,6 +904,10 @@ export class Game {
 
     let audio: AudioSystem;
     let primaryAudio: AudioSystem | undefined;
+    // An audio system that is online in the sense of ticking, and silent, is
+    // not the same fact as an audio system that came up. The boot report has to
+    // say which one it got.
+    let audioBypassed = false;
     try {
       primaryAudio = new AudioSystem({ seed: WORLD_SEED });
       primaryAudio.attach(bus);
@@ -911,6 +922,7 @@ export class Game {
       // and `createWaveShaper` are the two nodes in the master chain a minimal
       // WebAudio implementation may not provide.
       audio = new AudioSystem({ seed: WORLD_SEED, bypassMaster: true });
+      audioBypassed = true;
       try {
         // ATTACHED, exactly like the system it replaces. Without this the
         // fallback subscribes to nothing: not degraded audio, a silent game
@@ -1040,7 +1052,11 @@ export class Game {
     diagnostics.systems.online = [
       'engine.renderer',
       'engine.shadows',
-      profile.post.mode === 'off' ? 'engine.post(off)' : 'engine.post',
+      profile.post.mode === 'off'
+        ? 'engine.post(off)'
+        : postOnline
+          ? 'engine.post'
+          : 'engine.post(failed)',
       'engine.impact-freeze',
       'assets.registry',
       'spatial.index',
@@ -1059,7 +1075,7 @@ export class Game {
       'gameplay.destruction',
       'gameplay.progression',
       'vfx',
-      'audio',
+      audioBypassed ? 'audio(bypass)' : 'audio',
       'ui.input',
       'ui.hud',
     ];
@@ -1735,6 +1751,9 @@ export class Game {
       // so this only ever costs a traversal, and a material it misses is a
       // three-times-too-bright object nobody can diagnose from a screenshot.
       this.shadows.registerSceneMaterials(this.scene);
+      // Same cadence, same reason: it only changes when an asset loads, and
+      // asking every frame allocates for nothing. See the method.
+      this.sampleRegistryDiagnostics();
       const bad = auditAimPoints(this.monsters, this.combat);
       if (bad.length > 0) {
         recordError(
@@ -2231,7 +2250,26 @@ export class Game {
     w.rosterBytes = this.roster.residentBytes;
     w.resolutionScale = this.renderer.governor.scale;
     w.timeScale = this.clock.timeScale;
+  }
+
+  /**
+   * Sample the asset registry's report.
+   *
+   * NOT per frame. `AssetRegistry.diagnostics()` is not a getter over cached
+   * state: it builds a fresh sixteen-field object, reduces over every resident
+   * environment, and spreads one NEW object per recorded tier miss — and the
+   * asset layer demotes per asset, so that list is not short on a desktop
+   * `high` run. Three numbers that only move when an asset loads were costing
+   * `3 + M` allocations every frame, on the main thread, in the loop whose
+   * budget this whole file is organised around.
+   *
+   * Seeded during boot, so the values are right from the first frame; only the
+   * refresh rate changes. `impostorStats` above is deliberately left alone —
+   * `ImpostorRing.getStats()` returns a stored object and allocates nothing.
+   */
+  private sampleRegistryDiagnostics(): void {
     const registry = this.registry.diagnostics();
+    const w = this.diagnostics.world;
     w.assetsMissing = registry.missing.length;
     w.assetTierMisses = registry.tierMisses.length;
     w.assetTiersUnavailable = [...registry.unavailableTiers];

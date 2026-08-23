@@ -109,11 +109,13 @@ export function createArcGridGeometry(
  * a second set of draw calls and makes the renderer darken the ground around
  * a dust cloud that is not there.
  *
- * three skips an instanced draw whose `instanceCount` is zero BEFORE it
- * touches the GL or `renderer.info`, so zeroing the count for the duration of
- * an override pass removes the object completely: no GL call, no draw counted,
- * no pollution. `visible` cannot be used because it is tested when the render
- * list is built, long before the pass knows which material it is using.
+ * three skips the DRAW of an instanced geometry whose `instanceCount` is zero
+ * (`renderInstances` returns before `drawElementsInstanced` and before
+ * `renderer.info` is touched). The program bind and uniform upload in
+ * `setProgram` still happen, so this costs state changes but rasterises
+ * nothing and pollutes neither the AO buffer nor the draw-call count.
+ * `visible` cannot be used because it is tested when the render list is built,
+ * long before the pass knows which material it is using.
  */
 export function excludeFromOverridePasses(mesh: THREE.Mesh): void {
   let saved = 0;

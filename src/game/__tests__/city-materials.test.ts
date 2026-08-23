@@ -96,4 +96,23 @@ describe('CityMaterialLibrary.adopt', () => {
 
     library.dispose();
   });
+
+  it('does not queue an id the registry served for real', () => {
+    const { registry, serve } = stubRegistry();
+    const source = registryMaterial([]);
+    serve(source); // resident BEFORE the city asks
+    const library = new CityMaterialLibrary();
+    library.useRegistry(registry);
+    const live = library.resolve(KEY) as THREE.MeshStandardMaterial;
+
+    // The real map arrived on the clone the city binds, so there is nothing
+    // left to upgrade. Queuing it anyway costs the background wave a registry
+    // round-trip and a frame, and then re-adopts a material onto itself.
+    expect(live.map).toBe(source.map);
+    expect(library.synthesised.has(KEY)).toBe(false);
+    expect(library.pendingUpgrades()).not.toContain(KEY);
+
+    library.dispose();
+    expect(library.pendingUpgrades()).toHaveLength(0);
+  });
 });

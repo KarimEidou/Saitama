@@ -202,8 +202,8 @@ export function createOrmTexture(options: IOrmOptions = {}): THREE.DataTexture {
 }
 
 /**
- * A radial falloff used as the blob-shadow decal sprite. Alpha only in the R
- * channel so it can double as a mask.
+ * A radial falloff used as the blob-shadow decal sprite. RGB is white; the
+ * falloff is in the ALPHA channel, which is what `blob-shadows.ts` samples.
  */
 export function createBlobShadowTexture(size = 64, softness = 1.6): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4);

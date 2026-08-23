@@ -113,6 +113,7 @@ export {
   buildSave,
   type ISaveBackend,
   type ISaveExtras,
+  type IRivalSaveEntry,
   type IStoredSave,
   type ISaveManagerOptions,
   type ISaveValidationIssue,

@@ -57,11 +57,13 @@ import type {
   IStreamingSystem,
   IWorldConfig,
 } from '@/types';
+import { createLogger } from '@/util';
 import {
   CHUNK_COUNT,
   CHUNK_GRID,
   CHUNK_SIZE,
   chunkIndex,
+  chunkIndexAt,
   chunkIndexToX,
   chunkIndexToZ,
   isChunkInWorld,
@@ -103,6 +105,15 @@ import { StreamedChunk, type IChunkHost } from './chunk';
 import { StreamingMaterials, type IStreamingMaterialOptions } from './materials';
 import { ImpostorRing, type IImpostorStats } from './impostor-ring';
 import type { IChunkBuildResult, IColliderBox, ICrowdSlot, WorkerResponse } from './protocol';
+
+/**
+ * Rate-limited, namespaced, and level-filtered — which a bare console call
+ * inside a per-chunk failure path is none of. `dispatch()` keeps several jobs
+ * in flight continuously, so one systematically failing build (a bad generator
+ * id, a throw inside `buildChunkGeometry`) emits one error per job for as long
+ * as the camera keeps asking, and the logging becomes the hitch.
+ */
+const log = createLogger('world:streaming');
 
 /* -------------------------------------------------------------------------- */
 /* Injection points                                                           */
@@ -182,6 +193,15 @@ export interface IStreamingDetailedStats extends IStreamingStats {
   readonly frame: number;
   readonly chunksByRing: readonly number[];
   readonly queued: number;
+  /** Frames the longest-waiting queued build has waited. 0 when nothing is queued. */
+  readonly queueAgeFrames: number;
+  /**
+   * Chunks the LAST assignment pass placed in each ring, indexed R0..R3.
+   *
+   * Distinct from `chunksByRing`, which counts the ring each resident chunk was
+   * BUILT at: the gap between the two is work the budget has not caught up on.
+   */
+  readonly chunksByAssignedRing: readonly number[];
   readonly inFlight: number;
   readonly readyToUpload: number;
   /** Uploads performed in the last frame. Must never exceed the cap. */
@@ -344,7 +364,10 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
       workerCount: options.workerCount ?? STREAMING_WORKER_COUNT,
       inline: options.inlineWorkers,
       onResult: (response) => this.onWorkerResult(response),
-      onError: (message) => console.error(`[streaming] ${message}`),
+      // Keyed on the message, not on a constant: two DIFFERENT failures are
+      // both reported, while one repeated failure is reported at most once a
+      // second instead of once per job.
+      onError: (message) => log.throttle(`worker:${message}`, 1000, `worker: ${message}`),
     });
 
     this.impostorRing.attach(this.scene);
@@ -1084,11 +1107,16 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
     }
     const poolStats = this.pool.stats();
     const damageStats = this.damage.stats();
+    const oldestQueued = this.queue.oldestEnqueuedFrame();
+    const assignedByRing: number[] = [];
+    for (let ring = 0; ring < RING_COUNT; ring++) assignedByRing.push(this.rings.countFor(ring));
     return {
       ...this.getStats(),
       frame: this.frame,
       chunksByRing: byRing,
       queued: this.queue.size,
+      queueAgeFrames: oldestQueued < 0 ? 0 : this.frame - oldestQueued,
+      chunksByAssignedRing: assignedByRing,
       inFlight: this.pool.inFlight,
       readyToUpload: this.ready.length,
       uploadsLastFrame: this.uploadsLastFrame,
@@ -1189,9 +1217,16 @@ export class StreamingSystem implements IStreamingSystem, IChunkHost {
   }
 }
 
-/** Dense chunk index for a world position, or -1 outside the world. */
+/**
+ * Dense chunk index for a world position, or -1 outside the world.
+ *
+ * Delegates to `@/spatial/constants`: chunk addressing has exactly one
+ * definition in this codebase, and a second copy of the formula here would be
+ * free to drift from the index the PVS bit, the damage mask key and the
+ * residency texel are all the same number for.
+ */
 export function chunkIndexForPosition(x: number, z: number): number {
-  return chunkIndex(worldToChunkX(x), worldToChunkZ(z));
+  return chunkIndexAt(x, z);
 }
 
 /** Signed chunk coordinate for a dense index. */

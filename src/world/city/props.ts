@@ -75,6 +75,9 @@ export const PROP_ASSETS = {
   ],
 } as const;
 
+/** Scatter group names, keyed off the table above so the two cannot drift. */
+type PropGroup = keyof typeof PROP_ASSETS;
+
 /** Every prop id the city can place, for preloading. */
 export function allPropAssetKeys(): string[] {
   const out = new Set<string>();
@@ -83,7 +86,7 @@ export function allPropAssetKeys(): string[] {
 }
 
 /** Relative weights over the scatter groups, per zone kind. */
-const ZONE_SCATTER: Readonly<Record<ZoneKind, Readonly<Record<string, number>>>> = {
+const ZONE_SCATTER: Readonly<Record<ZoneKind, Readonly<Partial<Record<PropGroup, number>>>>> = {
   downtown: { sidewalk: 6, shopping: 2, vehicle: 2, alley: 1 },
   shopping: { shopping: 6, sidewalk: 5, alley: 2, vehicle: 1 },
   apartment: { sidewalk: 5, alley: 3, vehicle: 3 },
@@ -98,10 +101,11 @@ const ZONE_SCATTER: Readonly<Record<ZoneKind, Readonly<Record<string, number>>>>
 /** Pick a prop asset appropriate to a zone. */
 export function pickProp(zone: ZoneKind, rng: IRandom): string {
   const table = ZONE_SCATTER[zone];
-  const groups = Object.keys(table).sort();
-  const weights = groups.map((g) => table[g]);
-  const group = rng.weighted(groups, weights) as keyof typeof PROP_ASSETS;
-  const list = PROP_ASSETS[group];
+  // Object.keys widens to string[]; the group names themselves are checked at
+  // the declaration above, which is the part that can actually be got wrong.
+  const groups = (Object.keys(table) as PropGroup[]).sort();
+  const weights = groups.map((g) => table[g] ?? 0);
+  const list = PROP_ASSETS[rng.weighted(groups, weights)];
   return list[rng.int(0, list.length - 1)];
 }
 

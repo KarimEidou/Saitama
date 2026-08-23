@@ -13,8 +13,10 @@
  * arriving second.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
+import { CHUNK_GRID } from '@/spatial/constants';
+import { resetLogState } from '@/util';
 import { StreamingMaterials } from '../materials';
 
 /** The smallest thing the residency injection will accept. */
@@ -117,6 +119,102 @@ describe('injected impostor material', () => {
     const shader = makeShader();
     materials.impostor.onBeforeCompile(shader, renderer);
     expect(shader.vertexShader).not.toContain('uResidency');
+    materials.dispose();
+  });
+
+  it('warns once instead of silently disabling suppression on a hookless material', () => {
+    // A ShaderMaterial has neither `#include`, so both `String.replace` calls
+    // would return their input unchanged and report nothing — the impostor then
+    // draws over every streamed chunk for the rest of the session.
+    resetLogState();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const raw = new THREE.ShaderMaterial({
+      vertexShader: 'void main(){ gl_Position = vec4(0.0); }',
+      fragmentShader: 'void main(){ gl_FragColor = vec4(1.0); }',
+    });
+    const materials = new StreamingMaterials({ impostorMaterial: raw });
+
+    const shader = {
+      uniforms: {},
+      vertexShader: raw.vertexShader,
+      fragmentShader: raw.fragmentShader,
+    } as unknown as THREE.WebGLProgramParametersWithUniforms;
+    raw.onBeforeCompile(shader, renderer);
+    raw.onBeforeCompile(shader, renderer);
+
+    // Once, not once per compile: a warning fired from a hot path is its own
+    // performance problem.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(shader.vertexShader).not.toContain('aChunkId');
+    expect(shader.uniforms['uResidency']).toBeUndefined();
+
+    warn.mockRestore();
+    materials.dispose();
+    raw.dispose();
+  });
+});
+
+describe('material ownership', () => {
+  it('names only the materials it creates', () => {
+    const owned = new StreamingMaterials();
+    expect(owned.chunk.name).toBe('streaming.chunk');
+    expect(owned.impostor.name).toBe('streaming.impostor');
+    owned.dispose();
+
+    // An injected material's name may key a material-library lookup or a debug
+    // filter. `ownsChunk`/`ownsImpostor` already gate disposal; naming was the
+    // one place they were ignored.
+    const mine = new THREE.MeshLambertMaterial({ vertexColors: true });
+    mine.name = 'city.facade';
+    const injected = new StreamingMaterials({ chunkMaterial: mine });
+    expect(injected.chunk).toBe(mine);
+    expect(mine.name).toBe('city.facade');
+    injected.dispose();
+    mine.dispose();
+  });
+
+  it('disposes only the materials it created', () => {
+    let disposed = false;
+    const mine = new THREE.MeshBasicMaterial();
+    mine.addEventListener('dispose', () => {
+      disposed = true;
+    });
+
+    const materials = new StreamingMaterials({ impostorMaterial: mine });
+    materials.dispose();
+    expect(disposed).toBe(false);
+
+    mine.dispose();
+    expect(disposed).toBe(true);
+  });
+});
+
+describe('the residency grid', () => {
+  it('writes the grid and bumps the texture version only on a change', () => {
+    const materials = new StreamingMaterials();
+    const data = materials.residency.image.data as Uint8Array;
+
+    const v0 = materials.residency.version;
+    materials.setResident(5, true);
+    expect(data[5]).toBe(255);
+    expect(materials.residentCount()).toBe(1);
+    // `THREE.Texture.needsUpdate` is a setter with no getter, so the upload is
+    // only observable through `version`.
+    expect(materials.residency.version).toBeGreaterThan(v0);
+
+    const v1 = materials.residency.version;
+    materials.setResident(5, true);
+    expect(materials.residency.version).toBe(v1);
+
+    // Out of range on both ends: 256 bytes of texture, and a stray write would
+    // suppress the wrong chunk or corrupt neighbouring texels.
+    materials.setResident(-1, true);
+    materials.setResident(CHUNK_GRID * CHUNK_GRID, true);
+    expect(materials.residentCount()).toBe(1);
+
+    materials.clearResidency();
+    expect(materials.residentCount()).toBe(0);
+    expect(data[5]).toBe(0);
     materials.dispose();
   });
 });

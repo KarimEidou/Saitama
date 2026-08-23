@@ -40,12 +40,18 @@ export interface ISaveBackend {
   keys(): Promise<readonly string[]>;
 }
 
+/** One rival's row in the save file. */
+export interface IRivalSaveEntry {
+  points: number;
+  shared: number;
+  offscreen: number;
+  joint: number;
+}
+
 /** Extra state the shared `ISaveGame` contract has no field for. */
 export interface ISaveExtras {
   /** Rival standings, keyed by rival id. */
-  readonly rivals?: Readonly<
-    Record<string, { points: number; shared: number; offscreen: number; joint: number }>
-  >;
+  readonly rivals?: Readonly<Record<string, IRivalSaveEntry>>;
   /** Heroic deeds recorded this session, for the "how did I get here" screen. */
   readonly heroicDeeds?: readonly string[];
   /** Lunar age in days, so the sky reloads identically. */

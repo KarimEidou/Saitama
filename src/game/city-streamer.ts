@@ -701,6 +701,15 @@ export class CityStreamer {
   private focusChunkX = 0;
   private focusChunkZ = 0;
   private focusValid = false;
+  /**
+   * Teardown is TERMINAL — see `dispose()`.
+   *
+   * Every entry point checks it, because `focusValid` survives teardown and a
+   * single late call would otherwise regenerate chunks into a scene the game
+   * has torn down, create Rapier bodies in a disposed `PhysicsWorld` and
+   * register structures with a disposed `DestructionSystem`.
+   */
+  private disposed = false;
 
   /** Buildings the 16-slot budget could not address. Surfaced, never aliased. */
   unaddressableBuildings = 0;
@@ -861,19 +870,38 @@ export class CityStreamer {
    * caller's, and the harnesses supply their own.
    */
   attachProps(resolveModel: PropResolver): number {
+    if (this.disposed) return 0;
     this.resolveModel = resolveModel;
     const matrix = new THREE.Matrix4();
     let added = 0;
     for (const chunk of this.resident.values()) {
       if (chunk.props.length > 0) continue;
-      let complete = true;
-      const meshes: THREE.InstancedMesh[] = [];
-      for (const batch of chunk.build.instances) {
+      const batches = chunk.build.instances;
+      if (batches.length === 0) continue;
+
+      // ── RESOLVE EVERY BATCH BEFORE BUILDING ANYTHING ────────────────────
+      // All or nothing per chunk: a half-populated street that fills in over
+      // the next few seconds is more distracting than one that arrives at
+      // once. But a chunk that cannot be completed must cost LOOKUPS and
+      // nothing else. Building the meshes first allocates a `count × 16`
+      // Float32Array per batch and writes every matrix into it, only to
+      // discover a later batch is missing and dispose the lot — and this runs
+      // again over every propless resident chunk after EVERY chunk build, i.e.
+      // every 0.4 s while the world streams. A model that never loads (the
+      // resolver memoises a failed lookup) would rebuild and discard that
+      // chunk's whole prop set for the rest of the session.
+      const models: { geometry: THREE.BufferGeometry; material: THREE.Material }[] = [];
+      for (const batch of batches) {
         const model = resolveModel(batch.assetKey);
-        if (model === undefined) {
-          complete = false;
-          continue;
-        }
+        if (model === undefined) break;
+        models.push(model);
+      }
+      if (models.length !== batches.length) continue;
+
+      const meshes: THREE.InstancedMesh[] = [];
+      for (let b = 0; b < batches.length; b++) {
+        const batch = batches[b]!;
+        const model = models[b]!;
         const mesh = new THREE.InstancedMesh(
           instanceableGeometry(model.geometry),
           model.material,
@@ -888,12 +916,6 @@ export class CityStreamer {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         meshes.push(mesh);
-      }
-      // All or nothing per chunk: a half-populated street that fills in over
-      // the next few seconds is more distracting than one that arrives at once.
-      if (!complete || meshes.length === 0) {
-        for (const mesh of meshes) mesh.dispose();
-        continue;
       }
       for (const mesh of meshes) chunk.group.add(mesh);
       chunk.props.push(...meshes);
@@ -934,6 +956,7 @@ export class CityStreamer {
    * pending queue. No geometry is generated here.
    */
   setFocus(x: number, z: number): void {
+    if (this.disposed) return;
     const cx = Math.floor(x / CHUNK_SIZE);
     const cz = Math.floor(z / CHUNK_SIZE);
     if (this.focusValid && cx === this.focusChunkX && cz === this.focusChunkZ) return;
@@ -954,6 +977,7 @@ export class CityStreamer {
    * over and the world would simply stop arriving.
    */
   update(dt: number): boolean {
+    if (this.disposed) return false;
     this.sinceLastBuild += dt;
     if (this.sinceLastBuild < STREAM_INTERVAL_SECONDS) return false;
     const next = this.pending.shift();
@@ -965,7 +989,7 @@ export class CityStreamer {
 
   /** Build everything within `radius` of the focus now. The boot path. */
   buildImmediate(radius: number): void {
-    if (!this.focusValid) return;
+    if (this.disposed || !this.focusValid) return;
     for (let d = 0; d <= radius; d++) {
       for (let cz = this.focusChunkZ - d; cz <= this.focusChunkZ + d; cz++) {
         for (let cx = this.focusChunkX - d; cx <= this.focusChunkX + d; cx++) {
@@ -1019,6 +1043,7 @@ export class CityStreamer {
     // fell out of `wanted`, because collider residency is maintained from the
     // same number — and the chunks that need promoting are precisely the ones
     // still wanted.
+    let evicted = 0;
     for (const [index, chunk] of this.resident) {
       const distance = Math.max(
         Math.abs(chunk.cx - this.focusChunkX),
@@ -1026,10 +1051,20 @@ export class CityStreamer {
       );
       if (!wanted.has(index) && distance > this.residentRadius + 1) {
         this.evict(index);
+        evicted++;
         continue;
       }
       this.refreshColliders(chunk, distance);
     }
+    // `SpatialIndex.refit` documents itself as optional because queries do it
+    // lazily — which means the frame that culls next pays for it, inside the
+    // CAMERA phase, which is the one place this design says it must not be.
+    // `evict` releases up to seven static handles per chunk and a boundary
+    // crossing can evict a whole ring at once, so: once per rescore rather
+    // than once per chunk, and the cost lands in the streaming budget where it
+    // belongs. `dispose()` deliberately does not do this — the whole index is
+    // torn down immediately afterwards.
+    if (evicted > 0) this.spatial?.refit();
     this.onResidencyChanged?.(this.chunks);
   }
 
@@ -1362,7 +1397,22 @@ export class CityStreamer {
     log.debug(`evicted chunk (${chunk.cx},${chunk.cz})`);
   }
 
+  /**
+   * Terminal teardown. A streamer is never restarted — a fresh one is built.
+   *
+   * The flag is the point, and it matches `Game`'s own. Without it the object
+   * is fully live after this returns: `focusValid` is still true, so a later
+   * `buildImmediate()` or `update()` regenerates chunks into a scene the game
+   * has torn down, creates Rapier bodies in a disposed `PhysicsWorld` and
+   * re-registers structures with a disposed `DestructionSystem`; a second
+   * `dispose()` re-disposes the impostor ring and the residency texture. The
+   * windows are real — `Game.loadRemainingMaterials()` reaches
+   * `attachProps(...)` after an `await`, and a dispose landing in that gap
+   * already calls into a torn-down streamer.
+   */
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     for (const index of [...this.resident.keys()]) this.evict(index);
     this.pending.length = 0;
     this.slotCursor.clear();

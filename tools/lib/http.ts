@@ -29,7 +29,7 @@
  */
 
 import { createWriteStream } from 'node:fs';
-import { mkdir, open, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -136,11 +136,6 @@ export class Limiter {
       if (next) next();
       else this.active -= 1;
     }
-  }
-
-  /** Run every task through the limiter, preserving input order in the result. */
-  async all<T>(tasks: readonly (() => Promise<T>)[]): Promise<T[]> {
-    return Promise.all(tasks.map((t) => this.run(t)));
   }
 }
 
@@ -421,19 +416,5 @@ export async function supportsRange(url: string): Promise<boolean> {
     return response.status === 206;
   } finally {
     release();
-  }
-}
-
-/** Read a file's size, or undefined when it does not exist. */
-export async function fileSize(filePath: string): Promise<number | undefined> {
-  try {
-    const handle = await open(filePath, 'r');
-    try {
-      return (await handle.stat()).size;
-    } finally {
-      await handle.close();
-    }
-  } catch {
-    return undefined;
   }
 }

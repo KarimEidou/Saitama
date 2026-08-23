@@ -303,8 +303,14 @@ export class ShockwaveLayer {
     const radius = this.radiusOf(index);
     const half = this.halfAngle[index]!;
     if (this.kind[index]! < 0.5) {
-      const flatLength = Math.hypot(this.dx[index]!, this.dz[index]!) || 1;
-      const baseAngle = Math.atan2(this.dx[index]! / flatLength, this.dz[index]! / flatLength);
+      // SHOCKWAVE_VERTEX falls back to +Z below 1e-4, not only at exactly zero.
+      // Matching that threshold is what keeps this sample on the arc that is
+      // actually drawn when a punch is aimed all but straight up.
+      const flatLength = Math.hypot(this.dx[index]!, this.dz[index]!);
+      const baseAngle =
+        flatLength > 1e-4
+          ? Math.atan2(this.dx[index]! / flatLength, this.dz[index]! / flatLength)
+          : 0;
       const azimuth = baseAngle + (u - 0.5) * 2 * half;
       out.set(
         this.ox[index]! + Math.sin(azimuth) * radius,

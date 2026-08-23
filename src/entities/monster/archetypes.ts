@@ -976,6 +976,30 @@ const BY_ID: ReadonlyMap<string, IMonsterArchetype> = new Map(
   MONSTER_ARCHETYPES.map((entry) => [entry.id, entry])
 );
 
+/* -------------------------------------------------------------------------- */
+/* Director lookups — memoised                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The director's candidate set. Constant for the life of the process.
+ *
+ * `SpawnDirector.placeOne` asks for one of these on every placement attempt
+ * that survives the ring, separation and tier gates, and a peak wave is three
+ * orders at up to twelve attempts each. The inputs are a frozen module-level
+ * table and a seven-value enum, so the answers are constants — computed at
+ * most 7 x 6 times for the life of the process instead of two throwaway arrays
+ * per call.
+ *
+ * Table order is preserved throughout (`filter` on `SPAWNABLE` keeps it), and
+ * `rng.pick`/`rng.weighted` are non-mutating, so every determinism replay is
+ * byte-identical.
+ */
+const SPAWNABLE: readonly IMonsterArchetype[] = Object.freeze(
+  MONSTER_ARCHETYPES.filter((a) => !a.isBoss && !a.summonOnly)
+);
+const BY_TIER = new Map<ThreatTier, readonly IMonsterArchetype[]>();
+const BY_DISTRICT = new Map<string, readonly IMonsterArchetype[]>();
+
 /** Look up an archetype. Throws on an unknown id — a typo is a bug, not data. */
 export function monsterArchetype(id: string): IMonsterArchetype {
   const found = BY_ID.get(id);
@@ -992,12 +1016,16 @@ export function findMonsterArchetype(id: string): IMonsterArchetype | undefined 
 
 /** Everything the spawn director may place: mooks that are not summon-only. */
 export function spawnableArchetypes(): readonly IMonsterArchetype[] {
-  return MONSTER_ARCHETYPES.filter((a) => !a.isBoss && !a.summonOnly);
+  return SPAWNABLE;
 }
 
 /** Spawnable archetypes at one tier, in table order. */
 export function archetypesForTier(tier: ThreatTier): readonly IMonsterArchetype[] {
-  return spawnableArchetypes().filter((a) => a.threatTier === tier);
+  const cached = BY_TIER.get(tier);
+  if (cached !== undefined) return cached;
+  const built = Object.freeze(SPAWNABLE.filter((a) => a.threatTier === tier));
+  BY_TIER.set(tier, built);
+  return built;
 }
 
 /**
@@ -1012,14 +1040,21 @@ export function archetypesForDistrict(
   district: DistrictType,
   tier?: ThreatTier
 ): readonly IMonsterArchetype[] {
-  return spawnableArchetypes().filter((a) => {
-    if (tier !== undefined && a.threatTier !== tier) return false;
-    const districts = a.spawnDistricts;
-    return districts === undefined || districts.length === 0 || districts.includes(district);
-  });
+  const key = `${district}|${tier ?? '*'}`;
+  const cached = BY_DISTRICT.get(key);
+  if (cached !== undefined) return cached;
+  const source = tier === undefined ? SPAWNABLE : archetypesForTier(tier);
+  const built = Object.freeze(
+    source.filter((a) => {
+      const districts = a.spawnDistricts;
+      return districts === undefined || districts.length === 0 || districts.includes(district);
+    })
+  );
+  BY_DISTRICT.set(key, built);
+  return built;
 }
 
 /** The four named bosses, in encounter order. */
 export function bossArchetypes(): readonly IMonsterArchetype[] {
-  return MONSTER_ARCHETYPES.filter((a) => a.isBoss);
+  return BOSSES;
 }

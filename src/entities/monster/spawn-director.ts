@@ -377,7 +377,6 @@ export class SpawnDirector {
     const rng = this.rng.derive(`wave:${waveId}`);
 
     const unscripted = this.countUnscripted(context.live);
-    let placed = 0;
 
     for (let i = 0; i < size; i++) {
       if (unscripted + this.orders.length >= this.policy.maxActive) {
@@ -389,10 +388,13 @@ export class SpawnDirector {
       this.orders.push(order);
       this.activeByTier[order.tier]++;
       this.ordersIssued++;
-      placed++;
     }
-
-    if (placed === 0 && this.lastRejection === undefined) this.reject('noPlacement');
+    // There used to be a `'noPlacement'` rejection here for a wave that placed
+    // nothing while `lastRejection` was still undefined. It could never fire:
+    // `lastRejection` is only ever cleared by `reset()`, and every path to an
+    // empty wave has already rejected at least once — the budget break above
+    // rejects `'maxActive'`, and `placeOne` records exactly one reason per
+    // failed attempt before returning undefined.
   }
 
   /** One placement attempt loop. Returns undefined when the wave slot is lost. */
@@ -550,7 +552,17 @@ export class SpawnDirector {
       ordersIssued: this.ordersIssued,
       ordersRejected: this.ordersRejected,
       lastRejection: this.lastRejection,
-      nextWaveIn: Math.max(0, this.waveTimer),
+      // A state that issues no waves is not "due one now": report the time left
+      // in it instead, since `advancePacing` gives the next state a wave within
+      // 1.5 s of the flip. `waveTimer` runs arbitrarily negative during
+      // `cooldown` (it is decremented before the size check bails), so the
+      // clamp below would otherwise pin at 0 for the whole 18 s — telling a HUD
+      // a wave is imminent throughout the one state whose purpose is that none
+      // is coming.
+      nextWaveIn:
+        this.policy.waveSizeByState[this.pacing] > 0
+          ? Math.max(0, this.waveTimer)
+          : Math.max(0, this.policy.stateSecondsByState[this.pacing] - this.secondsInState),
     };
   }
 

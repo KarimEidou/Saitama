@@ -142,7 +142,6 @@ export type {
   ICombatTarget,
   IEncounterResult,
   IEncounterStartLike,
-  IHeroismReport,
   IMutableVec3,
   IPunchOutcome,
   IPunchRequest,

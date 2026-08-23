@@ -112,6 +112,7 @@ export class EnvironmentLoader {
   private readonly ktx2: KTX2Loader;
   private readonly usePmrem: boolean;
   private pmremGenerator: THREE.PMREMGenerator | undefined;
+  private pmremCompiled = false;
 
   constructor(options: IEnvironmentLoaderOptions) {
     this.renderer = options.renderer;
@@ -162,7 +163,14 @@ export class EnvironmentLoader {
     if (this.usePmrem && !fallback) {
       try {
         this.pmremGenerator ??= new THREE.PMREMGenerator(this.renderer);
-        this.pmremGenerator.compileEquirectangularShader();
+        if (!this.pmremCompiled) {
+          // Once per loader, not once per map: linking this program is the
+          // expensive half of PMREM and it is the reason the generator is owned
+          // by the loader rather than created per environment. A throw here
+          // leaves the flag false, so the next map retries exactly as before.
+          this.pmremGenerator.compileEquirectangularShader();
+          this.pmremCompiled = true;
+        }
         target = this.pmremGenerator.fromEquirectangular(texture);
         pmrem = target.texture;
       } catch (error) {
@@ -207,5 +215,7 @@ export class EnvironmentLoader {
   dispose(): void {
     this.pmremGenerator?.dispose();
     this.pmremGenerator = undefined;
+    // A reused loader gets a fresh generator, so its shader must be linked again.
+    this.pmremCompiled = false;
   }
 }

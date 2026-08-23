@@ -44,19 +44,13 @@ export {
 
 export { RegisteredStructure, type DetachCause } from './structure';
 
-export { CollapseScheduler, type CollapseDrainFn, type ICollapseEntry } from './collapse-scheduler';
+export { CollapseScheduler, type CollapseDrainFn } from './collapse-scheduler';
 
 export { DebrisShapePool } from './debris-shapes';
 
 export { collapsingFloors, remainingSupport } from './support';
 
-export {
-  bandForFloor,
-  chunkMatchesPiece,
-  damageSlot,
-  pieceForChunk,
-  quadrantForPlanQuarter,
-} from './damage-address';
+export { bandForFloor, damageSlot, pieceForChunk } from './damage-address';
 
 export {
   aabbInCone,

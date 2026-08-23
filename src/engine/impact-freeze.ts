@@ -208,13 +208,6 @@ export class ImpactFreeze implements IDisposable {
   /* ---------------------------------------------------------------------- */
 
   /**
-   * Advance the freeze.
-   *
-   * @param unscaledDt REAL seconds since the last frame — `IGameClock.rawDelta`.
-   *                   Passing the scaled delta here stretches a 90ms hit-stop
-   *                   into more than two seconds.
-   */
-  /**
    * Hold duration for the CURRENT intensity. A weak hit (a lethal jab) gets a
    * crisp stop; a full-power kill gets the whole cinematic beat.
    */
@@ -222,6 +215,13 @@ export class ImpactFreeze implements IDisposable {
     return this.holdSeconds * (MIN_HOLD_FRACTION + (1 - MIN_HOLD_FRACTION) * this.intensity);
   }
 
+  /**
+   * Advance the freeze.
+   *
+   * @param unscaledDt REAL seconds since the last frame — `IGameClock.rawDelta`.
+   *                   Passing the scaled delta here stretches a 90ms hit-stop
+   *                   into more than two seconds.
+   */
   update(unscaledDt: number): void {
     if (!this.active || this.disposed) return;
     this.elapsed += unscaledDt;

@@ -49,6 +49,10 @@ const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
   powerPreference: 'high-performance',
+  // The driver screenshots `#stage` several CDP round-trips after the last
+  // render() returns; without this the buffer can be composited away and read
+  // back black. Same reason as anim.ts, humanoid.ts and roster.ts.
+  preserveDrawingBuffer: true,
 });
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -414,13 +418,31 @@ function getView(name: ViewName): IView {
 /* Rendering and readout                                                      */
 /* -------------------------------------------------------------------------- */
 
+let lastWidth = 0;
+let lastHeight = 0;
+
 function resize(): void {
   const width = canvas.clientWidth || 1280;
   const height = canvas.clientHeight || 720;
+  // `render()` calls this every frame. Assigning `canvas.width`/`height`
+  // reallocates and clears the drawing buffer even when the value is unchanged,
+  // and `WebGLRenderer.setSize` assigns unconditionally — so guard the call.
+  if (width === lastWidth && height === lastHeight) return;
+  lastWidth = width;
+  lastHeight = height;
   renderer.setSize(width, height, false);
+  // Only reached on a real size change, which is correct: a view built between
+  // two same-size renders already took the live `aspect()` at construction.
+  const a = width / height;
   for (const view of views.values()) {
     if (view.camera instanceof THREE.PerspectiveCamera) {
-      view.camera.aspect = width / height;
+      view.camera.aspect = a;
+      view.camera.updateProjectionMatrix();
+    } else if (view.camera instanceof THREE.OrthographicCamera) {
+      // Map view: keep the 800 m half-height and re-derive the horizontal extent.
+      const half = (view.camera.top - view.camera.bottom) / 2;
+      view.camera.left = -half * a;
+      view.camera.right = half * a;
       view.camera.updateProjectionMatrix();
     }
   }
@@ -552,6 +574,8 @@ declare global {
   interface Window {
     __CITY_HARNESS__: {
       ready: boolean;
+      /** Set when `boot()` threw. `ready` still flips, so the driver can read it. */
+      error?: string;
       setView(name: ViewName): IHarnessStats;
       stats(): IHarnessStats | undefined;
       render(): IHarnessStats;
@@ -618,4 +642,11 @@ async function boot(): Promise<void> {
   window.__CITY_HARNESS__.ready = true;
 }
 
-void boot();
+void boot().catch((error: unknown) => {
+  const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+  window.__CITY_HARNESS__.error = detail;
+  overlayEl.textContent = `harness failed: ${detail}`;
+  // Ready anyway: the driver must be able to read `error` rather than sit out
+  // its full 300 s timeout with the real stack stranded in the page.
+  window.__CITY_HARNESS__.ready = true;
+});

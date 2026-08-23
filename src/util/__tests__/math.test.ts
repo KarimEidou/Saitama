@@ -11,13 +11,33 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  DEG2RAD,
+  EPSILON,
+  RAD2DEG,
+  TAU,
   angleDelta,
+  applyDeadZone,
+  approximately,
+  clamp,
+  clamp01,
+  damp,
+  dampAngle,
+  distanceSq2,
+  distanceSq3,
   falloff,
   inverseLerp,
   isPowerOfTwo,
+  lerp,
+  lerpAngle,
+  mod,
+  moveTowards,
   nextPowerOfTwo,
+  remap,
   remapClamped,
+  saturate,
+  smootherstep,
   smoothstep,
+  snap,
   wrapAngle,
 } from '../math';
 
@@ -137,5 +157,219 @@ describe('inverseLerp', () => {
     expect(inverseLerp(0.62, 1.3, 0.96)).toBeCloseTo(0.5, 12);
     expect(smoothstep(0, 0.26, 0.13)).toBeCloseTo(0.5, 12);
     expect(smoothstep(-0.05, 0.15, 0.05)).toBeCloseTo(0.5, 12);
+  });
+});
+
+/**
+ * The suites below cover the rest of `math.ts` — the helpers 60, 26 and 25
+ * modules import and nothing pinned. `damp` carries a PROPERTY rather than a
+ * value: it promises frame-rate independence, which survives a refactor
+ * visually and then breaks on a device with a different frame budget.
+ *
+ * DELIBERATE GAPS, so nobody "helpfully" fills them while those rewrites are in
+ * flight: `wrapAngle`, `nextPowerOfTwo`, `isPowerOfTwo`, `inverseLerp`'s
+ * degenerate-range guard and `falloff` are each owned by the suites above.
+ * Nothing below touches a degenerate range, an exact antipode, a non-integer
+ * power-of-two argument, or `falloff`.
+ */
+
+describe('constants', () => {
+  it('are internally consistent', () => {
+    expect(TAU).toBe(Math.PI * 2);
+    expect(EPSILON).toBe(1e-6);
+    expect(DEG2RAD * RAD2DEG).toBeCloseTo(1, 15);
+    expect(180 * DEG2RAD).toBeCloseTo(Math.PI, 15);
+  });
+});
+
+describe('clamp / clamp01 / lerp', () => {
+  it('clamps inclusively at both bounds', () => {
+    expect(clamp(5, 0, 10)).toBe(5);
+    expect(clamp(-1, 0, 10)).toBe(0);
+    expect(clamp(11, 0, 10)).toBe(10);
+    expect(clamp(0, 0, 10)).toBe(0);
+    expect(clamp(10, 0, 10)).toBe(10);
+  });
+
+  it('clamps to the unit range', () => {
+    expect(clamp01(-0.5)).toBe(0);
+    expect(clamp01(1.5)).toBe(1);
+    expect(clamp01(0.25)).toBe(0.25);
+    expect(clamp01(0)).toBe(0);
+    expect(clamp01(1)).toBe(1);
+  });
+
+  it('interpolates without clamping `t`', () => {
+    expect(lerp(0, 10, 0.5)).toBe(5);
+    expect(lerp(10, 0, 0.25)).toBe(7.5);
+    expect(lerp(0, 10, 0)).toBe(0);
+    expect(lerp(0, 10, 1)).toBe(10);
+    // Documented: `t` is NOT clamped. Callers relying on extrapolation exist.
+    expect(lerp(0, 10, 2)).toBe(20);
+    expect(lerp(0, 10, -1)).toBe(-10);
+  });
+});
+
+describe('damp', () => {
+  it('is frame-rate independent: one step of dt equals two of dt/2', () => {
+    // The property the function exists for. A raw `lerp(current, target, 0.1)`
+    // fails this, and the camera then behaves differently at 30fps and 60fps.
+    const once = damp(0, 10, 0.01, 1);
+    const twice = damp(damp(0, 10, 0.01, 0.5), 10, 0.01, 0.5);
+    expect(twice).toBeCloseTo(once, 12);
+  });
+
+  it('treats `smoothing` as the fraction remaining after one second', () => {
+    expect(damp(0, 10, 0.01, 1)).toBeCloseTo(9.9, 12);
+  });
+
+  it('is a no-op for dt 0', () => {
+    expect(damp(3, 10, 0.01, 0)).toBe(3);
+  });
+
+  it('converges monotonically and never overshoots', () => {
+    let value = 0;
+    for (let i = 0; i < 100; i++) {
+      const next = damp(value, 10, 0.5, 1 / 60);
+      expect(next).toBeGreaterThanOrEqual(value);
+      expect(next).toBeLessThanOrEqual(10);
+      value = next;
+    }
+  });
+});
+
+describe('moveTowards', () => {
+  it('steps by at most maxDelta and never overshoots', () => {
+    expect(moveTowards(0, 10, 3)).toBe(3);
+    expect(moveTowards(0, 10, 20)).toBe(10);
+    expect(moveTowards(10, 0, 3)).toBe(7);
+    expect(moveTowards(5, 5, 1)).toBe(5);
+    expect(moveTowards(0, 10, 0)).toBe(0);
+  });
+});
+
+describe('mod', () => {
+  it('takes the sign of the divisor', () => {
+    expect(mod(5, 4)).toBe(1);
+    expect(mod(-1, 4)).toBe(3);
+    expect(mod(-0.5, 1)).toBe(0.5);
+    expect(mod(4, 4)).toBe(0);
+  });
+});
+
+describe('approximately', () => {
+  it('compares within the default and an explicit tolerance', () => {
+    expect(approximately(1, 1 + 1e-9)).toBe(true);
+    expect(approximately(1, 1.001)).toBe(false);
+    expect(approximately(1, 1.001, 0.01)).toBe(true);
+  });
+});
+
+describe('distanceSq2 / distanceSq3', () => {
+  it('are symmetric and zero for identical points', () => {
+    expect(distanceSq2(0, 0, 3, 4)).toBe(25);
+    expect(distanceSq2(3, 4, 0, 0)).toBe(25);
+    expect(distanceSq2(2, 2, 2, 2)).toBe(0);
+
+    expect(distanceSq3(0, 0, 0, 1, 2, 2)).toBe(9);
+    expect(distanceSq3(1, 2, 2, 0, 0, 0)).toBe(9);
+    expect(distanceSq3(1, 2, 3, 1, 2, 3)).toBe(0);
+  });
+});
+
+describe('snap', () => {
+  it('rounds to the nearest multiple, and passes a zero step through', () => {
+    expect(snap(7.3, 0.5)).toBe(7.5);
+    expect(snap(7.2, 0.5)).toBe(7);
+    expect(snap(-7.3, 0.5)).toBe(-7.5);
+    expect(snap(5, 0)).toBe(5);
+    expect(snap(12, 4)).toBe(12);
+  });
+});
+
+describe('applyDeadZone', () => {
+  it('treats the boundary as inside the zone and rescales the remainder', () => {
+    expect(applyDeadZone(0.2, 0.25)).toBe(0);
+    expect(applyDeadZone(0.25, 0.25)).toBe(0);
+    expect(applyDeadZone(1, 0.25)).toBe(1);
+    expect(applyDeadZone(0.5, 0.25)).toBeCloseTo(1 / 3, 12);
+    expect(applyDeadZone(0, 0)).toBe(0);
+  });
+
+  it('stays inside [0, 1] across a full sweep', () => {
+    for (let i = 0; i <= 100; i++) {
+      const result = applyDeadZone(i / 100, 0.25);
+      expect(result).toBeGreaterThanOrEqual(0);
+      expect(result).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('saturate', () => {
+  it('maps `half` to 0.5 and approaches but never reaches 1', () => {
+    expect(saturate(0, 100)).toBe(0);
+    expect(saturate(-5, 100)).toBe(0);
+    expect(saturate(100, 100)).toBe(0.5);
+    expect(saturate(1e6, 100)).toBeGreaterThan(0.999);
+    expect(saturate(1e6, 100)).toBeLessThan(1);
+  });
+
+  it('is strictly increasing', () => {
+    const values = [1, 10, 100, 1e3, 1e6].map((value) => saturate(value, 100));
+    for (let i = 1; i < values.length; i++) expect(values[i]!).toBeGreaterThan(values[i - 1]!);
+  });
+});
+
+describe('smoothstep / smootherstep', () => {
+  it('hit the edges exactly and clamp outside them', () => {
+    for (const fn of [smoothstep, smootherstep]) {
+      expect(fn(0, 1, 0)).toBe(0);
+      expect(fn(0, 1, 1)).toBe(1);
+      expect(fn(0, 1, 0.5)).toBe(0.5);
+      expect(fn(0, 1, -1)).toBe(0);
+      expect(fn(0, 1, 2)).toBe(1);
+    }
+  });
+
+  it('are monotonic across the range', () => {
+    for (const fn of [smoothstep, smootherstep]) {
+      let previous = -1;
+      for (let i = 0; i <= 100; i++) {
+        const value = fn(0, 1, i / 100);
+        expect(value).toBeGreaterThanOrEqual(previous);
+        previous = value;
+      }
+    }
+  });
+
+  it('smootherstep is flatter than smoothstep near the ends', () => {
+    expect(smootherstep(0, 1, 0.1)).toBeLessThan(smoothstep(0, 1, 0.1));
+  });
+});
+
+describe('remap / remapClamped', () => {
+  it('remaps without clamping, and clamps only in the clamped form', () => {
+    expect(remap(5, 0, 10, 0, 100)).toBe(50);
+    expect(remap(15, 0, 10, 0, 100)).toBe(150);
+    expect(remapClamped(15, 0, 10, 0, 100)).toBe(100);
+    expect(remapClamped(-5, 0, 10, 0, 100)).toBe(0);
+  });
+
+  it('handles an inverted output range', () => {
+    expect(remap(5, 0, 10, 100, 0)).toBe(50);
+  });
+});
+
+describe('lerpAngle / dampAngle', () => {
+  it('interpolate ordinary angles', () => {
+    expect(lerpAngle(0, 1, 0.5)).toBe(0.5);
+    expect(lerpAngle(0, 1, 0)).toBe(0);
+    expect(dampAngle(0, 1, 0.01, 1)).toBeCloseTo(0.99, 12);
+  });
+
+  it('take the short arc across the wrap', () => {
+    // 3 -> -3 is 0.28rad the short way, not 6rad the long way, so the midpoint
+    // lands near +/-PI rather than near 0.
+    expect(Math.cos(lerpAngle(3, -3, 0.5))).toBeLessThan(-0.9);
   });
 });

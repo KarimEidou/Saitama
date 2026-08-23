@@ -118,11 +118,18 @@ export class TargetRegistry {
     return [...this.targets.values()];
   }
 
-  /** Move a target. The registry owns the vector, so callers write through this. */
+  /**
+   * Move a target. The registry owns the vector, so callers write through
+   * this — and the vector is MUTATED IN PLACE rather than replaced. The
+   * bridge calls this once per mirrored actor per frame, so replacing it
+   * would allocate one short-lived object per actor per frame forever.
+   */
   setPosition(id: EntityId, x: number, y: number, z: number): void {
     const target = this.targets.get(id);
     if (target === undefined) return;
-    target.position = { x, y, z };
+    target.position.x = x;
+    target.position.y = y;
+    target.position.z = z;
   }
 
   /** Everything alive matching a faction. */

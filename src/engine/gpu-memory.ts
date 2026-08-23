@@ -16,6 +16,42 @@
 
 import * as THREE from 'three';
 
+/**
+ * Bytes per pixel for each block-compressed GPU format three can hold.
+ *
+ * Quoted as the amortised per-pixel cost: BC7/ASTC 4x4 and ETC2 EAC RGBA are
+ * 16 bytes per 4x4 block = 1 B/px; BC1/ETC1/ETC2 RGB are 8 bytes per block =
+ * 0.5 B/px; ASTC 6x6 is 16 bytes per 36 pixels.
+ *
+ * KNOWINGLY DUPLICATED from `compressedBytesPerPixel` in `src/assets/memory.ts`.
+ * The architecture rule is that `src/engine` imports only `src/types` +
+ * `src/util`, so it may not reach into `src/assets` for the shared table. The
+ * two copies must be kept in step: change one, change the other.
+ */
+function compressedBytesPerPixel(format: THREE.AnyPixelFormat): number {
+  switch (format) {
+    case THREE.RGBA_ASTC_4x4_Format:
+    case THREE.RGBA_BPTC_Format:
+    case THREE.RGB_BPTC_UNSIGNED_Format:
+    case THREE.RGBA_S3TC_DXT5_Format:
+    case THREE.RGBA_ETC2_EAC_Format:
+    case THREE.RED_GREEN_RGTC2_Format:
+      return 1;
+    case THREE.RGBA_ASTC_6x6_Format:
+      return 16 / 36;
+    case THREE.RGBA_S3TC_DXT1_Format:
+    case THREE.RGB_S3TC_DXT1_Format:
+    case THREE.RGB_ETC2_Format:
+    case THREE.RGB_ETC1_Format:
+    case THREE.RED_RGTC1_Format:
+    case THREE.RGBA_PVRTC_4BPPV1_Format:
+    case THREE.RGB_PVRTC_4BPPV1_Format:
+      return 0.5;
+    default:
+      return 1;
+  }
+}
+
 /** Bytes per texel for the formats this renderer actually produces. */
 function bytesPerTexel(texture: THREE.Texture): number {
   const format = texture.format;
@@ -24,6 +60,7 @@ function bytesPerTexel(texture: THREE.Texture): number {
   let channels = 4;
   if (format === THREE.RedFormat) channels = 1;
   else if (format === THREE.RGFormat) channels = 2;
+  else if (format === THREE.RGBFormat) channels = 3;
   else if (format === THREE.RGBAFormat) channels = 4;
 
   let bytes = 1;
@@ -38,30 +75,49 @@ function bytesPerTexel(texture: THREE.Texture): number {
 /**
  * Approximate GPU bytes for one texture, mip chain included.
  *
- * Compressed textures report their own byte length when the loader kept the
- * mip data around, which is the accurate path; everything else is
- * width × height × bytesPerTexel × 4/3 for the mips.
+ * A texture whose loader kept EVERY mip level's payload reports its own byte
+ * length, which is the accurate path; everything else is
+ * width × height × bytes-per-pixel, plus 4/3 for the mips when the texture
+ * actually has mips — a texture with `generateMipmaps: false` and no mip chain
+ * is charged its base level alone.
+ *
+ * The per-pixel rate depends on the kind: a block-compressed page costs
+ * 0.5–1 B/px, not the 4 B/px an uncompressed RGBA8 texel costs. Charging every
+ * unrecognised format 4 channels over-reported a BC7 page 4x and an ETC2 RGB
+ * page 8x — in the direction that makes a healthy budget look blown, which is
+ * the failure mode this module exists to avoid.
  */
 export function estimateTextureBytes(texture: THREE.Texture): number {
   const image = texture.image as { width?: number; height?: number } | undefined;
 
-  const compressed = texture as THREE.CompressedTexture;
-  if (compressed.isCompressedTexture && Array.isArray(compressed.mipmaps)) {
+  // Exact path, but only when the payload is COMPLETE. A partly-populated
+  // `mipmaps` array (levels dropped by the loader, or an empty array on a
+  // GPU-resident compressed texture) previously returned the sum of whatever
+  // levels happened to carry data, silently under-reporting the rest.
+  const mipmaps = texture.mipmaps as ReadonlyArray<{ data?: ArrayBufferView }> | undefined;
+  if (mipmaps !== undefined && mipmaps.length > 0) {
     let total = 0;
-    for (const mip of compressed.mipmaps) {
-      const data = (mip as { data?: ArrayBufferView }).data;
+    let complete = true;
+    for (const mip of mipmaps) {
+      const data = mip?.data;
       if (data) total += data.byteLength;
+      else complete = false;
     }
-    if (total > 0) return total;
+    if (complete && total > 0) return total;
   }
 
   const width = image?.width ?? 0;
   const height = image?.height ?? 0;
   if (width <= 0 || height <= 0) return 0;
 
-  const base = width * height * bytesPerTexel(texture);
+  const perPixel =
+    (texture as THREE.CompressedTexture).isCompressedTexture === true
+      ? compressedBytesPerPixel(texture.format)
+      : bytesPerTexel(texture);
+
+  const base = width * height * perPixel;
   // A full mip chain adds 1/3 on top of the base level.
-  return texture.generateMipmaps || (texture.mipmaps?.length ?? 0) > 1 ? base * (4 / 3) : base;
+  return texture.generateMipmaps || (mipmaps?.length ?? 0) > 1 ? base * (4 / 3) : base;
 }
 
 /** Every texture slot a built-in material may hold. */

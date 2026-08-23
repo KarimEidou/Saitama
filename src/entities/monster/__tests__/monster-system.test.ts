@@ -172,6 +172,54 @@ describe('lifecycle', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('ignores a malformed shockwave rather than waking the whole map', () => {
+    // `clamp01` is `v < 0 ? 0 : v > 1 ? 1 : v`, so `clamp01(NaN)` is NaN and
+    // `NaN <= 0` is false — a non-finite power sailed through the intensity
+    // bail and reached `notice`, where `distance > NaN` is false for EVERY
+    // monster regardless of distance. A non-finite origin is worse: it writes
+    // NaN into `lastKnown`, then into `yaw`, then into `position`, and the
+    // monster is gone from the world with no way back short of `reset()`.
+    const { recorder, monsters } = system('nan-wave');
+    const far = monsters.spawn(monsterArchetype('mob.wolf.pest'), { x: 5000, y: 0, z: 0 });
+    const wave = {
+      origin: ORIGIN,
+      direction: { x: 0, y: 0, z: 1 },
+      range: 10,
+      angle: 0.4,
+      intent: 'normal' as const,
+      punchKind: 'normal' as const,
+      sourceId: 'player',
+    };
+
+    recorder.bus.emit('ShockwaveFired', { ...wave, power: Number.NaN });
+    expect(far.brain.state).toBe('idle');
+
+    recorder.bus.emit('ShockwaveFired', {
+      ...wave,
+      power: 1e6,
+      origin: { x: Number.NaN, y: 0, z: 0 },
+    });
+    run(monsters, 1, [], ORIGIN, 0.5);
+    expect(far.brain.state).toBe('idle');
+    expect(Number.isFinite(far.brain.position.x)).toBe(true);
+  });
+
+  it('goes quiet after dispose instead of repopulating itself', () => {
+    // The subscriptions are gone and the map is cleared, but `update` still ran
+    // the director, which still issued orders, which `materialise` still turned
+    // into live monsters — none of them reachable by `EntityKilled` any more,
+    // so none of them could ever die or be swept.
+    const { recorder, monsters } = system('disposed');
+    monsters.director.setPacing('peak');
+    monsters.dispose();
+    run(monsters, 60, [], ORIGIN, 0.5);
+    expect(monsters.count).toBe(0);
+    expect(recorder.bus.listenerCount('EntityKilled')).toBe(0);
+    expect(() => {
+      monsters.dispose();
+    }).not.toThrow();
+  });
+
   it('unsubscribes everything on dispose', () => {
     const { recorder, monsters } = system('dispose');
     monsters.spawn(monsterArchetype('mob.wolf.pest'), ORIGIN);

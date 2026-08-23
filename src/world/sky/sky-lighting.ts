@@ -55,12 +55,18 @@ import {
   WINDOW_LIT_FRACTION_EVENING,
   WINDOW_LIT_FRACTION_NIGHT,
 } from './constants';
-import { boostChroma, irradianceTowards, normaliseHue, type ISkyBlend } from './environment-blend';
+import {
+  boostChroma,
+  irradianceTowards,
+  normaliseHue,
+  wrap01,
+  type ISkyBlend,
+} from './environment-blend';
 import { moonIllumination, moonPosition, sunPosition, type ISolarOptions } from './solar';
 
 /** Named phase for a normalised time. `midnight` wraps through t = 0. */
 export function phaseForTime(timeOfDay: number): DayPhase {
-  const t = wrapUnit(timeOfDay);
+  const t = wrap01(timeOfDay);
   let phase: DayPhase = 'midnight';
   for (const boundary of PHASE_BOUNDARIES) {
     if (t >= boundary.start) phase = boundary.phase;
@@ -91,6 +97,12 @@ export interface ISkyDerived {
    * flag flips at the halfway point of that fade.
    */
   readonly moonIsKeyLight: boolean;
+  /** Sun elevation in radians — the same evaluation the key light came from. */
+  readonly sunElevation: number;
+  /** Unit vector FROM the observer TOWARDS the sun, from that same evaluation. */
+  readonly sunToBodyX: number;
+  readonly sunToBodyY: number;
+  readonly sunToBodyZ: number;
 }
 
 /**
@@ -148,12 +160,6 @@ const SUN_HORIZON = new THREE.Color(SUN_COLOR_HORIZON);
 const MOON_TINT = new THREE.Color(MOON_COLOR);
 const SCOTOPIC = new THREE.Color(SCOTOPIC_TINT);
 
-/** Wrap into [0, 1). Shared by the phase lookup and the evening ramp. */
-function wrapUnit(t: number): number {
-  const w = t % 1;
-  return w < 0 ? w + 1 : w;
-}
-
 export interface IDeriveLightingInput {
   readonly timeOfDay: number;
   readonly lunarAgeDays: number;
@@ -168,9 +174,12 @@ export interface IDeriveLightingInput {
 }
 
 /**
- * Fill `lighting` and `derived` from the clock. Allocation-free.
+ * Fill `lighting` in place from the clock, and return the extra signals neither
+ * shared contract has a field for.
  *
- * @returns the same `derived` object, for convenience.
+ * Every colour and vector on `lighting` is mutated, never replaced, so the
+ * per-frame path allocates nothing beyond the small `ISkyDerived` record this
+ * returns.
  */
 export function deriveLighting(
   input: IDeriveLightingInput,
@@ -315,7 +324,7 @@ export function deriveLighting(
   // The ramp is measured FORWARD FROM SUNSET and wrapped, because it crosses
   // t = 0 — a plain `smoothstep(0.79, 0.99, t)` reads 03:00 as "early evening"
   // and lights the whole city up at four in the morning.
-  const sinceEvening = wrapUnit(timeOfDay - EVENING_START);
+  const sinceEvening = wrap01(timeOfDay - EVENING_START);
   const eveningness = 1 - smoothstep(0, EVENING_LENGTH, sinceEvening);
   const windowLitFraction =
     nightFactor * lerp(WINDOW_LIT_FRACTION_NIGHT, WINDOW_LIT_FRACTION_EVENING, eveningness);
@@ -327,26 +336,37 @@ export function deriveLighting(
     moonElevation: moon.elevation,
     moonPhase,
     moonIsKeyLight,
+    sunElevation: sun.elevation,
+    sunToBodyX: sun.toBodyX,
+    sunToBodyY: sun.toBodyY,
+    sunToBodyZ: sun.toBodyZ,
   };
 }
 
-/** Mirror the derived values into the gameplay-facing clock state. */
+/**
+ * Mirror the derived values into the gameplay-facing clock state.
+ *
+ * The sun comes from `derived`, not from a second `sunPosition` call. One call
+ * is ~18 transcendental evaluations and this runs beside `deriveLighting` every
+ * frame, so recomputing it doubled the sky's trig for a value already in hand —
+ * and, because the two functions took the time and the solar options through
+ * DIFFERENT parameters, a caller passing mismatched values published two states
+ * describing two different instants with nothing able to detect it.
+ */
 export function fillDayNightState(
   state: MutableDayNightState,
   input: { timeOfDay: number; dayCount: number; dayLengthSeconds: number; lunarAgeDays: number },
   lighting: MutableSkyLightingState,
-  derived: ISkyDerived,
-  solar?: ISolarOptions
+  derived: ISkyDerived
 ): void {
-  const sun = sunPosition(input.timeOfDay, solar);
   state.timeOfDay = input.timeOfDay;
   state.phase = phaseForTime(input.timeOfDay);
   state.dayCount = input.dayCount;
   state.dayLengthSeconds = input.dayLengthSeconds;
   // The TRUE sun vector, even when the moon is the key light: gameplay asks
   // "is it daytime" and must not be answered with a moon.
-  state.sunDirection.set(-sun.toBodyX, -sun.toBodyY, -sun.toBodyZ).normalize();
-  state.sunElevation = sun.elevation;
+  state.sunDirection.set(-derived.sunToBodyX, -derived.sunToBodyY, -derived.sunToBodyZ).normalize();
+  state.sunElevation = derived.sunElevation;
   state.sunIntensity = derived.moonIsKeyLight
     ? 0
     : clamp01(lighting.sunIntensity / SUN_PEAK_INTENSITY);

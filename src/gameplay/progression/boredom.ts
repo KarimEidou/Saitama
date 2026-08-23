@@ -137,10 +137,19 @@ export class BoredomModel {
    * Deliberately does NOT re-apply the deltas: the boredom VALUE is restored
    * separately by `restore()`, and replaying the log on top of it would drain
    * boredom a second time for deeds the player already banked.
+   *
+   * Takes `string[]`, not `HeroicDeed[]`: the array comes out of a save file, and an unknown id
+   * would put `undefined` into `IHeroicRecord.delta` — a field typed `number` — and then ride
+   * back out into the next save.
    */
-  restoreHistory(deeds: readonly HeroicDeed[]): void {
+  restoreHistory(deeds: readonly string[]): void {
     this.history.length = 0;
-    for (const deed of deeds.slice(-this.historyLimit)) {
+    // `hasOwnProperty`, not `in`: a plain `in` test accepts 'toString' off the prototype chain and
+    // reintroduces the `undefined`. Filter BEFORE slicing, so the newest valid entries survive.
+    const known = deeds.filter((deed): deed is HeroicDeed =>
+      Object.prototype.hasOwnProperty.call(HEROISM_BOREDOM_RELIEF, deed)
+    );
+    for (const deed of known.slice(-this.historyLimit)) {
       this.history.push({ deed, delta: HEROISM_BOREDOM_RELIEF[deed], time: 0 });
     }
   }

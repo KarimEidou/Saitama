@@ -37,7 +37,7 @@ import type {
   LethalIntent,
   VFXEffectName,
 } from '@/types';
-import { clamp01, createLogger, createRng, type IRandom } from '@/util';
+import { clamp01, createLogger, createRng, hashString, type IRandom } from '@/util';
 import { createCrackAtlas, createParticleAtlas } from './atlas';
 import { CameraShake } from './camera-shake';
 import {
@@ -46,6 +46,7 @@ import {
   SHOCK_COLOR,
   effectCapacityFor,
   vfxProfileFor,
+  type CrackTileValue,
   type IVFXTierProfile,
 } from './constants';
 import { DecalLayer, createDecalParams } from './decal-layer';
@@ -102,7 +103,6 @@ interface EffectSlot {
   dx: number;
   dy: number;
   dz: number;
-  radius: number;
   /** Shell slot driving the dust front, and its generation stamp. */
   shell: number;
   shellGeneration: number;
@@ -465,7 +465,6 @@ export class VFXSystem implements IVFXSystem {
     slot.rate = 0;
     slot.emitUntil = 0;
     slot.power = power;
-    slot.radius = scale;
     slot.shell = -1;
     slot.shellGeneration = -1;
     slot.lofted = false;
@@ -800,7 +799,7 @@ export class VFXSystem implements IVFXSystem {
 
     // The half-angle travels straight into the shell, so the wave matches the
     // combat cone exactly rather than approximately.
-    const index = this.spawnSlot(
+    this.spawnSlot(
       omnidirectional ? 'shockwaveRing' : 'shockwaveCone',
       {
         position: this.scratchVector,
@@ -812,8 +811,6 @@ export class VFXSystem implements IVFXSystem {
       },
       event.angle
     );
-    if (index < 0) return;
-    this.slots[index]!.radius = event.range;
   }
 
   private onEntityKilled(event: GameEventOf<'EntityKilled'>): void {
@@ -1411,6 +1408,11 @@ export class VFXSystem implements IVFXSystem {
             // speed anyway — it is entrained air, which is why this is a
             // fraction of the average front speed and decays as the wave
             // gives up its energy.
+            //
+            // For the same reason the one-frame lag here is fine and left
+            // alone: this runs BEFORE `shockwaves.update`, so the shell radius
+            // the sample reads is the previous frame's — about 4 m behind at
+            // the peak front speed, which is where the dust belongs anyway.
             const edgeSpeed = Math.min(240, slot.frontSpeed) * (1 - progress * 0.6);
             this.emitters.dustFront(this.rng, shell, edgeSpeed, slot.power, whole, slot.lofted);
           }
@@ -1586,15 +1588,24 @@ function defaultPriority(effect: VFXEffectName): number {
   }
 }
 
-/** Map a decal material key onto a fracture pattern. */
-function crackTileFor(materialKey: string): number {
+/**
+ * Map a decal material key onto a fracture pattern.
+ *
+ * The two branch tiles are interchangeable — they exist so a fan of cracks is
+ * not four copies of one shape — so an unrecognised key picks between them by
+ * hashing the whole key. Selecting on a single letter (the old rule) made
+ * "rubble", "cobble" and "brick" differ from "concrete" for no reason anybody
+ * could have predicted from the call site.
+ */
+function crackTileFor(materialKey: string): CrackTileValue {
   const key = materialKey.toLowerCase();
-  if (key.includes('star') || key.includes('impact') || key.includes('crater'))
+  if (key.includes('star') || key.includes('impact') || key.includes('crater')) {
     return CrackTile.Star;
-  if (key.includes('scorch') || key.includes('smear') || key.includes('dust'))
+  }
+  if (key.includes('scorch') || key.includes('smear') || key.includes('dust')) {
     return CrackTile.Smear;
-  if (key.includes('b')) return CrackTile.BranchB;
-  return CrackTile.BranchA;
+  }
+  return (hashString(key) & 1) === 1 ? CrackTile.BranchB : CrackTile.BranchA;
 }
 
 function emptySlot(): EffectSlot {
@@ -1615,7 +1626,6 @@ function emptySlot(): EffectSlot {
     dx: 0,
     dy: 1,
     dz: 0,
-    radius: 1,
     shell: -1,
     shellGeneration: -1,
     lofted: false,

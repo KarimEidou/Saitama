@@ -22,6 +22,7 @@
  */
 
 import type * as THREE from 'three';
+import { createLogger } from '@/util';
 import { CHUNK_COUNT, CHUNK_SIZE, chunkIndexAt, chunkMinX, chunkMinZ } from './constants';
 import { Frustum } from './frustum';
 import { IndexList } from './index-list';
@@ -29,6 +30,8 @@ import { Quadtree, createCullStats, type ICullStats, type IQuadtreeOptions } fro
 import { DynamicEntityGrid } from './entity-grid';
 import { PvsTable } from './pvs';
 import type { GroundBVH } from './mesh-bvh';
+
+const log = createLogger('spatial');
 
 /** Construction options. */
 export interface ISpatialIndexOptions {
@@ -72,7 +75,6 @@ export class SpatialIndex {
   /** Triangle BVH over the merged ground/road mesh. */
   private ground: GroundBVH | undefined;
 
-  private readonly viewProjection = new Float64Array(16);
   private readonly chunkBounds = new Float64Array(6);
   private viewChunk = -1;
   private frame = 0;
@@ -81,6 +83,21 @@ export class SpatialIndex {
     this.quadtree = new Quadtree(options.quadtree);
     this.entities = new DynamicEntityGrid(options.entityCapacity ?? 512);
     this.pvsTable = options.pvs;
+
+    if (!this.quadtree.canonical) {
+      // `chunkNode()` is -1 for every chunk on a non-canonical tree, so the
+      // chunk pass in `collectVisibleChunks` can never emit anything and the
+      // streaming handoff is silently dead: no error, no exception, nothing
+      // ever streams. `size`, `originX`, `originZ` and `depth` are all
+      // supported, validated options that get here verbatim, so this is
+      // reachable by configuration alone.
+      log.warnOnce(
+        'non-canonical-quadtree',
+        'quadtree does not span the canonical world ' +
+          `(origin ${this.quadtree.originX},${this.quadtree.originZ} size ${this.quadtree.size} ` +
+          `depth ${this.quadtree.depth}); visibleChunks will always be empty`
+      );
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -174,11 +191,6 @@ export class SpatialIndex {
   cullFromViewProjection(elements: ArrayLike<number>, eyeX: number, eyeZ: number): ICullStats {
     this.frustum.setFromViewProjection(elements);
     return this.cullWithFrustum(eyeX, eyeZ);
-  }
-
-  /** Scratch matrix for callers composing their own view-projection. */
-  get viewProjectionScratch(): Float64Array {
-    return this.viewProjection;
   }
 
   private cullWithFrustum(eyeX: number, eyeZ: number): ICullStats {
@@ -276,7 +288,11 @@ export class SpatialIndex {
       pvsAverageVisible: pvsStats?.averageVisible ?? CHUNK_COUNT,
       visibleInstances: this.visibleInstances.length,
       visibleChunks: this.visibleChunks.length,
-      lastCull: this.cullStats,
+      // A copy, not the live object: `cullFrustum` rewrites `this.cullStats` in
+      // place every frame, and a caller holding a snapshot must not see it
+      // change underneath. The public `cullStats` field is still the live one
+      // for any caller that wants it.
+      lastCull: { ...this.cullStats },
     };
   }
 

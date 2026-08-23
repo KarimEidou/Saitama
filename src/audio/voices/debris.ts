@@ -134,6 +134,37 @@ const MATERIALS: Record<string, DebrisMaterial> = {
     thumpHi: 300,
     gain: 0.7,
   },
+  // Brick sits between concrete and rubble: harder and ringier than concrete,
+  // narrower than rubble, and it still thumps.
+  brick: {
+    loHz: 260,
+    hiHz: 2600,
+    qLo: 1.4,
+    qHi: 5,
+    decayLo: 0.01,
+    decayHi: 0.06,
+    densityScale: 1.1,
+    thumpChance: 0.5,
+    thumpLo: 55,
+    thumpHi: 140,
+    gain: 0.5,
+  },
+  // Asphalt is the dullest, heaviest material in the set: a slab lifts and
+  // lands rather than shattering, so it is the lowest band, the fewest grains
+  // and the most thump.
+  asphalt: {
+    loHz: 150,
+    hiHz: 1400,
+    qLo: 1,
+    qHi: 3,
+    decayLo: 0.012,
+    decayHi: 0.055,
+    densityScale: 0.9,
+    thumpChance: 0.75,
+    thumpLo: 42,
+    thumpHi: 105,
+    gain: 0.55,
+  },
   glassAndSteel: {
     loHz: 900,
     hiHz: 8000,

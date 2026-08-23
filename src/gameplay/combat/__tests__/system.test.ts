@@ -966,6 +966,9 @@ describe('the charge forecast', () => {
 
   it('surfaces the live charge on the diagnostics the HUD reads', () => {
     const scene = createScene({ seed: 'diagnostics' });
+    populateStreet(scene);
+    scene.attacker.moveTo(0, 1.4, 0);
+    scene.attacker.faceTowards(0, 12, -60);
     const input = createInputManager({ headless: true, exposeTestBridge: false });
     managers.push(input);
     input.syntheticEnabled = true;
@@ -980,6 +983,50 @@ describe('the charge forecast', () => {
     expect(diagnostics.charge).toBeGreaterThan(0.4);
     expect(diagnostics.charge).toBeLessThan(0.7);
     expect(diagnostics.chargeRangeMetres).toBeGreaterThan(TUNING.seriousRangeMinMetres);
+    // The price tag is live exactly while the ring that shows it is on screen.
+    expect(diagnostics.chargeForecastYen).toBeGreaterThan(0);
     scene.combat.dispose();
+  });
+
+  it('does not price a charge nobody is holding', () => {
+    // `chargeForecast` runs `aabbInCone` — three `acos` per box before any of
+    // the corner tests — over every resident structure, and `diagnostics()` is
+    // called once per frame from `updateHud` forever. The HUD hides the field
+    // unless `charging`, so every idle frame was paying for an invisible
+    // number.
+    const scene = createScene({ seed: 'forecast-idle' });
+    populateStreet(scene);
+    scene.attacker.moveTo(0, 1.4, 0);
+    scene.attacker.faceTowards(0, 12, -60);
+
+    const diagnostics = scene.combat.diagnostics();
+    expect(diagnostics.charging).toBe(false);
+    expect(diagnostics.chargeForecastYen).toBe(0);
+    // The range is a `lerp` and stays exact on both paths.
+    expect(diagnostics.chargeRangeMetres).toBe(TUNING.seriousRangeMinMetres);
+    // Proof the zero is the SKIP and not an empty street.
+    expect(scene.combat.chargeForecast(0).yen).toBeGreaterThan(0);
+    scene.combat.dispose();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Teardown                                                                   */
+/* -------------------------------------------------------------------------- */
+
+describe('disposing the system', () => {
+  it('drops the level it was scoring', () => {
+    // A disposed system holds no level. Leaving the registries populated keeps
+    // a torn-down street's entire entity and structure set reachable from the
+    // dead system for as long as anything still points at it.
+    const scene = createScene({ seed: 'dispose-level' });
+    populateStreet(scene);
+    expect(scene.combat.targets.size).toBeGreaterThan(0);
+    expect(scene.combat.structures.size).toBeGreaterThan(0);
+
+    scene.combat.dispose();
+    expect(scene.combat.targets.size).toBe(0);
+    expect(scene.combat.structures.size).toBe(0);
+    expect(() => scene.combat.dispose()).not.toThrow();
   });
 });

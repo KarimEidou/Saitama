@@ -42,6 +42,7 @@ import {
 import {
   FRACTURE_HEIGHT_BANDS,
   FRACTURE_PIECES_PER_BUILDING,
+  FRACTURE_PLAN_DIVISIONS,
   RING_COLLIDER_MODE,
   RING_CROWD_MODE,
   RING_R0,
@@ -488,8 +489,15 @@ function survivingHeight(building: IBuildingLayout, mask: Uint32Array | undefine
 /** Window band colour: dark glass by day, so the façades read as buildings. */
 const WINDOW_COLOUR = 0x1b2330;
 
-/** Metres a window is inset from the façade plane. Small, but enough to shade. */
-const WINDOW_OFFSET = 0.06;
+/**
+ * Metres a window pane stands PROUD of the façade plane, on the outward side.
+ *
+ * Outward, not inset: the façade is a closed box rendered with `FrontSide`
+ * culling (`materials.ts`), so a pane recessed behind the wall would be
+ * occluded by the very wall it is meant to sit in. 6 cm is enough for the pane
+ * to read as a separate surface without showing a gap at grazing angles.
+ */
+const WINDOW_PROUD = 0.06;
 
 /**
  * Window grid on one outward-facing wall of a fracture piece.
@@ -518,7 +526,7 @@ function addWindows(
   const cellH = height / rows;
   const paneW = cellW * 0.52;
   const paneH = cellH * 0.46;
-  const plane = planeCoord + sign * WINDOW_OFFSET;
+  const plane = planeCoord + sign * WINDOW_PROUD;
 
   for (let r = 0; r < rows; r++) {
     const y0 = minY + r * cellH + (cellH - paneH) * 0.55;
@@ -752,18 +760,47 @@ export function buildChunkGeometry(
           addWindows(out, 2, -1, piece.minZ, piece.minX, piece.maxX, piece.minY, piece.maxY);
         }
       }
-      // Parapet on the surviving roof.
-      out.addBox(
-        building.minX - 0.25,
-        aliveHeight,
-        building.minZ - 0.25,
-        building.maxX + 0.25,
-        aliveHeight + 0.55,
-        building.maxZ + 0.25,
-        building.roofColour,
-        building.roofColour,
-        true
+      // Parapet on the surviving roof, one segment per SURVIVING plan cell of
+      // the top band. `aliveHeight` is the top of the highest band with ANY
+      // piece left, so blowing out one quadrant of that band leaves it
+      // unchanged — and a single box over the whole footprint then hangs a
+      // 0.55 m slab in the air over the hole, at the one ring where the player
+      // can walk up and look at it. That contradicts the rule the per-piece
+      // emission above exists to serve: a missing piece must reveal a plausible
+      // hollow, not floating masonry.
+      const bandHeight = building.height / FRACTURE_HEIGHT_BANDS;
+      const topBand = Math.min(
+        FRACTURE_HEIGHT_BANDS - 1,
+        Math.max(0, Math.round(aliveHeight / bandHeight) - 1)
       );
+      const cellX = (building.maxX - building.minX) / FRACTURE_PLAN_DIVISIONS;
+      const cellZ = (building.maxZ - building.minZ) / FRACTURE_PLAN_DIVISIONS;
+      const lastCell = FRACTURE_PLAN_DIVISIONS - 1;
+      for (let pz = 0; pz < FRACTURE_PLAN_DIVISIONS; pz++) {
+        for (let px = 0; px < FRACTURE_PLAN_DIVISIONS; px++) {
+          // Same expression `fracturePieces` uses, so the addressing is
+          // identical by construction rather than by agreement.
+          const piece =
+            topBand * FRACTURE_PLAN_DIVISIONS * FRACTURE_PLAN_DIVISIONS +
+            pz * FRACTURE_PLAN_DIVISIONS +
+            px;
+          if (isPieceDestroyed(damage, damageSlot(building.index, piece))) continue;
+          // The 0.25 m overhang belongs on the building's OUTER edges only:
+          // adding it on an interior edge would overlap the neighbouring
+          // segment and z-fight along the shared face.
+          out.addBox(
+            building.minX + px * cellX - (px === 0 ? 0.25 : 0),
+            aliveHeight,
+            building.minZ + pz * cellZ - (pz === 0 ? 0.25 : 0),
+            building.minX + (px + 1) * cellX + (px === lastCell ? 0.25 : 0),
+            aliveHeight + 0.55,
+            building.minZ + (pz + 1) * cellZ + (pz === lastCell ? 0.25 : 0),
+            building.roofColour,
+            building.roofColour,
+            true
+          );
+        }
+      }
       colliders.push({
         centerX: (building.minX + building.maxX) * 0.5,
         centerY: aliveHeight * 0.5,

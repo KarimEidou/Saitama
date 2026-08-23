@@ -81,6 +81,12 @@ const HEROISM_REASON: Readonly<Record<HeroismKind, BoredomReason>> = Object.free
   challenge: 'challengingFight',
 });
 
+/**
+ * Records the audit log retains. It is a debug tail — `harness/combat.ts`
+ * reads the last four — and an unbounded one grows for the whole session.
+ */
+const BOREDOM_LOG_CAPACITY = 256;
+
 export class BoredomMeter {
   private readonly bus: IEventBus;
   private readonly tuning: ICombatTuning;
@@ -139,6 +145,7 @@ export class BoredomMeter {
     return this.current;
   }
 
+  /** The most recent `BOREDOM_LOG_CAPACITY` reported moves, oldest first. */
   get log(): readonly IBoredomEntry[] {
     return this.entries;
   }
@@ -268,6 +275,7 @@ export class BoredomMeter {
     this.emitChanged(next, reported, reason);
     if (this.keepLog) {
       this.entries.push({ time: this.time, delta: next - reported, value: next, reason, detail });
+      if (this.entries.length > BOREDOM_LOG_CAPACITY) this.entries.shift();
     }
     return next - previous;
   }

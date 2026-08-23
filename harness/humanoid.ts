@@ -228,7 +228,10 @@ interface Panel {
 
 // Head half-width for a 1.75 m adult; the face atlas is authored against it
 // and read by every character, which is exactly what a shared atlas means.
-const materials = makeMaterials(makeFaceAtlas(0.087));
+// Built inside `boot()`, not here: a throw at module top level would escape the
+// try/catch at the tail of this file, leaving `__HARNESS_ERROR__` unset and the
+// driver waiting out its whole timeout with nothing to report.
+let materials: ReturnType<typeof makeMaterials>;
 
 function place(
   scene: THREE.Object3D,
@@ -261,6 +264,8 @@ function makeGround(): THREE.Mesh {
 }
 
 function boot(): void {
+  materials = makeMaterials(makeFaceAtlas(0.087));
+
   const canvas = document.getElementById('view') as HTMLCanvasElement;
   const overlay = document.getElementById('overlay') as HTMLDivElement;
   const readout = document.getElementById('readout') as HTMLDivElement;

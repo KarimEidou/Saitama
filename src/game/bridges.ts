@@ -62,9 +62,14 @@ export interface ICombatSyncReport {
 /**
  * Mirror live monsters into combat's target registry.
  *
- * Position and health every frame; `phaseResolved` ONCE, at registration —
- * after that the boss gate belongs to the bus, and writing it again from a
- * descriptor would let a stale poll re-close a gate the script already opened.
+ * POSITION every frame; health and `phaseResolved` ONCE, at registration.
+ * Combat is authoritative on damage and death (see the header of
+ * `src/entities/monster/monster-system.ts`) — a monster's own `brain.health` is
+ * what combat's `EntityDamaged` left there, so it trails the registry by up to
+ * a frame and publishing it back would be a stale poll overwriting the
+ * authority. `phaseResolved` is the same argument for the boss gate: after
+ * registration it belongs to the bus, and writing it again from a descriptor
+ * would let a stale poll re-close a gate the script already opened.
  */
 export class CombatTargetBridge {
   private readonly registered = new Set<EntityId>();

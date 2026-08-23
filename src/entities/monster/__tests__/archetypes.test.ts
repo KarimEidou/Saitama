@@ -228,6 +228,55 @@ describe('archetype table', () => {
     }
   });
 
+  it('answers the director from a cache rather than re-filtering the table', () => {
+    // `placeOne` asks for a district's candidates on every placement attempt
+    // that survives the ring, separation and tier gates, and a peak wave is
+    // three orders at up to twelve attempts each. The inputs are a frozen
+    // table and a seven-value enum, so the answers are constants.
+    expect(spawnableArchetypes()).toBe(spawnableArchetypes());
+    expect(archetypesForTier('wolf')).toBe(archetypesForTier('wolf'));
+    expect(archetypesForDistrict('downtown', 'wolf')).toBe(
+      archetypesForDistrict('downtown', 'wolf')
+    );
+    expect(archetypesForDistrict('downtown')).toBe(archetypesForDistrict('downtown'));
+    expect(archetypesForDistrict('downtown')).not.toBe(archetypesForDistrict('wasteland'));
+    // Keyed on the tier too, so the untiered answer is not served for a tiered
+    // question or the other way round.
+    expect(archetypesForDistrict('downtown')).not.toBe(archetypesForDistrict('downtown', 'wolf'));
+    expect(bossArchetypes()).toBe(bossArchetypes());
+
+    expect(Object.isFrozen(spawnableArchetypes())).toBe(true);
+    expect(Object.isFrozen(archetypesForTier('wolf'))).toBe(true);
+    expect(Object.isFrozen(archetypesForDistrict('downtown', 'wolf'))).toBe(true);
+  });
+
+  it('preserves table order in every memoised answer', () => {
+    // Determinism depends on it: `rng.pick`/`rng.weighted` index into these
+    // arrays, so a reordered candidate list is a different world from the same
+    // seed.
+    const order = (list: readonly { id: string }[]): string[] => list.map((a) => a.id);
+    expect(order(spawnableArchetypes())).toEqual(
+      order(MONSTER_ARCHETYPES.filter((a) => !a.isBoss && !a.summonOnly))
+    );
+    for (const tier of TIERS) {
+      expect(order(archetypesForTier(tier))).toEqual(
+        order(MONSTER_ARCHETYPES.filter((a) => !a.isBoss && !a.summonOnly && a.threatTier === tier))
+      );
+    }
+    for (const district of DISTRICTS) {
+      expect(order(archetypesForDistrict(district))).toEqual(
+        order(
+          MONSTER_ARCHETYPES.filter((a) => {
+            if (a.isBoss || a.summonOnly) return false;
+            const allowed = a.spawnDistricts;
+            return allowed === undefined || allowed.length === 0 || allowed.includes(district);
+          })
+        )
+      );
+    }
+    expect(order(bossArchetypes())).toEqual(order(MONSTER_ARCHETYPES.filter((a) => a.isBoss)));
+  });
+
   it('rewards higher tiers more, so the tier means something to progression', () => {
     let previous = 0;
     for (const tier of TIERS) {

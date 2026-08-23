@@ -107,13 +107,17 @@ export class Speedlines {
    */
   setFocusWorld(x: number, y: number, z: number, camera: THREE.Camera): void {
     this.scratch.set(x, y, z).project(camera);
-    // Behind the camera: `project` mirrors the point, so fall back to centre.
-    if (this.scratch.z > 1) this.focus.set(0, 0);
-    else
-      this.focus.set(
-        Math.max(-1.4, Math.min(1.4, this.scratch.x)),
-        Math.max(-1.4, Math.min(1.4, this.scratch.y))
-      );
+    const px = this.scratch.x;
+    const py = this.scratch.y;
+    // Behind the camera `project` mirrors the point; ON the camera plane it
+    // divides by zero and returns NaN/Infinity. Neither has a meaningful focus,
+    // and a NaN focus would stick in the uniform for the rest of the session.
+    // `!(z <= 1)` keeps the behind-the-camera fallback and catches a NaN z.
+    if (!(this.scratch.z <= 1) || !Number.isFinite(px) || !Number.isFinite(py)) {
+      this.focus.set(0, 0);
+      return;
+    }
+    this.focus.set(Math.max(-1.4, Math.min(1.4, px)), Math.max(-1.4, Math.min(1.4, py)));
   }
 
   setColor(color: THREE.ColorRepresentation): void {
@@ -149,7 +153,14 @@ export class Speedlines {
     this.sustained = 0;
     this.sustainedTarget = 0;
     this.pulse = 0;
+    // A wipe must leave nothing of the previous encounter behind: neither its
+    // focus point nor its line pattern, so a cleared overlay is
+    // indistinguishable from a fresh one.
+    this.focus.set(0, 0);
+    this.phaseCounter = 0;
+    this.material.uniforms.uPhase!.value = 0;
     this.material.uniforms.uIntensity!.value = 0;
+    (this.material.uniforms.uFocus!.value as THREE.Vector2).set(0, 0);
     this.mesh.visible = false;
   }
 

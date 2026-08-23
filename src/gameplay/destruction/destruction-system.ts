@@ -355,6 +355,13 @@ export class DestructionSystem {
       this.stats.restoredChunks += this.restoreFromBitmask(structure);
       this.stats.restoredChunks += this.settleRestoredCollapse(structure);
     }
+    // A restore is not a detach batch: the range it accumulated must not widen
+    // the next one. Nothing put this structure in the flush list, so the span
+    // would just sit there and be unioned into the first real detach's upload —
+    // a six-figure-byte `bufferSubData` standing in for one chunk's forty. The
+    // mesh is brand new and `needsUpdate` is already set, so three still gives
+    // it its one full upload.
+    structure.clearUploadRange();
     if (structure.destroyedCount > 0) this.recountDamaged();
     return structure;
   }
@@ -468,7 +475,16 @@ export class DestructionSystem {
   ): number {
     if (this.disposed) return 0;
     if ((INTENT_RANK[intent] ?? 0) < this.minimumIntentRank) return 0;
-    if (range <= 0) return 0;
+    // A NaN range makes every reject in `aabbInCone` fall through — `d > NaN`
+    // is false — so one bad number upstream sweeps the entire city, and
+    // `clamp01(NaN)` then hands physics a NaN impulse for every piece of it.
+    // `range <= 0` alone does not catch it: every comparison against NaN is
+    // false, which is exactly why the test is written the positive way round.
+    if (!Number.isFinite(range) || range <= 0) return 0;
+    if (!Number.isFinite(halfAngle) || !Number.isFinite(power)) return 0;
+    if (!Number.isFinite(origin.x) || !Number.isFinite(origin.y) || !Number.isFinite(origin.z)) {
+      return 0;
+    }
 
     // Recorded HERE, past the gates, and not in the bus handler: all three
     // entry points then agree on what counts as an impact. A pulled punch does
@@ -559,7 +575,14 @@ export class DestructionSystem {
   applyRadial(origin: Vec3, radius: number, power: number, intent: LethalIntent): number {
     if (this.disposed) return 0;
     if ((INTENT_RANK[intent] ?? 0) < this.minimumIntentRank) return 0;
-    if (radius <= 0) return 0;
+    // Same reject as `applyShockwave`, and reachable without a single bad line
+    // in this unit: `onPlayerLanded` derives its radius from `event.impactSpeed`
+    // and `clamp(NaN * 0.35, 4, 45)` is NaN.
+    if (!Number.isFinite(radius) || radius <= 0) return 0;
+    if (!Number.isFinite(power)) return 0;
+    if (!Number.isFinite(origin.x) || !Number.isFinite(origin.y) || !Number.isFinite(origin.z)) {
+      return 0;
+    }
 
     this.rememberImpact(origin, power);
     const magnitude = clamp01(Math.log10(Math.max(1, power)) / 6);
@@ -680,6 +703,10 @@ export class DestructionSystem {
     const wz = this.chunkCentre[2]!;
 
     this.writeDetachVelocity(structure, chunkIndex, cause, wx, wy, wz);
+    // The clamp is what the impulse was built from, so it is the mass that goes
+    // out on the wire too: every consumer reconstructs Δv as `impulse / mass`,
+    // and a zero here makes that Infinity. `collateral` below still prices the
+    // real `chunk.mass`, so combat's invoice is unchanged.
     const mass = chunk.mass > 0 ? chunk.mass : 1;
     const ix = this.deltaV[0]! * mass;
     const iy = this.deltaV[1]! * mass;
@@ -696,7 +723,7 @@ export class DestructionSystem {
     // replay that diverges from its own recording), and `ChunkDetached` is
     // contractually emitted once per piece.
     if (cause !== 'external') {
-      this.emitDetached(structure, chunkIndex, wx, wy, wz, chunk.mass, ix, iy, iz, collateral);
+      this.emitDetached(structure, chunkIndex, wx, wy, wz, mass, ix, iy, iz, collateral);
     }
     return true;
   }
@@ -1159,6 +1186,17 @@ export class DestructionSystem {
       if (structure.destroyedCount > 0) this.saveToLedger(structure);
     }
     this.scheduler.clear();
+    // Impacts are a 0.75 s proximity window, not a damage record: a restarted
+    // mission must not inherit the previous one's reasons to throw a body.
+    // `this.clock` only advances inside `update()`, so across a load — where no
+    // update runs — a pre-clear impact stays permanently "recent", and the first
+    // monster to die within 42 m of last mission's punch gets launched at
+    // 34 m/s for no visible reason. Zeroing the count is enough:
+    // `onEntityKilled` reads `min(impactCount, IMPACT_HISTORY)` slots, so the
+    // stale floats are unreachable and the ring needs no fill. The clock itself
+    // is left alone — it is only ever read as `clock - impactTime`, and
+    // rewinding it would make old impacts look NEWER.
+    this.impactCount = 0;
     this.byId.clear();
     this.ordered.length = 0;
     // NOT `shapes.releaseAll()`. `clear()` is a mission restart or a fast

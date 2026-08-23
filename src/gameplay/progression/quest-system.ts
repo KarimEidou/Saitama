@@ -41,7 +41,7 @@ import type {
 } from '@/types';
 import { createLogger } from '@/util';
 import { QUEST_DEFS, RuntimeQuest, type IQuestDef } from './quest-defs';
-import { CLASS_ORDER } from './constants';
+import { BOREDOM_FUN_FIGHT_LOCK, CLASS_ORDER } from './constants';
 
 const log = createLogger('gameplay.quests');
 
@@ -89,6 +89,15 @@ export interface IQuestSystemOptions {
 function classRank(heroClass: HeroClass): number {
   return CLASS_ORDER.indexOf(heroClass);
 }
+
+/** The five states the machine actually has. Save payloads are strings, not `QuestState`s. */
+const QUEST_STATES: ReadonlySet<string> = new Set<QuestState>([
+  'locked',
+  'available',
+  'active',
+  'completed',
+  'failed',
+]);
 
 export class QuestSystem implements IQuestSystem {
   trackedQuestId: string | undefined;
@@ -145,9 +154,13 @@ export class QuestSystem implements IQuestSystem {
     if (quest.state !== 'available') return false;
     if (!this.meetsRequirements(quest)) return false;
 
-    this.setState(quest, 'active');
+    // The clock is set BEFORE the announcement: `setState` publishes
+    // `QuestStateChanged` and runs every listener synchronously, and
+    // `timeRemaining(questId)` is the only way a consumer can read a quest
+    // clock. `abandon()` is the precedent.
     quest.timeRemaining = quest.timeLimitSeconds;
     this.trackedQuestId ??= questId;
+    this.setState(quest, 'active');
 
     if (quest.rules.forceTimeOfDay !== undefined) {
       this.options.onForceTimeOfDay?.(quest.rules.forceTimeOfDay, quest.id);
@@ -252,6 +265,13 @@ export class QuestSystem implements IQuestSystem {
   ): void {
     const quest = this.byId.get(questId);
     if (!quest) return;
+    // `state` arrives from JSON through an unchecked cast. A string the machine has no edge out of
+    // strands the quest forever: `accept()` requires 'available', `abandon()` requires 'active',
+    // and `refreshAvailability()` only moves quests between 'locked' and 'available'.
+    if (!QUEST_STATES.has(state)) {
+      log.warn(`ignoring unknown state "${String(state)}" for quest "${questId}"`);
+      return;
+    }
     quest.state = state;
 
     if (state === 'active' && quest.timeLimitSeconds !== undefined) {
@@ -420,12 +440,16 @@ export class QuestSystem implements IQuestSystem {
    * would tick down while the player was still driving there.
    */
   private tickSurvive(quest: RuntimeQuest, dt: number): void {
-    for (let i = 0; i < quest.objectives.length; i++) {
-      const objective = quest.objectives[i]!;
-      if (objective.kind !== 'survive' || objective.complete) continue;
-      const priorDone = quest.objectives.slice(0, i).every((o) => o.complete);
-      if (!priorDone) continue;
-      objective.current = Math.min(objective.required, objective.current + dt);
+    // `priorDone` carries "everything before this objective is complete" forward, so the
+    // sequencing rule costs one pass and no allocation instead of a fresh slice per objective.
+    // `complete` is read AFTER the credit above it, so two consecutive survive objectives can
+    // still both finish on one long frame, exactly as the slice version allowed.
+    let priorDone = true;
+    for (const objective of quest.objectives) {
+      if (priorDone && objective.kind === 'survive' && !objective.complete) {
+        objective.current = Math.min(objective.required, objective.current + dt);
+      }
+      if (!objective.complete) priorDone = false;
     }
   }
 
@@ -482,7 +506,7 @@ export class QuestSystem implements IQuestSystem {
     // encounters simply do not appear.
     if (quest.rules.funFight) {
       const boredom = this.options.boredom?.() ?? 0;
-      if (boredom >= (this.options.funFightLock ?? 0.72)) return false;
+      if (boredom >= (this.options.funFightLock ?? BOREDOM_FUN_FIGHT_LOCK)) return false;
     }
     return true;
   }
@@ -501,8 +525,8 @@ export class QuestSystem implements IQuestSystem {
     if (quest.state !== 'active') return;
     this.releaseTimeOverride(quest);
     this.options.onResolved?.(quest, 'completed', 'objectivesComplete');
-    this.setState(quest, 'completed');
     quest.timeRemaining = undefined;
+    this.setState(quest, 'completed');
     if (this.trackedQuestId === quest.id) this.trackedQuestId = undefined;
 
     // Mutually exclusive windows. Completing the subjugation IS missing the
@@ -519,8 +543,8 @@ export class QuestSystem implements IQuestSystem {
     this.disarmEncounter(quest);
     this.releaseTimeOverride(quest);
     this.options.onResolved?.(quest, 'failed', reason);
-    this.setState(quest, 'failed');
     quest.timeRemaining = undefined;
+    this.setState(quest, 'failed');
     if (this.trackedQuestId === quest.id) this.trackedQuestId = undefined;
     log.info(`failed "${quest.title}" (${reason})`);
   }

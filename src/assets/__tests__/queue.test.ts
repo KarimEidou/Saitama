@@ -251,4 +251,14 @@ describe('ProgressTracker', () => {
     tracker.complete('b', 10);
     expect(tracker.snapshot.fraction).toBe(1);
   });
+
+  it('reports a batch with nothing in it as complete, not as 0%', () => {
+    // `preloadCore()` calls `loadAll([])` whenever the manifest was
+    // unreachable, which emits exactly one progress event and never emits
+    // again. A boot bar driven off `fraction` would sit at 0% forever while
+    // boot had in fact finished.
+    const tracker = new ProgressTracker(0, 0);
+    expect(tracker.snapshot.fraction).toBe(1);
+    expect(tracker.snapshot.total).toBe(0);
+  });
 });

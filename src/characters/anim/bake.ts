@@ -21,8 +21,8 @@
  */
 
 import * as THREE from 'three';
-import { blendPoseMasked, copyPose, createPose, upperBodyMask } from './pose';
-import { LocomotionSolver } from './locomotion';
+import { blendPoseMasked, copyPose, createPose, lowerBodyMask, upperBodyMask } from './pose';
+import { LocomotionSolver, solveGait } from './locomotion';
 import { clipDuration, clipSpeed, defaultClipParams, type ClipEntry } from './clips';
 import type { AnimRig, BoneMask, ClipParams, Pose } from './types';
 
@@ -63,7 +63,6 @@ function sampleStatic(rig: AnimRig, entry: ClipEntry, params: ClipParams, out: P
   // masked to the upper body still has legs under it when played on its own.
   const solver = new LocomotionSolver(rig);
   const base = createPose(rig.boneCount);
-  copyPose(base, rig.rest);
   for (let i = 0; i < 40; i++) {
     copyPose(base, rig.rest);
     solver.update(1 / 60, { speed: 0 }, base);
@@ -97,7 +96,11 @@ function sampleLocomotive(
   const solver = new LocomotionSolver(rig);
   const probe = createPose(rig.boneCount);
   copyPose(probe, rig.rest);
-  const period = 1 / Math.max(1e-4, solver.update(1e-6, { speed }, probe).solution.cycleFrequency);
+  // Straight from the pure solver. Driving the stateful one for a single
+  // 1 µs frame to read one number costs a full FK pass, a reach solve and two
+  // IK solves, and leaves a bogus touchdown behind that `reset` then has to
+  // clear; `update` returned exactly this value anyway.
+  const period = 1 / Math.max(1e-4, solveGait(speed, rig.metrics.legLength).cycleFrequency);
 
   solver.reset(0);
   const frames = out.length;
@@ -268,14 +271,10 @@ export function maskFor(rig: AnimRig, region: 'full' | 'upper' | 'lower'): BoneM
   }
   const existing = cached[region];
   if (existing !== undefined) return existing;
-  const upper = upperBodyMask(rig);
-  if (region === 'upper') {
-    cached.upper = upper;
-    return upper;
-  }
-  const mask = new Float32Array(rig.boneCount);
-  for (let i = 0; i < rig.boneCount; i++) mask[i] = 1 - upper[i]!;
-  cached.lower = mask;
+  // Built by `pose.ts` rather than re-derived here. The complement loop was a
+  // verbatim second copy of `lowerBodyMask`, and two copies of a rule drift.
+  const mask = region === 'upper' ? upperBodyMask(rig) : lowerBodyMask(rig);
+  cached[region] = mask;
   return mask;
 }
 

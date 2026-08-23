@@ -345,6 +345,12 @@ function maxJointSeparation(ragdolls: readonly Ragdoll[]): number {
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
   const q = new THREE.Quaternion();
+  // Scratch for the two joint anchors. This runs once per joint per step —
+  // 300 steps x 8 ragdolls x 12 joints — and a minor GC landing inside one of
+  // the `performance.now()` windows around `world.step()` would show up as
+  // noise in the one CPU number this file claims is a genuine measurement.
+  const t1 = new THREE.Vector3();
+  const t2 = new THREE.Vector3();
   let worst = 0;
   for (const ragdoll of ragdolls) {
     // A disposed ragdoll's joints are freed wasm handles; a frozen one is
@@ -361,10 +367,10 @@ function maxJointSeparation(ragdolls: readonly Ragdoll[]): number {
       const anchor2 = joint.anchor2();
       a.set(anchor1.x, anchor1.y, anchor1.z)
         .applyQuaternion(q.set(r1.x, r1.y, r1.z, r1.w))
-        .add(new THREE.Vector3(p1.x, p1.y, p1.z));
+        .add(t1.set(p1.x, p1.y, p1.z));
       b.set(anchor2.x, anchor2.y, anchor2.z)
         .applyQuaternion(q.set(r2.x, r2.y, r2.z, r2.w))
-        .add(new THREE.Vector3(p2.x, p2.y, p2.z));
+        .add(t2.set(p2.x, p2.y, p2.z));
       worst = Math.max(worst, a.distanceTo(b));
     }
   }
@@ -732,20 +738,20 @@ async function main(): Promise<void> {
   await status('loading rapier…');
   await initPhysics();
 
-  await status('scenario 1/4 — dropping 300 debris pieces…');
+  await status('scenario 1/5 — dropping 300 debris pieces…');
   const debrisContainer = new THREE.Group();
   const debris = runDebrisScenario(debrisContainer);
 
-  await status('scenario 2/4 — ragdolls…');
+  await status('scenario 2/5 — ragdolls…');
   const ragdoll = runRagdollScenario();
 
-  await status('scenario 3/4 — determinism…');
+  await status('scenario 3/5 — determinism…');
   const determinism = runDeterminismScenario();
 
-  await status('scenario 4/4 — character controller…');
+  await status('scenario 4/5 — character controller…');
   const character = runCharacterScenario();
 
-  await status('rendering…');
+  await status('scenario 5/5 — rendering the settled pile…');
   const canvas = document.getElementById('gl') as HTMLCanvasElement;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
   renderer.setPixelRatio(1);

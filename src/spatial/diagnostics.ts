@@ -20,7 +20,7 @@
 import { CHUNK_COUNT } from './constants';
 import { Frustum, composeViewProjection } from './frustum';
 import { IndexList } from './index-list';
-import type { Quadtree } from './quadtree';
+import { createCullStats, type ICullStats, type Quadtree } from './quadtree';
 import type { PvsTable } from './pvs';
 import type { ICameraSample } from './synthetic-city';
 
@@ -94,8 +94,8 @@ export function measureCullRates(
   const viewProjection = new Float64Array(16);
   const listA = new IndexList(4096);
   const listB = new IndexList(4096);
-  const statsA = { ...EMPTY_STATS };
-  const statsB = { ...EMPTY_STATS };
+  const statsA: ICullStats = createCullStats();
+  const statsB: ICullStats = createCullStats();
 
   const chunkBounds = new Float64Array(6);
   const occupied: number[] = [];
@@ -217,12 +217,3 @@ export function formatCullReport(report: ICullRateReport): string {
     `worst-case instances ...... ${report.worstInstancesAfterPvs}`,
   ].join('\n');
 }
-
-const EMPTY_STATS = {
-  nodesVisited: 0,
-  nodesRejected: 0,
-  nodesAccepted: 0,
-  chunksRejectedByPvs: 0,
-  itemsTested: 0,
-  itemsVisible: 0,
-};

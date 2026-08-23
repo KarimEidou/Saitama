@@ -137,7 +137,12 @@ export class HttpAssetProvider implements IAssetProvider {
         const root = this.manifest?.generatedRoot?.replace(/\/+$/, '');
         const prefix =
           root && !this.baseUrl.endsWith(root) ? `${this.baseUrl}/${root}` : this.baseUrl;
-        return `${prefix}/${output.file}`;
+        // Leading slashes stripped, exactly as the canonical
+        // `HttpAssetProvider.resolveFile` (`src/assets/provider.ts`) does it. A
+        // manifest whose `output.file` carries one otherwise yields
+        // `/assets/generated//env/day.ktx2`, which most static servers 404 and
+        // Capacitor's file scheme rejects outright.
+        return `${prefix}/${output.file.replace(/^\/+/, '')}`;
       }
     }
     return undefined;

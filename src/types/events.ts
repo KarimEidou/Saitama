@@ -416,14 +416,25 @@ export interface IEventBus {
   off<T extends GameEventType>(type: T, handler: EventHandler<T>): void;
   /**
    * Publish. The bus stamps `time` and `frame`, so callers omit them.
-   * Vectors in the payload are copied — reusing a scratch vector is safe.
+   * `Vec3`-typed fields are copied, so reusing a scratch vector is safe. Other
+   * structured fields (`coord`, id arrays) are passed BY REFERENCE — do not
+   * mutate them after emitting.
    */
   emit<T extends GameEventType>(type: T, payload: GameEventPayload<T>): void;
   /** Subscribe to EVERY event. For logging, replay capture and debug tools. */
   onAny(handler: (event: GameEvent) => void): () => void;
-  /** Remove all handlers for a type, or all handlers entirely. */
+  /**
+   * Remove all handlers for one type, or — with no argument — every handler
+   * including `onAny`. `clear(type)` does NOT touch `onAny` handlers; they see
+   * every type by definition, so there is no per-type subset of them to remove.
+   */
   clear(type?: GameEventType): void;
-  /** Live handler count, for leak detection in tests. */
+  /**
+   * Live handler count, for leak detection in tests. With a `type`, counts only
+   * that type's handlers and EXCLUDES `onAny`; with no argument, counts every
+   * type's handlers PLUS `onAny`. A leak test that must catch a stray `onAny`
+   * has to use the no-argument form.
+   */
   listenerCount(type?: GameEventType): number;
   /** Advance the frame stamp. Called once per frame by the game loop. */
   setFrame(frame: number, time: number): void;

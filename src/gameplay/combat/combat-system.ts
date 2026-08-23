@@ -672,16 +672,29 @@ export class CombatSystem {
 
   diagnostics(): ICombatDiagnostics {
     const charge = this.chargeFromHold(this.holdSeconds);
-    const forecast = this.chargeForecast(charge);
+    // Past the discriminator the gesture is committed to a serious punch,
+    // which is the moment the charge ring and its price tag should appear.
+    const charging = this.punchHeld && this.holdSeconds > this.tuning.tapMaxHoldSeconds;
+    // Keep the origin/facing refresh unconditional — `reportHeroism` falls back
+    // to `this.origin` for a subject with no position.
+    this.readAttacker();
+    // THE PRICE TAG IS ONLY COMPUTED WHILE IT IS ON SCREEN. `chargeForecast`
+    // runs `aabbInCone` — three `acos` before anything else — over every
+    // resident structure, and the HUD hides the field unless `charging`, so
+    // the idle frames were paying for a number nobody could read.
+    const chargeRangeMetres = lerp(
+      this.tuning.seriousRangeMinMetres,
+      this.tuning.seriousRangeMaxMetres,
+      charge
+    );
+    const chargeForecastYen = charging ? this.chargeForecast(charge).yen : 0;
     const chain = this.chain.state(this.time);
     return {
-      // Past the discriminator the gesture is committed to a serious punch,
-      // which is the moment the charge ring and its price tag should appear.
-      charging: this.punchHeld && this.holdSeconds > this.tuning.tapMaxHoldSeconds,
+      charging,
       charge,
       chargeSeconds: this.holdSeconds,
-      chargeRangeMetres: forecast.rangeMetres,
-      chargeForecastYen: forecast.yen,
+      chargeRangeMetres,
+      chargeForecastYen,
       chainLength: chain.length,
       chainWindowRemaining: chain.windowRemaining,
       boredom: this.boredomMeter.value,
@@ -702,6 +715,10 @@ export class CombatSystem {
     this.unsubscribes.length = 0;
     this.boredomMeter.dispose();
     this.encounters.dispose();
+    // A disposed system holds no level: drop the records so a torn-down
+    // street can be collected.
+    this.targets.clear();
+    this.structures.clear();
   }
 }
 

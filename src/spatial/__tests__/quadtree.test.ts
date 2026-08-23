@@ -8,7 +8,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Quadtree, type IQuadtreeRayHit } from '../quadtree';
+import {
+  Quadtree,
+  createCullStats,
+  type IQuadtreeOptions,
+  type IQuadtreeRayHit,
+} from '../quadtree';
+import { Frustum } from '../frustum';
 import { IndexList, FloatList } from '../index-list';
 import {
   QUADTREE_DEPTH,
@@ -22,7 +28,14 @@ import {
   chunkIndex,
 } from '../constants';
 import { createRng } from '@/util';
-import { randomBoxes, sortedList, describeDifference } from './fixtures';
+import {
+  randomBoxes,
+  randomPoses,
+  poseMatrix,
+  sortedList,
+  describeDifference,
+  WIDE_LANDSCAPE_LENS,
+} from './fixtures';
 
 function buildTree(count: number, seed = 'quadtree'): Quadtree {
   const tree = new Quadtree({ initialCapacity: count });
@@ -184,6 +197,42 @@ describe('Quadtree insert and remove', () => {
     expect(after[4]).toBeCloseTo(5, 3);
   });
 
+  it('tightens node extents when refit runs without a pending repack', () => {
+    // `nodeCentreExtent` is what the frustum walk classifies nodes against, and
+    // `refit()` rewrites the `nodeBounds` it is derived from. The stale form is
+    // conservatively LARGE, so results stay exact — but the walk keeps
+    // descending into subtrees it should have rejected outright. `pack()` being
+    // public is what makes the window reachable: it clears `packDirty` while
+    // `boundsDirty` is still set, so the later lazy `refit()` finds no repack
+    // pending and nothing refreshes the derived form.
+    const tree = new Quadtree({ initialCapacity: 8 });
+    const tall = tree.insert(-10, 0, -10, 10, 400, 10);
+    tree.insert(-10, 0, -10, 10, 5, 10);
+    tree.pack();
+    tree.remove(tall);
+    tree.pack(); // extents rebuilt from the stale 400 m-tall bounds
+
+    // Camera at y = 300 looking down -Z: the frustum covers y ~ 242..358 where
+    // the geometry is, so the STALE 0..400 root box straddles it while the real
+    // 0..5 box is far below the bottom plane.
+    const frustum = new Frustum();
+    const matrix = new Float64Array(16);
+    poseMatrix(
+      matrix,
+      { x: 0, y: 300, z: 100, yaw: 0, pitch: 0 },
+      { name: 'refit-probe', fovDegrees: 60, aspect: 1, near: 0.3, far: 400 }
+    );
+    frustum.setFromViewProjection(matrix);
+
+    const out = new IndexList(8);
+    const stats = createCullStats();
+    tree.cullFrustum(frustum, out, stats);
+
+    expect(out.length).toBe(0); // exact either way
+    expect(stats.itemsTested).toBe(0); // 1 before the fix, 0 after
+    expect(stats.nodesRejected).toBe(1); // 0 before the fix, 1 after
+  });
+
   it('clears completely', () => {
     const tree = buildTree(1000, 'clearable');
     tree.clear();
@@ -336,4 +385,141 @@ describe('Quadtree raycasts vs brute force', () => {
     expect(tree2.raycastFirst(5, 5, 0, 0, 0, 1, 99, hit)).toBe(false);
     expect(tree2.raycastFirst(5, 5, 0, 0, 0, 1, 101, hit)).toBe(true);
   });
+});
+
+/** Random boxes confined to a given square extent, so items actually descend. */
+function boxesIn(
+  count: number,
+  seed: string,
+  originX: number,
+  originZ: number,
+  size: number
+): { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number }[] {
+  const rng = createRng(seed);
+  const out: {
+    minX: number;
+    minY: number;
+    minZ: number;
+    maxX: number;
+    maxY: number;
+    maxZ: number;
+  }[] = [];
+  for (let i = 0; i < count; i++) {
+    const cx = originX + rng.next() * size;
+    const cz = originZ + rng.next() * size;
+    const hx = rng.range(0.75, 12);
+    const hz = rng.range(0.75, 12);
+    const base = rng.range(0, 4);
+    const h = rng.range(3, 60);
+    out.push({
+      minX: cx - hx,
+      minY: base,
+      minZ: cz - hz,
+      maxX: cx + hx,
+      maxY: base + h,
+      maxZ: cz + hz,
+    });
+  }
+  return out;
+}
+
+/**
+ * `IQuadtreeOptions` documents five tunables and the constructor validates
+ * `depth` — that is a public contract, and every other test in the unit builds
+ * a default tree. These configurations are what reach `levelOffset`'s
+ * non-canonical branch, the `canonical` gate in `buildTopology`,
+ * `chunkOfCentre`'s early -1, and the `nodeChild0 < 0` leaf-sweep disjunct in
+ * every walk — none of which the default tree exercises. Each is guarded by
+ * the same brute-force reference the default tree is.
+ *
+ * Deliberately no `depth >= 8` here: depth 7 is the deepest currently-correct
+ * value, and the deeper ones have their own filed regression.
+ */
+describe('Quadtree non-default configurations', () => {
+  const CONFIGS: readonly { name: string; options: IQuadtreeOptions; canonical: boolean }[] = [
+    { name: 'depth 0 (root only)', options: { depth: 0 }, canonical: false },
+    { name: 'depth 3 (shallower than the chunk level)', options: { depth: 3 }, canonical: false },
+    { name: 'depth 7', options: { depth: 7 }, canonical: true },
+    {
+      name: 'custom extent',
+      options: { originX: 0, originZ: 0, size: 512, depth: 5 },
+      canonical: false,
+    },
+    { name: 'strict placement', options: { looseFactor: 1 }, canonical: true },
+    { name: 'leafThreshold 1', options: { leafThreshold: 1 }, canonical: true },
+  ];
+
+  for (const config of CONFIGS) {
+    it(`matches brute force for ${config.name}`, () => {
+      const originX = config.options.originX ?? WORLD_MIN;
+      const originZ = config.options.originZ ?? WORLD_MIN;
+      const size = config.options.size ?? WORLD_SIZE;
+      const tree = new Quadtree({ ...config.options, initialCapacity: 1200 });
+      expect(tree.canonical).toBe(config.canonical);
+
+      for (const b of boxesIn(1200, `nondefault-${config.name}`, originX, originZ, size)) {
+        tree.insert(b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ);
+      }
+      tree.pack();
+
+      expect(tree.count).toBe(1200);
+      const info = tree.describe();
+      expect(info.itemsAtDepth.reduce((a, b) => a + b, 0)).toBe(1200);
+      if (!config.canonical) {
+        expect(tree.chunkNode(0)).toBe(-1);
+        expect(tree.getChunk(0)).toBe(-1);
+      }
+      // Not vacuous: unless the tree is too shallow to descend at all, the
+      // items must actually reach the lower levels rather than pile up at the
+      // root, where every query would degenerate to a linear scan.
+      if (tree.depth >= 3) {
+        expect(info.itemsAtDepth.slice(3).reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(900);
+      } else {
+        expect(info.itemsAtDepth[0]).toBe(1200);
+      }
+
+      const frustum = new Frustum();
+      const matrix = new Float64Array(16);
+      const fast = new IndexList(1024);
+      const slow = new IndexList(1024);
+      const rngQ = createRng(`nondefault-queries-${config.name}`);
+      let seen = 0;
+
+      for (const pose of randomPoses(30, `nondefault-poses-${config.name}`)) {
+        poseMatrix(matrix, pose, WIDE_LANDSCAPE_LENS);
+        frustum.setFromViewProjection(matrix);
+        tree.cullFrustum(frustum, fast);
+        tree.bruteForceCull(frustum, slow);
+        expect(describeDifference(sortedList(fast), sortedList(slow))).toBeUndefined();
+        seen += slow.length;
+      }
+      expect(seen).toBeGreaterThan(0);
+
+      for (let i = 0; i < 60; i++) {
+        const x = originX + rngQ.next() * size;
+        const z = originZ + rngQ.next() * size;
+        const half = rngQ.range(2, 180);
+        const y = rngQ.range(-10, 80);
+        const halfY = rngQ.range(2, 120);
+        tree.queryBox(x - half, y - halfY, z - half, x + half, y + halfY, z + half, fast);
+        tree.bruteForceBox(x - half, y - halfY, z - half, x + half, y + halfY, z + half, slow);
+        expect(describeDifference(sortedList(fast), sortedList(slow))).toBeUndefined();
+
+        const radius = rngQ.range(1, 220);
+        tree.queryRadius2D(x, z, radius, fast);
+        tree.bruteForceRadius2D(x, z, radius, slow);
+        expect(describeDifference(sortedList(fast), sortedList(slow))).toBeUndefined();
+
+        const yaw = rngQ.range(0, Math.PI * 2);
+        const pitch = rngQ.range(-0.6, 0.6);
+        const dx = Math.cos(pitch) * Math.sin(yaw);
+        const dy = Math.sin(pitch);
+        const dz = Math.cos(pitch) * Math.cos(yaw);
+        const maxDistance = rngQ.range(20, 900);
+        tree.raycastAll(x, y, z, dx, dy, dz, maxDistance, fast);
+        tree.bruteForceRaycast(x, y, z, dx, dy, dz, maxDistance, slow);
+        expect(describeDifference(sortedList(fast), sortedList(slow))).toBeUndefined();
+      }
+    });
+  }
 });

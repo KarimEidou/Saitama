@@ -234,6 +234,13 @@ export class FootstepVoice extends SynthVoice {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Landing variants. `crater` is the ground-breaking version; anything else is
+ * an ordinary touchdown — the voice also promotes a landing to a crater above
+ * intensity 0.75.
+ */
+export const LANDING_VARIANTS: readonly string[] = ['normal', 'crater'];
+
+/**
  * Touchdown after a fall. `intensity` maps impact speed, and at the top of the
  * range the landing becomes a crater: an extra octave of sub, a much longer
  * dust tail, and the same weight class as a heavy punch.

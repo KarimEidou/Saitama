@@ -237,9 +237,11 @@ function prepare(texture: THREE.Texture, srgb: boolean, anisotropy: number): THR
  *
  * The ORM texture is bound to three slots at once. That is the whole point of
  * the packing: `aoMap`, `roughnessMap` and `metalnessMap` all sample the same
- * upload, and `aoMap.channel = 0` because three defaults ambient occlusion to
- * UV1 — a second UV set these meshes do not have, and binding it would light
- * the character from a channel of zeros.
+ * upload, and `aoMap.channel = 0` is pinned explicitly. Three 0.185 already
+ * defaults `Texture.channel` to 0 and derives `aoMapUv` from it, so this is a
+ * GUARD rather than a fix — but the ORM texture is SHARED by every body of a
+ * character, so pinning the channel here stops any other consumer's `channel`
+ * write from silently sending AO to a UV set these meshes do not have.
  */
 export function createRosterMaterial(
   textures: RosterTextures,
@@ -281,7 +283,8 @@ export function createRosterMaterial(
   material.aoMapIntensity = 1;
   material.normalScale = new THREE.Vector2(options.normalScale ?? 1, options.normalScale ?? 1);
   material.envMapIntensity = options.envMapIntensity ?? 1;
-  // The ORM is bound to aoMap, and three defaults ambient occlusion to UV1.
+  // Pin the AO UV set on the SHARED ORM texture: three already defaults channel
+  // 0, this stops another consumer changing it.
   material.aoMap!.channel = 0;
 
   const rect = options.faceRect;
@@ -352,16 +355,26 @@ export function createRosterMaterial(
 /* Runtime controls                                                           */
 /* -------------------------------------------------------------------------- */
 
+/** The roster uniforms a material carries, or `undefined` when it carries none. */
+function rosterUniformsOf(material: THREE.Material): RosterUniforms | undefined {
+  return (material.userData as { roster?: RosterUniforms }).roster;
+}
+
+/** The injected-feature string (`F`/`C`/`D` flags), or `''`. */
+function rosterFeaturesOf(material: THREE.Material): string {
+  return (material.userData as { features?: string }).features ?? '';
+}
+
 /** Swap the face expression. One uniform write; no rebuild, no rebind. */
 export function setExpression(material: THREE.Material, expression: Expression): void {
-  const uniforms = (material.userData as { roster?: RosterUniforms }).roster;
+  const uniforms = rosterUniformsOf(material);
   if (uniforms === undefined) return;
   uniforms.faceSelect.value.x = Math.max(0, EXPRESSIONS.indexOf(expression));
 }
 
 /** The expression a material is currently showing. */
 export function getExpression(material: THREE.Material): Expression {
-  const uniforms = (material.userData as { roster?: RosterUniforms }).roster;
+  const uniforms = rosterUniformsOf(material);
   const index = uniforms === undefined ? 0 : Math.round(uniforms.faceSelect.value.x);
   return EXPRESSIONS[index] ?? 'neutral';
 }
@@ -392,14 +405,14 @@ export function proximityFadeAmount(armCollapseRatio: number): number {
  * injection at all.
  */
 export function setProximityFade(material: THREE.Material, armCollapseRatio: number): void {
-  const uniforms = (material.userData as { roster?: RosterUniforms }).roster;
+  const uniforms = rosterUniformsOf(material);
   if (uniforms === undefined) return;
   uniforms.proximityFade.value = proximityFadeAmount(armCollapseRatio);
 }
 
 /** Current dither coverage, 0 when the character is fully solid. */
 export function getProximityFade(material: THREE.Material): number {
-  const uniforms = (material.userData as { roster?: RosterUniforms }).roster;
+  const uniforms = rosterUniformsOf(material);
   return uniforms === undefined ? 0 : uniforms.proximityFade.value;
 }
 
@@ -434,13 +447,13 @@ export function auditMaterial(material: THREE.Material): MaterialAudit {
   for (const key of REQUIRED_MAPS) {
     if (standard[key] === null || standard[key] === undefined) missing.push(key);
   }
-  const uniforms = (material.userData as { roster?: RosterUniforms }).roster;
+  const uniforms = rosterUniformsOf(material);
   return {
     name: material.name,
     missing,
     hasEmissive: standard.emissiveMap !== null && standard.emissiveMap !== undefined,
     hasFace: uniforms?.faceMap.value !== null && uniforms?.faceMap.value !== undefined,
     aoChannel: standard.aoMap?.channel ?? -1,
-    features: (material.userData as { features?: string }).features ?? '',
+    features: rosterFeaturesOf(material),
   };
 }

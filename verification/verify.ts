@@ -30,6 +30,9 @@ const SCREENSHOT = path.join(OUT_DIR, 'task01-bootstrap.png');
 const DOCS_SHOT = path.join(ROOT, 'docs', 'screenshots', 'task01-bootstrap.png');
 
 const VIEWPORT = { width: 900, height: 1600 }; // portrait, phone-like
+/** Capture density. One constant, because the assertion below and the page
+ *  must not be able to disagree about what a captured pixel is. */
+const DPR = 2;
 
 /**
  * Width of the committed evidence copy.
@@ -213,7 +216,7 @@ async function main(): Promise<void> {
 
     const page: Page = await browser.newPage({
       viewport: VIEWPORT,
-      deviceScaleFactor: 2,
+      deviceScaleFactor: DPR,
       isMobile: true,
       hasTouch: true,
     });
@@ -275,6 +278,22 @@ async function main(): Promise<void> {
       failures.push(
         `evidence copy ${DOCS_SHOT} is ${(docsBytes / 1048576).toFixed(2)} MB, over the binary ` +
           `guard's ${MAX_FILE_BYTES / 1048576} MB limit — lower DOCS_SHOT_WIDTH`
+      );
+    }
+    // `analyseScreenshot` has always measured the capture's dimensions and
+    // nothing ever read them. If the viewport or the DPR silently stops
+    // applying, every statistic above is of a differently-sized frame, the run
+    // still passes, and the committed evidence copy is overwritten with it.
+    // Read from `pixels`, i.e. from SCREENSHOT: downscaling only the DOCS_SHOT
+    // copy leaves this correct, and so does changing DPR, because the page and
+    // the assertion read the same constant.
+    const wantWidth = VIEWPORT.width * DPR;
+    const wantHeight = VIEWPORT.height * DPR;
+    if (pixels.width !== wantWidth || pixels.height !== wantHeight) {
+      failures.push(
+        `capture is ${pixels.width}x${pixels.height}, expected ${wantWidth}x${wantHeight} ` +
+          `(viewport ${VIEWPORT.width}x${VIEWPORT.height} at DPR ${DPR}) — the frame analysed ` +
+          `and copied to docs/screenshots is not the frame this harness thinks it configured`
       );
     }
 

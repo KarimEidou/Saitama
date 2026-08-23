@@ -204,6 +204,10 @@ export function createNoiseSource(
   src.loopEnd = buffer.duration;
   // Start at 0 with a read offset: `start(when, offset)` is exact and costs
   // nothing, and decorrelates voices that share a buffer.
-  src.start(0, (offsetFraction % 1) * buffer.duration);
+  //
+  // `%` keeps the sign of its dividend, so a negative fraction would reach
+  // `start()` as a negative offset — a RangeError. Normalise into [0, 1).
+  const fraction = Number.isFinite(offsetFraction) ? ((offsetFraction % 1) + 1) % 1 : 0;
+  src.start(0, fraction * buffer.duration);
   return src;
 }

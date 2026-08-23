@@ -54,8 +54,6 @@ export class SettingsScreen extends HudScreen {
   private readonly onClose: () => void;
   private readonly onChange: (settings: IHudSettings) => void;
   private current: IHudSettings | null = null;
-  /** Rebuilt on each render; maps a control to the option it should light. */
-  private readonly groups: { readonly root: HTMLElement; readonly selected: () => string }[] = [];
 
   constructor(doc: Document, options: ISettingsOptions) {
     super(doc, 'hud-layer hud-layer--screen hud-screen hud-screen--centre', true);
@@ -102,7 +100,6 @@ export class SettingsScreen extends HudScreen {
     // lands while the game is paused.
     if (this.current && shallowEqual(this.current, settings)) return;
     this.current = settings;
-    this.groups.length = 0;
 
     this.body.replaceChildren(
       this.section('Render', [

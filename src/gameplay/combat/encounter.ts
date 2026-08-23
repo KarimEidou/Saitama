@@ -8,12 +8,14 @@
  *
  *   timeToKill          how long the world was in danger while you closed the
  *                       distance. The ONLY cost of choosing the normal punch.
- *   civiliansSaved/Lost who was still alive at the end.
+ *   civiliansSaved/Lost the rescues and the deaths this fight heard about,
+ *                       whatever caused them. (Only alliesSaved is "still
+ *                       standing".)
  *   alliesSaved         whether Mumen Rider got up.
  *   propertyDamageYen   destroyed fracture-chunk mass x zoning value. The
  *                       invoice for choosing the serious punch.
- *   witnessed           whether anyone SAW. The Hero Association's entire
- *                       comedy in one boolean.
+ *   witnessed           how many killing punches anyone SAW. The Hero
+ *                       Association's entire comedy, as a count.
  *
  * ── WHERE THE NUMBERS COME FROM ────────────────────────────────────────────
  * All of them arrive as events. `ChunkDetached` carries the mass of every

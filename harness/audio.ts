@@ -20,7 +20,7 @@ import { MUSIC_STATES, type MusicState } from '@/audio';
 import { REVERB_PRESET_NAMES, REVERB_PRESETS, type ReverbPreset } from '@/audio';
 import { EVENT_AUDIO_MAP, ALL_GAME_EVENT_TYPES } from '@/audio';
 import type { GameEventPayload, GameEventType, Vec3 } from '@/types';
-import { createEventBus } from '@/util';
+import { createEventBus, createRng } from '@/util';
 
 /* -------------------------------------------------------------------------- */
 /* Wiring                                                                     */
@@ -29,6 +29,12 @@ import { createEventBus } from '@/util';
 const bus = createEventBus();
 const audio = new AudioSystem({ autoStartAmbience: true });
 audio.attach(bus);
+
+// `Math.random()` is banned (`src/util/rng.ts`), and a fixed stream is what
+// makes two clicks of the same button — or two runs of the driver — comparable
+// by ear. Deliberately NOT reset per click: the stream, not each burst, is what
+// has to be reproducible from page load.
+const rng = createRng('audio-harness');
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -160,7 +166,7 @@ const EVENT_SAMPLES: { [T in GameEventType]: () => GameEventPayload<T> } = {
   }),
   ChunkDetached: () => ({
     structureId: 'demo-tower',
-    chunkIndex: Math.floor(Math.random() * 100),
+    chunkIndex: rng.int(0, 99),
     position: sourcePosition() ?? { x: 2, y: 6, z: -6 },
     mass: 50 + 600 * intensity,
     impulse: { x: 0, y: -20, z: 0 },
@@ -266,8 +272,8 @@ addButton(eventsEl, 'ChunkDetached x60', 'A whole structure failing in one frame
     bus.emit('ChunkDetached', {
       structureId: 'demo-tower',
       chunkIndex: i,
-      position: { x: (Math.random() - 0.5) * 12, y: Math.random() * 20, z: -8 },
-      mass: 40 + Math.random() * 800,
+      position: { x: rng.range(-6, 6), y: rng.range(0, 20), z: -8 },
+      mass: rng.range(40, 840),
       impulse: { x: 0, y: -30, z: 0 },
       material: ['concrete', 'glass', 'metal', 'wood'][i % 4]!,
       collateralCost: 40,
@@ -363,9 +369,17 @@ masterLabel.append(masterCaption, masterRange);
 busesEl.append(masterLabel);
 
 const mixerActions = $('mixer-actions');
+// The unduck owns its timer: without this a second click queues a second
+// unduck, and a stale one fires after an unrelated playMusic or stopAll and
+// quietly restores a gain nobody asked for.
+let duckTimer: number | undefined;
 addButton(mixerActions, 'duck music', 'Pull the music down for 1.5 s, as an impact does.', () => {
+  if (duckTimer !== undefined) window.clearTimeout(duckTimer);
   audio.duck('music', 0.2, 0.05);
-  window.setTimeout(() => audio.unduck('music', 0.6), 1500);
+  duckTimer = window.setTimeout(() => {
+    duckTimer = undefined;
+    audio.unduck('music', 0.6);
+  }, 1500);
 });
 addButton(mixerActions, 'stop all sfx', 'Cut every sounding effect.', () => audio.stopAll('sfx'));
 addButton(mixerActions, 'suspend', 'Simulate the app being backgrounded.', (button) => {

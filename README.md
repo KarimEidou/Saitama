@@ -129,7 +129,8 @@ Other scripts:
 | `npm run assets:characters`           | bake the 14-character roster into `public/assets/chr/`             |
 | `npm test`                            | Vitest unit tests                                                  |
 | `npm run typecheck`                   | `tsc --noEmit`, strict                                             |
-| `npm run lint`                        | ESLint over the whole tree                                         |
+| `npm run lint`                        | ESLint over the whole tree, warnings included                      |
+| `npm run format:check`                | Prettier, check-only — fails on formatting drift                   |
 | `npm run guard`                       | refuse tracked binary game assets and files over 5 MB              |
 | `npm run verify`                      | build, serve, drive headless Chromium, prove a real frame rendered |
 | `npx tsx verification/soak.verify.ts` | drive the whole game 1800 frames; zero errors, loop still drawing  |

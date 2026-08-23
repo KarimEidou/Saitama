@@ -204,8 +204,18 @@ export class CityMaterialLibrary {
    */
   pendingUpgrades(): string[] {
     const out: string[] = [];
-    for (const key of this.cache.keys()) {
-      if (!this.upgraded.has(key)) out.push(key);
+    // `synthesised` IS the answer, and iterating `cache` was not: it also
+    // returns every id the registry served FOR REAL from the start, which needs
+    // no upgrade. `createRegistryResolver` routes a checker-backed material to
+    // the fallback too, so an id is in this set exactly while it is still
+    // wearing a stand-in. Each spurious entry costs the background wave a
+    // registry round-trip, a frame (`await nextFrame()` per key) and an
+    // `adopt()` that copies a material's own maps back onto its clone and sets
+    // `needsUpdate` — a program re-validation for a material that never
+    // changed — and then mislabels the id `upgraded`, so `upgraded.size` stops
+    // being a number that can be compared to `synthesised`.
+    for (const key of this.synthesised) {
+      if (this.cache.has(key) && !this.upgraded.has(key)) out.push(key);
     }
     return out;
   }
@@ -339,5 +349,11 @@ export class CityMaterialLibrary {
     this.owned.length = 0;
     this.normals.clear();
     this.cache.clear();
+    // The matching half of the same bookkeeping: these two are what
+    // `pendingUpgrades()` reads, and a library whose cache is empty but whose
+    // sets still name every id it ever handed out is a library that reports
+    // work outstanding for materials it no longer owns.
+    this.synthesised.clear();
+    this.upgraded.clear();
   }
 }

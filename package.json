@@ -22,9 +22,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,css,html,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,css,html,md}\"",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "cap:android": "cap sync android"
   },
   "dependencies": {
@@ -51,7 +51,6 @@
     "@gltf-transform/extensions": "^4.4.2",
     "@gltf-transform/functions": "^4.4.2",
     "@gpu-tex-enc/basis": "^1.16.4",
-    "@playwright/test": "^1.56.1",
     "@types/node": "^22.15.0",
     "@types/three": "^0.185.4",
     "draco3dgltf": "^1.5.7",
@@ -63,7 +62,6 @@
     "meshoptimizer": "^1.2.0",
     "playwright": "1.56.1",
     "prettier": "^3.8.1",
-    "rollup-plugin-visualizer": "^7.1.1",
     "sharp": "^0.35.3",
     "tsx": "^4.23.12",
     "typescript": "~6.0.2",

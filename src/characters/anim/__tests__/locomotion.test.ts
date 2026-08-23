@@ -251,7 +251,7 @@ describe('gait model', () => {
   it('reproduces adult walking cadence and stride from the formula', () => {
     // 1.4 m/s is the textbook comfortable walking speed. Real adults land near
     // 110-125 steps/min with a 1.3-1.5 m stride. Nothing here is a lookup —
-    // these come out of `2.2 * u^0.49` and `0.42 * u^-0.51`.
+    // these come out of `2.28 * u^0.49` and `0.42 * u^-0.51`.
     const [row] = gaitProfile(saitama.rig, [1.4]);
     expect(row!.stepsPerMinute).toBeGreaterThan(105);
     expect(row!.stepsPerMinute).toBeLessThan(135);
@@ -299,6 +299,56 @@ describe('gait model', () => {
     expect(g.strideLength).toBe(0);
     expect(g.excursion).toBe(0);
     expect(g.activity).toBe(0);
+  });
+});
+
+describe('hostile input', () => {
+  // `clamp`, `clamp01`, `smoothstep` and `mod` all pass NaN through untouched,
+  // so nothing downstream stops it. That would be survivable if the damage were
+  // confined to one frame, but `phase` and `rootYaw` are ACCUMULATORS: one
+  // non-finite frame from a stalled clock or a physics body that went bad makes
+  // every bone NaN for the rest of the session, with nothing thrown and nothing
+  // logged. The character simply disappears.
+  const saitama = heroFixture('saitama');
+
+  it('solves a finite gait from a non-finite speed', () => {
+    const g = solveGait(NaN, 0.9);
+    for (const value of Object.values(g)) {
+      if (typeof value === 'number') expect(Number.isFinite(value)).toBe(true);
+    }
+    // Not merely finite — it is exactly the standing solution.
+    expect(g.cycleFrequency).toBe(solveGait(0, 0.9).cycleFrequency);
+    expect(g.speed).toBe(0);
+    expect(g.gait).toBe('stand');
+    // ...and a non-finite BODY falls back to the minimum leg rather than
+    // dividing by it.
+    expect(Number.isFinite(solveGait(1.4, NaN).cycleFrequency)).toBe(true);
+  });
+
+  it('recovers completely from one non-finite frame', () => {
+    const { rig } = saitama;
+    const solver = new LocomotionSolver(rig);
+    const pose = createPose(rig.boneCount);
+    const good = (): void => {
+      copyPose(pose, rig.rest);
+      solver.update(1 / 60, { speed: 1.4 }, pose);
+    };
+
+    for (let i = 0; i < 10; i++) good();
+    copyPose(pose, rig.rest);
+    solver.update(NaN, { speed: NaN, turnRate: NaN, groundY: NaN, slouch: NaN }, pose);
+    expect(Number.isFinite(solver.phase)).toBe(true);
+    expect(Number.isFinite(solver.rootYaw)).toBe(true);
+
+    for (let i = 0; i < 10; i++) good();
+    expect(Number.isFinite(solver.phase)).toBe(true);
+    expect(Number.isFinite(solver.rootYaw)).toBe(true);
+    expect(Number.isFinite(solver.rootPosition.x)).toBe(true);
+    expect(Number.isFinite(solver.rootPosition.z)).toBe(true);
+    for (let i = 0; i < pose.rot.length; i++)
+      expect(Number.isFinite(pose.rot[i]!), `rot ${i}`).toBe(true);
+    for (let i = 0; i < pose.pos.length; i++)
+      expect(Number.isFinite(pose.pos[i]!), `pos ${i}`).toBe(true);
   });
 });
 

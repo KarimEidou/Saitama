@@ -26,8 +26,14 @@ import { localAabbToWorld, localToWorld } from './geometry';
 
 const log = createLogger('destruction');
 
-/** Why a chunk came off. Drives the impulse profile and the audio class. */
-export type DetachCause = 'blast' | 'collapse' | 'external' | 'restore';
+/**
+ * Why a chunk came off. Drives the impulse profile and the audio class.
+ *
+ * A restore is deliberately NOT a cause: `restoreFrom` and `restoreFromBitmask`
+ * call `markDestroyed` directly so that replaying a settled state fires no
+ * debris and no events, and `detachChunk` is therefore never reached with one.
+ */
+export type DetachCause = 'blast' | 'collapse' | 'external';
 
 export class RegisteredStructure {
   readonly id: string;
@@ -249,9 +255,16 @@ export class RegisteredStructure {
     return true;
   }
 
-  /** True when this structure has vertices blanked but no range recorded yet. */
-  get hasPendingUpload(): boolean {
-    return this.dirtyMax >= 0;
+  /**
+   * Forget the coalesced range without recording it.
+   *
+   * Used after a restore: the mesh is brand new, `needsUpdate` already makes
+   * three upload the whole attribute once, and carrying the restored span into
+   * the next detach batch would widen that batch's range for nothing.
+   */
+  clearUploadRange(): void {
+    this.dirtyMin = 0;
+    this.dirtyMax = -1;
   }
 
   /**

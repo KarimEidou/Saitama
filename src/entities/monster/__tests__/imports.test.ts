@@ -175,4 +175,20 @@ describe('monster module import rule', () => {
     }
     expect(violations).toEqual([]);
   });
+
+  it('never calls console.* directly — logging goes through @/util', () => {
+    // `@/util`'s logger exists for exactly this: namespace muting, a production
+    // default of `warn`, and `warnOnce`/`throttle`. The dangerous site was
+    // `MonsterFsm.fire`, which runs per listener per transition for every
+    // monster — one throwing listener was thousands of raw `console.error`
+    // calls a second, from inside the update loop.
+    const violations: string[] = [];
+    for (const file of FILES) {
+      const source = stripComments(readFileSync(path.join(MODULE_DIR, file), 'utf8'));
+      if (/\bconsole\s*\.\s*(log|warn|error|info|debug|trace|table|assert)\s*\(/.test(source)) {
+        violations.push(file);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
 });

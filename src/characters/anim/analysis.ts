@@ -26,7 +26,7 @@
 import * as THREE from 'three';
 import { clamp01, TAU } from '@/util';
 import { copyPose, createPose, poseToModelMatrices, skinningMatrices } from './pose';
-import { LocomotionSolver } from './locomotion';
+import { LocomotionSolver, solveGait } from './locomotion';
 import { poseArm, poseLeg, posePelvis } from './posture';
 import { sampleClip } from './bake';
 import { sampleVatMatrix, type VatBake } from './vat';
@@ -314,8 +314,11 @@ export function measureNaiveFootSlide(rig: AnimRig, speed = 1.4, seconds = 8): F
   const m = rig.metrics;
   const pose = createPose(rig.boneCount);
   const model: THREE.Matrix4[] = [];
-  const solver = new LocomotionSolver(rig);
-  const gait = solver.update(1e-6, { speed }, pose).solution;
+  // Pure. This function is the NO-SOLVER control — constructing one to read a
+  // cadence would be odd on its own, and it was doing it through the trap
+  // `LocomotionSolver.report_` documents: the solver writes INTO the pose it is
+  // handed, and this one is a fresh `createPose` rather than the rest pose.
+  const gait = solveGait(speed, m.legLength);
   const frequency = gait.cycleFrequency;
   const swing = 0.45;
 
@@ -453,7 +456,6 @@ export function measureLimbSanity(
       for (const side of ['Left', 'Right'] as const) {
         const knee = rig.index[`${side}Leg`];
         if (knee !== undefined) {
-          _q.setFromRotationMatrix(_m.identity());
           const o = knee * 4;
           _q.set(pose.rot[o]!, pose.rot[o + 1]!, pose.rot[o + 2]!, pose.rot[o + 3]!);
           maxKneeFlexion = Math.max(maxKneeFlexion, 2 * Math.acos(Math.min(1, Math.abs(_q.w))));
@@ -614,11 +616,8 @@ export interface GaitRow {
 
 /** Tabulate the gait model across a speed sweep. Used by tests and the harness. */
 export function gaitProfile(rig: AnimRig, speeds: readonly number[]): GaitRow[] {
-  const solver = new LocomotionSolver(rig);
-  const pose = createPose(rig.boneCount);
   return speeds.map((speed) => {
-    copyPose(pose, rig.rest);
-    const g = solver.update(1e-6, { speed }, pose).solution;
+    const g = solveGait(speed, rig.metrics.legLength);
     return {
       speed,
       normalisedSpeed: g.normalisedSpeed,
@@ -646,7 +645,10 @@ export function sampleGaitPhases(
 ): { poses: Pose[]; rootZ: number[] } {
   const solver = new LocomotionSolver(rig);
   const pose = createPose(rig.boneCount);
-  const probe = solver.update(1e-6, { speed }, pose).solution;
+  // See `measureNaiveFootSlide`: `pose` here is a fresh buffer rather than the
+  // rest pose, which is precisely the case `LocomotionSolver.report_` warns
+  // about. The pure solver answers the same question without touching it.
+  const probe = solveGait(speed, rig.metrics.legLength);
   const period = 1 / Math.max(1e-4, probe.cycleFrequency);
   const substeps = 8;
   const dt = period / (phases * substeps);

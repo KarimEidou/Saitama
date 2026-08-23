@@ -101,6 +101,40 @@ function countTriangles(object: THREE.Object3D): number {
 }
 
 /**
+ * Apply the settings every mesh out of this pipeline needs.
+ *
+ * Shared by models and characters so the two cannot drift: anisotropy on every
+ * sampled slot (a normal or ORM map left at 1 shimmers at grazing angles just
+ * as badly as an albedo, and characters are the closest thing on screen), and
+ * `aoMap.channel = 0` because glTF's occlusion convention is UV1 and these
+ * meshes have UV0 only.
+ */
+function prepareSceneMaterials(root: THREE.Object3D, anisotropy: number): void {
+  root.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      const pbr = material as THREE.MeshStandardMaterial;
+      for (const slot of [
+        'map',
+        'normalMap',
+        'roughnessMap',
+        'metalnessMap',
+        'aoMap',
+        'emissiveMap',
+      ] as const) {
+        const texture = pbr[slot];
+        if (texture) texture.anisotropy = anisotropy;
+      }
+      if (pbr.aoMap) pbr.aoMap.channel = 0;
+    }
+  });
+}
+
+/**
  * Level-alternative child, e.g. `LOD0` — or `LOD0_17` once `GLTFLoader` has
  * made a duplicated name unique.
  *
@@ -125,7 +159,12 @@ export function extractLodGroups(
 ): readonly IModelLodGroup[] {
   const groups: IModelLodGroup[] = [];
   const distances = new Map<number, number>();
-  for (const lod of manifestLods) distances.set(lod.level, lod.screenDistance ?? 0);
+  // Only DECLARED distances go in the map. Storing `?? 0` here would make the
+  // `level * 25` ladder below unreachable and collapse every level to 0, which
+  // makes `THREE.LOD` pick level 0 at every distance with no warning.
+  for (const lod of manifestLods) {
+    if (lod.screenDistance !== undefined) distances.set(lod.level, lod.screenDistance);
+  }
 
   root.traverse((node) => {
     // The loader uniquifies the group name too (`part__LOD_3`), so the suffix
@@ -256,6 +295,12 @@ class LoadedModel implements ILoadedModel {
   }
 }
 
+/** A parsed character: its rigged scene plus every clip the GLB carried. */
+export interface ILoadedCharacter {
+  readonly scene: THREE.Object3D;
+  readonly clips: THREE.AnimationClip[];
+}
+
 /** Which resources `disposeSceneGraph` is allowed to free. */
 export interface IDisposeSceneOptions {
   /**
@@ -336,29 +381,7 @@ export async function parseModel(
   const scene = gltf.scene;
   scene.name = key;
 
-  scene.traverse((child) => {
-    const mesh = child as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of materials) {
-      const pbr = material as THREE.MeshStandardMaterial;
-      for (const slot of [
-        'map',
-        'normalMap',
-        'roughnessMap',
-        'metalnessMap',
-        'aoMap',
-        'emissiveMap',
-      ] as const) {
-        const texture = pbr[slot];
-        if (texture) texture.anisotropy = anisotropy;
-      }
-      // glTF puts occlusion on its own texCoord; these meshes have UV0 only.
-      if (pbr.aoMap) pbr.aoMap.channel = 0;
-    }
-  });
+  prepareSceneMaterials(scene, anisotropy);
 
   const lodLevels = entry?.outputs.flatMap((output) => output.lods ?? []) ?? [];
   const groups = extractLodGroups(scene, lodLevels);
@@ -374,20 +397,9 @@ export async function parseCharacter(
   key: string,
   bytes: ArrayBuffer,
   anisotropy: number
-): Promise<{ scene: THREE.Object3D; clips: THREE.AnimationClip[] }> {
+): Promise<ILoadedCharacter> {
   const gltf = await loader.parseAsync(bytes, '');
   gltf.scene.name = key;
-  gltf.scene.traverse((child) => {
-    const mesh = child as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of materials) {
-      const pbr = material as THREE.MeshStandardMaterial;
-      if (pbr.map) pbr.map.anisotropy = anisotropy;
-      if (pbr.aoMap) pbr.aoMap.channel = 0;
-    }
-  });
+  prepareSceneMaterials(gltf.scene, anisotropy);
   return { scene: gltf.scene, clips: gltf.animations };
 }

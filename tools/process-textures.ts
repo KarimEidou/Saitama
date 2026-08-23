@@ -193,14 +193,15 @@ const ZSTD_LEVEL = 18;
 /* Encode                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** Everything that decides the encoded bytes. Hashed into the skip key. */
+/** The encoder flags `ktxArgsFor` turns into a `ktx create` command line. The
+ *  skip-cache key is NOT computed from this — see `planSpec` in `encodeTexture`,
+ *  which must be derivable without doing any of the work. */
 interface IEncodeSpec {
   readonly role: TextureRole;
   readonly codec: TextureCodec;
   readonly colorSpace: 'srgb' | 'linear';
   readonly width: number;
   readonly height: number;
-  readonly hasAlpha: boolean;
   readonly clevel?: number;
   readonly qlevel?: number;
   readonly uastcQuality?: number;
@@ -511,6 +512,46 @@ const PROCEDURAL_GENERATORS: Readonly<
   'mat.road.markings': generateRoadMarkings,
 };
 
+/**
+ * One generated map set per (material, size).
+ *
+ * Every generator produces albedo, normal and ORM together, but
+ * `writeSourcePng` asks for one role at a time and `planJobs` emits one job per
+ * role — so without this each material is generated THREE times per tier and
+ * two thirds of the work is thrown away. Measured on this box:
+ * `generateGlass(2048)` is 10.8 s and `generateGlass(1024)` is 2.5 s, i.e.
+ * ~64 s per material across a full three-tier run against ~27 s with the memo.
+ *
+ * Keyed by size because the roles do not share a dimension on every tier (high:
+ * albedo/normal 2048, ORM 1024). The generators are pure and seeded from the
+ * material id, so sharing one result between three jobs cannot change a single
+ * output byte — and the skip-cache key does not depend on how many times the
+ * generator ran.
+ */
+const proceduralMaps = new Map<string, IProceduralMaps>();
+
+/** Cached, deterministic map set for a procedural material at one size. */
+export function proceduralMapsFor(materialId: string, size: number): IProceduralMaps {
+  const key = `${materialId}:${size}`;
+  const hit = proceduralMaps.get(key);
+  if (hit) return hit;
+  const generator = PROCEDURAL_GENERATORS[materialId];
+  if (!generator) throw new Error(`no procedural generator for '${materialId}'`);
+  const maps = generator(size, seedFromId(materialId));
+  proceduralMaps.set(key, maps);
+  return maps;
+}
+
+/**
+ * Drop the generated map cache once a tier's jobs have all been written.
+ *
+ * Peak residency is ~100 MB on the high tier; releasing it here keeps two
+ * tiers' worth of buffers from overlapping.
+ */
+export function clearProceduralCache(): void {
+  proceduralMaps.clear();
+}
+
 /* -------------------------------------------------------------------------- */
 /* Work planning                                                              */
 /* -------------------------------------------------------------------------- */
@@ -649,19 +690,17 @@ async function writeSourcePng(
   file: string;
   width: number;
   height: number;
-  hasAlpha: boolean;
 }> {
   const png = path.join(workDir, `${job.textureId}.${job.role}.png`);
 
   if (job.procedural) {
     const size = job.target.maxDimension;
-    const generator = PROCEDURAL_GENERATORS[job.materialId]!;
-    const maps = generator(size, seedFromId(job.materialId));
+    const maps = proceduralMapsFor(job.materialId, size);
     const map = maps[job.role as 'albedo' | 'normal' | 'orm'];
     await sharp(map.data, { raw: { width: size, height: size, channels: map.channels } })
       .png({ compressionLevel: 1 })
       .toFile(png);
-    return { file: png, width: size, height: size, hasAlpha: map.channels === 4 };
+    return { file: png, width: size, height: size };
   }
 
   const image = sharp(job.sourceFile!, { unlimited: true });
@@ -678,7 +717,7 @@ async function writeSourcePng(
     .png({ compressionLevel: 1 })
     .toFile(png);
 
-  return { file: png, width, height, hasAlpha: false };
+  return { file: png, width, height };
 }
 
 async function encodeTexture(
@@ -747,7 +786,6 @@ async function encodeTexture(
     colorSpace: job.colorSpace,
     width: png.width,
     height: png.height,
-    hasAlpha: png.hasAlpha,
     clevel: codec === 'etc1s' ? CLEVEL : undefined,
     qlevel: job.target.qlevel,
     uastcQuality: job.target.uastcQuality,
@@ -842,6 +880,10 @@ export async function processTextures(opts: ProcessOptions): Promise<ProcessResu
   });
   log.endStatus();
 
+  // Every job for this tier has been written, so the generated map sets have no
+  // remaining reader. Dropping them here keeps two tiers' worth of buffers from
+  // overlapping (~100 MB on the high tier).
+  clearProceduralCache();
   await cache.save();
 
   const outputs: IProducedOutput[] = [];

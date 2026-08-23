@@ -35,7 +35,12 @@ import {
   type IPlacement,
 } from './mesh-builder';
 import { CITY_MATERIALS, type IBlockMaterialSet } from './materials';
-import { generateBuilding, type BuildingDetail, type IBuildingBuild } from './building';
+import {
+  generateBuilding,
+  type BuildingDetail,
+  type IBuildingBuild,
+  type IBuildingRecipe,
+} from './building';
 import { rebaseLayout, type IFractureLayout } from './fracture';
 import { pickProp, propDestructible, propRadius, yawAlong, type IRawPlacement } from './props';
 import type { IPlanBlock, IPlanZone, IPlanZoneParams, ZoneKind } from './plan-types';
@@ -625,7 +630,7 @@ function makeRecipe(
   materials: IBlockMaterialSet,
   detail: BuildingDetail,
   rng: IRandom
-) {
+): IBuildingRecipe {
   const [minFloors, maxFloors] = params.floorRange;
   // Height distribution: a shaped roll rather than uniform, so a zone gets a
   // few landmarks over a mass of mid-rise instead of a flat comb.

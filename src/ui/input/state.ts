@@ -112,6 +112,9 @@ export interface InputStatePatch {
  * If `x`/`y` are supplied, `magnitude`/`angle`/`active` are RECOMPUTED from
  * them (an explicit `magnitude` is honoured only as a rescale of the given
  * direction). This is what lets `setMove(0, 1)` produce a fully-formed axis.
+ *
+ * A `magnitude` with NO direction (`x`/`y` absent and no `angle`) is
+ * meaningless, so it yields `NEUTRAL_AXIS` rather than an invented heading.
  */
 export function normaliseAxisPatch(patch: Partial<AxisState> | null | undefined): AxisState {
   if (!patch) return NEUTRAL_AXIS;
@@ -162,7 +165,10 @@ export function normaliseButtonPatch(patch: ButtonPatch | undefined): ButtonStat
     held,
     released: patch.released ?? false,
     holdTime: patch.holdTime ?? 0,
-    value: patch.value ?? (held ? 1 : 0),
+    // `value` is meaningless when the action is up, and `ButtonTracker.commit`
+    // zeroes it on release — so an explicit `held: false` wins over an explicit
+    // `value`, matching `buttonPatchValue` and every state a real device emits.
+    value: held ? (patch.value ?? 1) : 0,
   };
 }
 

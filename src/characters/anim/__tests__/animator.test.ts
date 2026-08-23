@@ -12,10 +12,11 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import type { ClipName, IAnimator } from '@/types';
+import type { BoneName, ClipName, IAnimator } from '@/types';
 import { ProceduralAnimator, type AnimatorOptions } from '../animator';
 import { createCharacterParts, buildCharacter } from '@/characters/mesh';
-import type { AnimEvent } from '../types';
+import { poseToModelMatrices } from '../pose';
+import type { AnimEvent, Pose, RigLike } from '../types';
 import { heroFixture, showcaseFixtures } from './support';
 
 function makeAnimator(options: AnimatorOptions = {}): {
@@ -344,6 +345,43 @@ describe('events', () => {
     animator.dispose();
   });
 
+  it('omits the position when the marker names a bone the rig does not have', () => {
+    // `resolveRig` is tolerant by design, and four library markers name
+    // `RightHand` or `Hips`, so a hand-less or GLB-sourced rig reaches this.
+    // The event used to carry a clone of the module scratch vector — in the
+    // normal frame order, another bone's MODEL-space position, which looks
+    // plausible and is in the wrong space entirely.
+    const build = buildCharacter('saitama', 0);
+    const parts = createCharacterParts(build, new THREE.MeshBasicMaterial());
+    const kept = parts.skeleton.bones.filter((b) => !b.name.endsWith('RightHand'));
+    const source: RigLike = {
+      skeleton: new THREE.Skeleton(kept),
+      profile: build.profile,
+      getBone: (name: BoneName) => kept.find((b) => b.name.endsWith(name)),
+    };
+    const animator = new ProceduralAnimator(source, new THREE.Group());
+    expect(animator.rig.index.RightHand).toBeUndefined();
+
+    const events: AnimEvent[] = [];
+    animator.onEvent((event) => events.push(event));
+    animator.play('attack', { fade: 0 });
+    step(animator, 1.5);
+
+    const impact = events.find((e) => e.name === 'impact')!;
+    expect(impact).toBeDefined();
+    expect(impact.bone).toBe('RightHand');
+    expect(impact.position).toBeUndefined();
+    // ...while a marker naming a bone this rig DOES have still carries one, so
+    // the guard is "no bone, no position" rather than "no position".
+    events.length = 0;
+    animator.play('jump', { fade: 0 });
+    step(animator, 1);
+    const launch = events.find((e) => e.name === 'launch')!;
+    expect(launch.bone).toBe('Hips');
+    expect(launch.position).toBeInstanceOf(THREE.Vector3);
+    animator.dispose();
+  });
+
   it('does not swallow markers on a hitched frame', () => {
     // A 300 ms frame at a 4 Hz gait crosses several markers at once. Dropping
     // them is the sort of bug that only appears on the slowest device shipped.
@@ -368,6 +406,44 @@ describe('events', () => {
     const cue = events.find((e) => e.name === 'ragdoll');
     expect(cue).toBeDefined();
     expect(cue!.phase).toBeLessThan(0.8);
+    animator.dispose();
+  });
+});
+
+describe('hostile input', () => {
+  it('survives a non-finite frame from the game clock', () => {
+    // The accumulator hazard from `locomotion.test.ts`'s "hostile input", seen
+    // through the façade the game actually calls: a stalled clock or a
+    // controller that produced one NaN speed must not erase the character for
+    // the rest of the session.
+    const { animator } = makeAnimator();
+    step(animator, 1);
+    animator.update(NaN);
+    animator.setLocomotion({ speed: NaN });
+    animator.update(1 / 60);
+    animator.setLocomotion({ speed: 2 });
+    step(animator, 0.5);
+
+    const pose = animator.pose;
+    for (let i = 0; i < pose.rot.length; i++) {
+      expect(Number.isFinite(pose.rot[i]!), `rot ${i}`).toBe(true);
+    }
+    for (let i = 0; i < pose.pos.length; i++) {
+      expect(Number.isFinite(pose.pos[i]!), `pos ${i}`).toBe(true);
+    }
+    expect(animator.gait.speed).toBe(2);
+    animator.dispose();
+  });
+
+  it('ignores a non-finite timeScale rather than propagating it', () => {
+    const { animator } = makeAnimator();
+    step(animator, 0.5);
+    animator.timeScale = NaN;
+    animator.update(1 / 60);
+    animator.timeScale = 1;
+    step(animator, 0.5);
+    expect(Number.isFinite(animator.solver.phase)).toBe(true);
+    expect(Number.isFinite(animator.pose.rot[0]!)).toBe(true);
     animator.dispose();
   });
 });
@@ -441,6 +517,38 @@ describe('ragdoll handoff', () => {
     bone.position.set(99, 99, 99);
     animator.update(1 / 60);
     expect(bone.position.x).not.toBe(99);
+    animator.dispose();
+  });
+
+  it('differences the last two poses exactly', () => {
+    // Pins the semantics the velocity snapshot has to preserve: the handoff
+    // reports (thisFrame - lastFrame) / dt per bone, in model space. The
+    // snapshot is a POSE rather than resolved bone positions, so this is the
+    // assertion that says the deferred forward-kinematics pass reproduces the
+    // per-frame one exactly rather than approximately.
+    const { animator } = makeAnimator();
+    animator.setLocomotion({ speed: 4 });
+    step(animator, 1);
+
+    const prev: Pose = {
+      boneCount: animator.pose.boneCount,
+      rot: new Float32Array(animator.pose.rot),
+      pos: new Float32Array(animator.pose.pos),
+    };
+    animator.update(1 / 60);
+    const handoff = animator.handoffToRagdoll();
+
+    const before = poseToModelMatrices(prev, animator.rig, []);
+    const after = poseToModelMatrices(animator.pose, animator.rig, []);
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    for (let i = 0; i < animator.rig.boneCount; i++) {
+      a.setFromMatrixPosition(after[i]!);
+      b.setFromMatrixPosition(before[i]!);
+      expect(handoff.velocities[i * 3]!, `bone ${i} x`).toBeCloseTo((a.x - b.x) * 60, 6);
+      expect(handoff.velocities[i * 3 + 1]!, `bone ${i} y`).toBeCloseTo((a.y - b.y) * 60, 6);
+      expect(handoff.velocities[i * 3 + 2]!, `bone ${i} z`).toBeCloseTo((a.z - b.z) * 60, 6);
+    }
     animator.dispose();
   });
 

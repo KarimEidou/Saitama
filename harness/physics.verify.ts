@@ -404,7 +404,12 @@ async function main(): Promise<void> {
         `${r.maxSpeedAfterSettleMs} m/s after settle`
     );
     console.log(`non-finite           ${r.anyNonFinite ? 'YES' : 'none'}`);
-    console.log(`step (117 bodies)    avg ${fmt(r.stepMs.avgMs)} ms`);
+    // Derived, not written out: `SPAWN_COUNT` is deliberately one over the cap
+    // and the over-cap ragdoll is frozen then reaped during the settle, so the
+    // body count the timing actually covers is the post-cap one.
+    console.log(
+      `step (${r.activeAfterCap * r.bodiesEach} bodies)    avg ${fmt(r.stepMs.avgMs)} ms`
+    );
     console.log('\n── determinism ──');
     console.log(
       `bodies compared      ${report.determinism.bodies} (${report.determinism.values} values)`

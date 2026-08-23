@@ -28,9 +28,16 @@
  * is testing the shipping code path, not a simulation of it.
  */
 
+import { createLogger } from '@/util';
 import { JOBS_PER_WORKER, MAX_IN_FLIGHT_JOBS, STREAMING_WORKER_COUNT } from './constants';
 import { handleRequest } from './chunk-worker';
 import type { WorkerRequest, WorkerResponse } from './protocol';
+
+/**
+ * Main-thread only. `worker-pool.ts` imports `chunk-worker.ts` and never the
+ * other way round, so this does not pull the logger into the worker bundle.
+ */
+const log = createLogger('world:streaming:workers');
 
 /** Pool construction options. */
 export interface IWorkerPoolOptions {
@@ -82,8 +89,10 @@ export class ChunkWorkerPool {
 
   constructor(options: IWorkerPoolOptions) {
     this.onResult = options.onResult;
+    // Throttled per distinct message: a worker that fails on every job would
+    // otherwise turn the diagnostic into the performance problem.
     this.onError =
-      options.onError ?? ((message) => console.error(`[streaming] worker: ${message}`));
+      options.onError ?? ((message) => log.throttle(`worker:${message}`, 1000, message));
 
     const wanted = options.workerCount ?? STREAMING_WORKER_COUNT;
     this.useInline = options.inline === true || typeof Worker === 'undefined' || wanted <= 0;
@@ -193,16 +202,21 @@ export class ChunkWorkerPool {
 
   private pump(): void {
     while (this.pending.length > 0 && this.inFlight < this.maxInFlight) {
-      const request = this.pending.shift()!;
       if (this.useInline) {
-        this.runInline(request);
-      } else {
-        const slot = this.leastBusySlot();
-        if (slot === undefined) return;
-        slot.jobs.add(request.id);
-        this.assignment.set(request.id, slot);
-        slot.worker.postMessage(request, transferablesFor(request));
+        this.runInline(this.pending.shift()!);
+        continue;
       }
+      // Resolve the slot BEFORE consuming the request: shifting first drops the
+      // job on the floor when no slot is available. Unreachable today —
+      // `useInline` is forced true whenever the last worker leaves — but this is
+      // a silent job loss if either invariant ever moves, and the chunk that
+      // owned it waits in 'loading' forever.
+      const slot = this.leastBusySlot();
+      if (slot === undefined) return;
+      const request = this.pending.shift()!;
+      slot.jobs.add(request.id);
+      this.assignment.set(request.id, slot);
+      slot.worker.postMessage(request, transferablesFor(request));
     }
   }
 
@@ -256,10 +270,9 @@ export class ChunkWorkerPool {
     // A microtask, not a synchronous call: callers must not be able to depend
     // on inline completion ordering that the real worker path cannot provide.
     void Promise.resolve().then(() => {
-      if (this.disposed) {
-        this.inFlightInline--;
-        return;
-      }
+      // `dispose()` already zeroed `inFlightInline`; decrementing again would
+      // drive it negative and make `idle` wrong in the other direction.
+      if (this.disposed) return;
       const response = handleRequest(request);
       this.inFlightInline--;
       this.deliver(response);
@@ -321,6 +334,13 @@ export class ChunkWorkerPool {
     this.pending.length = 0;
     this.assignment.clear();
     this.cancelled.clear();
+    // An inline job may be mid-microtask; its continuation returns without
+    // touching the counter (see `runInline`), so settle it here. A pool that
+    // still reports work in flight after dispose can never report `idle` again,
+    // and `waitForIdle()` then returns a promise nothing will ever settle —
+    // `StreamingSystem.update()` bails on `disposed`, and the frame loop is the
+    // only place the waiters are woken.
+    this.inFlightInline = 0;
   }
 }
 

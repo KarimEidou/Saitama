@@ -181,6 +181,41 @@ describe('TextureMemory', () => {
     expect(memory.has('d')).toBe(true);
   });
 
+  it('disposes the item it replaces instead of leaking it', () => {
+    // Every other route out of the LRU disposes. Overwriting a key silently
+    // dropped the old `IEvictable` with its GPU texture still resident and no
+    // route left to reach it.
+    const memory = newMemory(100 * MB);
+    const first = item('a', 10 * MB);
+    memory.insert(first);
+    const second = item('a', 20 * MB);
+    memory.insert(second);
+    expect(first.dispose).toHaveBeenCalledTimes(1);
+    expect(memory.peek('a')).toBe(second);
+    expect(memory.bytes).toBe(20 * MB);
+  });
+
+  it('refuses to dispose a replaced item something is still drawing with', () => {
+    const memory = newMemory(100 * MB);
+    const held = item('a', 10 * MB, 2);
+    memory.insert(held);
+    memory.insert(item('a', 10 * MB));
+    expect(held.dispose).not.toHaveBeenCalled();
+    expect(memory.bytes).toBe(10 * MB);
+  });
+
+  it('does not free an item re-inserted under its own key', () => {
+    // Re-inserting the SAME object is a touch, not a replacement: freeing it
+    // would dispose a live texture, and skipping the byte accounting would
+    // double-count it.
+    const memory = newMemory(100 * MB);
+    const only = item('a', 10 * MB);
+    memory.insert(only);
+    memory.insert(only);
+    expect(only.dispose).not.toHaveBeenCalled();
+    expect(memory.bytes).toBe(10 * MB);
+  });
+
   it('orders deterministically when touches happen in the same millisecond', () => {
     const memory = newMemory(30 * MB);
     memory.insert(item('a', 10 * MB));

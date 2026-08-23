@@ -515,7 +515,13 @@ export interface ISpawnPolicy {
    * LOD2 mesh with the skinned crowd already stripped.
    */
   readonly maxSpawnRing: number;
-  /** Metres from the world origin past which nothing spawns. */
+  /**
+   * Half-width of the square world box, in metres.
+   *
+   * Enforced PER AXIS — a spawn is rejected when |x| or |z| exceeds it, and
+   * `clampToWorld` clamps each axis independently — so the playable area is a
+   * 2R x 2R square rather than a disc of radius R.
+   */
   readonly worldRadiusMetres: number;
   /** Attempts per order before the director gives up on this wave. */
   readonly placementAttempts: number;

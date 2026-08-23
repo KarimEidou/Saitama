@@ -57,9 +57,22 @@ function buildThresholds(): number[] {
   return out;
 }
 
+/**
+ * Clamp an arbitrary number onto a real seat.
+ *
+ * `clamp()` returns NaN unchanged — NaN compares false against both bounds — which made
+ * `THRESHOLDS[NaN]` undefined and put `classForIndex(NaN)` at the TOP of the ladder. NaN is
+ * normalised to 0, matching the stance `indexForPoints` already takes for a NaN point total.
+ * +/-Infinity keep their existing, correct meanings via `clamp`.
+ */
+function seatIndex(index: number): number {
+  if (Number.isNaN(index)) return 0;
+  return clamp(Math.floor(index), 0, LADDER_SIZE - 1);
+}
+
 /** Ladder index -> class. Index 0 is the bottom of C-class. */
 export function classForIndex(index: number): HeroClass {
-  let remaining = clamp(Math.floor(index), 0, LADDER_SIZE - 1);
+  let remaining = seatIndex(index);
   for (const heroClass of CLASS_ORDER) {
     if (remaining < CLASS_SIZES[heroClass]) return heroClass;
     remaining -= CLASS_SIZES[heroClass];
@@ -69,7 +82,7 @@ export function classForIndex(index: number): HeroClass {
 
 /** Ladder index -> rank within the class, counting DOWN from the class size. */
 export function rankForIndex(index: number): number {
-  let remaining = clamp(Math.floor(index), 0, LADDER_SIZE - 1);
+  let remaining = seatIndex(index);
   for (const heroClass of CLASS_ORDER) {
     const size = CLASS_SIZES[heroClass];
     if (remaining < size) return size - remaining;
@@ -84,7 +97,9 @@ export function indexForRank(heroClass: HeroClass, rank: number): number {
   for (const candidate of CLASS_ORDER) {
     if (candidate === heroClass) {
       const size = CLASS_SIZES[heroClass];
-      return base + (size - clamp(Math.round(rank), 1, size));
+      // A NaN rank means the BOTTOM seat of the class, matching `seatIndex`.
+      const seat = Number.isNaN(rank) ? size : Math.round(rank);
+      return base + (size - clamp(seat, 1, size));
     }
     base += CLASS_SIZES[candidate];
   }
@@ -93,7 +108,7 @@ export function indexForRank(heroClass: HeroClass, rank: number): number {
 
 /** Cumulative points needed to hold a ladder index. */
 export function pointsForIndex(index: number): number {
-  return THRESHOLDS[clamp(Math.floor(index), 0, LADDER_SIZE - 1)]!;
+  return THRESHOLDS[seatIndex(index)]!;
 }
 
 /**

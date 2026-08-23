@@ -113,6 +113,7 @@ export {
   parseCharacter,
   disposeSceneGraph,
   type ILoadedModel,
+  type ILoadedCharacter,
   type IModelLodGroup,
   type IModelLodLevel,
   type IModelLoaderOptions,

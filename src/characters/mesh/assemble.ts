@@ -391,8 +391,22 @@ function buildGarmentStrands(
   return out;
 }
 
-/** Build one LOD of one character. */
-export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {}): HumanoidBuild {
+/** Everything a build produces except the stats block. */
+interface RawBuild {
+  readonly geometry: THREE.BufferGeometry;
+  readonly rig: HumanoidRig;
+  readonly regions: readonly MeshRegionInfo[];
+  readonly palette: Palette;
+  readonly shape: ShapeParams;
+}
+
+/**
+ * Everything except the stats block. Morph variants go through here rather
+ * than through `buildHumanoid`: they use only the position buffer, and the
+ * topology audit that fills `stats.components` is the most expensive thing in
+ * the build after normals.
+ */
+function buildRaw(profile: BodyProfile, options: HumanoidOptions): RawBuild {
   const lod = LOD_SETTINGS[options.lod ?? 0];
   const rig = buildRig(profile);
   const shape = resolveShape(profile, options.shape);
@@ -444,6 +458,14 @@ export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {
 
   const { geometry, regions } = builder.build();
 
+  return { geometry, rig, regions, palette, shape };
+}
+
+/** Build one LOD of one character. */
+export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {}): HumanoidBuild {
+  const raw = buildRaw(profile, options);
+  const { geometry, rig } = raw;
+
   const morphNames: string[] = [];
   if (options.morphTargets !== undefined && options.morphTargets.length > 0) {
     applyMorphTargets(geometry, profile, options, morphNames);
@@ -452,7 +474,7 @@ export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {
   const topology = analyseTopology(geometry);
 
   const stats: HumanoidStats = {
-    lod: lod.level,
+    lod: LOD_SETTINGS[options.lod ?? 0].level,
     vertices: geometry.getAttribute('position').count,
     triangles: (geometry.getIndex()?.count ?? 0) / 3,
     bones: rig.bones.length,
@@ -464,7 +486,7 @@ export function buildHumanoid(profile: BodyProfile, options: HumanoidOptions = {
     height: rig.dims.standingHeight,
   };
 
-  return { geometry, rig, regions, stats, profile, palette, shape, morphNames };
+  return { ...raw, stats, profile, morphNames };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -491,9 +513,9 @@ function applyMorphTargets(
 ): void {
   const base = geometry.getAttribute('position');
   const targets: THREE.BufferAttribute[] = [];
+  const resolved = resolveShape(profile, options.shape);
 
   for (const spec of options.morphTargets ?? []) {
-    const resolved = resolveShape(profile, options.shape);
     const shapeOverride: ShapeOverrides = {
       ...options.shape,
       ...(spec.delta.muscle !== undefined
@@ -504,11 +526,7 @@ function applyMorphTargets(
         : {}),
     };
 
-    const variant = buildHumanoid(perturb(profile, spec), {
-      ...options,
-      shape: shapeOverride,
-      morphTargets: undefined,
-    });
+    const variant = buildRaw(perturb(profile, spec), { ...options, shape: shapeOverride });
     const other = variant.geometry.getAttribute('position');
     if (other.count !== base.count) {
       variant.geometry.dispose();

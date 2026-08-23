@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createEventBus } from '@/util';
 import type { IEventBus } from '@/types';
+import { CrackTile } from '../constants';
 import { VFXSystem } from '../vfx-system';
 
 function makeSystem(tier: 'low' | 'medium' | 'high' = 'medium'): {
@@ -287,6 +288,38 @@ describe('VFXSystem', () => {
     }
     expect(vfx.diagnostics().decalsRecycled).toBe(10);
     vfx.dispose();
+  });
+
+  it('picks the fracture pattern from the material key, not from one letter', () => {
+    const tileFor = (materialKey: string): number => {
+      const { vfx } = makeSystem();
+      vfx.addDecal({
+        position: new THREE.Vector3(),
+        normal: new THREE.Vector3(0, 1, 0),
+        size: 2,
+        materialKey,
+      });
+      vfx.update(0);
+      const params = vfx.meshes[0]!.geometry.getAttribute('iParams').array as Float32Array;
+      const tile = params[1]!;
+      vfx.dispose();
+      return tile;
+    };
+
+    expect(tileFor('crater')).toBe(CrackTile.Star);
+    expect(tileFor('scorch')).toBe(CrackTile.Smear);
+    // The two branch tiles are interchangeable by design, so any of them is
+    // correct — but "rubble" and "brick" must not differ from "concrete" merely
+    // because they contain the letter b.
+    const keys = ['concrete', 'asphalt', 'rubble', 'cobble', 'brick', 'glass', 'metal'];
+    const tiles = keys.map(tileFor);
+    for (const tile of tiles) expect([CrackTile.BranchA, CrackTile.BranchB]).toContain(tile);
+    // Both branches must actually get used, or a fan of cracks is one shape
+    // repeated — which is the only reason two branch tiles exist.
+    expect(tiles).toContain(CrackTile.BranchA);
+    expect(tiles).toContain(CrackTile.BranchB);
+    // Stable across runs: the same key must always fracture the same way.
+    expect(tileFor('rubble')).toBe(tileFor('rubble'));
   });
 
   it('parts the clouds only for a genuine serious punch', () => {

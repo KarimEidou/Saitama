@@ -15,9 +15,16 @@
 
 import type { InputAction, InputDevice, PointerSample } from '@/types';
 
+/** Shared frozen empty list: `reset()` runs three times a frame and must not allocate. */
+const NO_POINTERS: readonly PointerSample[] = Object.freeze([]);
+
 /** Scratch buffer a backend writes into during `sample()`. */
 export class InputContribution {
-  /** Movement vector in -1..1, already dead-zoned. `null` = this backend has no opinion. */
+  /**
+   * Movement vector in -1..1, already dead-zoned. `hasMove === false` means
+   * this backend has no opinion; the components are then meaningless, not
+   * zero-as-input.
+   */
   moveX = 0;
   moveY = 0;
   hasMove = false;
@@ -34,8 +41,11 @@ export class InputContribution {
   /** Actions to drop without emitting a `released` edge. */
   readonly silentClears = new Set<InputAction>();
 
-  /** Raw pointers, normalised viewport coords. Only the touch backend fills this. */
-  pointers: PointerSample[] = [];
+  /**
+   * Raw pointers, normalised viewport coords. Only the touch backend fills
+   * this. Backends ASSIGN a new array; nobody mutates this one in place.
+   */
+  pointers: readonly PointerSample[] = NO_POINTERS;
 
   /** Per-frame pinch ratio; 1 = unchanged. */
   pinchDelta = 1;
@@ -55,7 +65,7 @@ export class InputContribution {
     this.held.clear();
     this.pulses.clear();
     this.silentClears.clear();
-    this.pointers = [];
+    this.pointers = NO_POINTERS;
     this.pinchDelta = 1;
     this.twistDelta = 0;
     this.active = false;

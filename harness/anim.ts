@@ -590,7 +590,7 @@ function renderClips(): ClipsStats {
 
     const cell: Cell = { x: i * stripW, y: stripTop, w: stripW, h: stripH };
     // A COMMON frame for every body: a child that fills the cell as much as a
-    // monster proves nothing about proportions. 2.7 m of frame height holds
+    // monster proves nothing about proportions. 3.0 m of frame height holds
     // the tallest with headroom and lets the 1.22 m child read as small.
     renderCell(cell, profileCamera(cell, 3.0, 0, 40));
     const gait = solver.gait;

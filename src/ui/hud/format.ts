@@ -29,6 +29,18 @@ import type { HeroClass, ThreatTier } from '@/types';
 
 const YEN = '¥';
 
+/**
+ * Coerce a non-finite figure to zero.
+ *
+ * These functions are the last thing between an upstream number and a glyph, and
+ * a `NaN` that reaches the screen prints `¥NaN` / `NaN:NaN` — an unreadable
+ * value that also looks like a rendering fault rather than a bad input. `clamp01`
+ * does not stop it: `NaN < 0` and `NaN > 1` are both false, so it passes through.
+ */
+function finite(value: number): number {
+  return Number.isFinite(value) ? value : 0;
+}
+
 /** Compact magnitude suffixes. Deliberately stops at T; nothing bills higher. */
 const MAGNITUDES: readonly { readonly at: number; readonly suffix: string }[] = [
   { at: 1e12, suffix: 'T' },
@@ -44,8 +56,7 @@ const MAGNITUDES: readonly { readonly at: number; readonly suffix: string }[] = 
  * exactly nothing is a result the player should be able to read instantly.
  */
 export function formatYenCompact(yen: number): string {
-  const value = Math.max(0, yen);
-  if (value < 1000) return `${YEN}${Math.round(value)}`;
+  const value = Math.max(0, finite(yen));
   for (const step of MAGNITUDES) {
     if (value >= step.at) {
       const scaled = value / step.at;
@@ -54,12 +65,15 @@ export function formatYenCompact(yen: number): string {
       return `${YEN}${scaled.toFixed(decimals)}${step.suffix}`;
     }
   }
-  return `${YEN}${Math.round(value)}`;
+  // Rounding can push a sub-K figure to 1000, which would print four ungrouped
+  // digits into a ticker that is supposed to be a fixed three. Promote it.
+  const rounded = Math.round(value);
+  return rounded >= 1000 ? `${YEN}1.00K` : `${YEN}${rounded}`;
 }
 
 /** Every digit, grouped. The end-of-encounter invoice, and only that. */
 export function formatYenFull(yen: number): string {
-  const value = Math.max(0, Math.round(yen));
+  const value = Math.max(0, Math.round(finite(yen)));
   return `${YEN}${groupDigits(value)}`;
 }
 
@@ -71,16 +85,18 @@ export function formatYenFull(yen: number): string {
  * grouped figure.
  */
 export function formatYenOku(yen: number): string {
-  const oku = Math.max(0, yen) / 1e8;
+  const yenSafe = Math.max(0, finite(yen));
+  const oku = yenSafe / 1e8;
   if (oku >= 10000) return `${(oku / 10000).toFixed(2)}兆円`;
-  if (oku < 0.01) return `${Math.round(Math.max(0, yen))}円`;
+  if (oku < 0.01) return `${Math.round(yenSafe)}円`;
   return `${oku.toFixed(oku < 10 ? 2 : 1)}億円`;
 }
 
 /** Thousands separators without pulling in Intl (which allocates per call). */
 export function groupDigits(value: number): string {
-  const negative = value < 0;
-  const digits = Math.abs(Math.round(value)).toString();
+  const safe = finite(value);
+  const negative = safe < 0;
+  const digits = Math.abs(Math.round(safe)).toString();
   let out = '';
   for (let i = 0; i < digits.length; i++) {
     if (i > 0 && (digits.length - i) % 3 === 0) out += ',';
@@ -109,7 +125,7 @@ export interface IClockParts {
  * second is merely tense.
  */
 export function clockParts(seconds: number): IClockParts {
-  const total = Math.max(0, seconds);
+  const total = Math.max(0, finite(seconds));
   const whole = Math.floor(total);
   return {
     minutes: Math.floor(whole / 60),
@@ -131,7 +147,7 @@ export function formatClock(seconds: number): string {
  * "1.4s" and "9.0s" are different fights and "0:01" and "0:09" are not.
  */
 export function formatDuration(seconds: number): string {
-  const value = Math.max(0, seconds);
+  const value = Math.max(0, finite(seconds));
   if (value < 10) return `${value.toFixed(1)}s`;
   if (value < 60) return `${Math.round(value)}s`;
   return formatClock(value);
@@ -143,7 +159,7 @@ export function formatDuration(seconds: number): string {
 
 /** `C-388`. The only rank string in the game. */
 export function formatRank(heroClass: HeroClass, rank: number): string {
-  return `${heroClass}-${Math.max(1, Math.round(rank))}`;
+  return `${heroClass}-${Math.max(1, Math.round(finite(rank)))}`;
 }
 
 /**
@@ -155,15 +171,17 @@ export function formatRank(heroClass: HeroClass, rank: number): string {
  * rather than a verdict.
  */
 export function formatPoints(delta: number): string {
-  const rounded = Math.abs(delta) < 0.05 ? 0 : delta;
+  const value = finite(delta);
+  const rounded = Math.abs(value) < 0.05 ? 0 : value;
   const sign = rounded < 0 ? '−' : '+';
   return `${sign}${Math.abs(rounded).toFixed(1)}`;
 }
 
 /** Seats moved on the ladder, phrased as the Association would. */
 export function formatSeatDelta(seats: number): string {
-  if (seats === 0) return 'held';
-  return seats > 0 ? `up ${seats}` : `down ${Math.abs(seats)}`;
+  const value = Math.round(finite(seats));
+  if (value === 0) return 'held';
+  return value > 0 ? `up ${value}` : `down ${Math.abs(value)}`;
 }
 
 /**
@@ -196,7 +214,7 @@ export function formatSeatMove(seats: number): string {
 
 /** Metres under a kilometre, kilometres above it. */
 export function formatDistance(metres: number): string {
-  const value = Math.max(0, metres);
+  const value = Math.max(0, finite(metres));
   if (value < 1000) return `${Math.round(value)} m`;
   return `${(value / 1000).toFixed(value < 10000 ? 1 : 0)} km`;
 }
@@ -208,7 +226,7 @@ export function formatTier(tier: ThreatTier): string {
 
 /** A plain count with its noun, pluralised. */
 export function formatCount(count: number, singular: string, plural?: string): string {
-  const n = Math.round(count);
+  const n = Math.round(finite(count));
   return `${n} ${n === 1 ? singular : (plural ?? `${singular}s`)}`;
 }
 
@@ -218,10 +236,10 @@ export function formatCount(count: number, singular: string, plural?: string): s
 
 /** `0.153` -> `x0.15`. The boredom throttle, as the player experiences it. */
 export function formatMultiplier(value: number): string {
-  return `×${value.toFixed(2)}`;
+  return `×${finite(value).toFixed(2)}`;
 }
 
 /** `0..1` -> `86%`. Never used for boredom — boredom is a mood, not a number. */
 export function formatPercent(fraction: number): string {
-  return `${Math.round(Math.max(0, Math.min(1, fraction)) * 100)}%`;
+  return `${Math.round(Math.max(0, Math.min(1, finite(fraction))) * 100)}%`;
 }

@@ -15,8 +15,9 @@
  * runner, the KTX2 inspector/validator, the content-addressed skip cache, the
  * bounded worker pool, and the runtime-index writer. The per-kind processors
  * import from here; this file imports them back lazily, inside `main()`, so
- * there is no import cycle at module-evaluation time and a processor that has
- * not been written yet degrades to a warning instead of a crash.
+ * there is no import cycle at module-evaluation time. A processor that cannot
+ * be imported fails the build: skipping it would write a runtime index missing
+ * an entire asset class and still exit 0.
  *
  * ── THE SKIP CACHE IS THE POINT ────────────────────────────────────────────
  * Encoding is expensive and profoundly repetitive: a 4096² albedo to ETC1S is
@@ -920,8 +921,6 @@ export async function writeRuntimeIndex(options: {
 export interface IValidationReport {
   readonly checked: number;
   readonly problems: readonly string[];
-  /** Per-tier byte totals measured from the files on disk, not the index. */
-  readonly bytesByTier: Partial<Record<QualityTier, number>>;
 }
 
 /**
@@ -945,8 +944,6 @@ export async function validateOutputs(
   const manifest = JSON.parse(await readFile(RUNTIME_INDEX, 'utf8')) as IRuntimeManifest;
   const wanted = new Set(tiers);
   const problems: string[] = [];
-  const bytesByTier: Partial<Record<QualityTier, number>> = {};
-  const seen = new Set<string>();
   let checked = 0;
 
   interface ICheckItem {
@@ -1010,17 +1007,13 @@ export async function validateOutputs(
       problems.push(`${output.file}: ${facts.bytes} bytes on disk, index says ${output.bytes}`);
     }
 
-    if (!seen.has(output.file)) {
-      seen.add(output.file);
-      bytesByTier[output.tier] = (bytesByTier[output.tier] ?? 0) + facts.bytes;
-    }
     checked += 1;
   }
   log.endStatus();
 
   problems.push(...(await validateEnvironments(manifest)));
 
-  return { checked, problems, bytesByTier };
+  return { checked, problems };
 }
 
 /**
@@ -1221,44 +1214,32 @@ type StageFn = (opts: ProcessOptions) => Promise<ProcessResult>;
 /**
  * Resolve a stage's entry point.
  *
- * `process-models.ts` belongs to another workstream and may simply not exist
- * yet. That is a normal state during parallel development, not an error, so it
- * is imported lazily and its absence downgrades to a warning.
+ * A stage that cannot be imported is a build FAILURE, not a warning. Skipping
+ * one silently produces a runtime index missing an entire asset class while the
+ * run still exits 0 — the worst possible trade for a pipeline whose whole
+ * design premise is that a failed build beats a quietly wrong one.
+ *
+ * This used to degrade to a warning for `models`, and the reason was good at
+ * the time: that file belonged to another workstream and might not exist yet.
+ * It exists, exports `processModels`, and produces the 39 `.glb` files the game
+ * loads, so the graceful degradation has outlived its reason.
  */
-async function loadStage(name: StageName, log: Logger): Promise<StageFn | undefined> {
-  try {
-    switch (name) {
-      case 'textures': {
-        const mod = await import('./process-textures.ts');
-        return mod.processTextures;
+export async function loadStage(name: StageName): Promise<StageFn> {
+  switch (name) {
+    case 'textures':
+      return (await import('./process-textures.ts')).processTextures;
+    case 'hdri':
+      return (await import('./process-hdri.ts')).processHdri;
+    case 'models': {
+      // The cast absorbs any drift between this file's `ProcessOptions` /
+      // `ProcessResult` and the structurally-identical pair `process-models.ts`
+      // declares for itself.
+      const mod = (await import('./process-models.ts')) as { processModels?: StageFn };
+      if (typeof mod.processModels !== 'function') {
+        throw new Error('tools/process-models.ts does not export processModels()');
       }
-      case 'hdri': {
-        const mod = await import('./process-hdri.ts');
-        return mod.processHdri;
-      }
-      case 'models': {
-        const mod = (await import('./process-models.ts')) as { processModels?: StageFn };
-        if (typeof mod.processModels !== 'function') {
-          log.warn(
-            `models processor not yet available — tools/process-models.ts exports no ` +
-              `processModels(); skipping the mesh stage.`
-          );
-          return undefined;
-        }
-        return mod.processModels;
-      }
+      return mod.processModels;
     }
-  } catch (error) {
-    const message = (error as Error).message;
-    if (name === 'models') {
-      log.warn(
-        `models processor not yet available (${message}) — skipping the mesh stage. ` +
-          `It is owned by the mesh workstream and must export ` +
-          `processModels(opts: ProcessOptions): Promise<ProcessResult>.`
-      );
-      return undefined;
-    }
-    throw error;
   }
 }
 
@@ -1297,8 +1278,9 @@ async function main(): Promise<void> {
 
   const stages = new Map<StageName, StageFn>();
   for (const name of options.stages) {
-    const fn = await loadStage(name, log);
-    if (fn) stages.set(name, fn);
+    // A throw here propagates to the top-level `main().catch(...)`, which
+    // prints the stack and exits 1.
+    stages.set(name, await loadStage(name));
   }
 
   const sourceManifest = await loadResolvedManifest();

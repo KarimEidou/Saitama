@@ -165,6 +165,18 @@ export const REVERB_PRESETS: Record<ReverbPreset, IReverbSettings> = {
 export const REVERB_PRESET_NAMES = Object.keys(REVERB_PRESETS) as ReverbPreset[];
 
 /**
+ * True for a name this module actually defines.
+ *
+ * `REVERB_PRESETS[name]` is not a sufficient guard: an object literal inherits
+ * `toString`, `constructor` and friends, all of which are truthy, and a preset
+ * that resolves to a function writes NaN into every delay time in the network.
+ * Mirrors `isSoundKey` in the voice registry.
+ */
+export function isReverbPreset(name: string): name is ReverbPreset {
+  return Object.prototype.hasOwnProperty.call(REVERB_PRESETS, name);
+}
+
+/**
  * Feedback gain that decays by 60 dB over `rt60` for a given mean delay.
  *
  * This is the lossless-prototype answer and it is only a starting point: the
@@ -279,7 +291,13 @@ export class ReverbSend {
     return this.currentPreset;
   }
 
-  /** Current settings, after any manual overrides. */
+  /**
+   * The declared settings of the current preset.
+   *
+   * NOT a live view of the graph: `setWet` scales the wet output gain without
+   * changing the preset, so a `setWet` override is deliberately not reflected
+   * here. Read `preset` for identity and this for the table entry behind it.
+   */
   get settings(): IReverbSettings {
     return REVERB_PRESETS[this.currentPreset];
   }
@@ -290,7 +308,7 @@ export class ReverbSend {
    * than like a cut.
    */
   setPreset(preset: ReverbPreset, time = this.ctx.currentTime, glideSeconds = 0.5): void {
-    if (!REVERB_PRESETS[preset]) return;
+    if (!isReverbPreset(preset)) return;
     this.currentPreset = preset;
     this.apply(REVERB_PRESETS[preset], time, glideSeconds);
   }

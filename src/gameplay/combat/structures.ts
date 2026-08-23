@@ -61,10 +61,23 @@ const DEFAULT_STRUCTURE_MASS_KG = 240_000;
 export class StructureIndex {
   private readonly structures = new Map<string, ICombatStructure>();
 
+  /**
+   * Register a structure. The box is COPIED, not aliased: the index owns its
+   * own data exactly as `TargetRegistry.add` owns its position vector, so a
+   * caller reusing one scratch box cannot silently move every structure it
+   * already registered.
+   */
   add(spec: ICombatStructureSpec): ICombatStructure {
     const structure: ICombatStructure = {
       id: spec.id,
-      bounds: spec.bounds,
+      bounds: {
+        minX: spec.bounds.minX,
+        minY: spec.bounds.minY,
+        minZ: spec.bounds.minZ,
+        maxX: spec.bounds.maxX,
+        maxY: spec.bounds.maxY,
+        maxZ: spec.bounds.maxZ,
+      },
       massKg: spec.massKg ?? DEFAULT_STRUCTURE_MASS_KG,
       district: spec.district ?? 'residential',
     };

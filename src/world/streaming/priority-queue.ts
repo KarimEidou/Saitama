@@ -246,6 +246,23 @@ export class ChunkPriorityQueue {
     return this.heap.slice().sort((a, b) => a.score - b.score);
   }
 
+  /**
+   * The smallest `enqueuedFrame` still in the queue, or -1 when empty.
+   *
+   * This is what the starvation diagnostic `IQueuedChunk.enqueuedFrame` exists
+   * for: an entry whose age keeps growing while the queue drains around it is
+   * one the score never lets through — the failure mode a distance-and-angle
+   * heuristic is inherently prone to, and one that is otherwise invisible
+   * because nothing about it is an error.
+   */
+  oldestEnqueuedFrame(): number {
+    let oldest = -1;
+    for (const entry of this.heap) {
+      if (oldest < 0 || entry.enqueuedFrame < oldest) oldest = entry.enqueuedFrame;
+    }
+    return oldest;
+  }
+
   /* ------------------------------------------------------------------ */
   /* Heap internals                                                     */
   /* ------------------------------------------------------------------ */

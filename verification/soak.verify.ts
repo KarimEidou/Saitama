@@ -133,12 +133,26 @@ function serveDist(): Promise<{ server: Server; port: number }> {
  * the bundler's `__name` helper does not exist in the page's scope — a named
  * inner function therefore throws `__name is not defined`. Same constraint as
  * `integration.verify.ts`.
+ *
+ * DEADLINE: the promise below only ever resolved, and `page.evaluate` has no
+ * timeout, so a page whose rAF stops firing — a lost GL context, a renderer
+ * crash — hung this thirty-second-per-sample loop forever with no output and no
+ * verdict. 30 s per requested frame is ~10x the worst measured SwiftShader
+ * frame, so this can only fire on a genuinely dead loop; the rejection surfaces
+ * as an ordinary `page.evaluate` error and reaches `main().catch(...)`.
  */
 async function frames(page: Page, count: number): Promise<void> {
+  const budgetMs = 60_000 + count * 30_000;
   await page.evaluate(
-    `new Promise((resolve) => {
+    `new Promise((resolve, reject) => {
        let left = ${count};
-       const tick = () => { if (--left <= 0) { resolve(); return; } requestAnimationFrame(tick); };
+       const timer = setTimeout(() => reject(new Error(
+         'frames(): requestAnimationFrame stalled with ' + left + ' of ${count} frames left after ${budgetMs} ms'
+       )), ${budgetMs});
+       const tick = () => {
+         if (--left <= 0) { clearTimeout(timer); resolve(); return; }
+         requestAnimationFrame(tick);
+       };
        requestAnimationFrame(tick);
      })`
   );

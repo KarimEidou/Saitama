@@ -196,6 +196,8 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
   let lastTime = Number.NaN;
   let activeDevice: InputDevice = hasDom ? 'touch' : 'synthetic';
   let enabled = true;
+  // Guards the mutators as well as `dispose()` itself — a disposed manager must
+  // not re-enable a disposed haptics sink or re-arm a disposed synthetic driver.
   let disposed = false;
   let uninstallBridge: (() => void) | null = null;
 
@@ -253,8 +255,20 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
       for (const action of scratch.silentClears) tracker.clearSilently(action);
 
       if (scratch.pointers.length > 0) pointers = scratch.pointers;
-      if (scratch.pinchDelta !== 1) pinchDelta = scratch.pinchDelta;
-      if (scratch.twistDelta !== 0) twistDelta = scratch.twistDelta;
+      // `InputState` is finite by contract, and `!== 1` / `!== 0` are both TRUE
+      // for NaN — so an unguarded fold lands a poisoned value in a frozen
+      // snapshot. `pinchDelta` is a RATIO the camera divides by, which makes
+      // zero and negatives as invalid as NaN.
+      if (
+        Number.isFinite(scratch.pinchDelta) &&
+        scratch.pinchDelta > 0 &&
+        scratch.pinchDelta !== 1
+      ) {
+        pinchDelta = scratch.pinchDelta;
+      }
+      if (Number.isFinite(scratch.twistDelta) && scratch.twistDelta !== 0) {
+        twistDelta = scratch.twistDelta;
+      }
 
       if (scratch.active) frameDevice = backend.device;
     }
@@ -302,6 +316,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
      * just works from a test without a separate arming step.
      */
     setState(patch: InputStatePatch): void {
+      if (disposed) return;
       synthetic.setState(patch);
       if (!synthetic.enabled) {
         synthetic.enabled = true;
@@ -350,7 +365,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
       return synthetic.enabled;
     },
     set syntheticEnabled(value: boolean) {
-      if (synthetic.enabled === value) return;
+      if (disposed || synthetic.enabled === value) return;
       synthetic.enabled = value;
       // Handing control either way must not leave a latched key down, and the
       // sidelined backends must not accumulate a frame's worth of unread drag.
@@ -376,6 +391,7 @@ export function createInputManager(options: IInputManagerOptions = {}): IInputMa
     },
 
     setTuning(patch: Partial<IInputTuning>): void {
+      if (disposed) return;
       // The PATCH goes in as the patch, the current tuning as the base —
       // spreading the two together first would make every field defined and
       // silently skip `resolveTuning`'s stickRadius/stickFullDeflectionPx sync.

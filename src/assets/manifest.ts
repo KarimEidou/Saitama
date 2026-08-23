@@ -171,9 +171,31 @@ export function outputBytes(entry: AnyAssetEntry, tier: QualityTier): number {
 
 /**
  * Texture ids a material binds, in the order they must be resident before the
- * material can be built.
+ * material can be built: `textureKeys` unioned with the spec's own `*MapKey`
+ * fields.
+ *
+ * Both directions are load-bearing — `textureKeys` is authoritative, and a spec
+ * that names a map the block forgot must still get it fetched. Non-materials
+ * have none.
+ *
+ * The single implementation lives here rather than in `materials.ts` because
+ * this module stays free of `three` imports; `requiredTextures` delegates to
+ * it so the two names cannot drift apart.
  */
 export function materialTextureKeys(entry: AnyAssetEntry): readonly string[] {
   if (entry.kind !== 'material') return [];
-  return Object.values(entry.textureKeys).filter((key): key is string => typeof key === 'string');
+  const keys = new Set<string>();
+  for (const key of Object.values(entry.textureKeys)) {
+    if (typeof key === 'string') keys.add(key);
+  }
+  for (const key of [
+    entry.spec.mapKey,
+    entry.spec.normalMapKey,
+    entry.spec.ormMapKey,
+    entry.spec.emissiveMapKey,
+    entry.spec.alphaMapKey,
+  ]) {
+    if (typeof key === 'string') keys.add(key);
+  }
+  return [...keys];
 }

@@ -269,6 +269,35 @@ describe('phase progression', () => {
     expect(encounter.currentPhaseIndex).toBeGreaterThan(0);
   });
 
+  it('stops pulsing at a player who has left the arena entirely', () => {
+    // A Boros survival phase fires a 1.4e6-power, 130 m `full`-intent cone
+    // every 1.1 s at the player's bearing. Ungated on distance it does that
+    // for ever — `canAdvance` is frozen while the player is away — and
+    // destruction, the crowd, VFX and audio all do real work on every one of
+    // them. Four hundred metres out, the cone cannot reach anybody.
+    const { encounter, recorder } = scene('boss.boros');
+    encounter.begin(0);
+    run(encounter, 30, { x: 400, y: 0, z: 0 });
+    expect(recorder.ofType('ShockwaveFired')).toHaveLength(0);
+    expect(encounter.currentPhaseIndex).toBe(0);
+  });
+
+  it('keeps pulsing inside the cone even when the engage clock is not running', () => {
+    // The predicate is REACH, not "engaged". Vaccine Man's descent: 18 m
+    // engage radius against a 28 m pulse. Hanging back at 24 m is still inside
+    // the thing deleting the cover — that is the whole phase.
+    const { encounter, recorder } = scene('boss.vaccineMan');
+    encounter.begin(0);
+    run(encounter, 10, { x: 60, y: 0, z: 0 });
+    expect(encounter.currentPhaseIndex).toBe(1);
+
+    recorder.clear();
+    run(encounter, 10, { x: 24, y: 0, z: 0 });
+    expect(recorder.ofType('ShockwaveFired').length).toBeGreaterThan(0);
+    // Outside the 18 m engage radius, so the phase clock never ran.
+    expect(encounter.currentPhaseIndex).toBe(1);
+  });
+
   it('never emits EncounterEnded — combat owns that event', () => {
     const { encounter, recorder } = scene('boss.boros');
     encounter.begin(0);

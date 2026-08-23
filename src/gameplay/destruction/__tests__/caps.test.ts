@@ -335,6 +335,76 @@ describe('the 8-ragdoll cap', () => {
     system.dispose();
   });
 
+  it('forgets impacts on clear, so a restart cannot ragdoll off the last mission', () => {
+    // An impact is a 0.75 s proximity window, not a damage record — and
+    // `this.clock` only advances inside `update()`, so across a load, where no
+    // update runs, a pre-clear impact stays permanently "recent". Without the
+    // reset the first monster to die within 42 m of where the player punched in
+    // the PREVIOUS mission gets launched at 34 m/s for no visible reason.
+    const bus = createEventBus();
+    const ragdolls = new FakeRagdollSink();
+    const system = new DestructionSystem({ bus, ragdolls, seed: 'ragdoll-clear' });
+    system.update(1 / 60);
+
+    bus.emit('ShockwaveFired', {
+      origin: { x: 0, y: 2, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 2.5e6,
+      range: 180,
+      angle: 0.4,
+      intent: 'full',
+      punchKind: 'serious',
+    });
+    bus.emit('EntityKilled', {
+      entityId: 'before',
+      entityType: 'monster',
+      faction: 'monster',
+      position: { x: 6, y: 1, z: 0 },
+      intent: 'full',
+      rewardPoints: 10,
+    });
+    // The positive control: this punch really does throw bodies.
+    expect(ragdolls.launches.length).toBe(1);
+    const suppressedBefore = system.diagnostics.ragdollsSuppressed;
+
+    system.clear();
+    bus.emit('EntityKilled', {
+      entityId: 'after-restart',
+      entityType: 'monster',
+      faction: 'monster',
+      position: { x: 6, y: 1, z: 0 },
+      intent: 'full',
+      rewardPoints: 10,
+    });
+
+    expect(ragdolls.launches.length).toBe(1);
+    expect(ragdolls.launches.map((l) => l.id)).toEqual(['before']);
+    // Not suppressed either: `onEntityKilled` returns at `best < 0`, before the
+    // ceiling is ever consulted. There was simply no reason to throw a body.
+    expect(system.diagnostics.ragdollsSuppressed).toBe(suppressedBefore);
+
+    // ...and a fresh punch after the restart still works.
+    bus.emit('ShockwaveFired', {
+      origin: { x: 0, y: 2, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 2.5e6,
+      range: 180,
+      angle: 0.4,
+      intent: 'full',
+      punchKind: 'serious',
+    });
+    bus.emit('EntityKilled', {
+      entityId: 'after-punch',
+      entityType: 'monster',
+      faction: 'monster',
+      position: { x: 6, y: 1, z: 0 },
+      intent: 'full',
+      rewardPoints: 10,
+    });
+    expect(ragdolls.launches.length).toBe(2);
+    system.dispose();
+  });
+
   it('launches away from the impact and upward', () => {
     const bus = createEventBus();
     const ragdolls = new FakeRagdollSink();

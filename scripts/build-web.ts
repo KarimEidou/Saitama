@@ -35,11 +35,19 @@
  * serving an "unpruned" dist would publish the pipeline's scratch store.
  */
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const DIST = path.resolve('dist');
+/**
+ * Repo root — this file lives in `scripts/`. Never `process.cwd()`: this build
+ * belongs to a specific checkout, not to whatever directory invoked it. Run
+ * from anywhere else, a cwd-relative `dist` prunes a directory that is not the
+ * one vite just wrote, and says nothing about it.
+ */
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const DIST = path.join(ROOT, 'dist');
 
 /** Tier tokens the asset pipeline embeds in filenames, e.g. `albedo.mobile.ktx2`. */
 const TIER_TOKEN = /\.(mobile|high|ultra)\./;
@@ -71,8 +79,24 @@ function sizeOf(files: readonly string[]): number {
   return files.reduce((sum, f) => sum + statSync(f).size, 0);
 }
 
+/**
+ * Run a build step, anchored to the repo and reported as a message.
+ *
+ * `execFileSync` THROWS on a non-zero exit, so a failing `make-icons.ts` or
+ * `vite build` used to end this script with a `Command failed` stack trace
+ * instead of naming the step. `scripts/build-apk.ts:138` is the model.
+ */
 function run(cmd: string, args: readonly string[]): void {
-  execFileSync(cmd, args as string[], { stdio: 'inherit', cwd: process.cwd() });
+  log(`$ ${cmd} ${args.join(' ')}`);
+  const result = spawnSync(cmd, args as string[], { stdio: 'inherit', cwd: ROOT });
+  if (result.error) {
+    process.stderr.write(`\nFAILED: ${cmd} could not be launched: ${result.error.message}\n`);
+    process.exit(1);
+  }
+  if (result.status !== 0) {
+    process.stderr.write(`\nFAILED: ${cmd} ${args.join(' ')} exited ${String(result.status)}\n`);
+    process.exit(1);
+  }
 }
 
 function main(): void {

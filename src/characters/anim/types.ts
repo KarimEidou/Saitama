@@ -182,8 +182,6 @@ export interface LocomotionInput {
   readonly grounded?: boolean;
   /** Ground height under the character, metres. Defaults to 0. */
   readonly groundY?: number;
-  /** Strafe component, -1 (left) to 1 (right), for a sidestep blend. */
-  readonly strafe?: number;
   /** 0..1 posture degradation. Saitama's Boredom state drives this. */
   readonly slouch?: number;
 }

@@ -54,11 +54,12 @@
 
 import type { LethalIntent } from '@/types';
 import { clamp01 } from '@/util';
-import { CssNumber } from '../css-number';
+import { CssNumber, escapeCssString } from '../css-number';
 import { button, el, svg } from '../dom';
 import type { FrameWriter } from '../frame-writer';
 import { questUrgency, type IHudModel, type IQuestRow } from '../model';
 import { HudScreen, type HudScreenName } from '../screen';
+import { conflictTitles, objectiveRows } from './objective-row';
 import {
   BOREDOM_BANDS,
   CLASS_COLOR,
@@ -574,28 +575,7 @@ export class CombatHudScreen extends HudScreen {
     this.trackerTitle.textContent = quest.title;
     this.trackerClock.hidden = quest.timeRemaining === undefined;
 
-    this.trackerObjectives.replaceChildren(
-      ...quest.objectives
-        .filter((o) => !o.hidden)
-        .map((objective) =>
-          el(this.doc, 'div', {
-            className: 'hud-tracker__obj',
-            dataset: { complete: objective.complete ? 'true' : 'false' },
-            children: [
-              el(this.doc, 'span', {
-                className: 'hud-tracker__count',
-                text:
-                  objective.required > 1
-                    ? `${Math.min(objective.current, objective.required)}/${objective.required}`
-                    : objective.complete
-                      ? '✓'
-                      : '•',
-              }),
-              el(this.doc, 'span', { text: objective.description }),
-            ],
-          })
-        )
-    );
+    this.trackerObjectives.replaceChildren(...objectiveRows(this.doc, quest.objectives));
 
     /* The conflict warning. This is the supermarket, and it is the point. */
     const conflicts = quest.conflictsWith ?? [];
@@ -603,9 +583,7 @@ export class CombatHudScreen extends HudScreen {
       this.trackerConflict.hidden = true;
     } else {
       this.trackerConflict.hidden = false;
-      const names = conflicts
-        .map((id) => model.quests.find((q) => q.id === id)?.title ?? id)
-        .join(', ');
+      const names = conflictTitles(model.quests, conflicts);
       this.trackerConflict.textContent = quest.errand
         ? `Ends if you take: ${names}`
         : `Taking this ends: ${names}`;
@@ -662,7 +640,7 @@ export class CombatHudScreen extends HudScreen {
     if (intent !== this.lastIntent) {
       this.lastIntent = intent;
       writer.set(this.charge, '--hud-intent', INTENT_COLOR[intent]);
-      writer.set(this.charge, '--hud-intent-label', `'${INTENT_LABEL[intent]}'`);
+      writer.set(this.charge, '--hud-intent-label', `'${escapeCssString(INTENT_LABEL[intent])}'`);
     }
     this.chargeForecast.write(writer, charge.forecastYen / YEN_PER_BILLION);
   }

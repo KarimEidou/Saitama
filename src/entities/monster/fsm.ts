@@ -38,7 +38,10 @@
  */
 
 import type { IStateMachine } from '@/types';
+import { createLogger } from '@/util';
 import { MONSTER_STATES, type MonsterState } from './types';
+
+const log = createLogger('monster:fsm');
 
 /* -------------------------------------------------------------------------- */
 /* The table                                                                  */
@@ -313,7 +316,7 @@ export class MonsterFsm implements IStateMachine<MonsterState> {
         cb();
       } catch (error) {
         // One bad listener must never break a monster's brain mid-frame.
-        console.error(`[monster.fsm] listener for '${state}' threw:`, error);
+        log.error(`listener for '${state}' threw:`, error);
       }
     }
   }

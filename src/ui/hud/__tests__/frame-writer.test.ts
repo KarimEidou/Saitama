@@ -17,7 +17,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { FrameWriter, roundTo } from '../frame-writer';
-import { CssNumber } from '../css-number';
+import { CssNumber, escapeCssString } from '../css-number';
 
 /** The minimum `Element` surface `FrameWriter` touches. */
 function fakeElement(): { element: Element; writes: [string, string][] } {
@@ -87,6 +87,21 @@ describe('FrameWriter', () => {
     expect(roundTo(1e-21, 3)).toBe('0');
     expect(roundTo(0.0004, 3)).toBe('0');
     expect(roundTo(-0, 3)).toBe('0');
+  });
+
+  it('never emits exponential notation at the LARGE end either', () => {
+    // `(1e21).toFixed(3)` is "1e+21" and `String(Math.round(1e21))` is "1e+21":
+    // JS switches notation at 1e21 in BOTH, so fixed notation alone is not
+    // enough and the magnitude has to be clamped first.
+    expect(roundTo(1e21, 3)).toBe('100000000000000000000');
+    expect(roundTo(-1e30, 3)).toBe('-100000000000000000000');
+    expect(roundTo(1e21, 0)).not.toMatch(/e/i);
+
+    const writer = new FrameWriter();
+    const { element, writes } = fakeElement();
+    writer.setInteger(element, '--n', 1e22);
+    expect(writes[0]![1]).toBe('100000000000000000000');
+    expect(writes[0]![1]).not.toMatch(/e/i);
   });
 
   it('trims trailing zeros without eating significant digits', () => {
@@ -167,5 +182,30 @@ describe('CssNumber', () => {
     const number = new CssNumber(doc, { prefix: "it's" });
     const attrs = (number.element as unknown as { __attrs: Map<string, string> }).__attrs;
     expect(attrs.get('--n-prefix')).toBe("'it\\'s'");
+  });
+
+  it('escapes everything that can terminate a CSS string token', () => {
+    // A CSS string cannot span lines: a raw newline terminates the token and
+    // the whole declaration is DROPPED, which is the silent degradation this
+    // module refuses everywhere else.
+    expect(escapeCssString("it's")).toBe("it\\'s"); // unchanged behaviour
+    expect(escapeCssString('a\\b')).toBe('a\\\\b'); // unchanged behaviour
+    expect(escapeCssString('\n')).toBe('\\A ');
+    expect(escapeCssString('SALE\r\nENDS')).toBe('SALE\\D \\A ENDS');
+    // The backslash pass runs FIRST, so the escape it introduces is not re-escaped.
+    expect(escapeCssString('\n')).not.toContain('\\\\');
+    expect(escapeCssString('¥億')).toBe('¥億');
+  });
+
+  it('refuses a pad2 the stylesheet would silently drop', () => {
+    // `.hud-num--dec1/2::after` follows `.hud-num--pad2::after` at equal
+    // specificity, so later wins and the caller's zero-pad vanishes with no
+    // diagnostic anywhere but devtools.
+    const doc = fakeDocument();
+    expect(() => new CssNumber(doc, { pad2: true, decimals: 1 })).toThrow(/pad2/);
+    expect(() => new CssNumber(doc, { pad2: true, decimals: 2 })).toThrow(/pad2/);
+    expect(() => new CssNumber(doc, { pad2: true })).not.toThrow();
+    expect(() => new CssNumber(doc, { decimals: 2 })).not.toThrow();
+    expect(() => new CssNumber(doc, { pad2: true, decimals: 0 })).not.toThrow();
   });
 });

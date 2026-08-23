@@ -12,7 +12,9 @@
  *  Points come from an INCIDENT REPORT, filed when an encounter ends, and the
  *  report is scored on:
  *
- *    WITNESSED SAVES     x1.00 with a crowd, x0.06 with nobody there
+ *    RESOLVED INCIDENTS  x1.00 with a crowd, x0.06 with nobody there, and a
+ *                        x0.75 floor when the Association dispatched you
+ *    WITNESSED SAVES     12 pts x corroboration; 0.4 pts with nobody there
  *    REPORTED COLLATERAL x0.55 floor with nobody there, rising to x1.00
  *
  *  Credit needs an audience. Blame does not. A hero who flattens a block in an
@@ -42,6 +44,7 @@ import {
   BOREDOM_ON_ERRAND_COMPLETE,
   BOREDOM_ON_MISSED_SALE,
   BOREDOM_ON_QUEST_FAILED,
+  INCIDENT_ATTRIBUTION_RADIUS,
   INCIDENT_DISPATCHED_MULTIPLIER,
   INCIDENT_POINTS_BY_TIER,
   INCIDENT_UNWITNESSED_MULTIPLIER,
@@ -555,13 +558,14 @@ export class ProgressionSystem implements IProgressionSystem {
    * The nearest open incident, or undefined.
    *
    * Events carry positions rather than encounter ids, so attribution is
-   * spatial. Deliberately generous (200 m): a serious punch throws debris
-   * further than a tidy radius, and under-attributing collateral would let a
-   * player dodge the report by fighting at the edge of the encounter.
+   * spatial. Deliberately generous (`INCIDENT_ATTRIBUTION_RADIUS`): a serious
+   * punch throws debris further than a tidy radius, and under-attributing
+   * collateral would let a player dodge the report by fighting at the edge of
+   * the encounter.
    */
   private nearestIncident(position: Vec3): IIncidentRecord | undefined {
     let best: IIncidentRecord | undefined;
-    let bestDistance = 200 * 200;
+    let bestDistance = INCIDENT_ATTRIBUTION_RADIUS * INCIDENT_ATTRIBUTION_RADIUS;
     for (const incident of this.incidents.values()) {
       const dx = incident.position.x - position.x;
       const dy = incident.position.y - position.y;

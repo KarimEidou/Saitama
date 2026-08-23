@@ -47,6 +47,14 @@ export const NEUTRAL_AXIS: AxisState = Object.freeze({
  * @param active Whether the source is being driven. Defaults to "magnitude > 0".
  */
 export function axisFromVector(x: number, y: number, active?: boolean): AxisState {
+  // A non-finite component poisons magnitude AND angle (`NaN > 1` and
+  // `NaN < EPSILON` are both false, so every guard below falls through), and
+  // `InputState` is frozen and handed to every consumer for the frame. Garbage
+  // in, no input out — this is the single constructor for `AxisState`, so
+  // guarding here covers touch, keyboard, gamepad, synthetic and every patch
+  // helper. Deliberately silent: this is a pure math module called twice per
+  // frame, where a `log.warn` would either spam the loop or need warn-once state.
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return NEUTRAL_AXIS;
   let mx = x;
   let my = y;
   let magnitude = Math.hypot(mx, my);

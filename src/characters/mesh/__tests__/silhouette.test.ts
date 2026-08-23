@@ -120,6 +120,48 @@ describe('proportions', () => {
     expect(left.max.x).toBeLessThan(0);
   });
 
+  it('mirrors the mesh about x, vertex for vertex', () => {
+    // Rest bones are four numbers; every asymmetry the generator can actually
+    // produce lives in the MESH — a frame hint that is not mirrored between
+    // sides, a `sign` applied to a centre but not to an offset, a strand built
+    // for one side and copied. Mirroring is guaranteed by construction here
+    // (mirrored ring centres, identical shapes, and a ring-parameter sample set
+    // that is symmetric under k <-> n-k), so the check can be exact.
+    //
+    // LOD1 has no ears, nose or thumbs, and `bald` emits no hair lobes — those
+    // are the only parts that are legitimately not mirrored (sculpted hair
+    // lobes are seeded and asymmetric on purpose).
+    const build = buildHumanoid(BALD, { lod: 1, hair: { style: 'bald', color: 0 } });
+    const p = build.geometry.getAttribute('position');
+
+    const left: number[][] = [];
+    const right: number[][] = [];
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i);
+      if (Math.abs(x) < 1e-9) continue; // centre-line vertices are their own mirror
+      (x < 0 ? left : right).push([x, p.getY(i), p.getZ(i)]);
+    }
+
+    expect(left.length).toBe(right.length);
+    expect(left.length).toBeGreaterThan(200);
+
+    // Nearest-neighbour rather than a quantised string key: mirrored
+    // coordinates come out of exactly-negating float operations, but a value
+    // sitting on a rounding boundary would round in opposite directions on the
+    // two sides.
+    for (const [x, y, z] of left) {
+      let best = Infinity;
+      for (const [rx, ry, rz] of right) {
+        best = Math.min(best, Math.hypot(rx! + x!, ry! - y!, rz! - z!));
+        if (best < 1e-6) break;
+      }
+      expect(
+        best,
+        `no mirror for ${x!.toFixed(4)}, ${y!.toFixed(4)}, ${z!.toFixed(4)}`
+      ).toBeLessThan(1e-6);
+    }
+  });
+
   it('reports the standing height, not the hair', () => {
     // `HumanoidStats.height` is the contract camera framing and collision
     // capsules read; helmets, spikes and horns legitimately sit above the

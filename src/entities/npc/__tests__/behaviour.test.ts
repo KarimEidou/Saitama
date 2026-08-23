@@ -399,6 +399,39 @@ describe('HeroNpc', () => {
     expect(fired).toEqual([]);
   });
 
+  it('goes quiet once disposed', () => {
+    // `CrowdSystem.dispose()` disposes its allies and clears `this.heroes`,
+    // but the composition root holds its own references — so a combat resolver
+    // or a queued callback can still reach an ally that is off the scene graph
+    // and whose bus handlers are gone. `AllyDowned` is a headline event the HUD
+    // and progression react to, and firing it for an ally that no longer exists
+    // is a phantom failure state the player is told about.
+    const bus = new EventBus();
+    const seen: string[] = [];
+    bus.on('EntityDamaged', () => seen.push('damaged'));
+    bus.on('AllyDowned', () => seen.push('downed'));
+    bus.on('EntityKilled', () => seen.push('killed'));
+    bus.on('ShockwaveFired', () => seen.push('fired'));
+    const threats: IThreatSource[] = [
+      { id: 'm', position: new THREE.Vector3(6, 0, 0), intensity: 1 },
+    ];
+    const genos = new HeroNpc('genos', 'genos', heroWorld(bus, threats, []));
+    const health = genos.health;
+
+    genos.dispose();
+    expect(genos.takeDamage(1000)).toBe(0);
+    genos.kill();
+    genos.knockdown();
+    genos.heal(50);
+    genos.fireAttack(threats[0]!);
+    for (let f = 0; f < 30; f++) genos.update(1 / 60);
+
+    expect(seen).toEqual([]);
+    expect(genos.isDead).toBe(false);
+    expect(genos.isDown).toBe(false);
+    expect(genos.health).toBe(health);
+  });
+
   it('reports a status the HUD can render', () => {
     const hero = new HeroNpc('genos', 'genos', heroWorld(undefined, [], []));
     const status = hero.status();

@@ -13,7 +13,7 @@
  */
 
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /** Repo root: this file lives at `<root>/tools/lib/paths.ts`. */
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -52,4 +52,19 @@ export function casPath(sha256: string): string {
 export function rel(absolute: string): string {
   const r = path.relative(REPO_ROOT, absolute);
   return r.startsWith('..') ? absolute : r;
+}
+
+/**
+ * True when this module is the process entry point rather than an import.
+ *
+ * Compares URL to URL. The inverse — `new URL(import.meta.url).pathname`
+ * against `process.argv[1]` — compares a percent-ENCODED path against a raw
+ * one and is silently false for any checkout under a directory containing a
+ * space, a `#`, or a non-ASCII character. The CLI then loads, evaluates, runs
+ * nothing, and exits 0.
+ *
+ * Usage: `if (isEntryPoint(process.argv[1], import.meta.url)) { main(); }`
+ */
+export function isEntryPoint(argv1: string | undefined, moduleUrl: string): boolean {
+  return argv1 !== undefined && moduleUrl === pathToFileURL(argv1).href;
 }

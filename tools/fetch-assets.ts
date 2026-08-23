@@ -53,6 +53,7 @@ import {
   LOCKFILE,
   RESOLVED_MANIFEST,
   SOURCE_DIR,
+  isEntryPoint,
   rel,
 } from './lib/index.ts';
 import type { AssetKind } from '@/types';
@@ -62,7 +63,7 @@ import type { AnySourceEntry } from './lib/index.ts';
 /* Argument parsing                                                           */
 /* -------------------------------------------------------------------------- */
 
-interface ICliOptions {
+export interface ICliOptions {
   readonly only: readonly string[];
   readonly kinds: readonly AssetKind[];
   readonly limit?: number;
@@ -75,7 +76,7 @@ interface ICliOptions {
   readonly help: boolean;
 }
 
-function parseArgs(argv: readonly string[]): ICliOptions {
+export function parseArgs(argv: readonly string[]): ICliOptions {
   const only: string[] = [];
   const kinds: AssetKind[] = [];
   let limit: number | undefined;
@@ -191,7 +192,7 @@ asset fetch — download and verify every source file in tools/manifest/*.json
 /* Selection                                                                  */
 /* -------------------------------------------------------------------------- */
 
-function selectEntries(
+export function selectEntries(
   entries: readonly AnySourceEntry[],
   options: ICliOptions
 ): readonly AnySourceEntry[] {
@@ -395,15 +396,26 @@ async function main(): Promise<number> {
   return 0;
 }
 
-main()
-  .then((code) => {
-    process.exitCode = code;
-  })
-  .catch((error: unknown) => {
-    const log = new Logger();
-    log.error(error instanceof Error ? error.message : String(error));
-    if (error instanceof Error && error.stack && process.env.DEBUG) {
-      process.stderr.write(`${error.stack}\n`);
-    }
-    process.exitCode = 1;
-  });
+/**
+ * Only run the CLI when invoked directly, never when imported.
+ *
+ * Without this guard, ANY `import('./fetch-assets.ts')` — a unit test of
+ * `parseArgs`, an editor's auto-import, a future tool reusing `selectEntries` —
+ * silently begins downloading 1.774 GB and rewriting `assets/assets.lock.json`.
+ * Every other tool in this directory has had one; this file did not, which is
+ * also why the `--only`/`--kind`/`--limit` semantics had no tests.
+ */
+if (isEntryPoint(process.argv[1], import.meta.url)) {
+  main()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error: unknown) => {
+      const log = new Logger();
+      log.error(error instanceof Error ? error.message : String(error));
+      if (error instanceof Error && error.stack && process.env.DEBUG) {
+        process.stderr.write(`${error.stack}\n`);
+      }
+      process.exitCode = 1;
+    });
+}

@@ -54,7 +54,13 @@ export interface IWitnessReport {
   readonly corroboration: number;
   /** Fraction of collateral damage that gets reported, 0..1. */
   readonly collateralReportRate: number;
-  /** Ids of the heroes present. Rivals bank credit off this. */
+  /**
+   * Ids of the heroes in range, for reports and debug overlays.
+   *
+   * NOT the source of rival credit: that is taken from `EncounterStarted.participantIds`
+   * (`progression-system.ts`), because a rival has to have been dispatched to the incident, not
+   * merely to have been standing near it.
+   */
   readonly heroIds: readonly string[];
 }
 
@@ -83,10 +89,17 @@ export class WitnessField {
     return this.witnesses.size;
   }
 
-  /** Register or move a witness. Idempotent by id. */
+  /**
+   * Register or move a witness.
+   *
+   * Idempotent by id for a witness of the SAME kind. Re-registering an id under a different kind
+   * REPLACES the record — a bystander who turns out to be a registered hero is worth 4.5 civilians
+   * and has to start counting as one. The `active` flag survives the swap: someone who is down
+   * still cannot give a statement, whatever they are.
+   */
   register(id: string, kind: WitnessKind, position: Vec3): IWitness {
     const existing = this.witnesses.get(id);
-    if (existing) {
+    if (existing && existing.kind === kind) {
       existing.x = position.x;
       existing.y = position.y;
       existing.z = position.z;
@@ -98,7 +111,7 @@ export class WitnessField {
       x: position.x,
       y: position.y,
       z: position.z,
-      active: true,
+      active: existing?.active ?? true,
     };
     this.witnesses.set(id, witness);
     return witness;

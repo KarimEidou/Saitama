@@ -351,6 +351,8 @@ const tmpPos = new THREE.Vector3();
 const tmpScale = new THREE.Vector3();
 const tmpQuat = new THREE.Quaternion();
 const tmpQuatB = new THREE.Quaternion();
+/** A third quaternion scratch: `placeBodyOnBone` holds all three at once. */
+const tmpQuatC = new THREE.Quaternion();
 const tmpMat = new THREE.Matrix4();
 const tmpMatB = new THREE.Matrix4();
 const REF_Z = new THREE.Vector3(0, 0, 1);
@@ -379,6 +381,12 @@ export class Ragdoll implements IRagdoll {
   private readonly seedVelocities: boolean;
   private readonly driveSkeleton: boolean;
   private readonly segmentByName = new Map<RagdollSegmentName, IRagdollSegment>();
+  /**
+   * The `bodies` getter's answer, mapped once. The segment list is fixed at
+   * construction, so anything polling the contract's only body accessor (HUD
+   * counters, debug overlays, the harness) no longer allocates 13 slots a read.
+   */
+  private readonly bodyList: readonly IRigidBody[];
 
   private activeFlag = false;
   private frozenFlag = false;
@@ -399,6 +407,7 @@ export class Ragdoll implements IRagdoll {
     this.world = world;
     this.rig = rig;
     this.segments = segments;
+    this.bodyList = segments.map((s) => s.body);
     this.entityId = options.entityId;
     this.blendSeconds = options.blendSeconds ?? RAGDOLL_BLEND_SECONDS;
     this.seedVelocities = options.seedVelocitiesFromPose ?? true;
@@ -407,7 +416,7 @@ export class Ragdoll implements IRagdoll {
   }
 
   get bodies(): readonly IRigidBody[] {
-    return this.segments.map((s) => s.body);
+    return this.bodyList;
   }
 
   get active(): boolean {
@@ -614,8 +623,10 @@ export class Ragdoll implements IRagdoll {
     const bone = segment.bone;
     if (bone === undefined) return;
     bone.matrixWorld.decompose(tmpA, tmpQuat, tmpScale);
-    // Undo the bind-time offset to recover the body transform.
-    tmpQuatB.copy(tmpQuat).multiply(segment.boneOffsetRotation.clone().invert());
+    // Undo the bind-time offset to recover the body transform. Through a
+    // scratch rather than a clone: this runs for all 13 segments on the frame
+    // a character dies, which is never the frame to hand the GC 13 objects.
+    tmpQuatB.copy(tmpQuat).multiply(tmpQuatC.copy(segment.boneOffsetRotation).invert());
     tmpB.copy(segment.boneOffsetPosition).applyQuaternion(tmpQuatB);
     tmpA.sub(tmpB);
     segment.body.raw.setTranslation({ x: tmpA.x, y: tmpA.y, z: tmpA.z }, true);
@@ -675,6 +686,16 @@ export function createRagdoll(
   rig: IRagdollRigSource,
   options: IRagdollOptions = {}
 ): Ragdoll {
+  // The table is the invariant, not the loop below: it pushes one segment per
+  // entry unconditionally, so a check on `segments.length` afterwards is a
+  // tautology. Checked before anything is created, so a bad table cannot leave
+  // 13 bodies, 13 colliders and 12 joints behind in the solver on its way out.
+  if (RAGDOLL_SEGMENTS.length !== RAGDOLL_BODY_COUNT) {
+    throw new Error(
+      `createRagdoll: segment table has ${RAGDOLL_SEGMENTS.length} entries, expected ${RAGDOLL_BODY_COUNT}`
+    );
+  }
+
   const R = world.rapier;
   rig.root.updateMatrixWorld(true);
 
@@ -806,12 +827,6 @@ export function createRagdoll(
     };
     segments.push(segment);
     byName.set(spec.name, segment);
-  }
-
-  if (segments.length !== RAGDOLL_BODY_COUNT) {
-    throw new Error(
-      `createRagdoll: expected ${RAGDOLL_BODY_COUNT} segments, built ${segments.length}`
-    );
   }
 
   // Optional exact total mass: scale every segment by the same factor.

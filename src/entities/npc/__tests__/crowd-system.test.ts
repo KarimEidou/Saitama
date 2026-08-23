@@ -137,6 +137,65 @@ describe('CrowdSystem population', () => {
     empty.dispose();
     system.dispose();
   });
+
+  it('re-bodies the near tier from the pool without a one-per-frame stall', () => {
+    // The one-body-per-frame throttle exists for the ~10 ms `buildHumanoid`
+    // costs. A POOLED body is a map insert and `visible = true`, so throttling
+    // it buys nothing and leaves civilians inside forty metres instanced for up
+    // to `caps.near` frames every time the player rounds a corner — which is
+    // exactly when the near tier is supposed to be there.
+    const system = new CrowdSystem({ seed: SEED, headless: false, quality: 'low' });
+    system.setObstacles(cityRects(SEED, 2));
+    system.setPlayer(0, 0);
+    run(system, 8);
+    const bodies = system['nearBodies'] as Map<number, unknown>;
+    expect(bodies.size).toBeGreaterThanOrEqual(4);
+
+    // Cross a street: everybody who was near is now past the hysteresis band
+    // and hands their body back, and everybody who was mid at the far end is
+    // now inside it — so every attach from here is a pure recycle.
+    system.setPlayer(0, 80);
+
+    let worstDeficit = 0;
+    let peakNear = 0;
+    for (let f = 0; f < 240; f++) {
+      system.update(1 / 60);
+      let near = 0;
+      for (let i = 0; i < system.agents.extent; i++) {
+        if (system.agents.active[i] === 1 && system.agents.tier[i] === TIER_NEAR) near++;
+      }
+      peakNear = Math.max(peakNear, near);
+      worstDeficit = Math.max(worstDeficit, near - bodies.size);
+    }
+    // The band really did refill, so the bound below is a claim about something.
+    expect(peakNear).toBeGreaterThanOrEqual(4);
+    // Every promoted agent is bodied in the frame it is promoted, because the
+    // pool already holds the bodies. Throttled, this climbs to `caps.near - 1`.
+    expect(worstDeficit).toBeLessThanOrEqual(1);
+    system.dispose();
+  });
+
+  it('reuses its avoidance body records instead of allocating them every frame', () => {
+    // `heroWorld` explains the house rule three dozen lines from the code this
+    // covers: arrays are handed over by reference and mutated in place, because
+    // rebuilding these lists each frame would allocate on every tick of a
+    // system that is meant to be allocation-free once warm. These records are
+    // write-only scratch consumed synchronously by `steering.update` in the
+    // same frame, so nothing observes their identity.
+    const system = makeSystem();
+    system.addHero('genos', 5, 0);
+    system.setThreats([
+      { id: 'm', position: new THREE.Vector3(20, 0, 0), intensity: 1, tier: 'tiger' },
+    ]);
+    system.update(1 / 60);
+    const bodies = system['avoidBodies'] as readonly { x: number }[];
+    expect(bodies.length).toBe(3); // hero + threat + player
+    const snapshot = bodies.slice();
+    system.update(1 / 60);
+    expect(bodies.length).toBe(3);
+    for (let i = 0; i < snapshot.length; i++) expect(bodies[i]).toBe(snapshot[i]);
+    system.dispose();
+  });
 });
 
 describe('CrowdSystem physical constraints', () => {

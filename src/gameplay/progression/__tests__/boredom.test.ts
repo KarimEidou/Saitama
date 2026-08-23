@@ -79,6 +79,15 @@ describe('BoredomModel', () => {
     expect(reasons).toEqual(['civilianSaved', 'restraintBonus', 'challengingFight']);
     model.dispose();
   });
+
+  it('drops deeds a save invented, and never puts undefined in a number field', () => {
+    const model = new BoredomModel();
+    model.restoreHistory(['bodyBlock', 'notADeed', 'toString', 'zeroCollateral']);
+    expect(model.heroicHistory.map((r) => r.deed)).toEqual(['bodyBlock', 'zeroCollateral']);
+    expect(model.heroicHistory.every((r) => Number.isFinite(r.delta))).toBe(true);
+    // Restoring the journal must still not move the value — that is `restore()`'s job.
+    expect(model.boredom).toBe(0);
+  });
 });
 
 describe('boredom throttles rank gain', () => {

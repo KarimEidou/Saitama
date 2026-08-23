@@ -109,9 +109,9 @@ const CADENCE_MAX = 1.35;
  * and the VAT baker both call it directly.
  */
 export function solveGait(speed: number, legLength: number): GaitSolution {
-  const L = Math.max(legLength, 0.05);
+  const L = Math.max(finite(legLength, 0.05), 0.05);
   const pendulum = Math.sqrt(GRAVITY / L);
-  const v = Math.max(speed, 0);
+  const v = Math.max(finite(speed, 0), 0);
   const u = v / Math.sqrt(GRAVITY * L);
 
   const activity = smoothstep(U_STAND * 0.5, U_STAND * 4, u);
@@ -262,6 +262,29 @@ export class LocomotionSolver {
 
   private readonly left: FootState;
   private readonly right: FootState;
+  /**
+   * Both feet, allocated once.
+   *
+   * `for (const foot of [this.left, this.right])` builds a fresh two-element
+   * array every time it runs, and it runs three times per update (four while
+   * the pelvis drop is active) — ~14k short-lived allocations a second across
+   * a crowd of sixty, on a platform where GC pauses are the thing being
+   * budgeted for.
+   */
+  private readonly feet: readonly [FootState, FootState];
+  /**
+   * Ankle targets, PER INSTANCE rather than at module scope.
+   *
+   * Written by `resolveFoot` and read by `applyReachLimit`, `clampTargets` and
+   * `solveLeg`. Sharing one pair across every solver in the process happens to
+   * be safe only while `update` is never re-entrant and never interleaved
+   * between two solvers; nothing enforced that, and `bake.ts` and `analysis.ts`
+   * both construct several.
+   */
+  private readonly footTargets: Readonly<Record<'left' | 'right', THREE.Vector3>> = {
+    left: new THREE.Vector3(),
+    right: new THREE.Vector3(),
+  };
   private readonly model: THREE.Matrix4[] = [];
   private readonly initialPhase: number;
   private solution: GaitSolution;
@@ -280,6 +303,7 @@ export class LocomotionSolver {
     this.vigour = options.vigour ?? 1;
     this.left = this.makeFoot('left', -1);
     this.right = this.makeFoot('right', 1);
+    this.feet = [this.left, this.right];
     this.solution = solveGait(0, rig.metrics.legLength);
     for (let i = 0; i < rig.boneCount; i++) this.model.push(new THREE.Matrix4());
   }
@@ -322,7 +346,7 @@ export class LocomotionSolver {
     this.rootYaw = 0;
     this.reachDrop = 0;
     this.wasGrounded = true;
-    for (const foot of [this.left, this.right]) {
+    for (const foot of this.feet) {
       foot.phase = 'swing';
       foot.progress = 0;
       foot.plantWorld.set(0, 0, 0);
@@ -357,22 +381,33 @@ export class LocomotionSolver {
    * `pose` must already hold the rest pose; the solver overwrites the bones it
    * owns and leaves the rest for the clip layer.
    */
-  update(dt: number, input: LocomotionInput, pose: Pose, integrateRoot = true): LocomotionReport {
+  update(
+    frameTime: number,
+    input: LocomotionInput,
+    pose: Pose,
+    integrateRoot = true
+  ): LocomotionReport {
     const rig = this.rig;
     const m = rig.metrics;
-    const solution = solveGait(input.speed, m.legLength);
+    // Sanitise every externally supplied number ONCE, here, and use only these
+    // locals below. `dt` shadows the parameter so nothing downstream can reach
+    // the raw value. See `finite`: `phase` and `rootYaw` are accumulators, so a
+    // single non-finite frame would be permanent rather than momentary.
+    const dt = Math.max(0, finite(frameTime, 0));
+    const speed = Math.max(0, finite(input.speed, 0));
+    const solution = solveGait(speed, m.legLength);
     this.solution = solution;
     const grounded = input.grounded ?? true;
-    const groundY = input.groundY ?? 0;
-    const turnRate = input.turnRate ?? 0;
+    const groundY = finite(input.groundY ?? 0, 0);
+    const turnRate = finite(input.turnRate ?? 0, 0);
 
     if (integrateRoot) {
       this.rootYaw += turnRate * dt;
       // Forward is -Z, so the world step follows the yawed forward axis.
       const forwardX = -Math.sin(this.rootYaw);
       const forwardZ = -Math.cos(this.rootYaw);
-      this.rootPosition.x += forwardX * input.speed * dt;
-      this.rootPosition.z += forwardZ * input.speed * dt;
+      this.rootPosition.x += forwardX * speed * dt;
+      this.rootPosition.z += forwardZ * speed * dt;
     }
 
     if (grounded && !this.wasGrounded) {
@@ -455,8 +490,8 @@ export class LocomotionSolver {
     const p = this.phase;
     const a = g.activity * this.vigour;
     const run = g.runBlend;
-    const slouch = clamp01(input.slouch ?? 0);
-    const turn = input.turnRate ?? 0;
+    const slouch = clamp01(finite(input.slouch ?? 0, 0));
+    const turn = finite(input.turnRate ?? 0, 0);
 
     // --- Pelvis height -----------------------------------------------------
     // Walking is an inverted pendulum: highest at mid-stance. Running is a
@@ -570,7 +605,7 @@ export class LocomotionSolver {
     const p = this.phase;
     const a = g.activity * this.vigour;
     const run = g.runBlend;
-    const slouch = clamp01(input.slouch ?? 0);
+    const slouch = clamp01(finite(input.slouch ?? 0, 0));
 
     // Bring the arms from the bind pose's near-horizontal droop down to the
     // sides. The droop angle is measured, so this works on any rig.
@@ -652,7 +687,7 @@ export class LocomotionSolver {
       // target in MODEL space does neither, and keeps `slip`, `reachDrop` and
       // `pelvisY` meaning what they say while the character is in the air.
       foot.phase = 'swing';
-      _footTargets[foot.side].copy(foot.lastTarget);
+      this.footTargets[foot.side].copy(foot.lastTarget);
       return;
     }
 
@@ -729,7 +764,7 @@ export class LocomotionSolver {
       if (!foot.hasLift || !grounded) this.seedSwingOrigin(foot, g, groundY, halfWidth, zTouchdown);
       this.swingAnkle(foot, g, groundY, halfWidth, zTouchdown, _ankleTarget);
     }
-    _footTargets[foot.side].copy(_ankleTarget);
+    this.footTargets[foot.side].copy(_ankleTarget);
     if (grounded) {
       foot.lastTarget.copy(_ankleTarget);
       foot.hasLastTarget = true;
@@ -967,7 +1002,7 @@ export class LocomotionSolver {
     // the two demands are combined with a SOFT minimum below.
     let demandLeft = Infinity;
     let demandRight = Infinity;
-    for (const foot of [this.left, this.right]) {
+    for (const foot of this.feet) {
       // BOTH feet constrain, planted or swinging.
       //
       // Releasing the swing leg is the obvious design and it is wrong twice
@@ -984,7 +1019,7 @@ export class LocomotionSolver {
       // an absurd crouch — is handled by the cap below rather than by
       // weakening the constraint everywhere.
       _v0.setFromMatrixPosition(this.model[foot.chain.root]!);
-      const target = _footTargets[foot.side];
+      const target = this.footTargets[foot.side];
       const dx = target.x - _v0.x;
       const dz = target.z - _v0.z;
       const dy = target.y - _v0.y;
@@ -1030,7 +1065,7 @@ export class LocomotionSolver {
       this.model[hips]!.copy(_local);
       // Refresh the two hip joints so `clampTargets` measures from where the
       // legs actually hang, not from where they hung before the pelvis moved.
-      for (const foot of [this.left, this.right]) {
+      for (const foot of this.feet) {
         const root = foot.chain.root;
         _local.compose(
           _v1.set(pose.pos[root * 3]!, pose.pos[root * 3 + 1]!, pose.pos[root * 3 + 2]!),
@@ -1059,9 +1094,9 @@ export class LocomotionSolver {
   private clampTargets(): void {
     const rig = this.rig;
     const reach = (rig.metrics.thigh + rig.metrics.shank) * MAX_EXTENSION;
-    for (const foot of [this.left, this.right]) {
+    for (const foot of this.feet) {
       _v0.setFromMatrixPosition(this.model[foot.chain.root]!);
-      const target = _footTargets[foot.side];
+      const target = this.footTargets[foot.side];
       const distance = _to.subVectors(target, _v0).length();
       if (distance <= reach) {
         foot.clamped = 0;
@@ -1075,7 +1110,7 @@ export class LocomotionSolver {
   /** Run the IK for one leg and orient the foot and toe. */
   private solveLeg(pose: Pose, foot: FootState): void {
     const rig = this.rig;
-    const target = _footTargets[foot.side];
+    const target = this.footTargets[foot.side];
 
     // Knee pole, as a MODEL-space direction: forward and slightly outward, so
     // the knee can neither invert nor cross the midline. Forward is -Z.
@@ -1178,6 +1213,23 @@ function wrapPi(angle: number): number {
 }
 
 /**
+ * Replace a non-finite input with a safe default.
+ *
+ * `clamp` and `clamp01` are written as `v < lo ? lo : v > hi ? hi : v`, so NaN
+ * fails both comparisons and passes through untouched — and so do `smoothstep`
+ * and `mod`, which are built on them. One bad frame from a caller must not
+ * poison `phase` or `rootYaw`: those are ACCUMULATORS, so a single NaN sticks
+ * for the life of the solver, every quaternion downstream becomes NaN, and the
+ * character disappears for the rest of the session with nothing logged.
+ *
+ * Deliberately silent. A per-frame guard that logged would spam once per
+ * character per frame for as long as the bad input lasted.
+ */
+function finite(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+/**
  * Set a bone's rotation from pitch/yaw/roll applied in that order.
  *
  * ZYX rather than three.js's default XYZ: for a body, roll about the forward
@@ -1213,12 +1265,7 @@ const _to = new THREE.Vector3();
 const _pole = new THREE.Vector3();
 const _local = new THREE.Matrix4();
 const _ankleTarget = new THREE.Vector3();
-const _heelModel = new THREE.Vector3();
 const _ballModel = new THREE.Vector3();
 const _pivotLocal = new THREE.Vector3();
 const _rotated = new THREE.Vector3();
 const _heelOffset = new THREE.Vector3();
-const _footTargets: Record<'left' | 'right', THREE.Vector3> = {
-  left: new THREE.Vector3(),
-  right: new THREE.Vector3(),
-};

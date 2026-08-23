@@ -697,6 +697,10 @@ export class MonsterBrain {
    */
   notice(x: number, y: number, z: number, intensity: number): void {
     if (this.fsm.current === 'dead') return;
+    // Public surface: any host may call this. A non-finite intensity makes the
+    // range check below `distance > NaN`, which is false at every distance —
+    // so one arithmetic slip upstream would alert every monster on the map.
+    if (!Number.isFinite(intensity)) return;
     const dx = x - this.position.x;
     const dz = z - this.position.z;
     const distance = Math.hypot(dx, dz);

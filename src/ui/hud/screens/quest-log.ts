@@ -30,6 +30,7 @@ import { formatCount } from '../format';
 import type { FrameWriter } from '../frame-writer';
 import { compareQuests, questUrgency, type IHudModel, type IQuestRow } from '../model';
 import { HudScreen, type HudScreenName } from '../screen';
+import { conflictTitles, objectiveRows } from './objective-row';
 import { TIER_COLOR, TIER_LABEL } from '../tokens';
 
 export interface IQuestLogOptions {
@@ -117,26 +118,7 @@ export class QuestLogScreen extends HudScreen {
     const urgency = questUrgency(quest);
     const tracked = quest.id === model.trackedQuestId;
 
-    const objectives = quest.objectives
-      .filter((o) => !o.hidden)
-      .map((objective) =>
-        el(this.doc, 'div', {
-          className: 'hud-tracker__obj',
-          dataset: { complete: objective.complete ? 'true' : 'false' },
-          children: [
-            el(this.doc, 'span', {
-              className: 'hud-tracker__count',
-              text:
-                objective.required > 1
-                  ? `${Math.min(objective.current, objective.required)}/${objective.required}`
-                  : objective.complete
-                    ? '✓'
-                    : '•',
-            }),
-            el(this.doc, 'span', { text: objective.description }),
-          ],
-        })
-      );
+    const objectives = objectiveRows(this.doc, quest.objectives);
 
     /* The clock. Its digits are CSS COUNTERS, exactly like the combat
        tracker's, so `frame` can keep it running through the FrameWriter and
@@ -149,9 +131,7 @@ export class QuestLogScreen extends HudScreen {
       this.clocks.push({ minutes, seconds, quest });
     }
 
-    const conflicts = (quest.conflictsWith ?? [])
-      .map((id) => model.quests.find((q) => q.id === id)?.title ?? id)
-      .join(', ');
+    const conflicts = conflictTitles(model.quests, quest.conflictsWith);
 
     return el(this.doc, 'div', {
       className: 'hud-row hud-row--button',

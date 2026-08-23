@@ -26,7 +26,7 @@
 
 import * as THREE from 'three';
 import type { BoneName } from '@/types';
-import { TAU, clamp01, smootherstep } from '@/util';
+import { TAU, clamp, clamp01, smootherstep } from '@/util';
 import type {
   MeshRegionInfo,
   MeshSlot,
@@ -51,6 +51,17 @@ function signPow(value: number, power: number): number {
 }
 
 /**
+ * Exponent bounds. Below this a cross-section is a spike and `2/exponent`
+ * diverges; above it the superellipse is already indistinguishable from a box.
+ * The exponent is COMPOSED additively (`resolveShapeAt` in body.ts adds the
+ * costume's `Coat.exponent` to the section's own), so it is the one shape field
+ * a caller can drive negative without meaning to — and a negative exponent
+ * produces infinite radii rather than an odd shape.
+ */
+const MIN_EXPONENT = 0.2;
+const MAX_EXPONENT = 32;
+
+/**
  * Evaluate a cross-section at ring parameter `t` in 0..1.
  *
  * t=0 is -axisB (the BACK of an upright body), t=0.25 is +axisA, t=0.5 is
@@ -61,7 +72,7 @@ export function evalRingPoint(shape: RingShape, t: number, out: THREE.Vector2): 
   const angle = TAU * t - Math.PI / 2;
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
-  const exponent = shape.exponent ?? 2;
+  const exponent = clamp(shape.exponent ?? 2, MIN_EXPONENT, MAX_EXPONENT);
   const power = 2 / exponent;
 
   let a = shape.radiusA * signPow(ca, power);
@@ -527,6 +538,18 @@ export function loftStrand(builder: MeshBuilder, strand: Strand): number[][] {
   return grid;
 }
 
+/**
+ * Smoothing group for a flat cap.
+ *
+ * Caps must crease against their own strand AND against every other cap, so the
+ * mapping from (strand group, which end) to cap group has to be injective. The
+ * naive `group + flag + (0|1)` is not: one strand's end cap collides with the
+ * next strand's start cap.
+ */
+export function capSmoothGroup(smoothGroup: number, atStart: boolean): number {
+  return 0x4000 + smoothGroup * 2 + (atStart ? 0 : 1);
+}
+
 function capStrand(
   builder: MeshBuilder,
   strand: Strand,
@@ -574,7 +597,7 @@ function capStrand(
 
   // Flat cap: duplicate the rim into its own smoothing group so the silhouette
   // edge stays sharp, then fan to a centre vertex.
-  const group = strand.smoothGroup + 0x4000 + (atStart ? 0 : 1);
+  const group = capSmoothGroup(strand.smoothGroup, atStart);
   const frame = frames[i]!;
   const offset = (strand.radialOffset ?? 0) / segments;
   // Re-derive the rim through the SAME frame the strand surface used, roll

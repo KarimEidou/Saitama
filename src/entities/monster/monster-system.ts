@@ -202,6 +202,17 @@ export class MonsterSystem {
 
   private serial = 0;
   private time = 0;
+  /**
+   * Set by `dispose()`, checked by `update()`.
+   *
+   * Without it a disposed system silently repopulates itself: the
+   * subscriptions are gone but the director still runs, still issues orders,
+   * and `materialise` still turns them into live monsters — each with a scene
+   * node and a ticking brain, and none of them reachable by `EntityKilled` or
+   * `EntityDamaged` any more, so they can never die and never be swept.
+   * `CrowdSystem` and `CombatSystem` both carry the same flag.
+   */
+  private disposed = false;
 
   /** Waves that have engaged the player, so one wave announces itself once. */
   private readonly announcedWaves = new Set<number>();
@@ -328,6 +339,7 @@ export class MonsterSystem {
   /* ---------------------------------------------------------------------- */
 
   update(dt: number, frame: IMonsterFrame): void {
+    if (this.disposed) return;
     this.time = frame.time;
     this.world.time = frame.time;
     this.world.targets = frame.targets;
@@ -346,7 +358,7 @@ export class MonsterSystem {
     }
 
     /* ---- open-world announcements --------------------------------------- */
-    this.announceEngagements(frame);
+    this.announceEngagements();
 
     /* ---- the director --------------------------------------------------- */
     this.collectLiveRefs();
@@ -363,7 +375,14 @@ export class MonsterSystem {
   }
 
   /**
-   * Announce an open-world wave the first time it engages the player.
+   * Announce an open-world wave the first time any of its monsters acquires a
+   * target, whoever that target is.
+   *
+   * Not "the first time it engages the player": the condition is
+   * `currentTargetId !== undefined`, and this module is handed a list of
+   * `IMonsterTarget`s with no way to tell which of them is the player. A wave
+   * that noticed a fleeing civilian announces itself, by design — that is a
+   * fight starting too.
    *
    * `EncounterStarted` is what the audio system keys the tier-sized
    * `monster.roar` off, what the crowd keys its panic off, and what combat
@@ -371,7 +390,7 @@ export class MonsterSystem {
    * not when a monster is placed 300 m away in a chunk the player will never
    * visit. One announcement per wave, keyed by the highest tier in it.
    */
-  private announceEngagements(frame: IMonsterFrame): void {
+  private announceEngagements(): void {
     for (const monster of this.monsters.values()) {
       if (monster.scripted || monster.isDead) continue;
       const wave = this.waveOfMonster.get(monster.id);
@@ -403,7 +422,6 @@ export class MonsterSystem {
       // from putting five roars on the same millisecond.
       return;
     }
-    void frame;
   }
 
   private collectLiveRefs(): void {
@@ -657,6 +675,19 @@ export class MonsterSystem {
     // Monsters do not chase each other's noise. Without this, a swarm alerts
     // itself into a permanent `alerted` loop and never idles again.
     if (event.sourceId !== undefined && this.monsters.has(event.sourceId)) return;
+    // The bus is somebody else's surface. A non-finite power or origin would
+    // pass every distance test below (NaN comparisons are false) and either
+    // wake the entire map or write NaN into a brain's position permanently:
+    // `clamp01(NaN)` is `NaN`, `NaN <= 0` is false, and `distance > NaN` is
+    // false for every monster at every distance.
+    if (!Number.isFinite(event.power)) return;
+    if (
+      !Number.isFinite(event.origin.x) ||
+      !Number.isFinite(event.origin.y) ||
+      !Number.isFinite(event.origin.z)
+    ) {
+      return;
+    }
     const intensity = event.power <= 1 ? 0 : clamp01(Math.log10(event.power) / 6);
     if (intensity <= 0) return;
     for (const monster of this.monsters.values()) {
@@ -685,6 +716,8 @@ export class MonsterSystem {
   /* ---------------------------------------------------------------------- */
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     for (const unsubscribe of this.unsubscribes) unsubscribe();
     this.unsubscribes.length = 0;
     for (const monster of this.monsters.values()) {

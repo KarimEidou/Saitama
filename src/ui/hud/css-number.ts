@@ -52,7 +52,10 @@ export interface ICssNumberSpec {
   readonly className?: string;
   /** Fixed decimal places, 0..2. CSS can zero-pad two digits and no more. */
   readonly decimals?: number;
-  /** Zero-pad the integer part to two digits, for clock seconds. */
+  /**
+   * Zero-pad the integer part to two digits, for clock seconds. Mutually
+   * exclusive with `decimals`.
+   */
   readonly pad2?: boolean;
   /** Literal shown before the digits, e.g. `¥`. */
   readonly prefix?: string;
@@ -73,6 +76,14 @@ export class CssNumber {
 
   constructor(doc: Document, spec: ICssNumberSpec = {}) {
     this.decimals = Math.max(0, Math.min(2, spec.decimals ?? 0));
+    if (spec.pad2 === true && this.decimals > 0) {
+      throw new Error(
+        'CssNumber: `pad2` and `decimals` cannot be combined. ' +
+          '`.hud-num--dec1/2::after` follows `.hud-num--pad2::after` at equal ' +
+          'specificity, so the zero-pad would be silently dropped. Use two ' +
+          'readouts, as the encounter clock does.'
+      );
+    }
     this.signed = spec.signed === true;
     this.fracScale = 10 ** this.decimals;
 
@@ -120,11 +131,20 @@ export class CssNumber {
 /**
  * Escape a literal for a CSS string token.
  *
- * Only the backslash and the quote can break out; everything else — including
- * the yen sign and the CJK unit characters — is legal inside a quoted string.
+ * Three things break a quoted string: the backslash, the quote, and a RAW
+ * NEWLINE — a CSS string cannot span lines, so a newline terminates the token
+ * and the whole declaration is dropped rather than degrading. The backslash pass
+ * must run first, or the escapes introduced below would be escaped again.
+ * Everything else, including the yen sign and the CJK unit characters, is legal
+ * inside a quoted string and is passed through.
  */
 export function escapeCssString(text: string): string {
-  return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\A ')
+    .replace(/\r/g, '\\D ')
+    .replace(/\f/g, '\\C ');
 }
 
 /**

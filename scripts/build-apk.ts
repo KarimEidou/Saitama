@@ -486,7 +486,18 @@ function findApk(release: boolean): string {
 
 /** Structural proof that the artifact is a real APK, not a renamed zip. */
 function verifyApk(apk: string): void {
-  const listing = execFileSync('unzip', ['-l', apk], { encoding: 'utf8', maxBuffer: 256 << 20 });
+  // `unzip` is an undeclared external dependency of this script, and every other
+  // failure in this file goes through `fail()`. An absent one must read as
+  // "install unzip", not as an uncaught `spawnSync unzip ENOENT` trace.
+  let listing: string;
+  try {
+    listing = execFileSync('unzip', ['-l', apk], { encoding: 'utf8', maxBuffer: 256 << 20 });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      fail('`unzip` is not installed — install it (e.g. `apt-get install -y unzip`) and re-run.');
+    }
+    throw error;
+  }
   const required = ['AndroidManifest.xml', 'classes.dex', 'assets/public/index.html'];
   const missing = required.filter((needle) => !listing.includes(needle));
   if (missing.length > 0) {

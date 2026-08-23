@@ -80,7 +80,6 @@ export {
 export {
   characterDir,
   entryAssetIds,
-  entryExpressions,
   entryGlows,
   mapAssetId,
   mapFileName,

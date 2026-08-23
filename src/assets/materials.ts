@@ -21,6 +21,7 @@ import * as THREE from 'three';
 import type { IMaterialAsset, MaterialSpec, TextureHandle, TextureRole } from '@/types';
 import { createLogger } from '@/util';
 import { bindPackedOrm, withRepeat } from './textures';
+import { materialTextureKeys } from './manifest';
 import { missingTexture } from './fallback';
 
 const log = createLogger('assets:materials');
@@ -244,21 +245,9 @@ export function buildMaterial(
  *
  * `textureKeys` is the authoritative list; the spec's individual `*MapKey`
  * fields are folded in so a spec that binds a map the `textureKeys` block
- * forgot still loads it.
+ * forgot still loads it. Single implementation lives in `manifest.ts`, so this
+ * answer and `materialTextureKeys`' cannot disagree.
  */
 export function requiredTextures(entry: IMaterialAsset): readonly string[] {
-  const keys = new Set<string>();
-  for (const key of Object.values(entry.textureKeys)) {
-    if (typeof key === 'string') keys.add(key);
-  }
-  for (const key of [
-    entry.spec.mapKey,
-    entry.spec.normalMapKey,
-    entry.spec.ormMapKey,
-    entry.spec.emissiveMapKey,
-    entry.spec.alphaMapKey,
-  ]) {
-    if (typeof key === 'string') keys.add(key);
-  }
-  return [...keys];
+  return materialTextureKeys(entry);
 }

@@ -344,6 +344,26 @@ describe('pacing', () => {
     expect(measure('cooldown')).toBe(0);
   });
 
+  it('does not promise a wave the cooldown will not issue', () => {
+    // `update` decrements `waveTimer` before it bails on a zero-size state, so
+    // during `cooldown` the timer runs arbitrarily negative and the clamped
+    // `nextWaveIn` pinned at 0 — telling a HUD "a wave is due right now" for
+    // the entire 18 s of the one state whose purpose is that none is coming.
+    const director = new SpawnDirector({ seed: 'cooldown-hud' });
+    director.setPacing('cooldown');
+    director.update(0.5, { focus: FOCUS, live: [] });
+    const stats = director.stats();
+    expect(stats.pacing).toBe('cooldown');
+    expect(stats.nextWaveIn).toBeGreaterThan(10);
+    expect(stats.nextWaveIn).toBeLessThanOrEqual(DEFAULT_SPAWN_POLICY.stateSecondsByState.cooldown);
+
+    // A state that DOES issue waves still reports its own timer, unchanged.
+    const peak = new SpawnDirector({ seed: 'peak-hud' });
+    peak.setPacing('peak');
+    peak.update(0.5, { focus: FOCUS, live: [] }); // issues a wave, resets the timer
+    expect(peak.stats().nextWaveIn).toBeCloseTo(DEFAULT_SPAWN_POLICY.waveIntervalSeconds, 5);
+  });
+
   it('leaves gaps: the world is not continuously producing monsters', () => {
     const director = new SpawnDirector({ seed: 'gaps' });
     const live: ILiveMonsterRef[] = [];

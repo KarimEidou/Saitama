@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import type { AnyAssetEntry } from '@/types';
 import {
   emptyRuntimeManifest,
   materialTextureKeys,
@@ -114,6 +115,20 @@ describe('manifest queries', () => {
   it('returns nothing for a non-material', () => {
     const entry = manifest.entries.find((candidate) => candidate.id === 'hdri.sky.day');
     expect(materialTextureKeys(entry!)).toEqual([]);
+  });
+
+  it('includes a map the spec names but textureKeys forgot', () => {
+    // `textureKeys` is authoritative, but a spec that binds a map the block
+    // omitted still has to get it fetched — otherwise the registry never
+    // downloads it and the material binds a stand-in for a texture that ships.
+    const entry = {
+      id: 'mat.x',
+      kind: 'material',
+      outputs: [],
+      textureKeys: { albedo: 'mat.x.albedo' },
+      spec: { id: 'mat.x', kind: 'standard', emissiveMapKey: 'mat.x.emissive' },
+    } as unknown as AnyAssetEntry;
+    expect(materialTextureKeys(entry)).toEqual(['mat.x.albedo', 'mat.x.emissive']);
   });
 });
 

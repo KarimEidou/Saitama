@@ -183,7 +183,12 @@ function runRagdollScenario(seed: string): Float64Array {
   return snapshot;
 }
 
-describe('determinism', () => {
+/**
+ * These scenarios are deliberately heavy (up to 360,000 body-steps per case),
+ * so they get an explicit ceiling rather than vitest's 5 s default; a machine
+ * under load must report a determinism break, never a timeout.
+ */
+describe('determinism', { timeout: 60_000 }, () => {
   it('reproduces a 300-body debris settle exactly across two runs', () => {
     const a = runDebrisScenario('saitama-city-z', 300, 600);
     const b = runDebrisScenario('saitama-city-z', 300, 600);

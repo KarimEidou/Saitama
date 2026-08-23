@@ -36,6 +36,9 @@
 
 import * as THREE from 'three';
 import { CHUNK_GRID } from '@/spatial/constants';
+import { createLogger } from '@/util';
+
+const log = createLogger('world:streaming:materials');
 
 /** Injected uniform name for the residency lookup. */
 const RESIDENCY_UNIFORM = 'uResidency';
@@ -131,9 +134,19 @@ function addComposableHook(material: THREE.Material, key: string, fn: Composable
 export const IMPOSTOR_ALWAYS_VISIBLE = 0xffff;
 
 export interface IStreamingMaterialOptions {
-  /** Override the shared chunk material, e.g. with one from the material lib. */
+  /**
+   * Override the shared chunk material, e.g. with one from the material lib.
+   *
+   * An injected material keeps its own `name` and is NOT disposed by
+   * `StreamingMaterials.dispose()` — the caller owns its lifetime.
+   */
   readonly chunkMaterial?: THREE.Material;
-  /** Override the impostor material. Must still accept `aChunkId`. */
+  /**
+   * Override the impostor material. Must still accept `aChunkId`.
+   *
+   * Same ownership contract as `chunkMaterial`: its `name` is left alone and
+   * its lifetime stays with the caller.
+   */
   readonly impostorMaterial?: THREE.Material;
   /** Disable the vertex-shader residency test. Diagnostics only. */
   readonly disableImpostorSuppression?: boolean;
@@ -178,13 +191,16 @@ export class StreamingMaterials {
         // back-face culling halves the fragment work on the densest ring.
         side: THREE.FrontSide,
       });
-    this.chunk.name = 'streaming.chunk';
+    // Only name what we made. An injected material keeps its own identity — its
+    // name may key a material-library lookup or a debug filter — and `dispose()`
+    // already respects the same ownership flag one line above.
+    if (this.ownsChunk) this.chunk.name = 'streaming.chunk';
 
     this.ownsImpostor = options.impostorMaterial === undefined;
     this.impostor =
       options.impostorMaterial ??
       new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.FrontSide });
-    this.impostor.name = 'streaming.impostor';
+    if (this.ownsImpostor) this.impostor.name = 'streaming.impostor';
 
     if (options.disableImpostorSuppression !== true) {
       this.installResidencyTest(this.impostor);
@@ -203,6 +219,26 @@ export class StreamingMaterials {
     const residency = this.residency;
     const grid = CHUNK_GRID.toFixed(1);
     addComposableHook(material, 'streaming.residency', (shader): void => {
+      if (
+        !shader.vertexShader.includes('#include <common>') ||
+        !shader.vertexShader.includes('#include <project_vertex>')
+      ) {
+        // `String.replace` with a needle it cannot find returns the input
+        // unchanged and reports nothing, so on a ShaderMaterial /
+        // RawShaderMaterial / node material — all of which the impostor option
+        // explicitly invites — the residency test would simply evaporate. The
+        // symptom is one merged mesh covering all 256 chunks drawing on top of
+        // every streamed chunk, held off outright z-fighting only by the
+        // impostor's shrink: invisible in testing, obvious on a player's
+        // screen. Refuse loudly instead. The uniform is not injected either,
+        // because nothing in that shader declares it.
+        log.warnOnce(
+          'impostor-no-shader-hooks',
+          `impostor material "${material.name}" has no <common>/<project_vertex> hooks: ` +
+            'the residency test is DISABLED and the impostor will draw over resident chunks'
+        );
+        return;
+      }
       shader.uniforms[RESIDENCY_UNIFORM] = { value: residency };
       shader.vertexShader = shader.vertexShader
         .replace(

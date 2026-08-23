@@ -152,6 +152,50 @@ describe('parseEnvironmentMeasurements', () => {
     });
     expect(m.day.sh9).toBeUndefined();
   });
+
+  it('rejects non-finite measurements rather than poisoning the lighting', () => {
+    // `typeof x === 'number'` is true of NaN and of Infinity. An infinite mean
+    // makes `normalisationScale` return 1 / Infinity = 0 and the sky renders
+    // black; a NaN peak reaches the harness readout as the string "NaN".
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -1, 0]) {
+      const m = parseEnvironmentMeasurements({
+        environments: { 'hdri.sky.day': { meanLuminance: bad } },
+      });
+      expect(normalisationScale(m.day)).toBe(1); // the fallback, not 0 or NaN
+      expect(isMeasured(m.day)).toBe(false);
+    }
+
+    const m = parseEnvironmentMeasurements({
+      environments: { 'hdri.sky.day': { meanLuminance: 0.73, maxLuminance: Number.NaN } },
+    });
+    expect(m.day.maxLuminance).toBe(0);
+    expect(
+      parseEnvironmentMeasurements({
+        environments: { 'hdri.sky.day': { maxLuminance: Number.POSITIVE_INFINITY } },
+      }).day.maxLuminance
+    ).toBe(0);
+  });
+
+  it('rejects an SH array that is the right length but not all numbers', () => {
+    // A single poisoned entry becomes NaN in `sh9FromArray`, NaN then lands in
+    // every coefficient and travels through `irradianceTowards` into the
+    // published ambient / fog / ground colours for the rest of the session,
+    // with `blendSH9` still reporting success.
+    const bad = (v: unknown): unknown[] =>
+      Array.from({ length: 27 }, (_u, i) => (i === 13 ? v : 1));
+    for (const poison of [Number.NaN, Number.POSITIVE_INFINITY, 'x', null, undefined, {}]) {
+      const m = parseEnvironmentMeasurements({
+        environments: { 'hdri.sky.day': { meanLuminance: 0.73, sh9: bad(poison) } },
+      });
+      expect(m.day.sh9).toBeUndefined();
+    }
+
+    // ...and a clean 27-float array is still accepted.
+    const good = parseEnvironmentMeasurements({
+      environments: { 'hdri.sky.day': { meanLuminance: 0.73, sh9: fill(2.5, 27) } },
+    });
+    expect(good.day.sh9).toHaveLength(27);
+  });
 });
 
 describe('sampleSkyBlend', () => {
@@ -201,6 +245,19 @@ describe('sampleSkyBlend', () => {
   it('keeps alpha inside 0..1 everywhere', () => {
     for (let i = 0; i <= 5000; i++) {
       const blend = sampleSkyBlend(i / 5000);
+      expect(blend.alpha).toBeGreaterThanOrEqual(0);
+      expect(blend.alpha).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('degrades a non-finite time to midnight instead of emitting NaN', () => {
+    // `NaN % 1` and `Infinity % 1` are both NaN, and `clamp01` passes NaN
+    // through — so an unguarded wrap sends NaN to `scene.environmentIntensity`
+    // and `toneMappingExposure` with nothing to say so.
+    for (const t of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const blend = sampleSkyBlend(t);
+      expect(Number.isFinite(blend.luminance)).toBe(true);
+      expect(blend.luminance).toBe(sampleSkyBlend(0).luminance);
       expect(blend.alpha).toBeGreaterThanOrEqual(0);
       expect(blend.alpha).toBeLessThanOrEqual(1);
     }
@@ -257,6 +314,24 @@ describe('blendSH9', () => {
     expect(blendSH9(m, sampleSkyBlend(0.5), target)).toBe(false);
     // Untouched: the caller keeps whatever it had.
     expect(target.coefficients[0]!.x).toBe(9);
+  });
+
+  it('gives the same result with and without a caller-supplied scratch', () => {
+    // The shared module-level scratch replaces a `new SphericalHarmonics3()`
+    // default expression, which allocated an SH set plus nine Vector3s on every
+    // call that omitted the argument. The two call shapes must stay identical.
+    const m = measurements();
+    const a = new THREE.SphericalHarmonics3();
+    const b = new THREE.SphericalHarmonics3();
+    const scratch = new THREE.SphericalHarmonics3();
+    for (const t of [0.15, 0.16, 0.25, 0.5, 0.65, 0.8]) {
+      const blend = sampleSkyBlend(t);
+      blendSH9(m, blend, a);
+      blendSH9(m, blend, b, scratch);
+      for (let i = 0; i < 9; i++) {
+        expect(a.coefficients[i]!.toArray()).toEqual(b.coefficients[i]!.toArray());
+      }
+    }
   });
 
   it('does not allocate on the hot path', () => {

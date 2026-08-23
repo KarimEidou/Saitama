@@ -822,21 +822,43 @@ export class LeadInstrument implements IInstrument {
 /* Factory                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Build the whole palette on a destination node. */
+/**
+ * Per-instrument constructors, so a director can build only what it plays.
+ *
+ * The whole palette is ~39 permanently-running sources (35 oscillators and 4
+ * looping noise readers), every one of them started at construction and never
+ * stopped. The `calm` layer needs two of the ten instruments and `taiko`/`lead`
+ * are boss-only, so building the lot up front is pure cost on the mobile target
+ * — the same argument the voice bank makes for its lazy pools.
+ */
+export const INSTRUMENT_FACTORIES: Record<
+  InstrumentId,
+  (ctx: BaseAudioContext, destination: AudioNode) => IInstrument
+> = {
+  drone: (c, d) => new DroneInstrument(c, d),
+  pad: (c, d) => new PadInstrument(c, d),
+  pluck: (c, d) => new PluckInstrument(c, d),
+  bass: (c, d) => new BassInstrument(c, d),
+  kick: (c, d) => new DrumInstrument(c, d, 'kick', 0.1),
+  taiko: (c, d) => new DrumInstrument(c, d, 'taiko', 0.2),
+  hat: (c, d) => new HatInstrument(c, d, 0.3),
+  snare: (c, d) => new SnareInstrument(c, d, 0.4),
+  stab: (c, d) => new StabInstrument(c, d),
+  lead: (c, d) => new LeadInstrument(c, d),
+};
+
+/**
+ * Build the whole palette on a destination node.
+ *
+ * Implemented over `INSTRUMENT_FACTORIES` so the eager and the lazy paths can
+ * never drift apart — an instrument added to one is added to both.
+ */
 export function createInstruments(
   ctx: BaseAudioContext,
   destination: AudioNode
 ): Record<InstrumentId, IInstrument> {
-  return {
-    drone: new DroneInstrument(ctx, destination),
-    pad: new PadInstrument(ctx, destination),
-    pluck: new PluckInstrument(ctx, destination),
-    bass: new BassInstrument(ctx, destination),
-    kick: new DrumInstrument(ctx, destination, 'kick', 0.1),
-    taiko: new DrumInstrument(ctx, destination, 'taiko', 0.2),
-    hat: new HatInstrument(ctx, destination, 0.3),
-    snare: new SnareInstrument(ctx, destination, 0.4),
-    stab: new StabInstrument(ctx, destination),
-    lead: new LeadInstrument(ctx, destination),
-  };
+  const ids = Object.keys(INSTRUMENT_FACTORIES) as InstrumentId[];
+  const out = {} as Record<InstrumentId, IInstrument>;
+  for (const id of ids) out[id] = INSTRUMENT_FACTORIES[id](ctx, destination);
+  return out;
 }

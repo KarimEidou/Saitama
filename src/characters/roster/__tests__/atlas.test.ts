@@ -168,4 +168,57 @@ describe('atlas bake', () => {
     expect(boros.emissive).toBeUndefined();
     expect(bake(rosterEntry('chr.saitama')).emissive).toBeUndefined();
   });
+
+  it('emits an emissive map when a class actually glows', () => {
+    const entry = rosterEntry('chr.vaccineMan'); // every colour is `slime`
+    const build = buildRosterMesh(entry, 0);
+    prepareRosterGeometry(build);
+    const maps = bakeCharacterAtlas(
+      build,
+      resolveSurfaces({
+        slime: { roughness: 0.14, ao: 0.7, emissive: 0x63f0ff, emissiveStrength: 1 },
+      }),
+      buildClassifier(entry.colors),
+      { size: SIZE, seed: entry.seed }
+    );
+    build.geometry.dispose();
+
+    expect(maps.emissive).toBeDefined();
+    expect(maps.emissive!.length).toBe(SIZE * SIZE * 3);
+    // The encode round-trips sRGB -> linear -> sRGB, so lit texels carry the
+    // colour asked for.
+    let lit = 0;
+    let matched = 0;
+    for (let i = 0; i < maps.emissive!.length; i += 3) {
+      const r = maps.emissive![i]!;
+      const g = maps.emissive![i + 1]!;
+      const b = maps.emissive![i + 2]!;
+      if (r + g + b === 0) continue;
+      lit++;
+      if (Math.abs(r - 0x63) <= 2 && Math.abs(g - 0xf0) <= 2 && Math.abs(b - 0xff) <= 2) matched++;
+    }
+    expect(lit).toBeGreaterThan(0);
+    expect(matched / lit).toBeGreaterThan(0.9);
+  });
+
+  it('emits an emissive map for a glowing FACE on an otherwise unlit character', () => {
+    const entry = rosterEntry('chr.saitama'); // no class-level emissive anywhere
+    const build = buildRosterMesh(entry, 0);
+    prepareRosterGeometry(build);
+    const patch = { width: 2, height: 2, rgba: new Uint8Array(2 * 2 * 4).fill(255) };
+    const maps = bakeCharacterAtlas(
+      build,
+      resolveSurfaces(entry.surfaces),
+      buildClassifier(entry.colors),
+      {
+        size: SIZE,
+        seed: entry.seed,
+        faceRect: { u0: 0.4, v0: 0.8, u1: 0.5, v1: 0.85 },
+        faceEmissive: patch,
+      }
+    );
+    build.geometry.dispose();
+    expect(maps.emissive).toBeDefined();
+    expect(maps.emissive!.some((value) => value > 0)).toBe(true);
+  });
 });

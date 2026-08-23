@@ -213,7 +213,27 @@ async function regionDiff(
 ): Promise<number> {
   const bufA = await sharp(a).extract(rect).raw().toBuffer();
   const bufB = await sharp(b).extract(rect).raw().toBuffer();
+  // The stride below is derived from `bufA` alone and then used to index BOTH.
+  // Two captures that decode to different channel counts either read misaligned
+  // channels or run off the end of `bufB`, where `Math.abs(undefined - x)` is
+  // NaN, `NaN > threshold` is false, and the difference is under-reported as
+  // ZERO — the opposite of what every caller wants.
+  if (bufA.length !== bufB.length) {
+    throw new Error(
+      `regionDiff: ${a} and ${b} decoded to ${bufA.length} vs ${bufB.length} bytes for the same ` +
+        `rect — different channel counts. Comparing them by index silently under-reports the ` +
+        `difference, which is the opposite of what every caller wants.`
+    );
+  }
   const channels = Math.round(bufA.length / (rect.width * rect.height));
+  // A stride of 0 keeps `i + channels - 1 < bufA.length` true while `i += 0`
+  // never advances: a silent forever-hang inside a forty-minute run.
+  if (channels < 3) {
+    throw new Error(
+      `regionDiff: derived a stride of ${channels} from ${bufA.length} bytes over ` +
+        `${rect.width}x${rect.height} — a stride of 0 would loop forever`
+    );
+  }
   let differing = 0;
   let total = 0;
   for (let i = 0; i + channels - 1 < bufA.length; i += channels) {
@@ -240,12 +260,29 @@ async function regionDiff(
  * in this module and not in the page. Serialising such a closure throws
  * `__name is not defined` inside the browser. Every page-side helper below is
  * a string for the same reason.
+ *
+ * DEADLINE: the promise below only ever resolved, and `page.evaluate` has no
+ * timeout, so a page whose rAF stops firing — a lost GL context, a renderer
+ * crash, a page throttled behind the second tab the mobile-tier beat opens —
+ * hung the run forever with no output. That is the worst outcome this file has:
+ * the `finally` block that exists so a run dying at beat seven still leaves the
+ * first six beats' measurements on disk never runs either. 30 s per requested
+ * frame is ~10x the worst measured SwiftShader frame, so this can only fire on
+ * a genuinely dead loop; the rejection surfaces as an ordinary `page.evaluate`
+ * error, so the partial report is still written.
  */
 async function frames(page: Page, count: number): Promise<void> {
+  const budgetMs = 60_000 + count * 30_000;
   await page.evaluate(
-    `new Promise((resolve) => {
+    `new Promise((resolve, reject) => {
        let left = ${count};
-       const tick = () => { if (--left <= 0) { resolve(); return; } requestAnimationFrame(tick); };
+       const timer = setTimeout(() => reject(new Error(
+         'frames(): requestAnimationFrame stalled with ' + left + ' of ${count} frames left after ${budgetMs} ms'
+       )), ${budgetMs});
+       const tick = () => {
+         if (--left <= 0) { clearTimeout(timer); resolve(); return; }
+         requestAnimationFrame(tick);
+       };
        requestAnimationFrame(tick);
      })`
   );
@@ -415,6 +452,36 @@ interface ISnapshot {
   geometryBytes: number;
   sceneTriangles: number;
   instances: number;
+}
+
+/**
+ * Bone-pose signature for up to eight near-tier civilians, keyed by body id.
+ *
+ * Sampled twice, three frames apart, and compared — so it lives in ONE place:
+ * two copies of the sampler that can drift apart would make the comparison
+ * between their results meaningless, which is precisely backwards. Source text,
+ * not a closure, for the `__name` reason in the header.
+ */
+const POSE_SAMPLE = `(() => {
+      const g = window.__GAME__;
+      const out = [];
+      for (const body of g.crowd.nearBodies.values()) {
+        let sum = 0, bones = 0;
+        body.root.traverse((n) => {
+          if (n.isBone) { bones++;
+            sum += Math.abs(n.quaternion.x) + Math.abs(n.quaternion.y) +
+                   Math.abs(n.quaternion.z) + Math.abs(n.position.y); }
+        });
+        out.push({ id: String(body.id), bones: bones, sig: Number(sum.toFixed(6)) });
+        if (out.length >= 8) break;
+      }
+      return out;
+    })()`;
+
+interface IPose {
+  id: string;
+  bones: number;
+  sig: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -849,39 +916,11 @@ async function main(): Promise<void> {
     if (civilian === null) failures.push('no near-tier civilian bodies exist');
     await frames(page, 6);
 
-    const poseA = (await page.evaluate(`(() => {
-      const g = window.__GAME__;
-      const out = [];
-      for (const body of g.crowd.nearBodies.values()) {
-        let sum = 0, bones = 0;
-        body.root.traverse((n) => {
-          if (n.isBone) { bones++;
-            sum += Math.abs(n.quaternion.x) + Math.abs(n.quaternion.y) +
-                   Math.abs(n.quaternion.z) + Math.abs(n.position.y); }
-        });
-        out.push({ id: String(body.id), bones: bones, sig: Number(sum.toFixed(6)) });
-        if (out.length >= 8) break;
-      }
-      return out;
-    })()`)) as { id: string; bones: number; sig: number }[];
+    const poseA = (await page.evaluate(POSE_SAMPLE)) as IPose[];
 
     await shoot('play-03a-crowd');
     await frames(page, 3);
-    const poseB = (await page.evaluate(`(() => {
-      const g = window.__GAME__;
-      const out = [];
-      for (const body of g.crowd.nearBodies.values()) {
-        let sum = 0, bones = 0;
-        body.root.traverse((n) => {
-          if (n.isBone) { bones++;
-            sum += Math.abs(n.quaternion.x) + Math.abs(n.quaternion.y) +
-                   Math.abs(n.quaternion.z) + Math.abs(n.position.y); }
-        });
-        out.push({ id: String(body.id), bones: bones, sig: Number(sum.toFixed(6)) });
-        if (out.length >= 8) break;
-      }
-      return out;
-    })()`)) as { id: string; bones: number; sig: number }[];
+    const poseB = (await page.evaluate(POSE_SAMPLE)) as IPose[];
     await shoot('play-03b-crowd-moved');
 
     /*

@@ -89,9 +89,15 @@ export interface IEnvironmentLightingOptions {
 /** What the current environment actually costs, for the debug HUD. */
 export interface IEnvironmentStats {
   readonly mode: IBLMode;
-  /** Approximate GPU bytes held by the environment map. 0 on the SH path. */
+  /**
+   * Approximate GPU bytes held by the environment map. On the SH path this is
+   * the tiny specular-only probe; it is 0 only when `specularCubeSize` is 0.
+   */
   readonly gpuBytes: number;
-  /** Edge size of the PMREM cube-UV texture, 0 on the SH path. */
+  /**
+   * Edge size of the PMREM cube-UV texture. On the SH path this is the
+   * specular-only probe's size, and 0 only when that probe is disabled.
+   */
   readonly resolution: number;
   /** True when SH coefficients are live. */
   readonly hasSphericalHarmonics: boolean;

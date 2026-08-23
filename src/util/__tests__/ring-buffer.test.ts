@@ -87,3 +87,150 @@ describe('ring buffer capacity validation', () => {
     expect(new RingBuffer<number>(120).capacity).toBe(120);
   });
 });
+
+/**
+ * The suites below pin the read paths. Every one of them runs the same
+ * non-obvious modular arithmetic — `(head - size + capacity) % capacity`
+ * appears in four places — and both classes are unused today, which makes this
+ * the cheapest moment to fix their semantics: the first consumer (a frame-time
+ * history feeding `IGameDiagnostics.fps`) should be debugging its own logic,
+ * not the container underneath it.
+ */
+
+describe('RingBuffer', () => {
+  it('reports an empty buffer consistently', () => {
+    const rb = new RingBuffer<string>(3);
+    expect(rb.length).toBe(0);
+    expect(rb.isEmpty).toBe(true);
+    expect(rb.isFull).toBe(false);
+    expect(rb.first).toBeUndefined();
+    expect(rb.last).toBeUndefined();
+    expect(rb.toArray()).toEqual([]);
+    expect([...rb]).toEqual([]);
+  });
+
+  it('fills, then evicts oldest-first as it wraps', () => {
+    const rb = new RingBuffer<string>(3);
+    rb.push('a');
+    rb.push('b');
+    expect(rb.toArray()).toEqual(['a', 'b']);
+    expect(rb.first).toBe('a');
+    expect(rb.last).toBe('b');
+    expect(rb.isFull).toBe(false);
+
+    rb.push('c');
+    expect(rb.isFull).toBe(true);
+    expect(rb.toArray()).toEqual(['a', 'b', 'c']);
+
+    rb.push('d');
+    expect(rb.toArray()).toEqual(['b', 'c', 'd']);
+    expect(rb.first).toBe('b');
+    expect(rb.last).toBe('d');
+    expect(rb.length).toBe(3);
+
+    // Two more wraps: this is the case that catches an off-by-one in `start`.
+    rb.push('e');
+    rb.push('f');
+    expect(rb.toArray()).toEqual(['d', 'e', 'f']);
+    expect([...rb]).toEqual(['d', 'e', 'f']);
+  });
+
+  it('indexes by age and returns undefined out of range', () => {
+    const rb = new RingBuffer<string>(3);
+    rb.push('a');
+    rb.push('b');
+    rb.push('c');
+    expect(rb.get(0)).toBe('a');
+    expect(rb.get(2)).toBe('c');
+    expect(rb.get(-1)).toBeUndefined();
+    expect(rb.get(3)).toBeUndefined();
+  });
+
+  it('returns to the exact empty state after clear()', () => {
+    const rb = new RingBuffer<string>(3);
+    rb.push('a');
+    rb.push('b');
+    rb.push('c');
+    rb.push('d');
+    rb.clear();
+
+    expect(rb.length).toBe(0);
+    expect(rb.isEmpty).toBe(true);
+    expect(rb.isFull).toBe(false);
+    expect(rb.first).toBeUndefined();
+    expect(rb.last).toBeUndefined();
+    expect(rb.toArray()).toEqual([]);
+    expect([...rb]).toEqual([]);
+  });
+
+  it('is re-iterable, oldest to newest', () => {
+    const rb = new RingBuffer<string>(3);
+    for (const item of ['a', 'b', 'c', 'd']) rb.push(item);
+    expect([...rb]).toEqual(['b', 'c', 'd']);
+    expect([...rb]).toEqual(['b', 'c', 'd']);
+  });
+});
+
+describe('NumericRingBuffer statistics', () => {
+  it('reports zeroes for an empty buffer rather than NaN', () => {
+    const buffer = new NumericRingBuffer(4);
+    expect(buffer.length).toBe(0);
+    expect(buffer.average).toBe(0);
+    expect(buffer.min).toBe(0);
+    expect(buffer.max).toBe(0);
+    expect(buffer.percentile(0.99)).toBe(0);
+    expect(buffer.last).toBeUndefined();
+  });
+
+  it('tracks the retained window through eviction', () => {
+    const buffer = new NumericRingBuffer(4);
+    for (const value of [10, 20, 30, 40]) buffer.push(value);
+    expect(buffer.average).toBe(25);
+    expect(buffer.min).toBe(10);
+    expect(buffer.max).toBe(40);
+    expect(buffer.last).toBe(40);
+    expect([0, 1, 2, 3].map((i) => buffer.get(i))).toEqual([10, 20, 30, 40]);
+
+    buffer.push(50);
+    buffer.push(60);
+    expect([0, 1, 2, 3].map((i) => buffer.get(i))).toEqual([30, 40, 50, 60]);
+    expect(buffer.average).toBe(45);
+    expect(buffer.min).toBe(30);
+    expect(buffer.max).toBe(60);
+    expect(buffer.last).toBe(60);
+  });
+
+  it('computes nearest-rank percentiles over the window', () => {
+    const buffer = new NumericRingBuffer(4);
+    for (const value of [10, 20, 30, 40]) buffer.push(value);
+    expect(buffer.percentile(0)).toBe(10);
+    expect(buffer.percentile(0.5)).toBe(20);
+    expect(buffer.percentile(0.75)).toBe(30);
+    expect(buffer.percentile(0.99)).toBe(40);
+    expect(buffer.percentile(1)).toBe(40);
+  });
+
+  it('resolves p99 over a realistic window — the metric that actually matters', () => {
+    const buffer = new NumericRingBuffer(100);
+    for (let i = 1; i <= 100; i++) buffer.push(i);
+    expect(buffer.percentile(0.99)).toBe(99);
+    expect(buffer.percentile(0.5)).toBe(50);
+    expect(buffer.percentile(0.01)).toBe(1);
+  });
+
+  it('wraps a small capacity correctly', () => {
+    const buffer = new NumericRingBuffer(3);
+    for (let i = 1; i <= 7; i++) buffer.push(i);
+    expect([0, 1, 2].map((i) => buffer.get(i))).toEqual([5, 6, 7]);
+    expect(buffer.average).toBe(6);
+  });
+
+  it('returns to the empty state after clear()', () => {
+    const buffer = new NumericRingBuffer(4);
+    for (const value of [1, 2, 3, 4, 5]) buffer.push(value);
+    buffer.clear();
+    expect(buffer.length).toBe(0);
+    expect(buffer.average).toBe(0);
+    expect(buffer.last).toBeUndefined();
+  });
+});

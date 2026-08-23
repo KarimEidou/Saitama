@@ -31,7 +31,7 @@ export interface IDecalParams {
   x: number;
   y: number;
   z: number;
-  /** Surface normal to lie against. */
+  /** Surface normal to lie against. A zero or non-finite normal falls back to +Y. */
   nx: number;
   ny: number;
   nz: number;
@@ -206,13 +206,30 @@ export class DecalLayer {
       if (this.lifetime[i]! > 0) this.timedCount--;
     }
 
-    const length = Math.hypot(p.nx, p.ny, p.nz) || 1;
     this.px[i] = p.x;
     this.py[i] = p.y;
     this.pz[i] = p.z;
-    this.nx[i] = p.nx / length;
-    this.ny[i] = p.ny / length;
-    this.nz[i] = p.nz / length;
+    // A zero (or non-finite) normal has no tangent frame: SPRITE_VERTEX's
+    // `normalize(iMotion.xyz)` would be 0/0 and every vertex of the quad would
+    // get a NaN gl_Position. Lie flat on the ground instead, which is what a
+    // caller who forgot to fill the normal in almost always meant — a raycast
+    // that missed leaves a zeroed one.
+    //
+    // Both halves of the test earn their place: `!(x > e)` rather than `x < e`
+    // catches a NaN component, and the finiteness test catches an infinite one,
+    // whose `lengthSq` is `Infinity` — large enough to pass the magnitude test,
+    // and then `Infinity * 0` on every axis.
+    const lengthSq = p.nx * p.nx + p.ny * p.ny + p.nz * p.nz;
+    if (!(lengthSq > 1e-12) || !Number.isFinite(lengthSq)) {
+      this.nx[i] = 0;
+      this.ny[i] = 1;
+      this.nz[i] = 0;
+    } else {
+      const inverse = 1 / Math.sqrt(lengthSq);
+      this.nx[i] = p.nx * inverse;
+      this.ny[i] = p.ny * inverse;
+      this.nz[i] = p.nz * inverse;
+    }
     this.size[i] = p.size;
     this.aspect[i] = p.aspect;
     this.rotation[i] = p.rotation;

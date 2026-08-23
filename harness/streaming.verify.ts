@@ -238,7 +238,10 @@ async function analyse(file: string): Promise<{ stdDev: number; colours: number 
   const stats = await sharp(file).stats();
   const channels = stats.channels.slice(0, 3);
   const stdDev = channels.reduce((sum, c) => sum + c.stdev, 0) / channels.length;
-  const raw = await sharp(file).resize(96, 96, { fit: 'fill' }).raw().toBuffer();
+  // `removeAlpha()` before `raw()`: sharp emits as many channels as the input
+  // has, and the `i += 3` stride below silently walks out of phase on an RGBA
+  // PNG — turning the only assertion that catches a page that threw into noise.
+  const raw = await sharp(file).removeAlpha().resize(96, 96, { fit: 'fill' }).raw().toBuffer();
   const seen = new Set<number>();
   for (let i = 0; i + 2 < raw.length; i += 3) {
     seen.add((raw[i]! << 16) | (raw[i + 1]! << 8) | raw[i + 2]!);

@@ -27,12 +27,6 @@
 import { COLLAPSE_MAX_DETACH_PER_FRAME, COLLAPSE_STAGGER_FRAMES } from './constants';
 import type { RegisteredStructure } from './structure';
 
-/** One queued detach. */
-export interface ICollapseEntry {
-  readonly structure: RegisteredStructure;
-  readonly chunkIndex: number;
-}
-
 /** Called for each chunk as its wave comes due. */
 export type CollapseDrainFn = (structure: RegisteredStructure, chunkIndex: number) => void;
 

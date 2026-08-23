@@ -75,4 +75,24 @@ describe('CameraShake', () => {
     expect(shake.trauma).toBe(0);
     expect(shake.offset.length()).toBe(0);
   });
+
+  it('is indistinguishable from a fresh shake after a reset', () => {
+    const fresh = new CameraShake({ seed: 7 });
+    const reused = new CameraShake({ seed: 7 });
+    reused.add(1);
+    for (let i = 0; i < 10; i++) reused.update(1 / 60);
+    reused.reset();
+
+    fresh.add(0.6);
+    reused.add(0.6);
+    for (let i = 0; i < 5; i++) {
+      fresh.update(1 / 60);
+      reused.update(1 / 60);
+    }
+    // The noise PHASE is state too: a reset that leaves `elapsed` running makes
+    // the same replayed events produce a different camera path, which is the
+    // one thing seeding the noise was for.
+    expect(reused.offset.toArray()).toEqual(fresh.offset.toArray());
+    expect(reused.roll).toBe(fresh.roll);
+  });
 });

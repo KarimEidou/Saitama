@@ -186,7 +186,7 @@ async function analyse(file: string): Promise<{ stdDev: number; colours: number 
   const stats = await sharp(file).stats();
   const channels = stats.channels.slice(0, 3);
   const stdDev = channels.reduce((sum, c) => sum + c.stdev, 0) / channels.length;
-  const raw = await sharp(file).resize(72, 72, { fit: 'fill' }).raw().toBuffer();
+  const raw = await sharp(file).removeAlpha().resize(72, 72, { fit: 'fill' }).raw().toBuffer();
   const seen = new Set<number>();
   for (let i = 0; i + 2 < raw.length; i += 3) {
     seen.add((raw[i]! << 16) | (raw[i + 1]! << 8) | raw[i + 2]!);

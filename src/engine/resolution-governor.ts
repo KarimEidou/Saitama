@@ -272,6 +272,10 @@ export class ResolutionGovernor {
   /** Snap to the step grid and clamp, avoiding float drift like 0.7499999. */
   private snap(scale: number): number {
     const clamped = Math.min(this.maxScale, Math.max(this.minScale, scale));
-    return Math.round(clamped / this.step) * this.step;
+    const snapped = Math.round(clamped / this.step) * this.step;
+    // Clamp AGAIN: rounding to the grid can step back outside the range when
+    // the bounds are not multiples of `step`, and `snap` is the only writer of
+    // `currentScale`.
+    return Math.min(this.maxScale, Math.max(this.minScale, snapped));
   }
 }

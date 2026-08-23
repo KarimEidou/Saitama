@@ -33,7 +33,7 @@
  * deadlocks or half-accepts when stdin is not a TTY.
  */
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync, type ExecFileSyncOptions } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmodSync,
@@ -158,6 +158,24 @@ function sha256File(file: string): string {
   return createHash('sha256').update(readFileSync(file)).digest('hex');
 }
 
+/**
+ * `unzip` is an undeclared external dependency of this script.
+ *
+ * An ENOENT here must read as "install unzip", not as a raw execFileSync stack
+ * trace out of a script whose every other failure goes through `fail()` — on a
+ * machine that, by the time it runs this, is known to have nothing set up.
+ */
+function unzipOrFail(args: readonly string[], options: ExecFileSyncOptions): string {
+  try {
+    return String(execFileSync('unzip', args as string[], options) ?? '');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      fail('`unzip` is not installed — install it (e.g. `apt-get install -y unzip`) and re-run.');
+    }
+    throw error;
+  }
+}
+
 /* ---------------------------------------------------------------- download */
 
 /**
@@ -188,6 +206,16 @@ function download(url: string, dest: string): void {
     ],
     { stdio: ['ignore', 'inherit', 'inherit'] }
   );
+  // `result.error` BEFORE `result.status`: with no curl on PATH, `spawnSync`
+  // returns `status: null` and the status branch below says "curl exited null",
+  // which reads like a network fault on the very machine that by definition has
+  // nothing installed yet.
+  if (result.error) {
+    fail(
+      `curl could not be launched: ${result.error.message}\n` +
+        `Install curl, or download ${url} to ${dest} by hand and re-run.`
+    );
+  }
   if (result.status !== 0) fail(`curl exited ${result.status} downloading ${url}`);
   renameSync(partial, dest);
 }
@@ -239,7 +267,7 @@ function verifyArchive(zip: string): void {
     }
   }
 
-  const listing = execFileSync('unzip', ['-l', zip], { encoding: 'utf8', maxBuffer: 64 << 20 });
+  const listing = unzipOrFail(['-l', zip], { encoding: 'utf8', maxBuffer: 64 << 20 });
   if (!listing.includes('cmdline-tools/bin/sdkmanager')) {
     fail(`${zip} does not contain cmdline-tools/bin/sdkmanager — not a command-line tools archive`);
   }
@@ -278,7 +306,7 @@ function ensureCmdlineTools(root: string): void {
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging, { recursive: true });
   log(`extracting …`);
-  execFileSync('unzip', ['-q', zip, '-d', staging], { stdio: 'inherit' });
+  unzipOrFail(['-q', zip, '-d', staging], { stdio: 'inherit' });
 
   const unpacked = path.join(staging, 'cmdline-tools');
   if (!existsSync(unpacked)) fail(`expected ${unpacked} after extraction`);
@@ -341,6 +369,15 @@ function runSdkmanager(root: string, args: string[]): { status: number; stdout: 
     },
     input: '',
   });
+  // Without this, a cmdline-tools install that produced an unexecutable
+  // `sdkmanager` reports "sdkmanager exited 1" with no stdout at all — the one
+  // failure here that says nothing about its own cause.
+  if (result.error) {
+    return {
+      status: 127,
+      stdout: `sdkmanager at ${sdkmanagerPath(root)} could not be launched: ${result.error.message}`,
+    };
+  }
   const stdout = `${result.stdout ?? ''}${result.stderr ?? ''}`;
   return { status: result.status ?? 1, stdout };
 }

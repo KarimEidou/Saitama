@@ -334,13 +334,21 @@ export async function renderVoiceProbe(
 
     const extras: Record<string, number> = {};
     if (spec.voiceClass === 'consecutive') {
+      // Largest count in the pool, not whichever voice `forEach` visited last:
+      // idle voices report 0, and iteration order must not decide which one the
+      // probe publishes. The two agree today only because a single-trigger probe
+      // allocates exactly one voice — a pre-allocated pool (as `unlock()`
+      // already does for the warm classes) would publish a 0 and read as a
+      // scheduler regression.
+      extras.hitCount = 0;
       system.bank('consecutive').forEach((v) => {
-        extras.hitCount = (v as ConsecutiveVoice).hitCount;
+        extras.hitCount = Math.max(extras.hitCount, (v as ConsecutiveVoice).hitCount);
       });
     }
     if (spec.voiceClass === 'debris') {
+      extras.grainCount = 0;
       system.bank('debris').forEach((v) => {
-        extras.grainCount = (v as DebrisVoice).grainCount;
+        extras.grainCount = Math.max(extras.grainCount, (v as DebrisVoice).grainCount);
       });
     }
     return extras;
@@ -942,8 +950,10 @@ export async function renderDebrisDensityProbe(
   const result = await render(seconds, sampleRate, options, (system) => {
     system.play(material, { intensity, delay: TRIGGER_AT, pitchVariation: 0 });
     let grains = 0;
+    // Largest count in the pool: `forEach` order must not decide which voice the
+    // probe publishes, and an idle pooled voice reports 0.
     system.bank('debris').forEach((v) => {
-      grains = (v as DebrisVoice).grainCount;
+      grains = Math.max(grains, (v as DebrisVoice).grainCount);
     });
     return { grainCount: grains, intensity };
   });

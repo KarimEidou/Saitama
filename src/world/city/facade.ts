@@ -38,7 +38,7 @@ export type PanelKind =
   'window' | 'shopfront' | 'door' | 'blank' | 'balcony' | 'ac_unit' | 'fire_escape_anchor';
 
 /** Every kind, in a stable order — weight tables index against this. */
-export const PANEL_KINDS: readonly PanelKind[] = [
+export const PANEL_KINDS = [
   'window',
   'shopfront',
   'door',
@@ -46,7 +46,15 @@ export const PANEL_KINDS: readonly PanelKind[] = [
   'balcony',
   'ac_unit',
   'fire_escape_anchor',
-];
+] as const satisfies readonly PanelKind[];
+
+// Compile-time guard: a `PanelKind` missing from the list above is silently
+// unselectable in `normaliseWeights`, which reads as a blank facade rather than
+// as a missing line. If this stops compiling, add the kind to PANEL_KINDS (and
+// a case to `emitPanel`).
+const _allPanelKindsListed: [Exclude<PanelKind, (typeof PANEL_KINDS)[number]>] extends [never]
+  ? true
+  : never = true;
 
 /** Geometric detail level requested of the facade. */
 export type FacadeDetail = 'full' | 'reduced';
@@ -464,7 +472,7 @@ export function emitShopfront(c: IPanelContext): void {
   );
 
   if (c.detail === 'full' && c.rng.bool(0.55)) {
-    emitAwning(c, riser, signBottom);
+    emitAwning(c, signBottom);
   }
   if (c.detail === 'full' && c.rng.bool(c.signage)) {
     emitProjectingSign(c, c.height - 0.5);
@@ -709,13 +717,8 @@ function emitGlyphBlock(
       ink
     );
   }
-  // One or two vertical strokes crossing them.
-  const uprights = 1;
-  for (let i = 0; i < uprights; i++) {
-    const t = uprights === 1 ? 0.5 : 0.28 + i * 0.44;
-    const cx = d - w * 0.5 + t * w;
-    emitStroke(c, u, cx - stroke * 0.5, cx + stroke * 0.5, v - h * 0.5, v + h * 0.5, outward, ink);
-  }
+  // One vertical stroke crossing them, down the middle of the cell.
+  emitStroke(c, u, d - stroke * 0.5, d + stroke * 0.5, v - h * 0.5, v + h * 0.5, outward, ink);
 }
 
 /** A single stroke of a character. */
@@ -801,7 +804,7 @@ function emitFasciaLettering(
 }
 
 /** Fabric awning over a shopfront, sloping down and out. */
-function emitAwning(c: IPanelContext, _riser: number, signBottom: number): void {
+function emitAwning(c: IPanelContext, signBottom: number): void {
   const depth = c.rng.range(0.8, 1.25);
   const drop = 0.42;
   const yTop = signBottom - 0.12;

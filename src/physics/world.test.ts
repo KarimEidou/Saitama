@@ -205,6 +205,39 @@ describe('PhysicsWorld', () => {
     world.dispose();
   });
 
+  it('leaves a disabled body out of the per-step transform refresh', () => {
+    const world = new PhysicsWorld({ contactEvents: false });
+    const body = world.createBody({
+      type: 'dynamic',
+      shape: { kind: 'sphere', radius: 0.2 },
+      position: new THREE.Vector3(0, 10, 0),
+      layer: 'debris',
+      collidesWith: ['world'],
+      canSleep: false,
+    });
+    world.step(FIXED_STEP, 1);
+    const rot = new THREE.Quaternion();
+    const before = new THREE.Vector3();
+    body.getRenderTransform(before, rot, 1);
+
+    // Parked like a recycled debris slot: disabled, then moved out of sight.
+    body.setEnabled(false);
+    body.raw.setTranslation({ x: 0, y: -1000, z: 0 }, false);
+    world.step(FIXED_STEP, 5);
+    const after = new THREE.Vector3();
+    body.getRenderTransform(after, rot, 1);
+    expect(after.y).toBeCloseTo(before.y, 6);
+
+    // Re-enabling re-seeds both ends, so nothing interpolates from the parked
+    // position on the frame the slot is reused.
+    body.setEnabled(true);
+    body.setTransform(new THREE.Vector3(0, 3, 0));
+    const reused = new THREE.Vector3();
+    body.getRenderTransform(reused, rot, 0);
+    expect(reused.y).toBeCloseTo(3, 6);
+    world.dispose();
+  });
+
   it('raycasts against the world layer and honours exclusions', () => {
     const world = new PhysicsWorld();
     makeGround(world);
@@ -262,12 +295,17 @@ describe('PhysicsWorld', () => {
     });
 
     let seen = 0;
-    const off = world.onContact(0, () => {
+    let firstNormalLength = 0;
+    const off = world.onContact(0, (contact) => {
+      if (seen === 0) firstNormalLength = contact.normal.length();
       seen++;
     });
     world.step(FIXED_STEP, 120);
     off();
     expect(seen).toBeGreaterThan(0);
+    // The normal is read into a pooled target rather than a fresh Vector3 per
+    // contact; a target Rapier never filled would read back as the zero vector.
+    expect(firstNormalLength).toBeCloseTo(1, 5);
     world.dispose();
   });
 

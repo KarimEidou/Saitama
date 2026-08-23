@@ -161,7 +161,7 @@ export class MeshBuilder {
     return total / 3;
   }
 
-  /** True when at least one vertex has been emitted. */
+  /** True when NO vertex has been emitted yet. */
   get isEmpty(): boolean {
     return this.positions.length === 0;
   }
@@ -525,11 +525,6 @@ export class MeshBuilder {
     let offset = 0;
     for (let i = 0; i < slot; i++) offset += this.slotIndices[i].length;
     return offset;
-  }
-
-  /** Index count in a slot. */
-  slotLength(slot: number): number {
-    return this.slotIndices[slot].length;
   }
 
   /* ---------------------------------------------------------------------- */

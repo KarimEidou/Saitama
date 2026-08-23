@@ -18,7 +18,14 @@
  */
 
 import { createChunkRng, type IRandom } from '@/util';
-import { CHUNK_GRID, CHUNK_SIZE, WORLD_MIN, chunkIndex } from './constants';
+import {
+  CHUNK_GRID,
+  CHUNK_SIZE,
+  WORLD_MIN,
+  chunkIndex,
+  worldToChunkX,
+  worldToChunkZ,
+} from './constants';
 import type { IFootprint } from './pvs';
 
 /** One static instance: a world-space AABB with the chunk that owns it. */
@@ -255,8 +262,8 @@ export function sampleStreetCameras(
     const jitterZ = rng.range(-3, 3);
     const x = point.x + jitterX;
     const z = point.z + jitterZ;
-    const cx = Math.floor(x / CHUNK_SIZE);
-    const cz = Math.floor(z / CHUNK_SIZE);
+    const cx = worldToChunkX(x);
+    const cz = worldToChunkZ(z);
     samples.push({
       x,
       y: eyeHeight,

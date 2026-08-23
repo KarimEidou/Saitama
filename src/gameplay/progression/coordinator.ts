@@ -29,7 +29,6 @@ import {
   BOREDOM_FUN_FIGHT_LOCK,
   BOREDOM_ON_MISSED_SALE,
   BOREDOM_ON_QUEST_FAILED,
-  type HeroicDeed,
 } from './constants';
 import { SaveManager, buildSave, type ISaveBackend, type IStoredSave } from './save-game';
 
@@ -170,7 +169,7 @@ export class ProgressionCoordinator {
     // rivals from the save, quests untouched — is worse than no restore at all.
     this.progression.restore(save.progression);
     this.rivals.restore(save.extras?.rivals);
-    this.boredom.restoreHistory((save.extras?.heroicDeeds ?? []) as readonly HeroicDeed[]);
+    this.boredom.restoreHistory(save.extras?.heroicDeeds ?? []);
     for (const [questId, state] of Object.entries(save.questStates ?? {})) {
       this.quests.restoreState(questId, state as QuestState, save.questProgress?.[questId]);
     }

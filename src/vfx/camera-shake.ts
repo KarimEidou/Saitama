@@ -96,6 +96,10 @@ export class CameraShake implements ICameraShake {
 
   reset(): void {
     this.traumaValue = 0;
+    // The noise phase is part of the state: leaving `elapsed` running would
+    // make a reset shake resume mid-waveform, so replaying the same events
+    // after a reset would not reproduce the same camera path.
+    this.elapsed = 0;
     this.offset.set(0, 0, 0);
     this.roll = 0;
   }

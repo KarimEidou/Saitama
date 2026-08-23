@@ -375,7 +375,7 @@ export class ThirdPersonCameraRig {
    * chasing a transform the solver has already resolved.
    */
   update(input: InputState, dt: number): void {
-    if (this.disposed || dt <= 0) return;
+    if (this.disposed || !Number.isFinite(dt) || dt <= 0) return;
 
     this.readLook(input, dt);
     this.updatePivot(dt);
@@ -565,10 +565,13 @@ export class ThirdPersonCameraRig {
   private composeDesiredPosition(): void {
     const pitch = this.effectivePitch();
     const cosP = Math.cos(pitch);
-    tmpArmDir.set(Math.sin(this.yaw) * cosP, Math.sin(pitch), Math.cos(this.yaw) * cosP);
-    // Guard against a degenerate arm direction at ±90° pitch.
-    if (tmpArmDir.lengthSq() < 1e-8) tmpArmDir.set(0, 1, 0);
-    else tmpArmDir.normalize();
+    // Unit by construction — |(sin y cos p, sin p, cos y cos p)| == 1 for every
+    // yaw and pitch, ±90° included. `normalize()` only sands off the float error
+    // in sin/cos, because `ICameraProbe.probe` is documented to take a unit
+    // direction.
+    tmpArmDir
+      .set(Math.sin(this.yaw) * cosP, Math.sin(pitch), Math.cos(this.yaw) * cosP)
+      .normalize();
     this.desiredPosition.copy(this.pivot).addScaledVector(tmpArmDir, this.armActual);
   }
 
@@ -580,9 +583,11 @@ export class ThirdPersonCameraRig {
    * is the shape the arm actually occupies, and the extra conservatism at the
    * ends is free insurance against the near plane clipping a corner.
    *
-   * The contract exposes rays, not shape casts, which is why this is five
-   * calls rather than one. At ~1.6 µs each against the BVH that is not a cost
-   * worth optimising away.
+   * The contract exposes rays, not shape casts, which is why this is five calls
+   * rather than one — six per frame counting the pivot's own side ray. The
+   * shipping probe (`createPhysicsCameraProbe`) serves them from `IPhysicsWorld`
+   * (Rapier); the ~1.6 µs-per-ray figure quoted on `ICameraProbe` is for the
+   * future `src/spatial` BVH-backed probe, not for this path.
    */
   private applyCollision(): void {
     const cam = this.tuning.camera;

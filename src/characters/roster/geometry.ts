@@ -256,12 +256,29 @@ export function prepareRosterGeometry(build: HumanoidBuild, plan?: AtlasPlan): P
     remapped.push(region.name);
   }
 
+  // A signature is `region.indexCount` index reads plus three colour reads, and
+  // this pass wants each one twice: once to group, once to look the group up.
+  // Vertex colours do not change here, so one computation per region is enough.
+  const signatureCache = new Map<string, string>();
+  const signatureFor = (region: MeshRegionInfo): string => {
+    let cached = signatureCache.get(region.name);
+    if (cached === undefined) {
+      cached = regionSignature(geometry, region);
+      signatureCache.set(region.name, cached);
+    }
+    return cached;
+  };
+
   // --- regions that share a rectangle but not a paint job -------------------
   for (const [name, regions] of byRect) {
+    // Every region here is already placed by the supplied plan: nothing this
+    // pass could decide would change `moves`, so do not pay for the signatures.
+    if (regions.every((region) => moves.has(region.name))) continue;
+
     const signatures: string[] = [];
     const groupOf = new Map<string, number>();
     for (const region of regions) {
-      const signature = regionSignature(geometry, region);
+      const signature = signatureFor(region);
       if (!groupOf.has(signature)) {
         groupOf.set(signature, signatures.length);
         signatures.push(signature);
@@ -280,7 +297,7 @@ export function prepareRosterGeometry(build: HumanoidBuild, plan?: AtlasPlan): P
         unplanned.push(region.name);
         continue;
       }
-      const group = groupOf.get(regionSignature(geometry, region))!;
+      const group = groupOf.get(signatureFor(region))!;
       moves.set(region.name, { src: UV_REGIONS[name], dest: cells[group]! });
       split.push(region.name);
     }

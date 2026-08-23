@@ -234,7 +234,25 @@ export class TextureMemory {
   /** Insert a resident item and trim back to budget. */
   insert(item: IEvictable): IEvictionReport {
     const existing = this.items.get(item.key);
-    if (existing) this.residentBytes -= existing.gpuBytes;
+    if (existing !== undefined) {
+      this.residentBytes -= existing.gpuBytes;
+      // A REPLACED item is unreachable from here on — every other route out of
+      // this LRU (`remove`, `trim`, `clear`) disposes, and this was the one
+      // hole through which a GPU texture leaked with nothing left to free it.
+      // Re-inserting the SAME object is not a replacement and must not free it.
+      if (existing !== item) {
+        if (existing.refCount > 0) {
+          // A referenced item cannot be freed — someone is still drawing with
+          // it — so say so rather than dropping it silently.
+          log.warn(
+            `"${item.key}" was replaced while ${existing.refCount} reference(s) still hold the ` +
+              `old handle; its GPU texture cannot be freed and is now unreachable.`
+          );
+        } else {
+          existing.dispose();
+        }
+      }
+    }
     this.items.set(item.key, item);
     this.touched.set(item.key, ++this.clock);
     this.inserted.set(item.key, ++this.insertCount);

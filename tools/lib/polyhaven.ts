@@ -100,6 +100,38 @@ export interface IPolyHavenClientOptions {
   readonly offline?: boolean;
 }
 
+/**
+ * Memoise an async factory by key, keeping successes and FORGETTING rejections.
+ *
+ * A memo that retains a rejected promise poisons its key for the life of the
+ * process: `resolveAll` submits all 84 entries through the API limiter at once,
+ * so one transient 503 that slips past `withRetry`'s three attempts while the
+ * first of 39 entries sharing an id is resolving makes the other 38 fail
+ * instantly with that same stale error, and no retry can ever run. It reads
+ * badly too — a later entry reports a failure that happened during someone
+ * else's request.
+ *
+ * Successes are kept forever: provider metadata does not change inside a run.
+ */
+export function memoizeAsync<T>(
+  store: Map<string, Promise<unknown>>,
+  key: string,
+  make: () => Promise<T>
+): Promise<T> {
+  const existing = store.get(key);
+  if (existing) return existing as Promise<T>;
+  const created = make();
+  store.set(key, created);
+  // The caller owns `created`'s rejection; this branch only evicts, and its own
+  // promise is handled here, so it can never surface as an unhandled rejection.
+  // The identity check matters: without it a slow rejection could evict a newer
+  // in-flight promise for the same key.
+  void created.catch(() => {
+    if (store.get(key) === created) store.delete(key);
+  });
+  return created;
+}
+
 export class PolyHavenClient {
   private readonly offline: boolean;
   private readonly memo = new Map<string, Promise<unknown>>();
@@ -110,11 +142,7 @@ export class PolyHavenClient {
 
   /** Memoise per process so 39 props sharing an id fetch it once. */
   private once<T>(key: string, make: () => Promise<T>): Promise<T> {
-    const existing = this.memo.get(key);
-    if (existing) return existing as Promise<T>;
-    const created = make();
-    this.memo.set(key, created);
-    return created;
+    return memoizeAsync(this.memo, key, make);
   }
 
   /** `/assets?type=<type>` — the full index for a category. */

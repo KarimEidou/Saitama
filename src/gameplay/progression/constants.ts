@@ -136,6 +136,15 @@ export const INCIDENT_WITNESSED_MULTIPLIER = 1.0;
 export const INCIDENT_DISPATCHED_MULTIPLIER = 0.75;
 export const INCIDENT_UNWITNESSED_MULTIPLIER = 0.06;
 
+/**
+ * Metres within which a kill, rescue, loss or wrecked chunk is attributed to an open incident.
+ *
+ * Deliberately generous: a serious punch throws debris further than a tidy radius, and
+ * under-attributing collateral would let a player dodge the report by fighting at the edge of the
+ * encounter. Much larger than `WITNESS_RADIUS`, which is about eyesight rather than blast.
+ */
+export const INCIDENT_ATTRIBUTION_RADIUS = 200;
+
 /* -------------------------------------------------------------------------- */
 /* Witnesses                                                                  */
 /* -------------------------------------------------------------------------- */

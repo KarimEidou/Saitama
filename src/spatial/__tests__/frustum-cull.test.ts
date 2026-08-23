@@ -29,7 +29,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Quadtree } from '../quadtree';
+import { Quadtree, createCullStats } from '../quadtree';
 import { Frustum, ALL_PLANES, INSIDE, OUTSIDE, INTERSECTING, classifyCode } from '../frustum';
 import { IndexList } from '../index-list';
 import {
@@ -124,6 +124,74 @@ describe('Frustum primitives', () => {
     const forwardX = 100 - Math.sin(1.2) * 50;
     const forwardZ = -200 - Math.cos(1.2) * 50;
     expect(frustum.containsPoint(forwardX, 5, forwardZ)).toBe(true);
+  });
+
+  it('keeps the packed predicates bit-identical to the scalar forms', () => {
+    // `frustum.ts` states that `testPacked` is bit-identical to `testBox`, and
+    // the whole equivalence proof rests on it — but both `cullFrustum` and
+    // `bruteForceCull` call `testPacked`, so a defect inside it cancels out
+    // perfectly in the big sweep below. This is the only check that compares
+    // the packed forms against the scalar ones. `classifyPacked` has no caller
+    // in `src/` at all (the quadtree inlines `classifyCentreExtent` instead)
+    // and reads `pIndex`/`nIndex`, the derived tables maintained in exactly
+    // one place, which is precisely the class of desync worth pinning.
+    const boxes = randomBoxes(2000, 'packed-identity');
+
+    // Round through float32 FIRST: the packed forms read a Float32Array, the
+    // scalar forms take float64 arguments, and only the read-back values are
+    // comparable.
+    const buf = new Float32Array(boxes.length * 6);
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i]!;
+      const o = i * 6;
+      buf[o] = b.minX;
+      buf[o + 1] = b.minY;
+      buf[o + 2] = b.minZ;
+      buf[o + 3] = b.maxX;
+      buf[o + 4] = b.maxY;
+      buf[o + 5] = b.maxZ;
+    }
+
+    const frustum = new Frustum();
+    const matrix = new Float64Array(16);
+    const masks = [ALL_PLANES, 0b101010, 0b000111, 0b010000, 0];
+    let outside = 0;
+    let intersecting = 0;
+    let inside = 0;
+
+    for (const lens of [MOBILE_PORTRAIT_LENS, WIDE_LANDSCAPE_LENS]) {
+      for (const pose of randomPoses(10, `packed-identity-${lens.name}`)) {
+        poseMatrix(matrix, pose, lens);
+        frustum.setFromViewProjection(matrix);
+        for (let i = 0; i < boxes.length; i++) {
+          const o = i * 6;
+          const f0 = buf[o]!;
+          const f1 = buf[o + 1]!;
+          const f2 = buf[o + 2]!;
+          const f3 = buf[o + 3]!;
+          const f4 = buf[o + 4]!;
+          const f5 = buf[o + 5]!;
+          for (const mask of masks) {
+            // Exact boolean / packed-int equality, not approximation.
+            expect(frustum.testPacked(buf, o, mask)).toBe(
+              frustum.testBox(f0, f1, f2, f3, f4, f5, mask)
+            );
+            expect(frustum.classifyPacked(buf, o, mask)).toBe(
+              frustum.classifyBox(f0, f1, f2, f3, f4, f5, mask)
+            );
+          }
+          const code = classifyCode(frustum.classifyPacked(buf, o, ALL_PLANES));
+          if (code === OUTSIDE) outside++;
+          else if (code === INTERSECTING) intersecting++;
+          else inside++;
+        }
+      }
+    }
+
+    // Guard against a vacuous pass: all three classifications must occur.
+    expect(outside).toBeGreaterThan(0);
+    expect(intersecting).toBeGreaterThan(0);
+    expect(inside).toBeGreaterThan(0);
   });
 
   it('never reports INSIDE for a box that fails the per-item test', () => {
@@ -255,14 +323,7 @@ describe('Hierarchical cull speed', () => {
 
     let visible = 0;
     let nodes = 0;
-    const stats = {
-      nodesVisited: 0,
-      nodesRejected: 0,
-      nodesAccepted: 0,
-      chunksRejectedByPvs: 0,
-      itemsTested: 0,
-      itemsVisible: 0,
-    };
+    const stats = createCullStats();
     for (const m of matrices) {
       frustum.setFromViewProjection(m);
       tree.cullFrustum(frustum, out, stats);

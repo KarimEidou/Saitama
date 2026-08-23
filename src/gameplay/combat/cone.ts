@@ -136,8 +136,12 @@ export function pointInCone(
   if (distSq <= CONE_EPSILON) return true;
   const dist = Math.sqrt(distSq);
   // cos is monotonically decreasing in angle, so comparing cosines avoids an
-  // acos and is exact to the same precision.
-  return (cx * nx + cy * ny + cz * nz) / dist >= Math.cos(halfAngle);
+  // acos and is exact to the same precision. CLAMPED to [-1, 1] exactly as
+  // `sphereInCone` clamps it below: for a near-antipodal point the rounded
+  // quotient can land a ulp under -1, and a half-angle of PI — whose cosine is
+  // exactly -1 — must accept every point inside the range.
+  const cos = (cx * nx + cy * ny + cz * nz) / dist;
+  return (cos < -1 ? -1 : cos > 1 ? 1 : cos) >= Math.cos(halfAngle);
 }
 
 /* -------------------------------------------------------------------------- */

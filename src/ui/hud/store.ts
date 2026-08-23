@@ -40,15 +40,7 @@
  * player expects and the naive version gets wrong.
  */
 
-import type {
-  DayPhase,
-  GameEventOf,
-  GamePhase,
-  HeroClass,
-  IEventBus,
-  LethalIntent,
-  ThreatTier,
-} from '@/types';
+import type { DayPhase, GameEventOf, GamePhase, HeroClass, IEventBus, LethalIntent } from '@/types';
 import { clamp01 } from '@/util';
 import {
   ALERT_LIMIT,
@@ -331,9 +323,20 @@ export class HudStore {
     this.markDirty();
   }
 
-  /** Live witness count from the crowd system's witness field. */
+  /**
+   * Live witness count from the crowd system's witness field.
+   *
+   * Called EVERY FRAME by the bootstrap (`game.ts` `updateHud`), so it dirties
+   * the model only when the count actually moved. Dirtying unconditionally
+   * would take `render()` — the "a few times a minute" tier — to 60 Hz and
+   * defeat the split `manager.ts` documents as the whole performance contract.
+   */
   setWitnesses(count: number): void {
-    if (this.model.encounter) this.model.encounter.witnesses = Math.max(0, Math.round(count));
+    const encounter = this.model.encounter;
+    if (!encounter) return;
+    const next = Math.max(0, Math.round(count));
+    if (next === encounter.witnesses) return;
+    encounter.witnesses = next;
     this.markDirty();
   }
 
@@ -391,9 +394,16 @@ export class HudStore {
     this.markDirty();
   }
 
-  /** Whole-state rank push, for a save-game load. */
+  /**
+   * Whole-state rank push, for a save-game load.
+   *
+   * Copies only the keys that are actually PRESENT with a value. `Object.assign`
+   * would copy an explicitly-`undefined` key too — which is precisely the shape a
+   * save file written by an older build produces — and `rank: undefined` reaches
+   * `formatRank` as `C-NaN` on two screens.
+   */
   setRank(rank: Partial<IHudModel['rank']>): void {
-    Object.assign(this.model.rank, rank);
+    assignDefined(this.model.rank, rank);
     if (typeof rank.points === 'number') this.lastPoints = rank.points;
     this.markDirty();
   }
@@ -502,7 +512,10 @@ export function prettyEncounterName(encounterId: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-/** A tier's position in the severity order, for sorting alerts. */
-export function tierSeverity(tier: ThreatTier): number {
-  return ['wolf', 'tiger', 'demon', 'dragon', 'god'].indexOf(tier);
+/** Copy the DEFINED keys of a patch onto a target, leaving the rest alone. */
+function assignDefined<T extends object>(target: T, patch: Partial<T>): void {
+  for (const key of Object.keys(patch) as (keyof T)[]) {
+    const value = patch[key];
+    if (value !== undefined) target[key] = value as T[typeof key];
+  }
 }

@@ -55,6 +55,26 @@ export interface IFrameWriterStats {
 }
 
 /**
+ * Largest magnitude JS renders WITHOUT exponential notation.
+ *
+ * `String(1e20)` is `"100000000000000000000"`; `String(1e21)` is `"1e+21"`, and
+ * `toFixed` switches at the same point. CSS number parsing rejects both forms of
+ * exponent here, and a rejected `counter-reset` prints 0 forever. Nothing this
+ * HUD displays is within twenty orders of magnitude of the clamp, so hitting it
+ * means the value was already nonsense — the clamp only decides how it looks.
+ */
+const MAX_CSS_NUMBER = 1e20;
+
+/** Clamp to a magnitude both `String` and `toFixed` render in fixed notation. */
+function clampToFixedRange(value: number): number {
+  return value > MAX_CSS_NUMBER
+    ? MAX_CSS_NUMBER
+    : value < -MAX_CSS_NUMBER
+      ? -MAX_CSS_NUMBER
+      : value;
+}
+
+/**
  * The only object allowed to touch the DOM during `update(dt)`.
  *
  * Deduplicates: a boredom meter that has not moved costs zero CSSOM writes and
@@ -110,7 +130,7 @@ export class FrameWriter {
    * variable reads correct in devtools. Rounding here is not a nicety.
    */
   setInteger(element: Element, name: CssVarName, value: number): void {
-    const safe = Number.isFinite(value) ? Math.round(value) : 0;
+    const safe = Number.isFinite(value) ? clampToFixedRange(Math.round(value)) : 0;
     this.set(element, name, String(safe));
   }
 
@@ -139,11 +159,12 @@ export class FrameWriter {
  *
  * `String(1e-7)` is `"1e-7"`, which is a valid CSS number, but `String(1e-21)`
  * is `"1e-21"` and CSS number parsing tops out well before that. Fixed notation
- * sidesteps the whole class.
+ * covers the small end; `toFixed` itself returns exponential at and above 1e21,
+ * so the magnitude is clamped first.
  */
 export function roundTo(value: number, decimals: number): string {
   if (!Number.isFinite(value)) return '0';
-  const text = value.toFixed(decimals);
+  const text = clampToFixedRange(value).toFixed(decimals);
   // Trim trailing zeros, then a trailing dot: "1.500" -> "1.5", "2.000" -> "2".
   return decimals > 0 ? text.replace(/\.?0+$/, '') || '0' : text;
 }

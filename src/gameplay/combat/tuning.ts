@@ -431,8 +431,23 @@ export const DEFAULT_COMBAT_TUNING: ICombatTuning = Object.freeze({
 /** Partial override, resolved against the defaults. */
 export type ICombatTuningPatch = Partial<ICombatTuning>;
 
-/** Merge a patch over the shipped tuning. */
+/**
+ * Merge a patch over the shipped tuning.
+ *
+ * Keys whose value is `undefined` are SKIPPED rather than copied. The project
+ * does not enable `exactOptionalPropertyTypes`, so `{ tapMaxHoldSeconds:
+ * undefined }` is a well-typed patch, and spreading it would put `undefined`
+ * into a tuning field where every comparison against it silently reads false —
+ * the tap/hold discriminator would send every tap out as a serious punch.
+ */
 export function resolveCombatTuning(patch?: ICombatTuningPatch): ICombatTuning {
   if (patch === undefined) return DEFAULT_COMBAT_TUNING;
-  return Object.freeze({ ...DEFAULT_COMBAT_TUNING, ...patch });
+  const merged: Record<string, unknown> = { ...DEFAULT_COMBAT_TUNING };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) merged[key] = value;
+  }
+  // Every key present came from the defaults or from a well-typed patch, so
+  // the shape is complete — TypeScript just cannot see that through the index
+  // signature the loop needs.
+  return Object.freeze(merged as unknown as ICombatTuning);
 }

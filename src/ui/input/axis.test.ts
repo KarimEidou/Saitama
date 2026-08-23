@@ -167,6 +167,15 @@ describe('axisFromVector', () => {
     expect(a.active).toBe(true);
     expect(a.magnitude).toBe(0);
   });
+
+  it('refuses a non-finite component instead of poisoning the snapshot', () => {
+    // `NaN > 1` and `NaN < EPSILON` are both false, so without an explicit
+    // guard every check below falls through and the frozen `InputState` handed
+    // to every consumer this frame carries a NaN magnitude AND angle.
+    expect(axisFromVector(Number.NaN, 0)).toBe(NEUTRAL_AXIS);
+    expect(axisFromVector(0, Number.POSITIVE_INFINITY)).toBe(NEUTRAL_AXIS);
+    expect(axisFromVector(Number.NaN, Number.NaN, true)).toBe(NEUTRAL_AXIS);
+  });
 });
 
 describe('axesEqual', () => {

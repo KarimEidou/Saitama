@@ -170,6 +170,27 @@ describe('DebrisPool', () => {
     world.dispose();
   });
 
+  it('integrates ballistic pieces at the world gravity, not the default', () => {
+    const world = new PhysicsWorld({ gravity: new THREE.Vector3(0, -5, 0) });
+    const pool = new DebrisPool(world, { capacity: 2, groundY: 0 });
+    const piece = pool.spawn(
+      gravelChunk(0),
+      new THREE.Matrix4().makeTranslation(0, 6, 0),
+      new THREE.Vector3(0, 0, 0)
+    )!;
+    expect(piece.ballistic).toBe(true);
+
+    for (let i = 0; i < 30; i++) pool.update(FIXED_STEP);
+    // Semi-implicit Euler over 30 steps: drop = g * dt^2 * n(n+1)/2 = 0.646 m
+    // at g = 5. At the hard-coded -22 it would be 2.84 m, so the simulated
+    // rubble beside it would visibly outrun the gravel.
+    const drop = 6 - piece.mesh.position.y;
+    expect(drop).toBeGreaterThan(0.55);
+    expect(drop).toBeLessThan(0.75);
+    pool.dispose();
+    world.dispose();
+  });
+
   it('gives a pooled body its live collider so contacts can be located', () => {
     const world = new PhysicsWorld();
     const pool = new DebrisPool(world, { capacity: 2 });
@@ -254,6 +275,9 @@ describe('DebrisPool', () => {
     world.dispose();
   });
 
+  // 300 bodies x 600 steps. The rest of this suite is fast and stays on
+  // vitest's 5 s default; only this one gets a ceiling, so a loaded machine
+  // reports a settle failure rather than a timeout.
   it('settles a 300-piece pile and puts it to sleep', () => {
     const world = new PhysicsWorld();
     makeGround(world);
@@ -293,7 +317,7 @@ describe('DebrisPool', () => {
     for (const spec of specs) spec.geometry.dispose();
     pool.dispose();
     world.dispose();
-  });
+  }, 60_000);
 
   it('clears everything on demand and returns slots to the free list', () => {
     const world = new PhysicsWorld();

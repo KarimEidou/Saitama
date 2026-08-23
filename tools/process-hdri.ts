@@ -75,7 +75,6 @@ import {
   outputRelPath,
   parseConcurrency,
   parseTier,
-  sha256File,
   sourceFilePath,
   type IEnvironmentRuntime,
   type IProducedOutput,
@@ -388,7 +387,13 @@ const HALF_MAX = 65504;
  * by zero.
  */
 export function toHalfFloat(value: number): number {
-  if (!Number.isFinite(value)) return value > 0 ? 0x7bff : value < 0 ? 0xfbff : 0;
+  // NaN cannot be represented usefully downstream: a NaN half would poison an
+  // entire mip level the moment something averages it. Encode it as +0, the
+  // same choice the mip and SH paths already make for a dead texel. (Throwing
+  // was considered and rejected — it would fail a whole build on one bad texel
+  // in an 8.4 M-texel source.)
+  if (Number.isNaN(value)) return 0;
+  if (!Number.isFinite(value)) return value > 0 ? 0x7bff : 0xfbff;
   const clamped = value > HALF_MAX ? HALF_MAX : value < -HALF_MAX ? -HALF_MAX : value;
   F32[0] = clamped;
   const bits = U32[0]!;
@@ -446,7 +451,11 @@ function toHalfRgba(image: IHdrImage): Buffer {
 export interface IShResult {
   /** 27 numbers: 9 coefficients x RGB, in `SphericalHarmonics3.fromArray` order. */
   readonly flat: number[];
-  /** Solid-angle-weighted mean luminance. Box downsampling preserves it exactly. */
+  /**
+   * Solid-angle-weighted mean luminance of the image it was projected from.
+   * Box downsampling preserves it to within the quadrature error, not exactly:
+   * the `sinθ` weight varies across the rows inside each box.
+   */
   readonly meanLuminance: number;
 }
 
@@ -879,6 +888,3 @@ if (invokedDirectly) {
     process.exit(1);
   });
 }
-
-/** Exported for verification: `sha256File` is re-exported for scripted checks. */
-export { sha256File };

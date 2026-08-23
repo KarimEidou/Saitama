@@ -5,8 +5,8 @@
  * properties a screenshot cannot show:
  *
  *   - every required map is bound, so nothing can silently render flat white;
- *   - ambient occlusion reads UV0, because three defaults it to a second UV set
- *     these meshes do not have;
+ *   - ambient occlusion reads UV0, because the shared ORM texture must never
+ *     arrive with another channel pinned on it;
  *   - the injected variants get distinct program cache keys, so a civilian
  *     cannot be handed the player's dithered program;
  *   - the proximity fade curve does nothing until the camera is genuinely

@@ -13,7 +13,7 @@
  *
  * So destruction keeps TWO records, and is explicit about which does what:
  *
- *   LEDGER (`structure-ledger.ts`)  exact, one byte per fracture chunk, held
+ *   LEDGER (`DestructionSystem.ledger`)  exact, one byte per fracture chunk, held
  *                                   for as long as the process lives. This is
  *                                   what a stream-out / stream-in round trip
  *                                   restores from, so within a session the
@@ -59,9 +59,6 @@ import { DAMAGE_BANDS, DAMAGE_PIECES_PER_BUILDING, DAMAGE_PLAN_QUARTERS } from '
  */
 const QUADRANT_TO_PLAN_QUARTER = [1, 3, 2, 0] as const;
 
-/** Inverse of the map above, for restoring from a mask. */
-const PLAN_QUARTER_TO_QUADRANT = [3, 0, 2, 1] as const;
-
 /** Vertical band 0..3 a storey belongs to. */
 export function bandForFloor(floor: number, floorCount: number): number {
   if (floorCount <= 1) return 0;
@@ -88,19 +85,4 @@ export function pieceForChunk(floor: number, quadrant: number, floorCount: numbe
  */
 export function damageSlot(buildingIndex: number, pieceIndex: number): number {
   return buildingIndex * DAMAGE_PIECES_PER_BUILDING + pieceIndex;
-}
-
-/** True when a mask piece corresponds to this fracture chunk. */
-export function chunkMatchesPiece(
-  floor: number,
-  quadrant: number,
-  floorCount: number,
-  pieceIndex: number
-): boolean {
-  return pieceForChunk(floor, quadrant, floorCount) === pieceIndex;
-}
-
-/** The facade quadrant a mask plan quarter came from. For restore paths. */
-export function quadrantForPlanQuarter(quarter: number): number {
-  return PLAN_QUARTER_TO_QUADRANT[quarter & 3]!;
 }

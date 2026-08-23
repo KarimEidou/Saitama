@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { EventBus } from '@/util';
-import type { IAnimator, ClipName } from '@/types';
+import type { IAnimator, ICharacterInstance, ClipName } from '@/types';
 import { PlayerController } from '../player-controller';
 import { DEFAULT_LOCOMOTION_TUNING, apexForLaunchSpeed, heldJumpApex } from '../tuning';
 import { InputScript, StubCharacterController, type IStubControllerOptions } from './stubs';
@@ -362,6 +362,22 @@ describe('coyote time', () => {
     expect(ledgeJump(windowFrames + 4).jumped).toBe(false);
   });
 
+  it('draws the window edge where the tuning says, and never accepts past it', () => {
+    const accepted: boolean[] = [];
+    for (let delay = 0; delay <= 14; delay++) accepted.push(ledgeJump(delay).jumped);
+    // Acceptance must be a PREFIX: no gap, and nothing accepted after the first
+    // refusal. A window that reopens is worse than one that is the wrong size.
+    const firstRefusal = accepted.indexOf(false);
+    expect(firstRefusal).toBeGreaterThan(0);
+    expect(accepted.slice(firstRefusal).some((v) => v)).toBe(false);
+    // The edge sits within a frame or two of the tuned window, which is tight
+    // enough to catch a halved or doubled `coyoteSeconds` without pinning an
+    // off-by-one in where the exit is first observed.
+    const windowFrames = Math.round(L.coyoteSeconds / DT);
+    expect(firstRefusal).toBeGreaterThanOrEqual(windowFrames - 2);
+    expect(firstRefusal).toBeLessThanOrEqual(windowFrames + 1);
+  });
+
   it('grants none of it to a controller that has never reported contact', () => {
     // The real `CharacterController` computes contact inside `move()`, so it
     // reports `false` at construction whatever the character is standing on.
@@ -470,6 +486,19 @@ describe('jump buffering', () => {
 
   it('drops a press that is far too early', () => {
     expect(bufferedHop(40)).toBe(-1);
+  });
+
+  it('honours a press right up to the buffer edge and drops it after', () => {
+    const fired: boolean[] = [];
+    for (let before = 0; before <= 14; before++) fired.push(bufferedHop(before) >= 0);
+    // Same prefix rule as the coyote window: the buffer may be the wrong
+    // length, but it may never forget a press and then remember an older one.
+    const firstDrop = fired.indexOf(false);
+    expect(firstDrop).toBeGreaterThan(0);
+    expect(fired.slice(firstDrop).some((v) => v)).toBe(false);
+    const bufferFrames = Math.round(L.jumpBufferSeconds / DT);
+    expect(firstDrop).toBeGreaterThanOrEqual(bufferFrames - 3);
+    expect(firstDrop).toBeLessThanOrEqual(bufferFrames + 1);
   });
 
   it('exposes the remaining buffer, and a teleport grants no free jump', () => {
@@ -659,6 +688,122 @@ describe('landings', () => {
     }
     expect(h.player.landing?.fromBus).toBe(true);
     expect(h.player.landing?.impactSpeed).toBe(42);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Visual root                                                                */
+/* -------------------------------------------------------------------------- */
+
+describe('visual root', () => {
+  it('places the root at the soles and follows the yaw', () => {
+    const stub = new StubCharacterController();
+    const root = new THREE.Object3D();
+    const player = new PlayerController({ controller: stub, root });
+    // The capsule centre rests at 0.875; the visual origin is at the feet.
+    expect(root.position.y).toBeCloseTo(0, 9);
+    const input = new InputScript().setMove(1, 0);
+    for (let i = 0; i < 60; i++) {
+      player.update(input.poll(DT), DT);
+      player.postStep();
+    }
+    expect(root.position.x).toBeCloseTo(player.position.x, 9);
+    expect(root.position.z).toBeCloseTo(player.position.z, 9);
+    expect(root.position.y).toBeCloseTo(player.position.y - 0.875, 9);
+    expect(root.rotation.y).toBeCloseTo(player.yaw, 9);
+  });
+
+  it('honours a custom foot offset', () => {
+    const root = new THREE.Object3D();
+    const player = new PlayerController({
+      controller: new StubCharacterController(),
+      root,
+      footOffsetM: 0,
+    });
+    expect(root.position.y).toBeCloseTo(player.position.y, 9);
+  });
+
+  it('falls back to the character root when no explicit root is given', () => {
+    const root = new THREE.Object3D();
+    const player = new PlayerController({
+      controller: new StubCharacterController(),
+      character: { root } as unknown as ICharacterInstance,
+    });
+    expect(root.position.y).toBeCloseTo(player.position.y - 0.875, 9);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Recovery ramp                                                              */
+/* -------------------------------------------------------------------------- */
+
+describe('recovery ramp', () => {
+  it('returns movement authority from the floor back to full, monotonically', () => {
+    const h = setup();
+    h.player.setPosition(new THREE.Vector3(0, 40, 0));
+    for (let i = 0; i < 400 && h.player.state !== 'hardLand'; i++) h.run(1);
+    expect(h.player.state).toBe('hardLand');
+    // A 40 m drop buys min(0.55, 0.34 + 24.1 * 0.004) = 0.4365 s ≈ 26 frames,
+    // so 40 sampled frames cover the ramp and end at full authority.
+    const samples: number[] = [];
+    h.run(40, () => samples.push(h.player.diagnostics().controlScale));
+    expect(samples[0]!).toBeCloseTo(L.hardLandControlFloor, 6);
+    for (let i = 1; i < samples.length; i++) {
+      expect(samples[i]!).toBeGreaterThanOrEqual(samples[i - 1]! - 1e-12);
+    }
+    expect(samples[samples.length - 1]!).toBeCloseTo(1, 6);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Frame time                                                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('frame time', () => {
+  it('ignores a non-finite or non-positive frame time instead of poisoning the transform', () => {
+    // `NaN <= 0` and `Infinity <= 0` are both false, so a bare `dt <= 0` guard
+    // lets one bad frame time — a tab restore, a clock glitch, a 0/0 in an
+    // accumulator — write NaN into the velocity and never recover.
+    const h = setup();
+    h.input.setMove(0, 1);
+    h.run(60);
+    const position = h.player.position.clone();
+    const velocity = h.player.velocity.clone();
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -1, 0]) {
+      h.player.update(h.input.poll(DT), bad);
+      h.player.postStep();
+    }
+    expect(h.player.position.equals(position)).toBe(true);
+    expect(h.player.velocity.equals(velocity)).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Lifecycle                                                                  */
+/* -------------------------------------------------------------------------- */
+
+describe('lifecycle', () => {
+  it('unsubscribes from the bus and goes inert on dispose', () => {
+    const bus = new EventBus();
+    const h = setup({}, { bus });
+    expect(bus.listenerCount('PlayerLanded')).toBe(1);
+    h.input.setMove(0, 1);
+    h.run(30);
+    const at = h.player.position.clone();
+    h.player.dispose();
+    expect(bus.listenerCount('PlayerLanded')).toBe(0);
+    expect(() => h.run(10)).not.toThrow();
+    expect(h.player.position.equals(at)).toBe(true);
+    expect(() => h.player.dispose()).not.toThrow();
+  });
+
+  it('publishes the entity id it was constructed with', () => {
+    const withId = new PlayerController({
+      controller: new StubCharacterController(),
+      entityId: 'player',
+    });
+    expect(withId.diagnostics().entityId).toBe('player');
+    expect(setup().player.diagnostics().entityId).toBeUndefined();
   });
 });
 

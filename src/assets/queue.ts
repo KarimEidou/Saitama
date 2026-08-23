@@ -284,11 +284,13 @@ export class ProgressTracker {
   }
 
   get snapshot(): IAssetLoadProgress {
-    const total = Math.max(1, this.total);
     return {
       loaded: this.loadedCount,
       total: this.total,
-      fraction: Math.min(1, this.loadedCount / total),
+      // Nothing to load is DONE, not 0%. `loadAll([])` is a real path: the
+      // registry serves an empty manifest when the index is unreachable, and a
+      // boot bar driven off `fraction` would otherwise sit at zero forever.
+      fraction: this.total > 0 ? Math.min(1, this.loadedCount / this.total) : 1,
       current: this.current,
       bytesLoaded: this.bytesDone,
       bytesTotal: this.bytesTotal,

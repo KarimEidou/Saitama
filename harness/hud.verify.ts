@@ -756,6 +756,9 @@ async function main(): Promise<void> {
   } finally {
     await browser?.close();
     server.close();
+    // Nothing outside this block reads BUILD_DIR — the reports and screenshots
+    // all go to OUT_DIR — so the Vite tree in os.tmpdir() is pure residue.
+    await rm(BUILD_DIR, { recursive: true, force: true });
   }
 
   report.checks = checks;

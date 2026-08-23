@@ -103,7 +103,15 @@ export function distanceToSegmentSq(
   return dx * dx + dy * dy;
 }
 
-/** `smoothstep`, matching the GLSL definition. */
+/**
+ * `smoothstep`, matching GLSL for `edge0 < edge1`.
+ *
+ * Unlike GLSL — which leaves `edge0 > edge1` undefined — this returns a
+ * DESCENDING ramp, and `atlas.ts` depends on that: the tile painters use
+ * `smoothstep(1.0, 0.84, dist)` and friends as falloffs. Equal edges degrade to
+ * a hard step rather than to 0, which is why this is not `@/util`'s
+ * `smoothstep`.
+ */
 export function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0 || 1e-9)));
   return t * t * (3 - 2 * t);

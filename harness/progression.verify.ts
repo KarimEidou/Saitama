@@ -542,15 +542,22 @@ async function main(): Promise<void> {
     /* --------------------------------------------------------- assertions */
     console.log('\n── sky assertions ──────────────────────────────────────────');
 
+    // Counted locally, NOT off `failures`: that is the whole run's list, so an
+    // earlier unrelated failure (a missing sky, an unmeasured SH) would silently
+    // suppress a statement about these six screenshots, which is the first thing
+    // a reader of the report looks for.
+    let blankShots = 0;
     for (const shot of shots) {
       if (shot.pixels.stdDev <= 10) {
         fail(failures, `${shot.id}: stdDev ${shot.pixels.stdDev.toFixed(1)} — frame looks blank`);
+        blankShots++;
       }
       if (shot.pixels.colours <= 100) {
         fail(failures, `${shot.id}: only ${shot.pixels.colours} colours — frame looks blank`);
+        blankShots++;
       }
     }
-    if (failures.length === 0) pass('every frame is a real render (stdDev > 10, colours > 100)');
+    if (blankShots === 0) pass('every frame is a real render (stdDev > 10, colours > 100)');
 
     const byId = new Map(shots.map((s) => [s.id, s]));
     const midnight = byId.get('midnight')!;
@@ -962,6 +969,9 @@ async function main(): Promise<void> {
   } finally {
     await browser?.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    // Nothing outside this block reads BUILD_DIR — the reports and screenshots
+    // all go to OUT_DIR — so the Vite tree in os.tmpdir() is pure residue.
+    await rm(BUILD_DIR, { recursive: true, force: true });
   }
 
   report.failures = failures;

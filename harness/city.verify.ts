@@ -202,13 +202,18 @@ async function analyse(file: string): Promise<{
   const stdDev = channels.reduce((sum, c) => sum + c.stdev, 0) / channels.length;
   const meanLuma = channels.reduce((sum, c) => sum + c.mean, 0) / channels.length;
 
-  const raw = await sharp(file).resize(96, 96, { fit: 'fill' }).raw().toBuffer();
+  const raw = await sharp(file).removeAlpha().resize(96, 96, { fit: 'fill' }).raw().toBuffer();
   const seen = new Set<number>();
   for (let i = 0; i + 2 < raw.length; i += 3) {
     seen.add((raw[i]! << 16) | (raw[i + 1]! << 8) | raw[i + 2]!);
   }
 
-  const gray = await sharp(file).greyscale().resize(240, 135, { fit: 'fill' }).raw().toBuffer();
+  const gray = await sharp(file)
+    .removeAlpha()
+    .greyscale()
+    .resize(240, 135, { fit: 'fill' })
+    .raw()
+    .toBuffer();
   let edges = 0;
   for (let y = 1; y < 134; y++) {
     for (let x = 1; x < 239; x++) {
@@ -249,6 +254,12 @@ async function main(): Promise<void> {
     await page.waitForFunction(() => window.__CITY_HARNESS__?.ready === true, undefined, {
       timeout: 300_000,
     });
+
+    // `ready` also flips when `boot()` threw, so the real stack reaches here
+    // instead of being stranded in the page. Throw rather than collect: every
+    // assertion below drives a page that is known to be broken.
+    const pageError = await page.evaluate(() => window.__CITY_HARNESS__.error);
+    if (pageError !== undefined) throw new Error(`city harness threw:\n${pageError}`);
 
     const planSummary = await page.evaluate(() => window.__CITY_HARNESS__.planSummary());
     report.plan = planSummary;

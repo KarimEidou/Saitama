@@ -50,7 +50,8 @@ export interface IRandom {
   pick<T>(items: readonly T[]): T;
   /**
    * Pick by relative weight. `weights[i]` corresponds to `items[i]`;
-   * weights need not sum to 1. Throws when lengths differ or total is 0.
+   * weights need not sum to 1. Throws when lengths differ, when any weight is
+   * negative or non-finite, or when the total is 0.
    */
   weighted<T>(items: readonly T[], weights: readonly number[]): T;
   /** Fisher-Yates shuffle returning a NEW array; the input is untouched. */
@@ -170,10 +171,17 @@ class Mulberry32 implements IRandom {
     }
     let total = 0;
     for (const w of weights) {
-      if (w < 0) throw new Error('rng.weighted: negative weight');
+      // Written as a negated `>=` so NaN fails too. `NaN < 0` is false, so a
+      // NaN weight otherwise slipped past every check: `total` became NaN,
+      // `roll` became NaN, no `roll < 0` test below ever succeeded, and the
+      // "unreachable except for float rounding" fallthrough silently returned
+      // the LAST item — the exact outcome this validation exists to prevent.
+      if (!(w >= 0) || !Number.isFinite(w)) {
+        throw new Error(`rng.weighted: weight must be a finite value >= 0, got ${w}`);
+      }
       total += w;
     }
-    if (total <= 0) throw new Error('rng.weighted: weights sum to 0');
+    if (!(total > 0)) throw new Error('rng.weighted: weights sum to 0');
 
     let roll = this.next() * total;
     for (let i = 0; i < items.length; i++) {

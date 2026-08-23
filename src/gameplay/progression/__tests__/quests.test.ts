@@ -14,6 +14,7 @@ import { QuestSystem } from '../quest-system';
 import { QUEST_DEFS, type IQuestDef } from '../quest-defs';
 import { ProgressionCoordinator } from '../coordinator';
 import { INCIDENT_POINTS_BY_TIER, INCIDENT_UNWITNESSED_MULTIPLIER } from '../constants';
+import { validateSave } from '../save-game';
 import { makeHarness, ORIGIN, at } from './support';
 
 function questSystem(
@@ -353,6 +354,33 @@ describe('timers', () => {
     expect(system.runtimeQuests[0]!.objectives[0]!.complete).toBe(true);
     system.update(6);
     expect(system.quests.get('test.simple')!.state).toBe('completed');
+    system.dispose();
+  });
+
+  it('can finish two consecutive survive objectives in one long frame', () => {
+    const def: IQuestDef = {
+      ...SIMPLE,
+      objectives: [
+        { id: 'holdA', kind: 'survive', description: '', required: 2 },
+        { id: 'holdB', kind: 'survive', description: '', required: 2 },
+      ],
+    };
+    const { system } = questSystem([def]);
+    system.accept('test.simple');
+    system.update(3);
+    expect(system.quests.get('test.simple')!.state).toBe('completed');
+    system.dispose();
+  });
+
+  it('has the timer already correct when QuestStateChanged fires', () => {
+    const { bus, system } = questSystem([{ ...SIMPLE, timeLimitSeconds: 30 }]);
+    const seen: (number | undefined)[] = [];
+    bus.on('QuestStateChanged', () => seen.push(system.timeRemaining('test.simple')));
+
+    system.accept('test.simple');
+    system.reportProgress('defeat', 'monster.x', 2);
+    // 'active' with the full clock, then 'completed' with no clock at all.
+    expect(seen).toEqual([30, undefined]);
     system.dispose();
   });
 });
@@ -801,5 +829,27 @@ describe('integration with progression', () => {
     expect(dispatchedReport.basePoints).toBeGreaterThan(walkInReport.basePoints * 5);
     walkIn.dispose();
     dispatched.dispose();
+  });
+});
+
+describe('restoring from a save', () => {
+  it('refuses a state string the machine has no edge out of', () => {
+    const { system } = questSystem([SIMPLE]);
+    system.restoreState('test.simple', 'sideways' as QuestState, undefined);
+    expect(system.quests.get('test.simple')!.state).toBe('available');
+    system.dispose();
+  });
+
+  it('clamps restored objective counters and drops non-finite ones', () => {
+    const { system } = questSystem([SIMPLE]); // one objective, required 2
+    system.restoreState('test.simple', 'active', { kill: Number.NaN });
+    expect(system.runtimeQuests[0]!.objectives[0]!.current).toBe(0);
+    system.restoreState('test.simple', 'active', { kill: -8 });
+    expect(system.runtimeQuests[0]!.objectives[0]!.current).toBe(0);
+    system.restoreState('test.simple', 'active', { kill: 999 });
+    expect(system.runtimeQuests[0]!.objectives[0]!.current).toBe(2);
+    // ...and a clamped counter still round-trips through validateSave.
+    expect(validateSave(system.serialiseProgress())).toHaveLength(0);
+    system.dispose();
   });
 });

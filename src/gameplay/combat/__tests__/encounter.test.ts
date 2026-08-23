@@ -244,3 +244,75 @@ describe('participants', () => {
     scene.combat.dispose();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* What the scorecard fields actually count                                   */
+/* -------------------------------------------------------------------------- */
+
+describe('the counters mean what their docs say', () => {
+  it('counts a ground slam as a serious punch', () => {
+    // `recordPunch` files everything that is not `'normal'` under
+    // `seriousPunches`. That is the honest reading — a slam is the same
+    // collateral decision — but the field's name invites the other one.
+    const scene = createScene({ seed: 'slam-counts' });
+    populateStreet(scene);
+    scene.combat.beginEncounter({ encounterId: 'slam', hostileIds: ['monster-01'], time: 0 });
+    scene.bus.emit('PlayerLanded', {
+      position: { x: 0, y: 0, z: -8 },
+      impactSpeed: 60,
+      fallHeight: 40,
+      createsCrater: true,
+      intent: 'serious',
+    });
+
+    const result = scene.combat.endEncounter()!;
+    expect(result.seriousPunches).toBe(1);
+    expect(result.normalPunches).toBe(0);
+    scene.combat.dispose();
+  });
+
+  it('counts a self-rescue as a civilian saved', () => {
+    // `civiliansSaved` is a plain event counter, NOT "civilians still alive at
+    // the end", and it does not filter on `byPlayer` — deliberately, because
+    // the HUD banner counts the same event unfiltered and the two scoreboards
+    // have to agree.
+    const bus = new RecordingBus();
+    const tracker = new EncounterTracker({ bus, tuning: TUNING });
+    tracker.begin({ encounterId: 'e', hostileIds: [], time: 0, boredom: 0.5 });
+    bus.emit('CivilianSaved', {
+      entityId: 'ran-for-it',
+      position: { x: 0, y: 0, z: 0 },
+      byPlayer: false,
+      reputationDelta: 0,
+    });
+
+    expect(tracker.end(1, 0.5)!.civiliansSaved).toBe(1);
+    tracker.dispose();
+  });
+
+  it('witnessed counts PUNCHES that killed, not victims', () => {
+    const scene = createScene({ seed: 'witnessed' });
+    populateStreet(scene);
+    scene.combat.beginEncounter({ encounterId: 'seen', hostileIds: ['monster-01'], time: 0 });
+
+    // Arm's length from the monster, with most of the crowd well inside the
+    // 60 m witness radius.
+    scene.attacker.moveTo(0, 1.4, -6.6);
+    scene.attacker.faceTowards(0, 1, -8);
+    scene.combat.normalPunch();
+    expect(scene.combat.lastPunch!.kills).toBe(1);
+
+    // A second punch into empty air, still with witnesses in range. Nothing
+    // dies, so the count must not move: it counts KILLING punches.
+    scene.attacker.moveTo(0, 1.4, 20);
+    scene.attacker.faceTowards(0, 1.4, 100);
+    scene.combat.normalPunch();
+    expect(scene.combat.lastPunch!.kills).toBe(0);
+
+    const result = scene.combat.endEncounter()!;
+    expect(result.witnessed).toBe(1);
+    expect(result.normalPunches).toBe(2);
+    expect(result.kills).toBe(1);
+    scene.combat.dispose();
+  });
+});

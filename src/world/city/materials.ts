@@ -171,16 +171,6 @@ export interface IBlockMaterialSet {
   readonly roof: string;
 }
 
-/** The materials a chunk's ground geometry binds, in slot order. */
-export interface IGroundMaterialSet {
-  /** Slot 0 — carriageway. */
-  readonly road: string;
-  /** Slot 1 — sidewalks, kerbs, parcel surfaces. */
-  readonly paving: string;
-  /** Slot 2 — lane markings and crossings. */
-  readonly markings: string;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Tint helpers                                                               */
 /* -------------------------------------------------------------------------- */

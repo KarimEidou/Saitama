@@ -1,7 +1,7 @@
 /**
  * REFERENCE HUMANOID RIG
  *
- * A 24-bone Mixamo-compatible skeleton built from proportions rather than an
+ * A 27-bone Mixamo-compatible skeleton built from proportions rather than an
  * asset.
  *
  * WHY IT LIVES IN PHYSICS: the ragdoll factory has to size capsules and place

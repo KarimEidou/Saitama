@@ -245,13 +245,18 @@ async function analyse(file: string): Promise<IPixelStats> {
   const stdDev = channels.reduce((sum, c) => sum + c.stdev, 0) / channels.length;
   const meanLuma = channels.reduce((sum, c) => sum + c.mean, 0) / channels.length;
 
-  const raw = await sharp(file).resize(96, 96, { fit: 'fill' }).raw().toBuffer();
+  const raw = await sharp(file).removeAlpha().resize(96, 96, { fit: 'fill' }).raw().toBuffer();
   const seen = new Set<number>();
   for (let i = 0; i + 2 < raw.length; i += 3) {
     seen.add((raw[i]! << 16) | (raw[i + 1]! << 8) | raw[i + 2]!);
   }
 
-  const gray = await sharp(file).greyscale().resize(240, 135, { fit: 'fill' }).raw().toBuffer();
+  const gray = await sharp(file)
+    .removeAlpha()
+    .greyscale()
+    .resize(240, 135, { fit: 'fill' })
+    .raw()
+    .toBuffer();
   let edges = 0;
   for (let y = 1; y < 134; y++) {
     for (let x = 1; x < 239; x++) {

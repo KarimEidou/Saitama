@@ -107,12 +107,33 @@ export function parseEnvironmentMeasurements(manifest: unknown): EnvironmentMeas
     const raw = block[id];
     const rawMean = typeof raw?.meanLuminance === 'number' ? raw.meanLuminance : 0;
     const measured = Number.isFinite(rawMean) && rawMean > 0;
+
+    // `typeof x === 'number'` admits NaN and Infinity. A NaN peak travels
+    // straight into the harness readout as the string "NaN", and an infinite
+    // one is not a measurement of anything.
+    const rawMax = raw?.maxLuminance;
+    const maxLuminance =
+      typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 0 ? rawMax : 0;
+
+    // Length alone is not enough. ONE non-numeric entry becomes NaN in
+    // `sh9FromArray`, which puts NaN into every SH coefficient, then into
+    // `irradianceTowards`, then into `ambientColor` / `fogColor` /
+    // `groundColor`, and so into `ILightingState` for the rest of the session —
+    // while `blendSH9` still returns true, so nothing reports a problem.
+    const rawSh: unknown = raw?.sh9;
+    const sh9 =
+      Array.isArray(rawSh) &&
+      rawSh.length === 27 &&
+      (rawSh as readonly unknown[]).every((v) => typeof v === 'number' && Number.isFinite(v))
+        ? (rawSh as readonly number[])
+        : undefined;
+
     out[key] = {
       id,
       meanLuminance: measured ? rawMean : FALLBACK_MEAN_LUMINANCE,
       meanLuminanceMeasured: measured,
-      maxLuminance: typeof raw?.maxLuminance === 'number' ? raw.maxLuminance : 0,
-      sh9: Array.isArray(raw?.sh9) && raw.sh9.length === 27 ? raw.sh9 : undefined,
+      maxLuminance,
+      sh9,
     };
   }
   return out as EnvironmentMeasurements;
@@ -180,7 +201,18 @@ export function sampleSkyBlend(timeOfDay: number): ISkyBlend {
   };
 }
 
-function wrap01(t: number): number {
+/**
+ * Wrap a normalised time into [0, 1).
+ *
+ * Shared by the keyframe sampler, the phase lookup and the clock — ONE
+ * implementation, because two of the three copies this replaces let a
+ * non-finite time through. `NaN % 1` and `Infinity % 1` are both NaN, and this
+ * repo's `clamp01` passes NaN straight through, so an unguarded wrap carries
+ * NaN all the way to `scene.environmentIntensity` and
+ * `renderer.toneMappingExposure` with no diagnostic anywhere.
+ */
+export function wrap01(t: number): number {
+  if (!Number.isFinite(t)) return 0;
   const w = t % 1;
   return w < 0 ? w + 1 : w;
 }
@@ -258,11 +290,22 @@ export function sh9FromArray(
  * Returns false when either sky has no baked coefficients, so the caller can
  * fall back to CPU projection rather than light the scene with zeros.
  */
+/**
+ * Scratch for callers that do not bring their own.
+ *
+ * A default of `new THREE.SphericalHarmonics3()` is re-evaluated on every call
+ * that omits the argument — one SH set plus NINE `Vector3`s — so the module's
+ * "allocation-light" claim silently depended on each caller remembering. Safe
+ * to share: `blendSH9` writes this and reads it back inside one synchronous
+ * call and never lets it escape.
+ */
+const SH_SCRATCH = new THREE.SphericalHarmonics3();
+
 export function blendSH9(
   measurements: EnvironmentMeasurements,
   blend: ISkyBlend,
   target: THREE.SphericalHarmonics3,
-  scratch = new THREE.SphericalHarmonics3()
+  scratch: THREE.SphericalHarmonics3 = SH_SCRATCH
 ): boolean {
   const from = measurements[blend.from];
   const to = measurements[blend.to];

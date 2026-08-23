@@ -90,6 +90,21 @@ describe('WitnessField', () => {
     expect(field.report(ORIGIN).count).toBe(0);
   });
 
+  it('re-registers a witness whose kind changed, keeping their testify flag', () => {
+    const field = new WitnessField();
+    field.register('a', 'civilian', ORIGIN);
+    expect(field.report(ORIGIN).credibility).toBe(WITNESS_CREDIBILITY.civilian);
+
+    field.register('a', 'hero', ORIGIN);
+    expect(field.size).toBe(1);
+    expect(field.report(ORIGIN).credibility).toBe(WITNESS_CREDIBILITY.hero);
+    expect(field.report(ORIGIN).heroIds).toEqual(['a']);
+
+    field.setActive('a', false);
+    field.register('a', 'press', ORIGIN);
+    expect(field.report(ORIGIN).count).toBe(0); // still down, whatever they are now
+  });
+
   it('names the heroes present, for rival credit', () => {
     const field = new WitnessField();
     field.register('ally.genos', 'hero', ORIGIN);

@@ -10,8 +10,8 @@
  * rather than merely existing on disk.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,6 +79,36 @@ describe('stageBasisTranscoder', () => {
       ).toBe(0);
     }
   });
+
+  it('overwrites a stale or truncated staged copy', () => {
+    const dir = freshDir();
+    stageBasisTranscoder(dir);
+    // A truncated wasm "exists" and still produces a checkerboard city — the
+    // copy has to be unconditional, not existence-guarded.
+    writeFileSync(path.join(dir, 'basis', 'basis_transcoder.wasm'), Buffer.alloc(16));
+    stageBasisTranscoder(dir);
+    expect(
+      Buffer.compare(
+        readFileSync(path.join(dir, 'basis', 'basis_transcoder.wasm')),
+        readFileSync(path.join(BASIS_SRC, 'basis_transcoder.wasm'))
+      )
+    ).toBe(0);
+  });
+
+  it('throws loudly when the transcoder is absent from node_modules', async () => {
+    vi.resetModules();
+    vi.doMock('node:fs', async (importOriginal) => {
+      const real = await importOriginal<typeof import('node:fs')>();
+      return { ...real, default: real, existsSync: () => false };
+    });
+    try {
+      const mod = await import('../stage-basis-transcoder');
+      expect(() => mod.stageBasisTranscoder(freshDir())).toThrow(/Basis transcoder missing/);
+    } finally {
+      vi.doUnmock('node:fs');
+      vi.resetModules();
+    }
+  });
 });
 
 describe('basisTranscoderPlugin', () => {
@@ -106,6 +136,33 @@ describe('basisTranscoderPlugin', () => {
 
     expect(existsSync(path.join(dir, 'public'))).toBe(false);
     expect(existsSync(path.join(dir, 'dist'))).toBe(false);
+  });
+
+  it('with publicDir disabled, stages into the build output only — never beside the cwd', () => {
+    const dir = freshDir();
+    const plugin = basisTranscoderPlugin();
+    // `publicDir: false` resolves to '' — path.join('', 'assets') is the
+    // RELATIVE 'assets', which would land in whatever cwd the build ran from.
+    hookFn(plugin.configResolved)({
+      root: dir,
+      publicDir: '',
+      build: { outDir: path.join(dir, 'dist'), assetsDir: 'assets' },
+    } as never);
+
+    const vitest = process.env.VITEST;
+    delete process.env.VITEST; // the hooks no-op otherwise; restored below
+    try {
+      hookFn(plugin.buildStart)();
+      hookFn(plugin.closeBundle)();
+    } finally {
+      if (vitest !== undefined) process.env.VITEST = vitest;
+    }
+
+    for (const file of BASIS_TRANSCODER_FILES) {
+      expect(existsSync(path.join(dir, 'dist', 'assets', 'basis', file))).toBe(true);
+    }
+    // The stray-staging regression: <repo>/assets exists, <repo>/assets/basis must not.
+    expect(existsSync(path.join(process.cwd(), 'assets', 'basis'))).toBe(false);
   });
 });
 

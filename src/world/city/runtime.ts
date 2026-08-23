@@ -114,8 +114,10 @@ export function toBufferGeometry(buffers: IGeometryBuffers): THREE.BufferGeometr
   destroyed.setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute('aDestroyed', destroyed);
   geometry.setIndex(new THREE.BufferAttribute(buffers.indices, 1));
-  // Groups are emitted in slot order, so `materialIndex` is the slot index and
-  // the material array can be built straight from the block's material set.
+  // `materialIndex` is the GROUP index, not the slot index: a block whose
+  // buildings have no glass has two groups, so slot 2 becomes materialIndex 1.
+  // `buildBlockMesh` builds its material array by walking this same group list,
+  // so the two always line up — indexing by `g.slot` here would not.
   for (let i = 0; i < buffers.groups.length; i++) {
     const g = buffers.groups[i];
     geometry.addGroup(g.start, g.count, i);

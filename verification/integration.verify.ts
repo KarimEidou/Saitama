@@ -194,12 +194,27 @@ async function regionMean(
  * `__name` helper that exists in this module and not in the page. A closure
  * with a named inner function therefore throws `__name is not defined` the
  * moment Playwright serialises it.
+ *
+ * DEADLINE: the promise below only ever resolved, and `page.evaluate` has no
+ * timeout, so a page whose rAF stops firing — a lost GL context, a renderer
+ * crash, a page throttled behind the second tab beat 10 opens — hung the run
+ * forever with no output. 30 s per requested frame is ~10x the worst measured
+ * SwiftShader frame, so this can only fire on a genuinely dead loop; the
+ * rejection surfaces as an ordinary `page.evaluate` error and reaches
+ * `main().catch(...)`.
  */
 async function frames(page: Page, count: number): Promise<void> {
+  const budgetMs = 60_000 + count * 30_000;
   await page.evaluate(
-    `new Promise((resolve) => {
+    `new Promise((resolve, reject) => {
        let left = ${count};
-       const tick = () => { if (--left <= 0) { resolve(); return; } requestAnimationFrame(tick); };
+       const timer = setTimeout(() => reject(new Error(
+         'frames(): requestAnimationFrame stalled with ' + left + ' of ${count} frames left after ${budgetMs} ms'
+       )), ${budgetMs});
+       const tick = () => {
+         if (--left <= 0) { clearTimeout(timer); resolve(); return; }
+         requestAnimationFrame(tick);
+       };
        requestAnimationFrame(tick);
      })`
   );
@@ -216,6 +231,55 @@ interface IDiag {
   timings: Record<string, number>;
   systems: { online: string[]; skipped: Record<string, string>; failed: Record<string, string> };
   world: Record<string, unknown>;
+}
+
+/**
+ * `window.__GAME__` as this harness uses it.
+ *
+ * The composition root is not importable from here and no ambient declaration
+ * covers `__GAME__` (`src/types/engine.ts` declares only `__GAME_READY__` and
+ * `__GAME_DIAG__`), so the shape has to be asserted. Asserting it ONCE means
+ * two call sites cannot state contradictory signatures for the same method and
+ * have tsc accept both — which eleven separate inline casts, five of them
+ * describing `combat` or `hud` with a different subset each, could.
+ *
+ * Type-only: erased before any of these closures reaches the page, so the
+ * `__name` hazard documented above `frames()` does not apply.
+ */
+interface IGameWindow {
+  __GAME__?: {
+    spawnEncounter(id: string, distance?: number): string | undefined;
+    faceNearestMonster(): void;
+    faceNearestStructure(): void;
+    monsters: {
+      count: number;
+      describeForCombat(): { id: string; position: { y: number }; radius: number }[];
+      get(id: string):
+        | {
+            brain: { position: { y: number } };
+            archetype: { bodyHeightMetres: number; radiusMetres: number };
+          }
+        | undefined;
+    };
+    combat: {
+      lastPunch?: unknown;
+      diagnostics(): { punches: number };
+      targets: { get(id: string): { position: { y: number }; radius: number } | undefined };
+    };
+    crowd: { agents: { extent: number; active: Uint8Array; idOf(i: number): string } };
+    progression: { witnesses: { size: number; has(id: string): boolean } };
+    dayNight: { setTimeOfDay(t: number): void };
+    sky?: { update(b: unknown, f: boolean): void };
+    hud: { show(name: string): void; update(dt: number): void };
+    proveAlliesCanLose(): {
+      genos: { before: number; after: number; dead: boolean };
+      mumen: { before: number; after: number; dead: boolean };
+      downedEvents: number;
+      waves: number;
+    };
+    save(): Promise<void>;
+    load(): Promise<boolean>;
+  };
 }
 
 const diag = (page: Page): Promise<IDiag> =>
@@ -385,11 +449,7 @@ async function main(): Promise<void> {
     /* ================= ENCOUNTER + NORMAL PUNCH ================= */
     say('\n[3] encounter and normal punch');
     const spawned = await page.evaluate(() => {
-      const game = (
-        window as unknown as {
-          __GAME__?: { spawnEncounter(id: string, d?: number): string | undefined };
-        }
-      ).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       // A real id from `MONSTER_ARCHETYPES`. `mob.tiger.brute` is 2.35 m tall
       // with a 0.85 m footprint, so the aim-point assertion below has a lift
       // (1.175 m) and a radius (0.987 m) that are visibly different from the
@@ -403,24 +463,7 @@ async function main(): Promise<void> {
     // FIX 2 PROOF: the registered aim point must sit half a body above the
     // monster's feet, and the hit radius must be the torso, not the footprint.
     const aim = await page.evaluate(() => {
-      const game = (
-        window as unknown as {
-          __GAME__?: {
-            monsters: {
-              describeForCombat(): { id: string; position: { y: number }; radius: number }[];
-              get(id: string):
-                | {
-                    brain: { position: { y: number } };
-                    archetype: { bodyHeightMetres: number; radiusMetres: number };
-                  }
-                | undefined;
-            };
-            combat: {
-              targets: { get(id: string): { position: { y: number }; radius: number } | undefined };
-            };
-          };
-        }
-      ).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       if (!game) return [];
       return game.monsters.describeForCombat().map((d) => {
         const monster = game.monsters.get(d.id)!;
@@ -453,7 +496,7 @@ async function main(): Promise<void> {
 
     // Face it, close to punching range, then tap.
     await page.evaluate(() => {
-      const game = (window as unknown as { __GAME__?: { faceNearestMonster(): void } }).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       game?.faceNearestMonster();
     });
     await frames(page, 5);
@@ -463,14 +506,7 @@ async function main(): Promise<void> {
     await page.evaluate(() => window.__INPUT__!.tap('punch'));
     await frames(page, 30);
     const punch = await page.evaluate(() => {
-      const game = (
-        window as unknown as {
-          __GAME__?: {
-            combat: { lastPunch?: unknown; diagnostics(): { punches: number } };
-            monsters: { count: number };
-          };
-        }
-      ).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       return {
         punches: game?.combat.diagnostics().punches ?? 0,
         monsters: game?.monsters.count ?? 0,
@@ -483,7 +519,7 @@ async function main(): Promise<void> {
     /* ================= SERIOUS PUNCH ================= */
     say('\n[4] charge and fire a Serious Punch into a block');
     await page.evaluate(() => {
-      const game = (window as unknown as { __GAME__?: { faceNearestStructure(): void } }).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       game?.faceNearestStructure();
     });
     await frames(page, 5);
@@ -509,18 +545,7 @@ async function main(): Promise<void> {
     /* ================= ALLIES CAN LOSE ================= */
     say('\n[5] can the allies actually be downed');
     const ally = await page.evaluate(async () => {
-      const game = (
-        window as unknown as {
-          __GAME__?: {
-            proveAlliesCanLose(): {
-              genos: { before: number; after: number; dead: boolean };
-              mumen: { before: number; after: number; dead: boolean };
-              downedEvents: number;
-              waves: number;
-            };
-          };
-        }
-      ).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       return game?.proveAlliesCanLose() ?? null;
     });
     say(`  ${JSON.stringify(ally)}`);
@@ -536,14 +561,7 @@ async function main(): Promise<void> {
     /* ================= WITNESSES ================= */
     say('\n[6] crowd civilians are progression witnesses');
     const witness = await page.evaluate(() => {
-      const game = (
-        window as unknown as {
-          __GAME__?: {
-            crowd: { agents: { extent: number; active: Uint8Array; idOf(i: number): string } };
-            progression: { witnesses: { size: number; has(id: string): boolean } };
-          };
-        }
-      ).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       if (!game) return null;
       const agents = game.crowd.agents;
       const ids: string[] = [];
@@ -581,14 +599,7 @@ async function main(): Promise<void> {
       height: 400,
     });
     await page.evaluate(() => {
-      const game = (
-        window as unknown as {
-          __GAME__?: {
-            dayNight: { setTimeOfDay(t: number): void };
-            sky?: { update(b: unknown, f: boolean): void };
-          };
-        }
-      ).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       game?.dayNight.setTimeOfDay(0.92);
     });
     await frames(page, 40);
@@ -614,11 +625,7 @@ async function main(): Promise<void> {
     say('\n[8] HUD screens');
     for (const screen of ['pause', 'quests', 'rank', 'settings'] as const) {
       await page.evaluate((name) => {
-        const game = (
-          window as unknown as {
-            __GAME__?: { hud: { show(n: string): void; update(dt: number): void } };
-          }
-        ).__GAME__;
+        const game = (window as unknown as IGameWindow).__GAME__;
         game?.hud.show(name);
       }, screen);
       await frames(page, 12);
@@ -630,8 +637,7 @@ async function main(): Promise<void> {
       await shoot(`integration-08-hud-${screen}`);
     }
     await page.evaluate(() => {
-      const game = (window as unknown as { __GAME__?: { hud: { show(n: string): void } } })
-        .__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       game?.hud.show('hud');
     });
     await frames(page, 10);
@@ -639,11 +645,7 @@ async function main(): Promise<void> {
     /* ================= SAVE / LOAD ================= */
     say('\n[9] save and load through progression');
     const save = await page.evaluate(async () => {
-      const game = (
-        window as unknown as {
-          __GAME__?: { save(): Promise<void>; load(): Promise<boolean> };
-        }
-      ).__GAME__;
+      const game = (window as unknown as IGameWindow).__GAME__;
       if (!game) return null;
       await game.save();
       const loaded = await game.load();

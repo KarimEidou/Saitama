@@ -139,6 +139,38 @@ describe('NightUniforms', () => {
     expect(shader.fragmentShader.split('uLampIntensity * uNightFactor').length - 1).toBe(1);
   });
 
+  it('wraps the lamp phase without changing the flicker it produces', () => {
+    // Callers feed an unbounded clock (`clock.unscaledElapsed`). GLSL floats
+    // are fp32 and the shader multiplies by 22, so after a day of uptime the
+    // argument's ulp is ~0.13 rad and the buzz stair-steps; at `mediump` the
+    // uniform saturates after ~18 h. `sin(x * 22)` has period 2π/22 in x, so
+    // wrapping there is exactly the same flicker.
+    const uniforms = new NightUniforms();
+    const period = (Math.PI * 2) / 22;
+    for (const elapsed of [0, 12, 3600, 86400, 1e6]) {
+      uniforms.update(1, 1, elapsed);
+      const phase = uniforms.uLampPhase.value;
+      expect(phase).toBeGreaterThanOrEqual(0);
+      expect(phase).toBeLessThan(period);
+      expect(Math.sin(phase * 22)).toBeCloseTo(Math.sin(elapsed * 22), 6);
+    }
+
+    uniforms.update(1, 1, Number.NaN);
+    expect(Number.isFinite(uniforms.uLampPhase.value)).toBe(true);
+    uniforms.update(1, 1, Number.POSITIVE_INFINITY);
+    expect(Number.isFinite(uniforms.uLampPhase.value)).toBe(true);
+  });
+
+  it('keeps the shader literal and the wrap period in step', () => {
+    // The wrap is only behaviour-preserving while the TS constant and the GLSL
+    // literal agree. `.toFixed(1)` is load-bearing too: a bare `22` is an int
+    // literal and `float * int` does not compile in GLSL ES 3.00.
+    const uniforms = new NightUniforms();
+    const material = new THREE.MeshStandardMaterial();
+    uniforms.attach(material, 'lamp');
+    expect(compile(material).fragmentShader).toContain('sin(uLampPhase * 22.0');
+  });
+
   it('gives lamp and window materials DIFFERENT program cache keys', () => {
     // Without this, three hands the window material the lamp's cached program.
     const uniforms = new NightUniforms();
@@ -259,6 +291,61 @@ describe('onBeforeCompile composition — the regression', () => {
     expect(shader.fragmentShader).toContain('uWindowIntensity');
     expect(material.customProgramCacheKey()).toContain('materialLib');
     expect(material.customProgramCacheKey()).toContain('skyNight:window');
+  });
+
+  it('rebuilds the hook chain on a cloned material', () => {
+    // `THREE.Material.copy` is `userData = JSON.parse(JSON.stringify(...))` and
+    // does NOT copy `onBeforeCompile` / `customProgramCacheKey`. So a clone
+    // carries the hook KEYS with every `fn` dropped, behind the prototype's
+    // no-op slot. Appending to that array reports success, installs a hook
+    // nothing ever calls, and leaves the clone dark at midnight — and the next
+    // system to build a dispatcher over it calls `undefined` and throws.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const uniforms = new NightUniforms();
+      const source = new THREE.MeshStandardMaterial();
+      uniforms.attach(source, 'lamp');
+
+      const clone = source.clone();
+      expect((clone.userData as { engineShaderHooks?: unknown[] }).engineShaderHooks).toBeDefined();
+
+      expect(uniforms.attach(clone, 'window')).toBe(true);
+      const shader = compile(clone);
+      expect(shader.fragmentShader).toContain('uWindowIntensity * uNightFactor');
+      expect(shader.uniforms.uNightFactor).toBe(uniforms.uNightFactor);
+      expect(shader.vertexShader.split('varying vec3 vSkyWorldPos;').length - 1).toBe(1);
+      expect(clone.customProgramCacheKey()).toContain('skyNight:window');
+      expect(clone.customProgramCacheKey()).not.toContain('skyNight:lamp');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('refuses a second NightUniforms on the same material', () => {
+    // `attached` is per-instance, so nothing else notices the collision. A
+    // second block redeclares `vSkyWorldPos` on both stages, GLSL rejects it,
+    // and the material compiles to nothing.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const a = new NightUniforms();
+      const b = new NightUniforms();
+      const material = new THREE.MeshStandardMaterial();
+      expect(a.attach(material, 'lamp')).toBe(true);
+      expect(b.attach(material, 'window')).toBe(false);
+
+      expect(b.materialCount).toBe(0);
+      expect(a.materialCount).toBe(1);
+      const shader = compile(material);
+      expect(shader.vertexShader.split('varying vec3 vSkyWorldPos;').length - 1).toBe(1);
+      expect(shader.fragmentShader).not.toContain('uWindowIntensity');
+
+      // One warning per material, however many meshes share it.
+      b.attach(material, 'window');
+      b.attach(material, 'window');
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

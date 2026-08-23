@@ -43,15 +43,7 @@
  * byte-identical events regardless of registration or query order.
  */
 
-import type {
-  EntityId,
-  EntityType,
-  Faction,
-  GameEventPayload,
-  IEventBus,
-  LethalIntent,
-  Vec3,
-} from '@/types';
+import type { EntityId, GameEventPayload, IEventBus, Vec3 } from '@/types';
 import { clamp01, createRng, falloff, type IRandom } from '@/util';
 import { normalise, sphereInCone, sphereInSphere } from './cone';
 import { forecastYen, StructureIndex } from './structures';
@@ -556,6 +548,3 @@ export function createHitResolver(
     rng: createRng(seed),
   });
 }
-
-/** Re-exported so callers do not have to reach into `@/types` for the union. */
-export type { EntityType, Faction, LethalIntent };

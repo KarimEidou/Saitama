@@ -97,6 +97,24 @@ describe('coverage', () => {
     );
   });
 
+  it('gives each body its own duration for the same clip', () => {
+    // `clipDuration` is memoised per (rig, clip) — it is asked for twice per
+    // layer per frame and the locomotive answer costs a whole `solveGait`. The
+    // only way that memo can be wrong is by leaking one body's answer to
+    // another, so this asks for both, repeatedly, in an interleaved order.
+    const bodies = showcaseFixtures();
+    const child = bodies.find((b) => b.name === 'Child')!;
+    const monster = bodies.find((b) => b.name === 'Monster humanoid')!;
+    for (const entry of CLIP_LIBRARY) {
+      const key = `${entry.def.slot}:${entry.def.variant}`;
+      const a = clipDuration(entry, child.rig);
+      const b = clipDuration(entry, monster.rig);
+      expect(clipDuration(entry, child.rig), key).toBe(a);
+      expect(clipDuration(entry, monster.rig), key).toBe(b);
+      expect(b, key).toBeGreaterThan(a);
+    }
+  });
+
   it('states locomotive reference speeds in Froude units', () => {
     const bodies = showcaseFixtures();
     const child = bodies.find((b) => b.name === 'Child')!;
@@ -140,6 +158,40 @@ describe('continuity', () => {
       const wrap = poseAngleDelta(poses[poses.length - 1]!, poses[0]!);
       const dt = clipDuration(entry, rig) / 64;
       expect(wrap / dt, `${entry.def.slot}:${entry.def.variant}`).toBeLessThan(50);
+    }
+  });
+
+  it('closes the loop EXACTLY on every looping clip', () => {
+    // The assertion above divides the seam by the SAMPLING interval (~84 ms for
+    // `idle`), so it tolerates a 4.2 rad step and cannot see the defect it is
+    // named for. This one asks the clip FUNCTION for `t = 0` and `t = 1`
+    // directly — no sampler, no locomotion solver in the way — and demands they
+    // be the same pose. An oscillator on a fractional multiple of normalised
+    // time is not, and `evaluate` wraps with `t = ((t % 1) + 1) % 1`, so the
+    // difference is a hard pop once per cycle, forever, on the clips the player
+    // watches longest.
+    // Compared componentwise rather than through `poseAngleDelta`, which cannot
+    // resolve a seam this small: a Float32-stored quaternion is only unit to
+    // ~1e-7, and `2·acos` turns that into ~5e-4 rad of apparent difference
+    // between a pose and ITSELF.
+    const params = defaultClipParams();
+    for (const entry of CLIP_LIBRARY) {
+      if (!entry.def.loop) continue;
+      const a = copyPose(createPose(rig.boneCount), rig.rest);
+      const b = copyPose(createPose(rig.boneCount), rig.rest);
+      entry.evaluate({ rig, params }, 0, a);
+      entry.evaluate({ rig, params }, 1, b);
+      const key = `${entry.def.slot}:${entry.def.variant}`;
+      let worstRot = 0;
+      for (let i = 0; i < a.rot.length; i++) {
+        worstRot = Math.max(worstRot, Math.abs(a.rot[i]! - b.rot[i]!));
+      }
+      expect(worstRot, `${key} rot`).toBeLessThan(1e-6);
+      let worstPos = 0;
+      for (let i = 0; i < a.pos.length; i++) {
+        worstPos = Math.max(worstPos, Math.abs(a.pos[i]! - b.pos[i]!));
+      }
+      expect(worstPos, `${key} pos`).toBeLessThan(1e-6);
     }
   });
 

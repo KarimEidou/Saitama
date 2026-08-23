@@ -691,8 +691,11 @@ function drawFields(): void {
     context.strokeRect(x, z, w, d);
   }
 
-  // Flee flow arrows, every fourth cell so the field is legible.
+  // Flee flow arrows, every third cell so the field is legible.
   context.strokeStyle = 'rgba(120, 230, 255, 0.55)';
+  // The head is filled, not stroked, so it needs its own colour — otherwise it
+  // inherits whatever the building pass left set and reads as a dark blot.
+  context.fillStyle = 'rgba(120, 230, 255, 0.55)';
   context.lineWidth = 1.2;
   const dir: [number, number] = [0, 0];
   for (let gz = 0; gz < FIELD_DIM; gz += 3) {

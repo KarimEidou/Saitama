@@ -594,6 +594,13 @@ export class Quadtree {
     }
 
     this.boundsDirty = false;
+
+    // `nodeCentreExtent` is derived from the bounds this pass just rewrote, and
+    // the walk classifies against it, not against `nodeBounds`. A pending
+    // repack recomputes it anyway, so only pay for the refresh when there is
+    // none — in the hot path (`remove()` -> lazy `sync()`) `packDirty` is true
+    // and this costs nothing.
+    if (!this.packDirty) this.updateNodeExtents();
   }
 
   /**

@@ -18,7 +18,10 @@ const config: CapacitorConfig = {
   appName: 'One Punch Man',
   webDir: 'dist',
 
-  // Bundle the web build into the APK rather than loading from a dev server.
+  // `androidScheme: 'https'` serves the bundled app from `https://localhost`
+  // rather than `http://`, which keeps it a SECURE CONTEXT — crypto.subtle and
+  // persistent storage are gated on that. It is not what bundles the app: the
+  // build is packaged because `webDir` points at it and no `server.url` is set.
   server: {
     androidScheme: 'https',
   },

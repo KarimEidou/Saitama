@@ -142,8 +142,8 @@ export interface ISkyKeyframe {
  */
 /**
  * The times below are pinned to the SOLAR MODEL, not to intuition. At 35.6°N
- * on day 172 the sun rises at 04:30 (t = 0.1875) and sets at 18:58
- * (t = 0.790) — see `solar.ts`. Authoring a 06:00 sunrise here would put a
+ * on day 172 the sun rises at 04:30 (t = 0.1876) and sets at 18:55
+ * (t = 0.7881) — see `solar.ts`. Authoring a 06:00 sunrise here would put a
  * bright directional light in a twilight-dark sky for ninety minutes, which is
  * a subtler version of exactly the mismatch this system exists to prevent.
  */
@@ -270,7 +270,7 @@ export const WINDOW_LIT_FRACTION_EVENING = 0.66;
  * bed. Used to ramp window occupancy DOWN through the small hours; the ramp
  * has to be wrap-aware because it crosses t = 0.
  */
-export const EVENING_START = 0.79; // 18:58, sunset
+export const EVENING_START = 0.79; // 18:58, three minutes after the 18:55 sunset
 export const EVENING_LENGTH = 0.28; // ~6.7 h, so ~01:40 before the city sleeps
 
 /* -------------------------------------------------------------------------- */

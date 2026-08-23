@@ -12,8 +12,7 @@
 
 import type { MaterialSpec } from '@/types';
 import { resolveSurfaces } from './surfaces';
-import type { Expression, RosterEntry } from './types';
-import { EXPRESSIONS } from './types';
+import type { RosterEntry } from './types';
 
 /** Texture roles a baked character ships. */
 export type CharacterMapRole = 'albedo' | 'normal' | 'orm' | 'emissive' | 'face' | 'mask';
@@ -79,11 +78,6 @@ export function entryGlows(entry: RosterEntry): boolean {
   if (entry.face.glow !== undefined) return true;
   const styles = resolveSurfaces(entry.surfaces);
   return entry.colors.some((color) => styles[color.surface].emissive !== undefined);
-}
-
-/** Expressions a character ships, in strip order (index 0 at the bottom). */
-export function entryExpressions(_entry: RosterEntry): readonly Expression[] {
-  return EXPRESSIONS;
 }
 
 /** Every asset id a character contributes to the manifest. */

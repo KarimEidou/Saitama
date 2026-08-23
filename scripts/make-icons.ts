@@ -17,9 +17,17 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
-const OUT = path.resolve('public/icons');
+/**
+ * Repo root — this file lives in `scripts/`. Never `process.cwd()`: these are
+ * build outputs of a specific checkout, not of whatever directory ran them. A
+ * cwd-relative path writes a stray `public/icons` beside the caller while the
+ * build reads the real one, with no error on either side.
+ */
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = path.join(ROOT, 'public', 'icons');
 
 /** Sizes iOS and Android actually ask for. 180 is the apple-touch-icon. */
 const SIZES = [180, 192, 256, 384, 512] as const;
@@ -81,7 +89,7 @@ async function main(): Promise<void> {
     })),
   };
   await writeFile(
-    path.resolve('public/manifest.webmanifest'),
+    path.join(ROOT, 'public', 'manifest.webmanifest'),
     `${JSON.stringify(manifest, null, 2)}\n`
   );
   process.stdout.write('  manifest.webmanifest\n');

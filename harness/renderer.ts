@@ -191,7 +191,10 @@ function readTier(): IQualityTier {
 
 function main(): void {
   const tier = readTier();
-  const profile = renderProfileFor(tier);
+  // Reassigned by `setTier` below: the blob-shadow draw distance (`submitCrowdBlobShadows`)
+  // and the debug overlay both read this every frame, so leaving it on the boot tier
+  // prints a live cascade count beside a stale map size.
+  let profile = renderProfileFor(tier);
 
   const canvas = document.getElementById('harness-canvas') as HTMLCanvasElement | null;
   if (!canvas) throw new Error('#harness-canvas missing');
@@ -865,14 +868,14 @@ function main(): void {
     },
 
     setTier(next: IQualityTier): void {
-      const nextProfile = renderer.setQualityTier(next);
-      shadows.setProfile(nextProfile.shadows);
-      environment.setMode(nextProfile.ibl);
+      profile = renderer.setQualityTier(next);
+      shadows.setProfile(profile.shadows);
+      environment.setMode(profile.ibl);
       environment.setEnvironment(skyTexture);
       materials.setAnisotropy(
-        Math.min(nextProfile.settings.anisotropy, renderer.getCapabilities().maxAnisotropy)
+        Math.min(profile.settings.anisotropy, renderer.getCapabilities().maxAnisotropy)
       );
-      camera.far = nextProfile.settings.drawDistance;
+      camera.far = profile.settings.drawDistance;
       camera.updateProjectionMatrix();
       shadows.onCameraChanged();
     },

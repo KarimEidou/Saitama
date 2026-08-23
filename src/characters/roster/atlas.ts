@@ -827,7 +827,9 @@ export function bakeCharacterAtlas(
   const orm = new Uint8Array(texels * 3);
   const normalMap = new Uint8Array(texels * 3);
   const height = new Float32Array(texels);
-  const detailNormal = new Float32Array(texels * 3);
+  // XY only: the encode pass hard-codes `nz = 1`, so a Z channel here would be
+  // 4 MB of scratch (at 1024²) written on every detailed texel and never read.
+  const detailNormal = new Float32Array(texels * 2);
   const roughness = new Float32Array(texels);
   const metalness = new Float32Array(texels);
   const baseLinear = new Float32Array(texels * 3);
@@ -943,9 +945,9 @@ export function bakeCharacterAtlas(
 
       if (detail.normalStrength > 0) {
         sampleTile(mip.normal, mip.size, pu, pv, normalSample);
-        detailNormal[o3] = (normalSample[0]! * 2 - 1) * detail.normalStrength;
-        detailNormal[o3 + 1] = (normalSample[1]! * 2 - 1) * detail.normalStrength;
-        detailNormal[o3 + 2] = normalSample[2]! * 2 - 1;
+        const o2 = texel * 2;
+        detailNormal[o2] = (normalSample[0]! * 2 - 1) * detail.normalStrength;
+        detailNormal[o2 + 1] = (normalSample[1]! * 2 - 1) * detail.normalStrength;
       }
     }
 
@@ -1065,8 +1067,9 @@ export function bakeCharacterAtlas(
       // Sobel gain. Tuned by eye against the close-ups: at 2.2 a jumpsuit read
       // as a knitted string vest and a machined forearm as corrugated iron.
       // Cloth relief is a suggestion at arm's length, not a relief map.
-      let nx = (hl - hr) * 1.0 + detailNormal[o3]!;
-      let ny = (hd - hu) * 1.0 + detailNormal[o3 + 1]!;
+      const o2 = texel * 2;
+      let nx = (hl - hr) * 1.0 + detailNormal[o2]!;
+      let ny = (hd - hu) * 1.0 + detailNormal[o2 + 1]!;
       let nz = 1;
       const length = Math.hypot(nx, ny, nz) || 1;
       nx /= length;

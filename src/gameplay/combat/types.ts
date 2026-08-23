@@ -58,8 +58,8 @@ export interface ICombatTarget {
   readonly faction: Faction;
   /** Shown on the nameplate and in `AllyDowned`. */
   readonly displayName: string;
-  /** World position. Mutated in place as the entity moves. */
-  position: Vec3;
+  /** World position. Mutated in place as the entity moves — never replaced. */
+  position: IMutableVec3;
   /** Bounding radius in metres — the sphere the cone test uses. */
   readonly radius: number;
   /** Mass in kilograms. Turns a knockback delta-v into newton-seconds. */
@@ -271,7 +271,13 @@ export interface IEncounterResult {
   readonly encounterId: string;
   /** Seconds from the encounter starting to the last hostile dying. */
   readonly timeToKill: number;
+  /**
+   * `CivilianSaved` events heard while this fight was open, whatever caused
+   * them — a self-rescue (`byPlayer: false`) counts, exactly as it does on
+   * the HUD banner. NOT "civilians still alive at the end".
+   */
   readonly civiliansSaved: number;
+  /** `CivilianLost` events heard while this fight was open, whatever caused them. */
   readonly civiliansLost: number;
   /** Allies who were registered at the start and still standing at the end. */
   readonly alliesSaved: number;
@@ -323,13 +329,18 @@ export interface IEncounterResult {
    * comparison.
    */
   readonly collateralCost: number;
-  /** Did a civilian have line-of-sight when the killing blow landed. */
+  /**
+   * PUNCHES — not victims, not blows — that killed something while a living
+   * civilian was within `witnessRadiusMetres` of the PUNCH ORIGIN with line
+   * of sight. Witnesses are sampled before the punch resolves, so a punch
+   * that kills every witness in its own cone still counts as witnessed.
+   */
   readonly witnessed: number;
   /** Hostiles killed. */
   readonly kills: number;
   /** True when every registered hostile died. */
   readonly victory: boolean;
-  /** Serious punches thrown. The collateral decision, counted. */
+  /** Serious punches thrown, GROUND SLAMS INCLUDED. The collateral decision, counted. */
   readonly seriousPunches: number;
   /** Normal punches thrown, chained links included. */
   readonly normalPunches: number;
@@ -363,14 +374,6 @@ export type HeroismKind =
   | 'cleanVictory'
   /** The fight actually took time — the rarest and most valuable of all. */
   | 'challenge';
-
-/** One reported act of heroism. */
-export interface IHeroismReport {
-  readonly kind: HeroismKind;
-  /** Who benefited, when applicable. */
-  readonly subjectId?: EntityId;
-  readonly position?: Vec3;
-}
 
 /**
  * Starting a fight by hand, e.g. from a quest script or a test.

@@ -280,6 +280,42 @@ describe('FlowField', () => {
     expect(out).toEqual([0, 0]);
   });
 
+  it('rebuilds the flee field at FLOW_HZ instead of drifting slow', () => {
+    // Zeroing the accumulator instead of subtracting the period throws away the
+    // remainder, so fifteen frames of 1/60 sum to just under FLOW_DT, the
+    // rebuild lands on the sixteenth, and the cadence is 60/16 = 3.75 Hz — 6 %
+    // slow, and slow by a DIFFERENT amount at every other frame rate, which
+    // makes the flee field lag the threat by a variable margin.
+    const obstacles = new ObstacleField();
+    obstacles.rebuild([]);
+    const flow = new FlowField();
+    // The first call is the obstacle-revision rebuild; start counting after it.
+    flow.update(1 / 60, obstacles, []);
+    const before = flow.rebuildCount;
+    for (let f = 0; f < 600; f++) flow.update(1 / 60, obstacles, []);
+    const rebuilds = flow.rebuildCount - before;
+    // Ten seconds at FLOW_HZ, give or take the frame the clock started on.
+    expect(rebuilds).toBeGreaterThanOrEqual(39);
+    expect(rebuilds).toBeLessThanOrEqual(41);
+  });
+
+  it('does not bank a burst of catch-up rebuilds after a hitch', () => {
+    const obstacles = new ObstacleField();
+    obstacles.rebuild([]);
+    const flow = new FlowField();
+    flow.update(1 / 60, obstacles, []);
+    const before = flow.rebuildCount;
+    // A two-second stall is one rebuild's worth of work, not eight.
+    flow.update(2, obstacles, []);
+    expect(flow.rebuildCount - before).toBe(1);
+    // And the carried remainder is capped at one period, so the debt buys a
+    // single catch-up rather than a burst: one second of ordinary frames
+    // afterwards is the hitch, one catch-up, and the four FLOW_HZ ticks.
+    for (let f = 0; f < 60; f++) flow.update(1 / 60, obstacles, []);
+    expect(flow.rebuildCount - before).toBeLessThanOrEqual(6);
+    expect(flow.rebuildCount - before).toBeGreaterThanOrEqual(5);
+  });
+
   it('costs a diagonal step more than an orthogonal one', () => {
     const obstacles = new ObstacleField();
     obstacles.rebuild([]);

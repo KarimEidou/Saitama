@@ -141,25 +141,6 @@ export function packedInsideBox(
   );
 }
 
-/**
- * Squared distance from a point to the packed box (0 when inside).
- * Used for radius queries in the XZ plane and for BVH-free proximity tests.
- */
-export function packedDistanceSq(
-  src: ArrayLike<number>,
-  offset: number,
-  x: number,
-  y: number,
-  z: number
-): number {
-  const dx = x < src[offset]! ? src[offset]! - x : x > src[offset + 3]! ? x - src[offset + 3]! : 0;
-  const dy =
-    y < src[offset + 1]! ? src[offset + 1]! - y : y > src[offset + 4]! ? y - src[offset + 4]! : 0;
-  const dz =
-    z < src[offset + 2]! ? src[offset + 2]! - z : z > src[offset + 5]! ? z - src[offset + 5]! : 0;
-  return dx * dx + dy * dy + dz * dz;
-}
-
 /** Squared XZ distance from a point to the packed box (0 when inside). */
 export function packedDistanceSq2D(
   src: ArrayLike<number>,

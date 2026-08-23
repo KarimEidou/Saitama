@@ -290,10 +290,31 @@ interface ITtlEnvelope<T> {
   readonly value: T;
 }
 
-/** Read a TTL-cached JSON document, or undefined when absent or stale. */
+/**
+ * Read a TTL-cached JSON document.
+ *
+ * `undefined` means "no usable cache": absent, unreadable, stale, written with
+ * a clock ahead of ours, structurally not an envelope, or carrying an empty
+ * value.
+ *
+ * The last two cases are the ones that were missing. A provider that answers
+ * `/files/<id>` with `null` under HTTP 200 during an outage would otherwise be
+ * written into `assets/source/api/` and believed for a full day: `walk(null)`
+ * returns immediately, `byUrl` comes back empty, and every file of that asset
+ * quietly drops to manifest-only verification — the exact guarantee the fetcher
+ * is built on — with no way to clear it short of deleting the file by hand. An
+ * envelope with a missing or non-numeric `ttlMs` never expired at all, because
+ * `age > undefined` is `false`.
+ *
+ * A false miss costs one extra API request that is immediately re-cached.
+ */
 export async function readJsonCache<T>(filePath: string): Promise<T | undefined> {
   try {
-    const envelope = JSON.parse(await readFile(filePath, 'utf8')) as ITtlEnvelope<T>;
+    const parsed: unknown = JSON.parse(await readFile(filePath, 'utf8'));
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    const envelope = parsed as ITtlEnvelope<T>;
+    if (typeof envelope.ttlMs !== 'number' || !Number.isFinite(envelope.ttlMs)) return undefined;
+    if (envelope.value === null || envelope.value === undefined) return undefined;
     const age = Date.now() - Date.parse(envelope.fetchedAt);
     if (!Number.isFinite(age) || age < 0 || age > envelope.ttlMs) return undefined;
     return envelope.value;

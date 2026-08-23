@@ -133,6 +133,9 @@ export const CrackTile = {
   Smear: 3,
 } as const;
 
+/** Any value of the `CrackTile` table. */
+export type CrackTileValue = (typeof CrackTile)[keyof typeof CrackTile];
+
 /* -------------------------------------------------------------------------- */
 /* Tier profile                                                               */
 /* -------------------------------------------------------------------------- */

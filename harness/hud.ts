@@ -245,7 +245,7 @@ try {
  * high-frequency detail in the corners — which is exactly the case a HUD is
  * hardest to read against, and which a canvas can produce deterministically.
  */
-function drawBackdrop(canvas: HTMLCanvasElement, seedTime: number): void {
+function drawBackdrop(canvas: HTMLCanvasElement): void {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -370,8 +370,6 @@ function drawBackdrop(canvas: HTMLCanvasElement, seedTime: number): void {
     ctx.fillStyle = `rgba(255,200,150,${0.05 + rand() * 0.13})`;
     ctx.fillRect(x, y, 1.5, 1.5);
   }
-
-  void seedTime;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -677,7 +675,6 @@ declare global {
   }
 }
 
-const stage = document.getElementById('stage') as HTMLElement;
 const canvas = document.getElementById('backdrop') as HTMLCanvasElement;
 const uiRoot = document.getElementById('ui-root') as HTMLElement;
 const overlays = document.getElementById('overlays') as HTMLElement;
@@ -994,7 +991,7 @@ function step(frames: number): void {
 function resize(): void {
   const width = window.innerWidth;
   const height = window.innerHeight;
-  drawBackdrop(canvas, frameIndex);
+  drawBackdrop(canvas);
   markers.setSize(width, height);
   camera.aspect = width / Math.max(1, height);
   camera.updateProjectionMatrix();
@@ -1260,7 +1257,6 @@ async function boot(): Promise<void> {
   step(4);
   api.ready = true;
   banner.textContent = 'ready';
-  void stage;
 }
 
 void boot();

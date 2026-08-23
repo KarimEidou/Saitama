@@ -118,6 +118,18 @@ describe('rank', () => {
     store.dispose();
   });
 
+  it('never lets an absent save field wipe a live standing', () => {
+    const { store } = makeStore();
+    store.setRank({ heroClass: 'B', rank: 42, points: 900, heroName: 'Caped Baldy' });
+    // A save written by an older build: keys present, values undefined.
+    store.setRank({ heroName: undefined, rank: undefined, points: undefined });
+    expect(store.model.rank.heroName).toBe('Caped Baldy');
+    expect(store.model.rank.rank).toBe(42);
+    expect(store.model.rank.points).toBe(900);
+    expect(store.model.rank.heroClass).toBe('B');
+    store.dispose();
+  });
+
   it('scores a class change as a class change, never as a seat count', () => {
     // The HUD does not know the class sizes and must not invent them.
     expect(seatDelta('C', 1, 'B', 300)).toBeGreaterThan(900);
@@ -387,9 +399,28 @@ describe('quests', () => {
       quest({ id: 'second', title: 'Second', timeRemaining: 40 }),
     ];
     expect(pickTrackedQuest(model)?.id).toBe('first');
+    // The winner is LIST ORDER, not the id: reversed, the other one wins.
+    model.quests = [...model.quests].reverse();
+    expect(pickTrackedQuest(model)?.id).toBe('second');
     // No clock at all still beats nothing, and the first one wins.
     model.quests = [quest({ id: 'a', title: 'A' }), quest({ id: 'b', title: 'B' })];
     expect(pickTrackedQuest(model)?.id).toBe('a');
+  });
+
+  it('shows nothing when no quest is active, and ignores a pin nothing matches', () => {
+    const model = createHudModel();
+    expect(pickTrackedQuest(model)).toBeUndefined();
+    model.quests = [
+      quest({ id: 'a', title: 'A', state: 'available' }),
+      quest({ id: 'b', title: 'B', state: 'completed' }),
+      quest({ id: 'c', title: 'C', state: 'failed' }),
+      quest({ id: 'd', title: 'D', state: 'locked' }),
+    ];
+    expect(pickTrackedQuest(model)).toBeUndefined();
+    // A pin naming a quest that is not on the list at all is ignored, not obeyed.
+    model.quests = [quest({ id: 'tunnel', title: 'Tunnel collapse', timeRemaining: 30 })];
+    model.trackedQuestId = 'gone';
+    expect(pickTrackedQuest(model)?.id).toBe('tunnel');
   });
 
   it('drops a tracked id that is no longer in the list', () => {
@@ -484,6 +515,44 @@ describe('housekeeping', () => {
     const store = new HudStore({ onDirty });
     store.setCharge(0.5, true, 'serious', 1e9);
     expect(onDirty).not.toHaveBeenCalled();
+    expect(store.consumeDirty()).toBe(false);
+    store.dispose();
+  });
+
+  it('does not mark dirty for an unchanged per-frame witness push', () => {
+    // `game.ts` `updateHud` pushes this EVERY frame. Dirtying unconditionally
+    // would take `render()` — the "a few times a minute" tier — to 60 Hz.
+    const onDirty = vi.fn();
+    const bus = new EventBus();
+    const store = new HudStore({ bus, onDirty });
+    bus.emit('EncounterStarted', {
+      encounterId: 'a',
+      threatTier: 'wolf',
+      position: { x: 0, y: 0, z: 0 },
+      radius: 10,
+      participantIds: [],
+      isBoss: false,
+    });
+    store.consumeDirty();
+    onDirty.mockClear();
+
+    store.setWitnesses(3); // moved
+    expect(store.model.encounter!.witnesses).toBe(3);
+    expect(store.consumeDirty()).toBe(true);
+
+    store.setWitnesses(3); // did not move
+    store.setWitnesses(3.4); // rounds to the same integer
+    expect(store.consumeDirty()).toBe(false);
+
+    bus.emit('EncounterEnded', {
+      encounterId: 'a',
+      outcome: 'victory',
+      duration: 1,
+      civiliansLost: 0,
+      collateralCost: 0,
+    });
+    store.consumeDirty();
+    store.setWitnesses(9); // no encounter: nothing to show
     expect(store.consumeDirty()).toBe(false);
     store.dispose();
   });

@@ -979,6 +979,7 @@ function main(): void {
   window.__VFX_HARNESS__ = {
     snapshot(): IVFXHarnessSnapshot {
       const stats = renderer.getStats();
+      const postStats = post.getStats();
       const impactState = impact.getState();
       return {
         tier,
@@ -995,9 +996,11 @@ function main(): void {
         vfx: vfx.diagnostics(),
         budget,
         post: {
-          mode: profile.post.mode,
-          direct: profile.post.mode === 'off',
-          passNames: [...post.getStats().passNames],
+          // Read the LIVE chain, not the tier profile: `direct` exists to catch a
+          // composer that failed to build, and the profile only says what was asked for.
+          mode: postStats.mode,
+          direct: postStats.direct,
+          passNames: [...postStats.passNames],
         },
         atlasBytes: Math.round(
           (vfx.profile.atlasSize * vfx.profile.atlasSize +

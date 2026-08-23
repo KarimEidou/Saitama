@@ -58,6 +58,14 @@ describe('yen', () => {
     expect(formatYenFull(-5e9)).toBe('¥0');
   });
 
+  it('does not print four ungrouped digits at the K boundary', () => {
+    // The ticker is sized for three characters and one fixed unit. Rounding
+    // BEFORE the magnitude test let the band [999.5, 1000) escape compaction.
+    expect(formatYenCompact(999.4)).toBe('¥999');
+    expect(formatYenCompact(999.6)).toBe('¥1.00K');
+    expect(formatYenCompact(1000)).toBe('¥1.00K');
+  });
+
   it('groups digits without Intl', () => {
     expect(groupDigits(0)).toBe('0');
     expect(groupDigits(999)).toBe('999');
@@ -165,5 +173,28 @@ describe('ratios', () => {
     expect(formatPercent(-1)).toBe('0%');
     expect(formatPercent(0.634)).toBe('63%');
     expect(formatPercent(3)).toBe('100%');
+  });
+});
+
+describe('non-finite input never reaches the screen', () => {
+  it('coerces NaN and Infinity to the zero of each formatter', () => {
+    // `clamp01` does NOT stop this upstream: `NaN < 0` and `NaN > 1` are both
+    // false, so it passes through and prints `¥NaN` / `NaN:NaN` on the glass.
+    expect(formatYenCompact(Number.NaN)).toBe('¥0');
+    expect(formatYenFull(Number.NaN)).toBe('¥0');
+    expect(formatYenOku(Number.NaN)).toBe('0円');
+    expect(groupDigits(Number.NaN)).toBe('0');
+    expect(formatClock(Number.NaN)).toBe('0:00');
+    expect(formatDuration(Number.NaN)).toBe('0.0s');
+    expect(formatRank('C', Number.NaN)).toBe('C-1');
+    expect(formatPoints(Number.NaN)).toBe('+0.0');
+    expect(formatSeatDelta(Number.NaN)).toBe('held');
+    expect(formatSeatMove(Number.NaN)).toBe('held');
+    expect(formatDistance(Number.NaN)).toBe('0 m');
+    expect(formatCount(Number.NaN, 'civilian')).toBe('0 civilians');
+    expect(formatMultiplier(Number.NaN)).toBe('×0.00');
+    expect(formatPercent(Number.NaN)).toBe('0%');
+    expect(formatYenCompact(Number.POSITIVE_INFINITY)).toBe('¥0');
+    expect(clockParts(Number.NaN)).toEqual({ minutes: 0, seconds: 0, tenths: 0 });
   });
 });

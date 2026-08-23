@@ -116,6 +116,9 @@ describe('Ragdoll', () => {
     const ragdoll = createRagdoll(world, rigAt(0));
 
     expect(ragdoll.bodies).toHaveLength(13);
+    // The contract's only body accessor is polled per frame by overlays and the
+    // harness, so it hands back the same array rather than mapping a new one.
+    expect(ragdoll.bodies).toBe(ragdoll.bodies);
     expect(ragdoll.segments.filter((s) => s.joint !== undefined)).toHaveLength(12);
     expect(ragdoll.active).toBe(false);
     for (const segment of ragdoll.segments) expect(segment.body.isEnabled).toBe(false);

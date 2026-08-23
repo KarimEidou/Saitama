@@ -17,7 +17,10 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { applyInstanceVariation, MaterialLib } from '../material-lib';
+import type { IAssetRegistry, TextureHandle } from '@/types';
+import { applyInstanceVariation, hasSpecularOnlyEnvironment, MaterialLib } from '../material-lib';
+import { hasShaderHooks, shaderHookKeys } from '../shader-hooks';
+import { featureDefines, featureKey, hasAnyFeature, NO_FEATURES } from '../shader-chunks';
 
 function pixelTexture(r = 255, g = 255, b = 255): THREE.DataTexture {
   return new THREE.DataTexture(new Uint8Array([r, g, b, 255]), 1, 1);
@@ -174,5 +177,363 @@ describe('applyInstanceVariation', () => {
     expect(String(warn.mock.calls[0]?.[1])).toContain('past 120 black');
 
     warn.mockRestore();
+  });
+});
+
+/*
+ * ── THE LIBRARY'S OBSERVABLE CONTRACT ──────────────────────────────────────
+ *
+ * `material-lib.ts` is the only thing defending the "<= 24 distinct shader
+ * programs" whole-game budget its header describes, and its observable surface
+ * — one material per id, the signature counter, the injection gating, the
+ * by-reference global uniforms — is pure JS. Before these cases a refactor
+ * could silently turn "one material per id" into "one per acquire" and every
+ * test in the repo would stay green.
+ */
+
+/** Compile a material against a fresh stub and hand the stub back. */
+function run(
+  material: THREE.Material,
+  shader: THREE.WebGLProgramParametersWithUniforms = shaderStub()
+): THREE.WebGLProgramParametersWithUniforms {
+  material.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+  return shader;
+}
+
+/** A registry that resolves every key to one retained handle. */
+function fakeRegistry(): {
+  registry: IAssetRegistry;
+  handle: TextureHandle;
+  retain: ReturnType<typeof vi.fn>;
+  release: ReturnType<typeof vi.fn>;
+} {
+  const texture = pixelTexture();
+  const retain = vi.fn(() => handle);
+  const release = vi.fn();
+  const handle = { texture, retain, release } as unknown as TextureHandle;
+  const registry = { getTexture: () => handle } as unknown as IAssetRegistry;
+  return { registry, handle, retain, release };
+}
+
+describe('MaterialLib caching', () => {
+  it('returns one material per id, never one per acquire', () => {
+    const lib = new MaterialLib();
+    const first = lib.acquire({ spec: { id: 'mat.one', kind: 'standard' } });
+    const second = lib.acquire({ spec: { id: 'mat.one', kind: 'standard' } });
+
+    expect(second).toBe(first);
+    expect(lib.size).toBe(1);
+    expect(lib.get('mat.one')).toBe(first);
+    expect(lib.has('mat.one')).toBe(true);
+    expect(lib.get('mat.absent')).toBeUndefined();
+
+    lib.dispose();
+  });
+
+  it('warns on a conflicting spec and lets the first one win', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lib = new MaterialLib();
+
+    const first = lib.acquire({ spec: { id: 'm', kind: 'standard', color: 0xff0000 } });
+    const second = lib.acquire({ spec: { id: 'm', kind: 'standard', color: 0x00ff00 } });
+
+    expect(second).toBe(first);
+    expect((first as THREE.MeshStandardMaterial).color.getHex()).toBe(0xff0000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[1])).toContain('two different specs');
+
+    warn.mockRestore();
+    lib.dispose();
+  });
+
+  it('empties itself on dispose', () => {
+    const lib = new MaterialLib();
+    lib.acquire({ spec: { id: 'mat.gone', kind: 'standard' } });
+
+    lib.dispose();
+
+    expect(lib.size).toBe(0);
+    expect(lib.get('mat.gone')).toBeUndefined();
+    expect(lib.programCount).toBe(0);
+  });
+});
+
+describe('MaterialLib program budget', () => {
+  it('collapses identically-shaped materials onto one signature', () => {
+    const lib = new MaterialLib();
+    for (const id of ['a', 'b', 'c']) lib.acquire({ spec: { id, kind: 'standard' } });
+
+    expect(lib.size).toBe(3);
+    // Fifty materials that bind the same maps are ONE program; that is the
+    // whole argument for this class existing.
+    expect(lib.programCount).toBe(1);
+    const [signature] = [...lib.programSignatures.keys()];
+    expect(lib.programSignatures.get(signature!)).toBe(3);
+
+    lib.dispose();
+  });
+
+  it('counts a different map set as a different program', () => {
+    const lib = new MaterialLib();
+    for (const id of ['a', 'b', 'c']) lib.acquire({ spec: { id, kind: 'standard' } });
+    lib.acquire({ spec: { id: 'd', kind: 'standard' }, textures: { normalMap: pixelTexture() } });
+
+    expect(lib.programCount).toBe(2);
+    lib.dispose();
+  });
+
+  it('warns once, at the moment the offending material is created', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lib = new MaterialLib({ programBudget: 1 });
+
+    lib.acquire({ spec: { id: 'a', kind: 'standard' } });
+    lib.acquire({ spec: { id: 'b', kind: 'standard' }, textures: { map: pixelTexture() } });
+
+    const budgetCalls = (): number =>
+      warn.mock.calls.filter((call) => String(call[1]).includes('program budget exceeded')).length;
+    expect(budgetCalls()).toBe(1);
+
+    // `budgetWarned` latches: one warning per library, not one per material.
+    lib.acquire({ spec: { id: 'c', kind: 'standard' }, textures: { normalMap: pixelTexture() } });
+    expect(budgetCalls()).toBe(1);
+
+    warn.mockRestore();
+    lib.dispose();
+  });
+
+  it('puts vertexColors on the material and in the signature', () => {
+    const lib = new MaterialLib();
+    const material = lib.acquire({
+      spec: { id: 'mat.debris', kind: 'standard' },
+      vertexColors: true,
+    });
+
+    expect(material.vertexColors).toBe(true);
+    expect([...lib.programSignatures.keys()][0]).toContain('V');
+
+    lib.dispose();
+  });
+});
+
+describe('MaterialLib injection gating', () => {
+  it('refuses injections on a non-PBR kind rather than silently no-op', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lib = new MaterialLib();
+
+    // The splice points are meshphysical chunk names; the replace would find
+    // nothing in a toon shader and the injection would vanish without a word.
+    const material = lib.acquire({
+      spec: { id: 'mat.toon', kind: 'toon' },
+      features: { damageMask: true },
+    });
+
+    expect(hasShaderHooks(material)).toBe(false);
+    expect(material.defines?.ENGINE_DAMAGE_MASK).toBeUndefined();
+    expect(String(warn.mock.calls[0]?.[1])).toContain('injections apply to');
+
+    warn.mockRestore();
+    lib.dispose();
+  });
+
+  it('refuses triplanar without an albedo map, and says so', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lib = new MaterialLib();
+
+    const material = lib.acquire({
+      spec: { id: 'mat.terrain', kind: 'standard' },
+      features: { triplanar: true },
+    });
+
+    // Without a map the injected GLSL references an undeclared sampler and the
+    // material fails to compile.
+    expect(material.defines?.ENGINE_TRIPLANAR).toBeUndefined();
+    expect(String(warn.mock.calls[0]?.[1])).toContain('without an');
+    // Every standard material still carries a hook: the specular-only toggle
+    // is global and has to reach all of them.
+    expect(hasShaderHooks(material)).toBe(true);
+    expect(shaderHookKeys(material)[0]).toMatch(/^mat/);
+
+    warn.mockRestore();
+    lib.dispose();
+  });
+
+  it('injects triplanar at the documented splice points when a map is bound', () => {
+    const lib = new MaterialLib();
+    const material = lib.acquire({
+      spec: { id: 'mat.terrain', kind: 'standard' },
+      features: { triplanar: true },
+      textures: { map: pixelTexture() },
+    });
+
+    expect(material.defines?.ENGINE_TRIPLANAR).toBe('1');
+
+    const shader = run(material);
+    expect(shader.vertexShader).toContain('vEngineWorldNormal');
+    expect(shader.fragmentShader).toContain('tpBlend');
+    expect(shader.fragmentShader).not.toContain('#include <map_fragment>');
+    expect((shader.uniforms.uEngineTriplanarScale as { value: number }).value).toBe(0.25);
+
+    const custom = lib.acquire({
+      spec: { id: 'mat.terrain2', kind: 'standard' },
+      features: { triplanar: true },
+      triplanarScale: 0.5,
+      textures: { map: pixelTexture() },
+    });
+    expect((run(custom).uniforms.uEngineTriplanarScale as { value: number }).value).toBe(0.5);
+
+    lib.dispose();
+  });
+});
+
+describe('MaterialLib global uniforms', () => {
+  it('shares one uniform object across every injected material', () => {
+    const lib = new MaterialLib();
+    const a = lib.acquire({ spec: { id: 'a', kind: 'standard' }, features: { damageMask: true } });
+    const b = lib.acquire({ spec: { id: 'b', kind: 'standard' }, features: { damageMask: true } });
+
+    const sa = run(a);
+    const sb = run(b);
+
+    // BY REFERENCE — this is the class's central claim. One write updates every
+    // material in the scene with no traversal and no per-material bookkeeping.
+    expect(sa.uniforms.uEngineDamageMask).toBe(sb.uniforms.uEngineDamageMask);
+    expect(sa.uniforms.uEngineDustAmount).toBe(sb.uniforms.uEngineDustAmount);
+
+    lib.setDustAmount(0.7);
+    expect((sa.uniforms.uEngineDustAmount as { value: number }).value).toBe(0.7);
+    expect((sb.uniforms.uEngineDustAmount as { value: number }).value).toBe(0.7);
+
+    lib.dispose();
+  });
+
+  it('keeps a neutral 1x1 placeholder in the damage-mask slot', () => {
+    const lib = new MaterialLib();
+    const material = lib.acquire({
+      spec: { id: 'a', kind: 'standard' },
+      features: { damageMask: true },
+    });
+    const shader = run(material);
+
+    lib.setDamageMask(pixelTexture(), 0, 0, 256, 256);
+    const rect = shader.uniforms.uEngineDamageRect as { value: THREE.Vector4 };
+    expect(rect.value.z).toBe(1 / 256);
+    expect(rect.value.w).toBe(1 / 256);
+
+    // A null sampler binds three's internal empty texture, whose contents are
+    // undefined: materials would sample garbage dust.
+    lib.setDamageMask(null);
+    const mask = shader.uniforms.uEngineDamageMask as { value: THREE.Texture | null };
+    expect(mask.value).not.toBeNull();
+    expect((mask.value!.image as { width: number }).width).toBe(1);
+
+    lib.dispose();
+  });
+});
+
+describe('MaterialLib global switches', () => {
+  it('reaches existing and future materials with specular-only environment', () => {
+    const lib = new MaterialLib();
+    const a = lib.acquire({ spec: { id: 'a', kind: 'standard' } });
+
+    lib.setSpecularOnlyEnvironment(true);
+    expect(hasSpecularOnlyEnvironment(a)).toBe(true);
+
+    const b = lib.acquire({ spec: { id: 'b', kind: 'standard' } });
+    expect(hasSpecularOnlyEnvironment(b)).toBe(true);
+    expect(run(b).fragmentShader).toContain('iblIrradiance = vec3( 0.0 );');
+
+    lib.setSpecularOnlyEnvironment(false);
+    expect(hasSpecularOnlyEnvironment(a)).toBe(false);
+    expect(hasSpecularOnlyEnvironment(b)).toBe(false);
+    expect(run(b).fragmentShader).not.toContain('iblIrradiance = vec3( 0.0 );');
+
+    lib.dispose();
+  });
+
+  it('notifies observers about existing and later materials, until unsubscribed', () => {
+    const lib = new MaterialLib();
+    lib.acquire({ spec: { id: 'before', kind: 'standard' } });
+
+    const seen = vi.fn();
+    const unsubscribe = lib.onMaterialCreated(seen);
+    // Fires immediately for what already exists — how the shadow system
+    // attaches CSM without either system importing the other.
+    expect(seen.mock.calls.map((call) => call[1])).toEqual(['before']);
+
+    lib.acquire({ spec: { id: 'after', kind: 'standard' } });
+    expect(seen.mock.calls.map((call) => call[1])).toEqual(['before', 'after']);
+
+    unsubscribe();
+    lib.acquire({ spec: { id: 'later', kind: 'standard' } });
+    expect(seen).toHaveBeenCalledTimes(2);
+
+    lib.dispose();
+  });
+
+  it('sets envMapIntensity on PBR materials and skips those without it', () => {
+    const lib = new MaterialLib();
+    const standard = lib.acquire({ spec: { id: 'pbr', kind: 'standard' } });
+    const basic = lib.acquire({ spec: { id: 'flat', kind: 'basic' } });
+
+    lib.setEnvMapIntensity(0.4);
+
+    expect((standard as THREE.MeshStandardMaterial).envMapIntensity).toBe(0.4);
+    // `MeshBasicMaterial` has no such field; writing one would create it.
+    expect('envMapIntensity' in basic).toBe(false);
+
+    lib.dispose();
+  });
+});
+
+describe('MaterialLib texture resolution', () => {
+  it('binds the visible placeholder when a key does not resolve', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lib = new MaterialLib();
+
+    const material = lib.acquire({
+      spec: { id: 'mat.broken', kind: 'standard', mapKey: 'tex.nope' },
+    }) as THREE.MeshStandardMaterial;
+
+    // Binding nothing renders flat white and looks deliberate, so broken
+    // material wiring ships.
+    expect(material.map).not.toBeNull();
+    expect(material.map!.name).toBe('texture.missing');
+    expect(String(warn.mock.calls[0]?.[1])).toContain('is not resident');
+
+    warn.mockRestore();
+    lib.dispose();
+  });
+
+  it('retains a registry handle on acquire and releases it on dispose', () => {
+    const { registry, retain, release } = fakeRegistry();
+    const lib = new MaterialLib({ registry });
+
+    lib.acquire({ spec: { id: 'mat.real', kind: 'standard', mapKey: 'tex.wall' } });
+    expect(retain).toHaveBeenCalledTimes(1);
+    expect(release).not.toHaveBeenCalled();
+
+    lib.dispose();
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('shader-chunks feature helpers', () => {
+  it('encodes a feature set as a stable key', () => {
+    expect(featureKey({ triplanar: true, instanceVariation: false, damageMask: true })).toBe('T-D');
+    expect(featureKey(NO_FEATURES)).toBe('---');
+    expect(hasAnyFeature(NO_FEATURES)).toBe(false);
+    expect(hasAnyFeature({ ...NO_FEATURES, damageMask: true })).toBe(true);
+  });
+
+  it('emits exactly one define per set flag', () => {
+    expect(featureDefines(NO_FEATURES)).toEqual({});
+    expect(featureDefines({ triplanar: true, instanceVariation: true, damageMask: true })).toEqual({
+      ENGINE_TRIPLANAR: '1',
+      ENGINE_INSTANCE_VARIATION: '1',
+      ENGINE_DAMAGE_MASK: '1',
+    });
+    expect(featureDefines({ ...NO_FEATURES, instanceVariation: true })).toEqual({
+      ENGINE_INSTANCE_VARIATION: '1',
+    });
   });
 });

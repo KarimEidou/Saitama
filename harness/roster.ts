@@ -542,11 +542,7 @@ async function runSheet(): Promise<Record<string, unknown>> {
     const character = await buildCharacter(entry, 0, 'high');
     const column = i % perRow;
     const row = Math.floor(i / perRow);
-    character.root.position.set(
-      (column - (perRow - 1) / 2) * spacing,
-      0,
-      row * -rowDepth + (row === 1 ? 0 : 0)
-    );
+    character.root.position.set((column - (perRow - 1) / 2) * spacing, 0, row * -rowDepth);
     character.root.rotation.y = Math.PI + (column - (perRow - 1) / 2) * 0.05;
     scene.add(character.root);
     built.push(character);
@@ -964,6 +960,3 @@ main().catch((error: unknown) => {
   errorBox.textContent = message;
   console.error(error);
 });
-
-// Keep the tree-shaker from dropping a helper the shot script drives manually.
-Object.assign(window, { __setProximityFade: setProximityFade });

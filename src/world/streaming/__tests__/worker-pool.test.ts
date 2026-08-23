@@ -174,6 +174,119 @@ describe('a worker that fails', () => {
   });
 });
 
+/** Let the inline path's microtask chain drain completely. */
+const flush = (): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+describe('the inline path', () => {
+  it('delivers a result on a microtask, never synchronously', async () => {
+    const results: WorkerResponse[] = [];
+    const pool = new ChunkWorkerPool({ inline: true, onResult: (r) => results.push(r) });
+
+    pool.submit({ kind: 'ping', id: 1 });
+    // Callers must not be able to depend on inline completion ordering that the
+    // real worker path could never provide.
+    expect(results).toEqual([]);
+    expect(pool.inFlight).toBe(1);
+    expect(pool.idle).toBe(false);
+
+    await flush();
+    expect(results).toEqual([{ kind: 'pong', id: 1 }]);
+    expect(pool.idle).toBe(true);
+    // `completed` counts BUILDS, not messages: a pong carries no geometry and no
+    // generation time, and folding it in would inflate the throughput number the
+    // budget is judged against.
+    expect(pool.stats().completed).toBe(0);
+    pool.dispose();
+  });
+
+  it('holds dispatch at maxInFlight', async () => {
+    const results: WorkerResponse[] = [];
+    const pool = new ChunkWorkerPool({
+      inline: true,
+      maxInFlight: 1,
+      onResult: (r) => results.push(r),
+    });
+    for (let id = 1; id <= 3; id++) pool.submit(job(id));
+    expect(pool.inFlight).toBe(1);
+    expect(pool.queued).toBe(2);
+
+    for (let i = 0; i < 8 && !pool.idle; i++) await flush();
+    expect(pool.idle).toBe(true);
+    expect(results.map((r) => r.id).sort()).toEqual([1, 2, 3]);
+    pool.dispose();
+  });
+
+  it('drops a queued job on cancel and never delivers it', async () => {
+    const results: WorkerResponse[] = [];
+    const pool = new ChunkWorkerPool({
+      inline: true,
+      maxInFlight: 1,
+      onResult: (r) => results.push(r),
+    });
+    for (let id = 1; id <= 3; id++) pool.submit(job(id));
+
+    pool.cancel(3);
+    expect(pool.queued).toBe(1);
+    expect(pool.stats().cancelled).toBe(1);
+
+    for (let i = 0; i < 8 && !pool.idle; i++) await flush();
+    expect(results.some((r) => r.id === 3)).toBe(false);
+    pool.dispose();
+  });
+
+  it('drops an in-flight job on cancel', async () => {
+    const results: WorkerResponse[] = [];
+    const pool = new ChunkWorkerPool({ inline: true, onResult: (r) => results.push(r) });
+    pool.submit(job(1));
+    // Already dispatched: a worker cannot be interrupted mid-build, so this is
+    // recorded and the result dropped on arrival.
+    pool.cancel(1);
+    await flush();
+
+    expect(results).toEqual([]);
+    expect(pool.stats().cancelled).toBe(1);
+    expect(pool.idle).toBe(true);
+    pool.dispose();
+  });
+
+  it('reports idle after dispose with an inline job still in flight', async () => {
+    const results: WorkerResponse[] = [];
+    const pool = new ChunkWorkerPool({ inline: true, onResult: (r) => results.push(r) });
+    pool.submit(job(1));
+    expect(pool.inFlight).toBe(1);
+
+    pool.dispose();
+
+    // SYNCHRONOUSLY, in the same tick. `StreamingSystem.dispose()` disposes the
+    // pool and settles its idle waiters right here, and `waitForIdle()` issued
+    // after that only ever resolves from the frame loop — which `update()`
+    // refuses to run once disposed. A pool still holding a counter for a job
+    // that will never land is a promise nobody can settle.
+    expect(pool.inFlight).toBe(0);
+    expect(pool.queued).toBe(0);
+    expect(pool.idle).toBe(true);
+
+    // And the abandoned microtask must not decrement PAST zero on its way out.
+    await flush();
+    expect(pool.inFlight).toBe(0);
+    expect(pool.idle).toBe(true);
+    expect(results).toEqual([]);
+  });
+
+  it('is idempotent and inert after dispose', async () => {
+    const results: WorkerResponse[] = [];
+    const pool = new ChunkWorkerPool({ inline: true, onResult: (r) => results.push(r) });
+    pool.dispose();
+    pool.dispose();
+
+    pool.submit(job(9));
+    expect(pool.queued).toBe(0);
+    expect(pool.idle).toBe(true);
+    await flush();
+    expect(results).toEqual([]);
+  });
+});
+
 describe('spawn failure', () => {
   it('falls back wholesale when the constructor throws', () => {
     const spy = vi.spyOn(FakeWorker.prototype, 'postMessage');

@@ -232,6 +232,10 @@ async function main(): Promise<void> {
     antialias: true,
     alpha: false,
     powerPreference: 'high-performance',
+    // `assets.verify.ts` screenshots the page and then reads the composited
+    // frame back through `frameStats`; without this the buffer can be thrown
+    // away first and read back black. Same reason as anim.ts and humanoid.ts.
+    preserveDrawingBuffer: true,
   });
   renderer.setPixelRatio(1);
   renderer.setSize(width, height, false);

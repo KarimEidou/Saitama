@@ -49,7 +49,7 @@ attribute vec4 iPosSize;   // xyz local position, w size in metres
 attribute vec4 iColor;     // rgb linear tint, a alpha
 attribute vec4 iParams;    // x roll, y atlas tile, z additiveness, w erosion
 attribute vec4 iMotion;    // xyz velocity (or surface normal), w stretch/aspect
-attribute vec4 iShade;     // x lit amount, y unused, z mode, w style
+attribute vec4 iShade;     // x lit amount, y seed (written, not yet read), z mode, w style
 
 uniform float uAtlasTiles;
 uniform float uFogDensity;

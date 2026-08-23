@@ -67,6 +67,7 @@ import {
   disposeSceneGraph,
   parseCharacter,
   parseModel,
+  type ILoadedCharacter,
   type ILoadedModel,
 } from './models';
 import { EnvironmentLoader, type ILoadedEnvironment } from './environment';
@@ -74,6 +75,7 @@ import { LoadScheduler, ProgressTracker } from './queue';
 import { missingMaterial, missingModel, missingTexture } from './fallback';
 import type { ICharacterRecord } from './characters';
 import type { IRuntimeManifest } from './manifest';
+import type { ITierMiss } from './tier';
 
 const log = createLogger('assets:registry');
 
@@ -121,7 +123,7 @@ export interface IRegistryDiagnostics {
   readonly gpuBytes: number;
   readonly missing: readonly string[];
   readonly failures: readonly IAssetFailure[];
-  readonly tierMisses: readonly { key: string; tier: QualityTier; reason: string }[];
+  readonly tierMisses: readonly ITierMiss[];
   readonly unavailableTiers: readonly QualityTier[];
   readonly lastEviction: IEvictionReport | undefined;
   readonly evictedTotal: number;
@@ -148,10 +150,7 @@ export class AssetRegistry implements IAssetRegistry {
   private readonly textureHandles = new Map<string, IManagedTextureHandle>();
   private readonly builtMaterials = new Map<string, IBuiltMaterial>();
   private readonly loadedModels = new Map<string, ILoadedModel>();
-  private readonly loadedCharacters = new Map<
-    string,
-    { scene: THREE.Object3D; clips: THREE.AnimationClip[] }
-  >();
+  private readonly loadedCharacters = new Map<string, ILoadedCharacter>();
   private readonly loadedEnvironments = new Map<string, ILoadedEnvironment>();
   private readonly audioBuffers = new Map<string, AudioBuffer>();
   private readonly animationClips = new Map<string, THREE.AnimationClip>();
@@ -257,7 +256,7 @@ export class AssetRegistry implements IAssetRegistry {
     return this.loadedModels.get(key);
   }
 
-  getCharacter(key: string): { scene: THREE.Object3D; clips: THREE.AnimationClip[] } | undefined {
+  getCharacter(key: string): ILoadedCharacter | undefined {
     return this.loadedCharacters.get(key);
   }
 
@@ -498,7 +497,9 @@ export class AssetRegistry implements IAssetRegistry {
         return handle.refCount;
       },
       dispose: () => {
-        this.textureHandles.delete(handle.key);
+        // Only clear the slot if it still points at THIS handle: a replaced
+        // handle's dispose must not evict its own successor.
+        if (this.textureHandles.get(handle.key) === handle) this.textureHandles.delete(handle.key);
         handle.dispose();
       },
     });
@@ -709,8 +710,9 @@ export class AssetRegistry implements IAssetRegistry {
     this.audioBuffers.delete(key);
     this.animationClips.delete(key);
 
-    // Textures last: a material released above may have just dropped the final
-    // reference, which makes the texture evictable in the same call.
+    // Textures last, and only when `key` IS a texture: the maps of the material
+    // released above are freed through `notifyUnreferenced`, which the final
+    // `release()` in the loop already fired.
     if (this.textureHandles.has(key)) this.memory.remove(key);
   }
 
@@ -783,7 +785,9 @@ export class AssetRegistry implements IAssetRegistry {
   }
 
   get failures(): readonly IAssetFailure[] {
-    return this.failureList;
+    // A copy, like `missing` above: the debug HUD and the harness must not be
+    // handed a live, mutable window onto registry state.
+    return [...this.failureList];
   }
 
   /** Everything the debug HUD and the harness need in one object. */
@@ -802,7 +806,7 @@ export class AssetRegistry implements IAssetRegistry {
       ),
       gpuBytes: this.gpuBytes,
       missing: this.missing,
-      failures: this.failureList,
+      failures: this.failures,
       tierMisses: this.provider.availability.recordedMisses.map((miss) => ({ ...miss })),
       unavailableTiers: this.provider.availability.unavailableTiers,
       lastEviction: this.lastEvictionReport,

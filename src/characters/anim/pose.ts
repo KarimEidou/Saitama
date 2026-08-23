@@ -86,20 +86,14 @@ export function setTranslation(pose: Pose, bone: number, v: THREE.Vector3): void
  * which is precisely what makes this useful: "bend the elbow" is one axis and
  * one angle, with no per-bone roll basis to consult.
  */
-export function rotateBone(
-  pose: Pose,
-  bone: number,
-  axis: 'x' | 'y' | 'z',
-  angle: number,
-  scratch = _q0
-): void {
+export function rotateBone(pose: Pose, bone: number, axis: 'x' | 'y' | 'z', angle: number): void {
   if (angle === 0) return;
   const half = angle * 0.5;
   const s = Math.sin(half);
-  scratch.set(axis === 'x' ? s : 0, axis === 'y' ? s : 0, axis === 'z' ? s : 0, Math.cos(half));
+  _q0.set(axis === 'x' ? s : 0, axis === 'y' ? s : 0, axis === 'z' ? s : 0, Math.cos(half));
   const o = bone * 4;
   _q1.set(pose.rot[o]!, pose.rot[o + 1]!, pose.rot[o + 2]!, pose.rot[o + 3]!);
-  _q1.multiply(scratch);
+  _q1.multiply(_q0);
   setRotation(pose, bone, _q1);
 }
 

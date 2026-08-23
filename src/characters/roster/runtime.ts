@@ -185,6 +185,15 @@ export class RosterRuntime {
 
   private readonly loaded = new Map<string, LoadedCharacter>();
   private readonly pending = new Map<string, Promise<boolean>>();
+  /**
+   * Memoised roster entries.
+   *
+   * `rosterEntry` rebuilds the WHOLE 14-entry cast and throws thirteen of them
+   * away, and one `buildBody` asks for the same entry four times. Entries are
+   * immutable data — every field of `RosterEntry` is `readonly` and nothing in
+   * the tree assigns to one — so handing out a shared instance is safe.
+   */
+  private readonly entries = new Map<string, RosterEntry>();
   private readonly plans = new Map<string, AtlasPlan>();
   private readonly faceRects = new Map<string, FaceRect>();
   private readonly failures = new Map<string, string>();
@@ -381,7 +390,7 @@ export class RosterRuntime {
       return { plan: cachedPlan, faceRect: cachedRect };
     }
 
-    const entry = rosterEntry(id);
+    const entry = this.entryFor(id);
     // `from` is an LOD0 build of this very character that the caller is making
     // anyway — the overwhelmingly common case, and worth not duplicating.
     const reference =
@@ -412,7 +421,7 @@ export class RosterRuntime {
 
   /** Build a character's mesh with UVs that match the baked atlas. */
   buildGeometry(id: string, lod: LodLevel = 0): { build: HumanoidBuild; faceRect: FaceRect } {
-    const entry = rosterEntry(id);
+    const entry = this.entryFor(id);
     const build = buildHumanoid(entry.recipe.profile, { ...entry.recipe.options, lod });
     if (lod === 0 && !this.plans.has(id)) {
       // `canonical` prepares this build in place and keeps its plan.
@@ -462,7 +471,7 @@ export class RosterRuntime {
     lod: LodLevel = 0,
     options: Omit<RosterMaterialOptions, 'faceRect'> = {}
   ): IRosterBody {
-    const entry = rosterEntry(id);
+    const entry = this.entryFor(id);
     const { build, faceRect } = this.buildGeometry(id, lod);
     return { entry, build, faceRect, material: this.createMaterial(id, faceRect, options) };
   }
@@ -502,6 +511,7 @@ export class RosterRuntime {
     this.loaded.clear();
     this.plans.clear();
     this.faceRects.clear();
+    this.entries.clear();
   }
 
   /* -- internals ---------------------------------------------------------- */
@@ -512,9 +522,19 @@ export class RosterRuntime {
     return tier === 'ultra' ? 'high' : tier;
   }
 
+  /** One roster entry, built at most once per id for this runtime's lifetime. */
+  private entryFor(id: string): RosterEntry {
+    let entry = this.entries.get(id);
+    if (entry === undefined) {
+      entry = rosterEntry(id); // throws on an unknown id, as before
+      this.entries.set(id, entry);
+    }
+    return entry;
+  }
+
   private entryOrUndefined(id: string): RosterEntry | undefined {
     try {
-      return rosterEntry(id);
+      return this.entryFor(id);
     } catch {
       log.warn(`"${id}" is not a roster character`);
       return undefined;

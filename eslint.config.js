@@ -1,4 +1,5 @@
-// @ts-check
+// @ts-check — editor-only: this file is not in tsconfig.json's `include`, and
+// allowJs/checkJs are off, so `npm run typecheck` does not cover it.
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
@@ -55,9 +56,19 @@ export default tseslint.config(
     },
   },
 
-  // Node-side tooling: allow console + node globals freely.
+  // Node-side tooling. `any` is unavoidable at the edges of the asset encoders,
+  // the glTF transforms and Playwright's `page.evaluate` results, so it is off
+  // here rather than merely warned. (Console is already allowed everywhere by
+  // `no-console: 'off'` above, and Node globals come from tsconfig `types` —
+  // neither is set by this block.)
   {
-    files: ['tools/**/*.ts', 'verification/**/*.ts', '*.config.ts', '*.config.js'],
+    files: [
+      'tools/**/*.ts',
+      'scripts/**/*.ts',
+      'verification/**/*.ts',
+      '*.config.ts',
+      '*.config.js',
+    ],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },

@@ -67,6 +67,7 @@
 
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { REPO_ROOT, Logger, formatBytes, rel } from './lib/index.ts';
 
 /* -------------------------------------------------------------------------- */
@@ -112,7 +113,7 @@ interface ILicenseFacts {
  * An identifier that is NOT in here is an error, not a shrug: an unrecognised
  * licence is an unreviewed licence.
  */
-const LICENSES: Readonly<Record<string, ILicenseFacts>> = {
+export const LICENSES: Readonly<Record<string, ILicenseFacts>> = {
   '0BSD': {
     name: 'BSD Zero Clause License',
     url: 'https://spdx.org/licenses/0BSD.html',
@@ -288,7 +289,7 @@ function licenseFacts(id: string): ILicenseFacts | undefined {
  * obligation it has no mechanism to discharge, so the answer is to never
  * accept the asset in the first place.
  */
-const ASSET_LICENSE_ALLOWLIST: ReadonlySet<string> = new Set([
+export const ASSET_LICENSE_ALLOWLIST: ReadonlySet<string> = new Set([
   'CC0-1.0',
   'CC-BY-4.0',
   'CC-BY-3.0',
@@ -311,7 +312,7 @@ interface IProviderFacts {
   readonly note: string;
 }
 
-const PROVIDERS: Readonly<Record<string, IProviderFacts>> = {
+export const PROVIDERS: Readonly<Record<string, IProviderFacts>> = {
   polyhaven: {
     name: 'Poly Haven',
     url: 'https://polyhaven.com/',
@@ -426,7 +427,7 @@ const ANDROID_SDK_NOTE =
  * proven otherwise. Blocklists are usually a weak tool; here it is exactly
  * right, because the claim under test is "we went nowhere near these".
  */
-const CHARACTER_ASSET_HOSTS: readonly string[] = [
+export const CHARACTER_ASSET_HOSTS: readonly string[] = [
   'mixamo.com',
   'sketchfab.com',
   'turbosquid.com',
@@ -456,7 +457,7 @@ const CHARACTER_ASSET_HOSTS: readonly string[] = [
  * `tools/lib/types.ts`: the audit must be able to observe that a required
  * field is MISSING, which a type that declares it required cannot express.
  */
-interface IAttributionBlock {
+export interface IAttributionBlock {
   readonly license?: string;
   readonly author?: string;
   readonly sourceUrl?: string;
@@ -465,14 +466,14 @@ interface IAttributionBlock {
   readonly year?: number;
 }
 
-interface ISourceFileRow {
+export interface ISourceFileRow {
   readonly path?: string;
   readonly url?: string;
   readonly md5?: string;
   readonly bytes?: number;
 }
 
-interface ISourceEntry {
+export interface ISourceEntry {
   readonly id?: string;
   readonly kind?: string;
   readonly name?: string;
@@ -484,14 +485,14 @@ interface ISourceEntry {
   readonly files?: readonly ISourceFileRow[];
 }
 
-interface ISourceManifestFile {
+export interface ISourceManifestFile {
   readonly version?: number;
   readonly kind?: string;
   readonly description?: string;
   readonly entries?: readonly ISourceEntry[];
 }
 
-interface ICharacterEntry {
+export interface ICharacterEntry {
   readonly id?: string;
   readonly name?: string;
   readonly role?: string;
@@ -506,14 +507,14 @@ interface ICharacterEntry {
   readonly cc0Textures?: readonly string[];
 }
 
-interface ICharacterManifestFile {
+export interface ICharacterManifestFile {
   readonly description?: string;
   readonly thirdPartyCharacterAssets?: number;
   readonly cc0Attribution?: Readonly<Record<string, IAttributionBlock>>;
   readonly entries?: readonly ICharacterEntry[];
 }
 
-interface ILockRow {
+export interface ILockRow {
   readonly sha256?: string;
   readonly md5?: string;
   readonly bytes?: number;
@@ -521,20 +522,20 @@ interface ILockRow {
   readonly path?: string;
 }
 
-interface ILockAsset {
+export interface ILockAsset {
   readonly provider?: string;
   readonly kind?: string;
   readonly bytes?: number;
   readonly files?: readonly string[];
 }
 
-interface ILockFile {
+export interface ILockFile {
   readonly files?: Readonly<Record<string, ILockRow>>;
   readonly assets?: Readonly<Record<string, ILockAsset>>;
   readonly totals?: { readonly entries?: number; readonly files?: number; readonly bytes?: number };
 }
 
-interface IPackageJson {
+export interface IPackageJson {
   readonly name?: string;
   readonly version?: string;
   readonly license?: string | { type?: string };
@@ -543,7 +544,7 @@ interface IPackageJson {
   readonly devDependencies?: Readonly<Record<string, string>>;
 }
 
-interface IPackageLock {
+export interface IPackageLock {
   readonly packages?: Readonly<
     Record<string, { version?: string; license?: string; dev?: boolean; optional?: boolean }>
   >;
@@ -553,22 +554,22 @@ interface IPackageLock {
 /* Derived shapes                                                             */
 /* -------------------------------------------------------------------------- */
 
-type Severity = 'error' | 'warn';
+export type Severity = 'error' | 'warn';
 
-interface IProblem {
+export interface IProblem {
   readonly severity: Severity;
   /** What the problem is about — an asset id, a package name, a file. */
   readonly subject: string;
   readonly message: string;
 }
 
-interface ICheck {
+export interface ICheck {
   readonly name: string;
   readonly passed: boolean;
   readonly detail: string;
 }
 
-interface ICreditedAsset {
+export interface ICreditedAsset {
   readonly id: string;
   readonly name: string;
   readonly provider: string;
@@ -582,7 +583,7 @@ interface ICreditedAsset {
   readonly notes?: string;
 }
 
-interface INpmPackage {
+export interface INpmPackage {
   readonly name: string;
   readonly range: string;
   readonly version: string;
@@ -593,14 +594,14 @@ interface INpmPackage {
   readonly source: 'node_modules' | 'package-lock';
 }
 
-interface ITreeLicenseRow {
+export interface ITreeLicenseRow {
   readonly license: string;
   readonly total: number;
   readonly runtime: number;
   readonly buildOnly: number;
 }
 
-interface ICharacterAudit {
+export interface ICharacterAudit {
   readonly entries: readonly ICharacterEntry[];
   readonly byRole: ReadonlyMap<string, number>;
   readonly thirdParty: readonly string[];
@@ -627,7 +628,7 @@ async function readJsonIfPresent<T>(file: string): Promise<T | null> {
 }
 
 /** Normalise npm's several historical shapes for the licence field. */
-function licenseOf(pkg: IPackageJson): string {
+export function licenseOf(pkg: IPackageJson): string {
   const direct = pkg.license;
   if (typeof direct === 'string' && direct.trim()) return direct.trim();
   if (direct && typeof direct === 'object' && typeof direct.type === 'string') return direct.type;
@@ -641,7 +642,7 @@ function licenseOf(pkg: IPackageJson): string {
   return '';
 }
 
-function hostOf(url: string): string {
+export function hostOf(url: string): string {
   try {
     return new URL(url).host.toLowerCase();
   } catch {
@@ -650,28 +651,56 @@ function hostOf(url: string): string {
 }
 
 /** Every http(s) URL mentioned anywhere inside a value. */
-function urlsIn(value: unknown): string[] {
+export function urlsIn(value: unknown): string[] {
   const found = JSON.stringify(value ?? null).match(/https?:\/\/[^"'\s\\)]+/g);
   return found ? [...new Set(found)] : [];
 }
 
 /** Escape the pipe so a value cannot break out of a markdown table cell. */
-function cell(value: string | number | undefined): string {
+export function cell(value: string | number | undefined): string {
   if (value === undefined || value === '') return '—';
-  return String(value).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  // `\r` as well as `\n`: a CRLF manifest value used to leave a bare carriage
+  // return inside the cell, which is a byte the committed file must not carry.
+  return String(value)
+    .replace(/\|/g, '\\|')
+    .replace(/[\r\n]+/g, ' ');
 }
 
-function link(label: string, url: string | undefined): string {
+export function link(label: string, url: string | undefined): string {
   if (!url) return cell(label);
-  return `[${cell(label)}](${url})`;
+  // The label is escaped by `cell`; the destination needs its own pass. A
+  // manifest URL containing `)` terminates the markdown link early, and one
+  // containing `|` or a newline breaks the table row it sits in. Both come
+  // from outside this file.
+  //
+  // `encodeURIComponent` alone is NOT enough: it leaves `(` and `)` untouched
+  // (they are in its unreserved set) — precisely the two characters that break
+  // the link. They are spelled out; everything else goes through the encoder,
+  // which is what gets a non-ASCII whitespace character UTF-8-encoded correctly
+  // rather than mangled into a single byte.
+  const destination = url.replace(/[()|\s]/g, (c) =>
+    c === '(' ? '%28' : c === ')' ? '%29' : encodeURIComponent(c)
+  );
+  return `[${cell(label)}](${destination})`;
 }
 
-function plural(n: number, one: string, many = `${one}s`): string {
+export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+/**
+ * Thousands separators without `Intl`.
+ *
+ * `toLocaleString('en-US')` returns unseparated digits on a Node built
+ * `--without-intl`, which would move bytes in the one file whose header
+ * promises that the same inputs produce the same bytes.
+ */
+export function groupDigits(n: number): string {
+  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 /** Sort helper that never depends on the platform's locale. */
-function byKey<T>(key: (item: T) => string) {
+export function byKey<T>(key: (item: T) => string) {
   return (a: T, b: T): number => {
     const ka = key(a);
     const kb = key(b);
@@ -683,7 +712,7 @@ function byKey<T>(key: (item: T) => string) {
 /* Loading                                                                    */
 /* -------------------------------------------------------------------------- */
 
-interface IInputs {
+export interface IInputs {
   readonly manifests: ReadonlyMap<string, ISourceManifestFile>;
   readonly characters: ICharacterManifestFile;
   readonly lock: ILockFile;
@@ -853,7 +882,7 @@ async function loadNpmPackages(
  * copyleft packages that belong to whichever OS is not running the tool — the
  * one thing an audit must never do.
  */
-function summariseTree(
+export function summariseTree(
   locked: IPackageLock['packages'],
   problems: IProblem[]
 ): { tree: ITreeLicenseRow[]; copyleft: { name: string; license: string; runtime: boolean }[] } {
@@ -935,7 +964,7 @@ function summariseTree(
  * a credit and a guess. `formatBytes` is not applied here: the raw byte count
  * travels so the totals stay exact.
  */
-function creditEntry(
+export function creditEntry(
   entry: ISourceEntry,
   lock: ILockFile,
   problems: IProblem[]
@@ -1120,7 +1149,7 @@ function creditEntry(
  * manifest or an emptied lockfile fails the audit instead of "proving" the
  * claim over nothing.
  */
-function auditCharacters(
+export function auditCharacters(
   characters: ICharacterManifestFile,
   lock: ILockFile,
   manifests: ReadonlyMap<string, ISourceManifestFile>,
@@ -1433,7 +1462,7 @@ function auditCharacters(
 /* Markdown                                                                   */
 /* -------------------------------------------------------------------------- */
 
-interface IReport {
+export interface IReport {
   readonly credited: ReadonlyMap<string, ICreditedAsset[]>;
   readonly characters: ICharacterAudit;
   readonly inputs: IInputs;
@@ -1454,7 +1483,7 @@ function assetTable(assets: readonly ICreditedAsset[]): string[] {
   return lines;
 }
 
-function renderMarkdown(report: IReport): string {
+export function renderMarkdown(report: IReport): string {
   const { credited, characters, inputs, problems } = report;
   const out: string[] = [];
   const w = (line = ''): void => {
@@ -1523,7 +1552,7 @@ function renderMarkdown(report: IReport): string {
   w();
   w(
     `Downloaded source material: **${plural(sourceFiles, 'file')}, ` +
-      `${formatBytes(sourceBytes)}** (${sourceBytes.toLocaleString('en-US')} bytes), ` +
+      `${formatBytes(sourceBytes)}** (${groupDigits(sourceBytes)} bytes), ` +
       'every byte of it CC0, recorded with a provider-published md5 and a ' +
       'locally computed sha256 in ' +
       '[`assets/assets.lock.json`](assets/assets.lock.json).'
@@ -2037,14 +2066,14 @@ async function prettify(prettier: Prettier, markdown: string, filepath: string):
 /* CLI                                                                        */
 /* -------------------------------------------------------------------------- */
 
-interface IOptions {
+export interface IOptions {
   readonly check: boolean;
   readonly out: string;
   readonly quiet: boolean;
   readonly help: boolean;
 }
 
-function parseArgs(argv: readonly string[]): IOptions {
+export function parseArgs(argv: readonly string[]): IOptions {
   let check = false;
   let out = DEFAULT_OUT;
   let quiet = false;
@@ -2289,15 +2318,29 @@ async function main(): Promise<number> {
   return 0;
 }
 
-main()
-  .then((code) => {
-    process.exitCode = code;
-  })
-  .catch((error: unknown) => {
-    const log = new Logger();
-    log.error(error instanceof Error ? error.message : String(error));
-    if (error instanceof Error && error.stack && process.env.DEBUG) {
-      process.stderr.write(`${error.stack}\n`);
-    }
-    process.exitCode = 1;
-  });
+/**
+ * Only run the CLI when invoked directly, never when imported by a test.
+ *
+ * Importing this module used to REWRITE `ATTRIBUTION.md` as a side effect,
+ * which is why the nine checks carrying this project's load-bearing compliance
+ * claim had no tests at all. `pathToFileURL` rather than
+ * `new URL(import.meta.url).pathname`: a URL pathname mangles a Windows drive
+ * letter, and this round-trips exactly.
+ */
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error: unknown) => {
+      const log = new Logger();
+      log.error(error instanceof Error ? error.message : String(error));
+      if (error instanceof Error && error.stack && process.env.DEBUG) {
+        process.stderr.write(`${error.stack}\n`);
+      }
+      process.exitCode = 1;
+    });
+}

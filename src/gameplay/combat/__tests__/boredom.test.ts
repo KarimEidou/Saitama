@@ -236,6 +236,42 @@ describe('idle rise and baseline decay', () => {
     expect(events).toBeLessThan(60 * idleSeconds * 0.02);
   });
 
+  it('keeps the audit log bounded over a long session', () => {
+    // The log is ON BY DEFAULT and nothing consumes more than its tail — the
+    // only reader in the repository takes `slice(-4)`. Unbounded, it grows for
+    // the whole session, one record per reported move.
+    const bus = new RecordingBus();
+    // A wolf kill that exactly cancels a rescue, so 600 alternating moves stay
+    // off both clamps and every single one clears the 5e-3 emit threshold.
+    const tuning = resolveCombatTuning({
+      boredomPerTrivialKill: TUNING.boredomPerCivilianSaved,
+    });
+    const m = new BoredomMeter({ bus, tuning, playerId: 'saitama', initial: 0.5 });
+
+    kill(bus, 'wolf');
+    expect(m.log).toHaveLength(1);
+    const firstDetail = m.log[0]!.detail;
+
+    for (let i = 0; i < 300; i++) {
+      bus.emit('CivilianSaved', {
+        entityId: `rescued-${i}`,
+        position: { x: 0, y: 0, z: 0 },
+        byPlayer: true,
+        reputationDelta: 1,
+      });
+      kill(bus, 'wolf');
+    }
+    // Every move was reported, so an uncapped log would hold 601 records.
+    expect(bus.ofType('BoredomChanged').length).toBeGreaterThan(500);
+
+    expect(m.log).toHaveLength(256);
+    // Newest last, and still the meter's own current value.
+    expect(m.log[m.log.length - 1]!.value).toBe(m.value);
+    // Oldest retained is NOT the first move any more — the head was dropped.
+    expect(m.log[0]!.detail).not.toBe(firstDetail);
+    m.dispose();
+  });
+
   it('reports a continuous previous -> value chain despite the quantisation', () => {
     const h = meter(0.3);
     for (let i = 0; i < 60 * 200; i++) h.meter.update(1 / 60, false);
@@ -392,5 +428,23 @@ describe('tuning', () => {
     expect(patched.boredomPerTrivialKill).toBe(0.5);
     expect(patched.normalReachMetres).toBe(TUNING.normalReachMetres);
     expect(DEFAULT_COMBAT_TUNING.boredomPerTrivialKill).not.toBe(0.5);
+  });
+
+  it('ignores a patch key that was explicitly undefined', () => {
+    // `exactOptionalPropertyTypes` is off, so `{ tapMaxHoldSeconds: undefined }`
+    // is a well-typed patch — and it is the natural shape of a patch assembled
+    // from optional config. Spreading it would write `undefined` into the
+    // tap/hold discriminator, where `holdSeconds <= undefined` is always false
+    // and EVERY TAP would go out as a 40 m serious punch.
+    const t = resolveCombatTuning({
+      tapMaxHoldSeconds: undefined,
+      boredomPerTrivialKill: 0.5,
+    });
+    expect(t.tapMaxHoldSeconds).toBe(DEFAULT_COMBAT_TUNING.tapMaxHoldSeconds);
+    expect(t.boredomPerTrivialKill).toBe(0.5);
+  });
+
+  it('returns a frozen tuning', () => {
+    expect(Object.isFrozen(resolveCombatTuning({}))).toBe(true);
   });
 });

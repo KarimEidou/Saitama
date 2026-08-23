@@ -608,16 +608,24 @@ export function runScenarios(): readonly IScenarioResult[] {
     const jaded = new ProgressionCoordinator({ bus: jadedBus, worldSeed: WORLD_SEED });
     jadedBus.emit('BoredomChanged', { value: 1, previous: 0, reason: 'trivialVictory' });
 
-    const before = fresh.progression.points;
+    // Each coordinator is measured against ITS OWN starting points. They are
+    // equal today only because two coordinators built with the same worldSeed
+    // start at an identical rank — incidental to the constructor, not something
+    // this scenario controls, and not what the throttle ratio is about.
+    const freshBefore = fresh.progression.points;
+    const jadedBefore = jaded.progression.points;
     fresh.progression.addPoints(1000, 'harness');
     jaded.progression.addPoints(1000, 'harness');
+    const freshGain = fresh.progression.points - freshBefore;
+    const jadedGain = jaded.progression.points - jadedBefore;
 
     results.push({
       name: 'boredomThrottle',
       detail: {
-        freshGain: round(fresh.progression.points - before),
-        jadedGain: round(jaded.progression.points - before),
-        ratio: round((jaded.progression.points - before) / (fresh.progression.points - before), 4),
+        freshGain: round(freshGain),
+        jadedGain: round(jadedGain),
+        // From the UNROUNDED gains, as before.
+        ratio: round(jadedGain / freshGain, 4),
         expectedFloor: BOREDOM_RANK_FLOOR,
         funFightsAtMaxBoredom: jaded.boredom.funFightsAvailable,
         funFightLock: BOREDOM_FUN_FIGHT_LOCK,
@@ -1297,9 +1305,4 @@ if (canvas) {
     harness.renderPanel();
     api.ready = true;
   });
-
-  const loop = (): void => {
-    requestAnimationFrame(loop);
-  };
-  loop();
 }

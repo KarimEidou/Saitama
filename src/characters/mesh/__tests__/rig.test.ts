@@ -21,7 +21,7 @@ import type { BoneName } from '@/types';
 import { BONE_ORDER, BONE_PARENT, buildRig, resolveDimensions } from '../rig';
 import { buildCharacter, showcaseBodies } from '../characters';
 import { buildHumanoid } from '../assemble';
-import { createCharacterParts } from '../instance';
+import { createCharacterParts, createSkinnedMesh } from '../instance';
 
 const PROFILE = showcaseBodies()[0]!.profile;
 
@@ -139,6 +139,32 @@ describe('humanoid rig', () => {
     expect(parts.meshes).toHaveLength(1);
     expect(parts.skeleton.bones).toHaveLength(27);
     parts.dispose();
+  });
+
+  it('publishes a bounding sphere that survives animation', () => {
+    // three.js computes a SkinnedMesh's bounding sphere lazily and exactly ONCE
+    // — from whatever pose is current at the first frustum test — then reuses it
+    // forever. A character whose animation later reaches further than that pose
+    // gets culled while it is still on screen. Publishing a conservative sphere
+    // up front replaces the snapshot with something that cannot go stale, and
+    // keeps culling on for the crowd.
+    const build = buildCharacter('saitama', 0);
+    const { mesh } = createSkinnedMesh(build, new THREE.MeshBasicMaterial());
+    expect(mesh.frustumCulled).toBe(true);
+    expect(mesh.boundingSphere).not.toBeNull();
+
+    const sphere = mesh.boundingSphere!;
+    const p = build.geometry.getAttribute('position');
+    const v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      expect(sphere.containsPoint(v.fromBufferAttribute(p as THREE.BufferAttribute, i))).toBe(true);
+    }
+
+    // ...and it has genuine margin over the bind pose, which is what buys the
+    // punch, the jump and the cape swing.
+    build.geometry.computeBoundingSphere();
+    expect(sphere.radius).toBeGreaterThan(build.geometry.boundingSphere!.radius);
+    build.geometry.dispose();
   });
 
   it('is deterministic: same profile, byte-identical mesh', () => {

@@ -103,7 +103,9 @@ export function toActorState(state: PlayerLocoState): ActorState {
  * hard-landing clip can diverge without touching the state machine.
  */
 export function toClipName(state: PlayerLocoState): ClipName {
-  return toActorState(state) as ClipName;
+  // No cast: `ActorState` is a subset of `ClipName` by design, and letting the
+  // compiler prove that is what keeps the two unions in sync (see entity.ts).
+  return toActorState(state);
 }
 
 /* -------------------------------------------------------------------------- */

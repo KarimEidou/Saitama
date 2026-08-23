@@ -224,7 +224,18 @@ export class NearCivilian implements IActor, INPCBehaviour {
     this.shepherdTimer = 0;
     this.deathPlayed = false;
     this.clipTime = 0;
-    this.lastClip = undefined;
+    // A pooled body arrives holding whatever the last occupant was doing — most
+    // visibly the clamped last frame of `death` — and the locomotion solver
+    // still holds that civilian's world-space foot plants. Snap both before the
+    // new agent's first `present`, or the next occupant fades up out of a
+    // corpse pose with a foot nailed to the old pavement. `fade: 0` takes the
+    // no-crossfade path, so the pose is replaced rather than blended, and
+    // `lastClip = 'idle'` stops `selectClip` re-issuing the same clip next
+    // frame — a new occupant who should be walking still gets `play('walk')`
+    // because `want` differs.
+    this.lastClip = 'idle';
+    this.animator.solver.reset();
+    this.animator.play('idle', { fade: 0 });
     this.tree.reset(this.context);
     this.stateMachine.transition('idle', true);
   }

@@ -230,6 +230,25 @@ outside the bundle and 404s on both. It works on `npm run dev` and on a `dist/`
 served at the web root, which is exactly what makes the mistake survive local
 testing. Build asset URLs relative, always.
 
+### The transcoder is copied, never bundled
+
+`KTX2Loader` fetches `basis_transcoder.js` and `basis_transcoder.wasm` at runtime from
+`<asset root>/basis/` (`BASIS_TRANSCODER_DIR`, `src/assets/constants.ts`). Nothing in the module
+graph imports them, and they cannot be imported: `basis_transcoder.js` is a UMD bundle that Vite
+would rewrite into an ES module the worker cannot evaluate. So `vite.config.ts` registers
+`basisTranscoderPlugin()` (`scripts/stage-basis-transcoder.ts`), which copies both files verbatim
+out of `node_modules/three/examples/jsm/libs/basis/` into `public/assets/basis/` on `buildStart`
+— which is what `vite dev` serves and what Vite's public-dir copy carries into
+`dist/assets/basis/` — and again into `<outDir>/assets/basis/` on `closeBundle`.
+
+Drop that plugin and the build still exits 0, the game still boots, and every texture is
+unparseable: each `.ktx2` downloads with a 200 and fails at parse time, so no error counter
+fires and the city renders entirely as the missing-asset checker.
+`scripts/__tests__/stage-basis-transcoder.test.ts` asserts the plugin is registered for that
+reason. Note that a build also emits hashed copies at `dist/assets/basis_transcoder-*.js`, pulled
+in through three's own `new URL(..., import.meta.url)` graph; they sit at the wrong path and the
+loader never asks for them, so their presence is not evidence that staging happened.
+
 For the APK, `scripts/build-apk.ts` prunes every non-mobile tier out of the
 Capacitor copy before Gradle runs. Without that step the APK is ~296 MB — over
 Google Play's base limit, and full of assets a phone would never load.

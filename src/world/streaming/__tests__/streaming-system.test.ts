@@ -16,7 +16,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import type { IChunk } from '@/types';
-import { EventBus } from '@/util';
+import { EventBus, resetLogState } from '@/util';
 import { CHUNK_GRID, CHUNK_SIZE, chunkIndex } from '@/spatial/constants';
 import {
   StreamingSystem,
@@ -25,7 +25,14 @@ import {
   type IStreamingSystemOptions,
 } from '../streaming-system';
 import { ChunkDamageState } from '../damage-state';
-import { MAX_UPLOADS_PER_FRAME, RING_R0, RING_R1, RING_R2, UPLOAD_BUDGET_MS } from '../constants';
+import {
+  MAX_UPLOADS_PER_FRAME,
+  RING_R0,
+  RING_R1,
+  RING_R2,
+  RING_R3,
+  UPLOAD_BUDGET_MS,
+} from '../constants';
 import type { ColliderMode, CrowdMode } from '../constants';
 import type { IColliderBox, ICrowdSlot } from '../protocol';
 
@@ -275,6 +282,36 @@ describe('LOD rings', () => {
     await settle(system);
     expect(system.chunkAtIndex(far)!.builtRing).toBe(RING_R0);
   });
+
+  it('reports assigned ring populations and queue age', async () => {
+    const { system } = makeSystem();
+    system.setView(
+      new THREE.Vector3(CHUNK_SIZE * 0.5, 2, CHUNK_SIZE * 0.5),
+      new THREE.Vector3(0, 0, -1)
+    );
+
+    // Mid-flight: a cold start has a queue, and the oldest entry in it has an
+    // age. `chunksByRing` cannot report this — it counts the ring each RESIDENT
+    // chunk was built at, so before anything is resident it is all zeroes.
+    system.update(1 / 60);
+    await tick();
+    const cold = system.getDetailedStats();
+    expect(cold.queued).toBeGreaterThan(0);
+    expect(cold.queueAgeFrames).toBeGreaterThanOrEqual(0);
+    expect(cold.chunksByAssignedRing[RING_R0]).toBe(9);
+
+    await settle(system);
+    const settled = system.getDetailedStats();
+    // Nothing queued means no age to report.
+    expect(settled.queued).toBe(0);
+    expect(settled.queueAgeFrames).toBe(0);
+    // Once settled every resident chunk is built at the ring it was assigned,
+    // so the two views of the population must agree.
+    expect(settled.chunksByAssignedRing.slice(0, 3)).toEqual(settled.chunksByRing.slice(0, 3));
+    // The resident radius at `high` is exactly R2's outer edge, so no chunk the
+    // assignment pass looks at can land in R3.
+    expect(settled.chunksByAssignedRing[RING_R3]).toBe(0);
+  });
 });
 
 describe('events', () => {
@@ -453,7 +490,13 @@ describe('explicit requests', () => {
 
 describe('build failures', () => {
   it('does not wedge the world when every build fails', async () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // The pool's failure sink is a rate-limited `ILogger.throttle`, which emits
+    // at WARN — a bare error-level console call inside a per-chunk failure path
+    // would fire once per job for as long as the camera kept asking. The
+    // throttle memory is process-global, so reset it or a sibling file's
+    // identical message swallows the one this case is asserting.
+    resetLogState();
+    const errors = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       // The documented generator seam, pointed at an id nobody registered:
       // every job comes back `{kind:'error'}`.
@@ -482,7 +525,7 @@ describe('build failures', () => {
   });
 
   it('settles an outstanding load() with the failure instead of hanging', async () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errors = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const { system } = makeSystem({ quality: 'low', generator: 'no-such-generator' });
       system.setView(new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 0, -1));

@@ -495,7 +495,14 @@ function makeEquirectTarget(width: number): THREE.WebGLRenderTarget {
  * cycle that sits on one sky costs no rebuilds at all, and a fast cross-fade
  * gets the rebuilds it needs.
  */
+/** Cross-fade ordering. Module-level: `signatureOf` runs once per frame. */
+const SKY_SIGNATURE_ORDER: Readonly<Record<SkyKey, number>> = {
+  night: 0,
+  dawn: 1,
+  day: 2,
+  dusk: 3,
+};
+
 function signatureOf(blend: ISkyBlend): number {
-  const order: Record<SkyKey, number> = { night: 0, dawn: 1, day: 2, dusk: 3 };
-  return order[blend.from] + (blend.from === blend.to ? 0 : blend.alpha);
+  return SKY_SIGNATURE_ORDER[blend.from] + (blend.from === blend.to ? 0 : blend.alpha);
 }

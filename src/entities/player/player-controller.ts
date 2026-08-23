@@ -130,6 +130,8 @@ export interface IPlayerLandingInfo {
 
 /** Live read-out, for the debug HUD and the harness. */
 export interface IPlayerDiagnostics {
+  /** Identifier this controller was constructed with, or undefined. */
+  readonly entityId: EntityId | undefined;
   readonly state: PlayerLocoState;
   readonly timeInState: number;
   readonly grounded: boolean;
@@ -187,6 +189,7 @@ export class PlayerController {
   private readonly root: THREE.Object3D | null;
   private readonly footOffset: number;
   private readonly clipFade: number;
+  private readonly entityId: EntityId | undefined;
   private readonly unsubscribe: (() => void) | null;
 
   /* --- per-frame carried state --- */
@@ -242,6 +245,7 @@ export class PlayerController {
     this.footOffset = options.footOffsetM ?? 0.875;
     this.clipFade = options.clipFadeSeconds ?? 0.12;
     this.yaw = options.yaw ?? 0;
+    this.entityId = options.entityId;
 
     this.controller.body.getTransform(this.position, tmpQuat);
     this.apexY = this.position.y;
@@ -329,6 +333,7 @@ export class PlayerController {
 
   diagnostics(): IPlayerDiagnostics {
     return {
+      entityId: this.entityId,
       state: this.stateMachine.current,
       timeInState: this.stateMachine.timeInState,
       grounded: this.grounded,
@@ -360,7 +365,7 @@ export class PlayerController {
    * physics world afterwards, then call `postStep()`.
    */
   update(input: InputState, dt: number): void {
-    if (this.disposed || dt <= 0) return;
+    if (this.disposed || !Number.isFinite(dt) || dt <= 0) return;
     // Cheap safety net for a caller that skipped postStep(): the state below
     // would otherwise be a whole frame stale in a way that is very hard to see.
     if (this.pendingPostStep) this.postStep();

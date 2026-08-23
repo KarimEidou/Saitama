@@ -12,6 +12,7 @@ import type { GameEventOf } from '@/types';
 import { DayNightSystem } from '../day-night-system';
 import { parseEnvironmentMeasurements } from '../environment-blend';
 import { phaseForTime } from '../sky-lighting';
+import { sunPosition } from '../solar';
 import { DAY_LENGTH_SECONDS, EXPOSURE_MAX, EXPOSURE_MIN, SYNODIC_MONTH_DAYS } from '../constants';
 
 const MANIFEST = {
@@ -69,6 +70,15 @@ describe('phaseForTime', () => {
     expect(phaseForTime(0.99)).toBe('midnight');
     expect(phaseForTime(1.0)).toBe('midnight');
     expect(phaseForTime(-0.01)).toBe('midnight');
+  });
+
+  it('names a phase for a non-finite time', () => {
+    // Its wrap used to be an unguarded `t % 1`, so NaN reached the boundary
+    // scan, every `t >= boundary.start` was false and the answer was 'midnight'
+    // only by accident. Now it is by construction.
+    expect(phaseForTime(Number.NaN)).toBe('midnight');
+    expect(phaseForTime(Number.POSITIVE_INFINITY)).toBe('midnight');
+    expect(phaseForTime(Number.NEGATIVE_INFINITY)).toBe('midnight');
   });
 });
 
@@ -287,6 +297,65 @@ describe('quest time override', () => {
   });
 });
 
+describe('lunar age', () => {
+  /** Run `days` in-game days on a short cycle, one 1/60 s step at a time. */
+  function runDays(system: DayNightSystem, dayLengthSeconds: number, days: number): void {
+    const steps = Math.round((dayLengthSeconds * days) / (1 / 60));
+    for (let i = 0; i < steps; i++) system.update(1 / 60);
+  }
+
+  it('holds the moon fixed by default, so nights are reproducible', () => {
+    // `advanceMoon: false` is the documented guarantee. A regression that
+    // flipped the default would change every night-time screenshot the harness
+    // takes, and nothing else asserts it.
+    const system = new DayNightSystem({
+      startTimeOfDay: 0.9,
+      dayLengthSeconds: 10,
+      lunarAgeDays: 5,
+      measurements: parseEnvironmentMeasurements(MANIFEST),
+    });
+    runDays(system, 10, 4);
+    expect(system.dayCount).toBeGreaterThanOrEqual(3);
+    expect(system.lunarAgeDays).toBe(5);
+  });
+
+  it('advances one lunar day per day rollover and wraps at the synodic month', () => {
+    // `rollOverDay` is the only writer of `lunarAge` and it both advances and
+    // wraps — `(lunarAge + 1) % SYNODIC_MONTH_DAYS` — with neither half
+    // asserted. The value drives `moonPosition` and `moonIllumination`, i.e.
+    // how much light the world has at night.
+    const start = 28;
+    const system = new DayNightSystem({
+      startTimeOfDay: 0.9,
+      dayLengthSeconds: 10,
+      lunarAgeDays: start,
+      advanceMoon: true,
+      measurements: parseEnvironmentMeasurements(MANIFEST),
+    });
+    runDays(system, 10, 4);
+    expect(system.dayCount).toBeGreaterThanOrEqual(3);
+    // Asserted against the OBSERVED day count, not a hard-coded one, so the
+    // test does not depend on exactly where the first wrap lands.
+    expect(system.lunarAgeDays).toBeCloseTo((start + system.dayCount) % SYNODIC_MONTH_DAYS, 9);
+    expect(system.lunarAgeDays).toBeGreaterThanOrEqual(0);
+    expect(system.lunarAgeDays).toBeLessThan(SYNODIC_MONTH_DAYS);
+    expect(system.lunarAgeDays).toBeLessThan(start); // it wrapped
+  });
+
+  it('a moving moon changes how much light a midnight has', () => {
+    const at = (lunarAgeDays: number): number => {
+      const system = new DayNightSystem({
+        startTimeOfDay: 0,
+        lunarAgeDays,
+        measurements: parseEnvironmentMeasurements(MANIFEST),
+      });
+      return system.state.moonIntensity;
+    };
+    expect(at(14.765)).toBeGreaterThan(0.5); // full moon on the meridian
+    expect(at(0)).toBeLessThan(0.05); // new moon: it is down and unlit
+  });
+});
+
 describe('published lighting', () => {
   it('is measurably darker at night than at noon — the whole point', () => {
     const system = makeSystem(0.5);
@@ -421,6 +490,23 @@ describe('published lighting', () => {
     system.setTimeOfDay(0.0);
     const c = system.lighting.ambientColor;
     expect(c.b).toBeGreaterThan(c.r);
+  });
+
+  it('publishes the same sun the key light was derived from', () => {
+    // `fillDayNightState` used to run its own `sunPosition`, taking the time
+    // and the solar options through DIFFERENT parameters from `deriveLighting`
+    // — so the two published states could describe two different instants with
+    // nothing able to notice, on top of paying for the trig twice a frame.
+    const system = makeSystem(0.5);
+    for (const t of [0, 0.19, 0.5, 0.7881, 0.95]) {
+      system.setTimeOfDay(t);
+      const truth = sunPosition(t);
+      expect(system.state.sunElevation).toBe(truth.elevation);
+      expect(system.derived.sunElevation).toBe(truth.elevation);
+      expect(system.state.sunDirection.x).toBeCloseTo(-truth.toBodyX, 12);
+      expect(system.state.sunDirection.y).toBeCloseTo(-truth.toBodyY, 12);
+      expect(system.state.sunDirection.z).toBeCloseTo(-truth.toBodyZ, 12);
+    }
   });
 
   it('keeps the sun direction unit-length and pointing down while the sun is up', () => {

@@ -47,11 +47,6 @@ export function sha256Of(data: string | Buffer): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
-/** md5 of an in-memory value. */
-export function md5Of(data: string | Buffer): string {
-  return createHash('md5').update(data).digest('hex');
-}
-
 /**
  * Digest of a MULTI-FILE asset.
  *

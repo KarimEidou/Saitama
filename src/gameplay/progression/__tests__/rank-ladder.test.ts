@@ -52,6 +52,30 @@ describe('ladder geometry', () => {
     expect(indexForRank('C', 0)).toBe(indexForRank('C', 1));
     expect(indexForRank('C', 5000)).toBe(indexForRank('C', 390));
   });
+
+  it('reads a NaN index as the bottom of the ladder, never as the top', () => {
+    expect(classForIndex(Number.NaN)).toBe('C');
+    expect(rankForIndex(Number.NaN)).toBe(390);
+    expect(indexForRank('C', Number.NaN)).toBe(0);
+    expect(indexForRank('S', Number.NaN)).toBe(indexForRank('S', 17));
+    // ...which is the same stance indexForPoints already takes.
+    expect(indexForPoints(Number.NaN)).toBe(0);
+  });
+
+  it('never returns a non-number from pointsForIndex', () => {
+    for (const bad of [
+      Number.NaN,
+      -1,
+      1e9,
+      0.5,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ]) {
+      expect(Number.isFinite(pointsForIndex(bad))).toBe(true);
+    }
+    expect(pointsForIndex(Number.POSITIVE_INFINITY)).toBe(pointsForIndex(LADDER_SIZE - 1));
+    expect(pointsForIndex(Number.NEGATIVE_INFINITY)).toBe(0);
+  });
 });
 
 describe('points', () => {

@@ -139,6 +139,82 @@ describe('stream out and back in', () => {
     system.dispose();
   });
 
+  it('does not carry the restored span into the next detach batch', () => {
+    // ── WHY THIS MATTERS ────────────────────────────────────────────────
+    // A restore reaches `markDestroyed`, which widens the structure's
+    // coalesced upload range — but nothing puts the structure in the flush
+    // list, so no `flushUpload()` ever records it. Correctness is fine
+    // (`needsUpdate` alone makes three upload the whole attribute once), but
+    // the stale span then gets unioned into the FIRST REAL DETACH's range,
+    // which uploads most of the building instead of one chunk's forty bytes,
+    // every time a restored building is first punched.
+    const damage = new ChunkDamageState();
+    const { bus, system } = punchedSystem(damage);
+    const first = makeTower({ floors: 12, verticesPerChunk: 32 });
+    system.register({
+      id: 'block.b1',
+      layout: first.layout,
+      target: { destroyed: first.attribute },
+      position: { x: 0, y: 0, z: 0 },
+      chunkIndex: CHUNK_INDEX,
+      buildingIndex: BUILDING_INDEX,
+    });
+
+    bus.emit('ShockwaveFired', {
+      origin: { x: -30, y: 22, z: 0 },
+      direction: { x: 1, y: 0, z: 0 },
+      power: 4e5,
+      range: 60,
+      angle: 0.12,
+      intent: 'serious',
+      punchKind: 'serious',
+    });
+    for (let frame = 0; frame < 8; frame++) system.update(1 / 60);
+    expect(system.unregister('block.b1')).toBe(true);
+
+    const second = makeTower({ floors: 12, verticesPerChunk: 32 });
+    const restored = system.register({
+      id: 'block.b1',
+      layout: second.layout,
+      target: { destroyed: second.attribute },
+      position: { x: 0, y: 0, z: 0 },
+      chunkIndex: CHUNK_INDEX,
+      buildingIndex: BUILDING_INDEX,
+    });
+    expect(restored.destroyedCount).toBeGreaterThan(0);
+
+    // The restore records no range of its own: `needsUpdate` is set, and three
+    // reads that as "upload the whole attribute", which is what a brand new
+    // mesh wants anyway.
+    expect(second.attribute.uploads).toBe(0);
+    expect(second.attribute.updateRanges).toEqual([]);
+    expect(second.attribute.needsUpdate).toBe(true);
+
+    // Now one real detach, on the highest chunk the punch left standing.
+    const intact = [...restored.destroyed]
+      .map((flag, index) => (flag === 0 ? index : -1))
+      .filter((index) => index >= 0);
+    const gone = [...restored.destroyed]
+      .map((flag, index) => (flag === 1 ? index : -1))
+      .filter((index) => index >= 0);
+    expect(intact.length).toBeGreaterThan(0);
+    const target = intact[intact.length - 1]!;
+
+    // The restored span really does cover other vertices, so the assertion
+    // below discriminates rather than passing because there was nothing to
+    // carry over.
+    expect(gone.some((index) => index !== target)).toBe(true);
+
+    expect(system.detachChunk(restored, target, 'external')).toBe(true);
+    system.update(1 / 60);
+
+    // Exactly that chunk's own vertices. With the restored span still sitting
+    // in the accumulator the range instead runs from the lowest restored chunk
+    // to the highest, i.e. most of the building.
+    expect(second.attribute.updateRanges).toEqual([{ start: target * 32, count: 32 }]);
+    system.dispose();
+  });
+
   it('writes bits into the real 8 KB bitmask', () => {
     const damage = new ChunkDamageState();
     const { bus, system } = punchedSystem(damage);

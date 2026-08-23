@@ -14,7 +14,7 @@
  *
  * Callers:
  *   await initPhysics();            // once, during boot, off the critical path
- *   const world = new RapierPhysicsWorld();   // everything after assumes init
+ *   const world = new PhysicsWorld();          // everything after assumes init
  *
  * `initPhysics()` is idempotent and safe to call concurrently: the in-flight
  * promise is shared, so N systems awaiting it produce exactly one wasm

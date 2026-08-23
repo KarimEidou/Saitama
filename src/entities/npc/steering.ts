@@ -36,6 +36,7 @@
 import { clamp, clamp01 } from '@/util';
 import { DynamicEntityGrid } from '@/spatial/entity-grid';
 import { IndexList } from '@/spatial/index-list';
+import { angleTo, yawFromDirection } from './actor-support';
 import {
   ACCELERATION,
   ALARM_COWER,
@@ -769,13 +770,12 @@ export class CrowdSteering {
       }
       const len = Math.sqrt(tx * tx + tz * tz);
       if (len < 1e-4) continue;
-      // Characters face -Z, so the yaw that looks along (tx, tz) is
-      // atan2(tx, -tz) — not atan2(tz, tx).
-      const want = Math.atan2(tx, -tz);
+      // `yawFromDirection` and `angleTo` own the -Z facing convention and the
+      // wrap; see the header of `actor-support.ts` for why they are not
+      // re-derived here.
       const current = agents.yaw[i]!;
-      let delta = want - current;
-      while (delta > Math.PI) delta -= Math.PI * 2;
-      while (delta < -Math.PI) delta += Math.PI * 2;
+      const want = yawFromDirection(tx, tz);
+      const delta = angleTo(current, want);
       agents.yaw[i] = current + clamp(delta, -maxTurn, maxTurn);
     }
   }

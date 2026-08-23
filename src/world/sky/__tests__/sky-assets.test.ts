@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { IAssetManifest, IAssetProvider, QualityTier } from '@/types';
-import { HttpAssetProvider, SkyEnvironmentRegistry } from '../sky-assets';
+import { HttpAssetProvider, SkyEnvironmentRegistry, prepareEnvironment } from '../sky-assets';
 
 /* -------------------------------------------------------------------------- */
 /* Provider                                                                   */
@@ -83,6 +83,81 @@ describe('HttpAssetProvider.resolveUrl', () => {
     // Nothing at or below `mobile`, so the sky is better than a black screen.
     expect(provider.resolveUrl('hdri.sky.night', 'mobile')).toContain('sky-night-high.ktx2');
     expect(provider.resolveUrl('missing.id', 'high')).toBeUndefined();
+  });
+});
+
+describe('HttpAssetProvider URL composition', () => {
+  /** One entry, one output, with full control over the manifest's root. */
+  function urlManifest(file: string, generatedRoot?: string): unknown {
+    return {
+      version: 3,
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      generator: 'test',
+      ...(generatedRoot === undefined ? {} : { generatedRoot }),
+      entries: [
+        {
+          id: 'hdri.sky.day',
+          kind: 'hdri',
+          tags: [],
+          outputs: [{ tier: 'mobile' as const, file }],
+        },
+      ],
+    };
+  }
+
+  async function openWith(
+    file: string,
+    generatedRoot?: string,
+    baseUrl = '/assets'
+  ): Promise<HttpAssetProvider> {
+    vi.stubGlobal('fetch', stubFetch(urlManifest(file, generatedRoot)));
+    const provider = new HttpAssetProvider({ baseUrl, tier: 'mobile' });
+    await provider.loadManifest();
+    return provider;
+  }
+
+  it('joins baseUrl, generatedRoot and the output path', async () => {
+    const provider = await openWith('env/day.mobile.ktx2', 'generated');
+    expect(provider.resolveUrl('hdri.sky.day', 'mobile')).toBe(
+      '/assets/generated/env/day.mobile.ktx2'
+    );
+  });
+
+  it('never emits a doubled slash, whatever the manifest writes', async () => {
+    // An absolute output path is what the canonical `resolveFile` strips.
+    // `/assets/generated//env/day.mobile.ktx2` is 404 on most static servers
+    // and rejected outright by Capacitor's file scheme.
+    const provider = await openWith('/env/day.mobile.ktx2', 'generated');
+    const url = provider.resolveUrl('hdri.sky.day', 'mobile')!;
+    expect(url).toBe('/assets/generated/env/day.mobile.ktx2');
+    expect(url.slice(1)).not.toContain('//');
+  });
+
+  it('strips a trailing slash from baseUrl', async () => {
+    const provider = await openWith('env/day.mobile.ktx2', undefined, '/assets/');
+    expect(provider.resolveUrl('hdri.sky.day', 'mobile')).toBe('/assets/env/day.mobile.ktx2');
+  });
+
+  it('does not repeat a generatedRoot already at the tail of baseUrl', async () => {
+    const provider = await openWith('env/day.mobile.ktx2', 'generated', '/assets/generated');
+    expect(provider.resolveUrl('hdri.sky.day', 'mobile')).toBe(
+      '/assets/generated/env/day.mobile.ktx2'
+    );
+  });
+
+  it('returns undefined for an id that is not in the manifest', async () => {
+    const provider = await openWith('env/day.mobile.ktx2');
+    expect(provider.resolveUrl('hdri.sky.night', 'mobile')).toBeUndefined();
+  });
+
+  it('reports offline availability honestly off-device', async () => {
+    // Everything ships inside the APK under Capacitor; over the dev server
+    // nothing is guaranteed.
+    const provider = await openWith('env/day.mobile.ktx2');
+    expect(provider.isAvailableOffline('hdri.sky.day')).toBe(false);
+    vi.stubGlobal('Capacitor', { isNativePlatform: () => true });
+    expect(provider.isAvailableOffline('hdri.sky.day')).toBe(true);
+    expect(provider.isAvailableOffline('hdri.sky.night')).toBe(false);
   });
 });
 
@@ -237,5 +312,43 @@ describe('SkyEnvironmentRegistry.dispose', () => {
 
     expect(registry.getHDRI('hdri.sky.day')).toBeUndefined();
     expect(disposed).toHaveBeenCalled();
+  });
+});
+
+describe('prepareEnvironment', () => {
+  it('applies the settings KTX2Loader gets wrong for an equirect', () => {
+    // `KTX2Loader` hands environment maps back with `NearestFilter` on both
+    // min and mag: the sky is a visibly blocky 1024x512 image and the PMREM
+    // convolution samples it point-wise, which aliases the sun disc into a
+    // flickering square. And without the equirect mapping three treats the
+    // texture as a flat UV map and the sky wraps around the screen.
+    const texture = new THREE.Texture();
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+    const version = texture.version;
+
+    prepareEnvironment(texture);
+
+    expect(texture.mapping).toBe(THREE.EquirectangularReflectionMapping);
+    expect(texture.magFilter).toBe(THREE.LinearFilter);
+    expect(texture.wrapS).toBe(THREE.RepeatWrapping);
+    expect(texture.wrapT).toBe(THREE.ClampToEdgeWrapping);
+    expect(texture.colorSpace).toBe(THREE.NoColorSpace);
+    expect(texture.generateMipmaps).toBe(false);
+    // `needsUpdate` is a SETTER with no getter on `THREE.Texture` — reading it
+    // is always undefined. What it does, and so what can be asserted, is bump
+    // the version the renderer compares against.
+    expect(texture.version).toBeGreaterThan(version);
+  });
+
+  it('uses trilinear only when the KTX2 actually carried mip levels', () => {
+    const withMips = new THREE.Texture();
+    withMips.mipmaps = [{}, {}, {}] as unknown as typeof withMips.mipmaps;
+    expect(prepareEnvironment(withMips).minFilter).toBe(THREE.LinearMipmapLinearFilter);
+
+    // `generateMipmaps` is off, so asking for trilinear on a flat texture
+    // samples a mip chain that does not exist.
+    const flat = new THREE.Texture();
+    expect(prepareEnvironment(flat).minFilter).toBe(THREE.LinearFilter);
   });
 });

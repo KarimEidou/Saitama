@@ -472,11 +472,6 @@ async function verifyTier(
       pixels.distinctColors > 100,
       `[${tier}] screenshot has too few distinct colours (${pixels.distinctColors})`
     );
-    check(errors.length === 0, `[${tier}] console errors: ${errors.slice(0, 5).join(' | ')}`);
-    check(
-      snap.consoleErrors.length === 0,
-      `[${tier}] page-reported errors: ${snap.consoleErrors.slice(0, 5).join(' | ')}`
-    );
 
     // Tier-specific expectations.
     if (tier === 'low') {
@@ -623,6 +618,16 @@ async function verifyTier(
       sphereSignatures.length <= 2,
       `[${tier}] the 25-material sphere grid produced ${sphereSignatures.length} ` +
         `map-less signatures; expected them to share one`
+    );
+
+    // Console errors are asserted LAST: the tier blocks above tear the specular
+    // probe down and back up on a live context, which is exactly where an error
+    // would appear. `snap` was taken before all that, so re-read the page.
+    const finalSnap = await snapshot(page);
+    check(errors.length === 0, `[${tier}] console errors: ${errors.slice(0, 5).join(' | ')}`);
+    check(
+      finalSnap.consoleErrors.length === 0,
+      `[${tier}] page-reported errors: ${finalSnap.consoleErrors.slice(0, 5).join(' | ')}`
     );
 
     console.log(
@@ -850,6 +855,9 @@ async function main(): Promise<void> {
   } finally {
     await browser?.close();
     server.close();
+    // Nothing outside this block reads BUILD_DIR — the reports and screenshots
+    // all go to OUT_DIR — so the Vite tree in os.tmpdir() is pure residue.
+    await rm(BUILD_DIR, { recursive: true, force: true });
   }
 
   // Machine-readable evidence alongside the screenshots.

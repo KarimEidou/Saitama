@@ -186,10 +186,17 @@ export function powerSpectrum(
   const bins = fftSize >> 1;
   const out = new Float64Array(bins);
   if (x.length < fftSize) {
-    // Signal shorter than one frame: zero-pad a single frame.
+    // Signal shorter than one frame: window it over ITS OWN LENGTH, then
+    // zero-pad the frame.
+    //
+    // Windowing with `hann(fftSize)` instead took the window's first
+    // `x.length` coefficients — for 441 samples in a 2048-point frame, a ramp
+    // from 0 to 0.045 that ends on a step discontinuity, which is precisely
+    // what a window exists to prevent. That leaked ~3 % of a 10 ms 1 kHz tone's
+    // power out of its own band and pulled the measured centroid 21 Hz low.
     const re = new Float64Array(fftSize);
     const im = new Float64Array(fftSize);
-    const w = hann(fftSize);
+    const w = hann(Math.max(2, x.length));
     for (let i = 0; i < x.length; i++) re[i] = x[i]! * w[i]!;
     fft(re, im);
     for (let k = 0; k < bins; k++) out[k] = re[k]! * re[k]! + im[k]! * im[k]!;
@@ -436,7 +443,7 @@ export function centroidOverTime(
   for (let s = 0; s < segments; s++) {
     const slice = new Float32Array(len);
     for (let i = 0; i < len; i++) slice[i] = x[s * len + i]!;
-    out.push(spectralCentroid(slice, sampleRate, Math.min(fftSize, nextPow2(len))));
+    out.push(spectralCentroid(slice, sampleRate, Math.min(fftSize, pow2AtMost(len))));
   }
   return out;
 }
@@ -509,12 +516,25 @@ export function bandFractionOverTime(
   for (let s = 0; s < segments; s++) {
     const slice = new Float32Array(len);
     for (let i = 0; i < len; i++) slice[i] = x[s * len + i]!;
-    out.push(bandFraction(slice, sampleRate, lo, hi, Math.min(fftSize, nextPow2(len))));
+    out.push(bandFraction(slice, sampleRate, lo, hi, Math.min(fftSize, pow2AtMost(len))));
   }
   return out;
 }
 
-function nextPow2(n: number): number {
+/**
+ * The largest power of two below `n`, floored at 64.
+ *
+ * NOT "the next power of two": an FFT size larger than the slice would push
+ * `powerSpectrum` into its zero-padding branch and measure a window instead of
+ * the signal, so the size must always round DOWN. Both call sites use it as
+ * `Math.min(fftSize, pow2AtMost(len))` for exactly that reason.
+ *
+ * The arithmetic is deliberately left as it is. A true floor-power-of-two would
+ * differ only for an `n` that is itself a power of two (this returns `n / 2`
+ * there), and changing that would move published `centroidOverTime` and
+ * `bandFractionOverTime` numbers for no benefit.
+ */
+function pow2AtMost(n: number): number {
   let p = 1;
   while (p < n) p <<= 1;
   return Math.max(64, p >> 1);
@@ -666,10 +686,4 @@ export function intervalIrregularity(times: readonly number[]): number {
   const gaps = intervals(times);
   const m = mean(gaps);
   return m <= 0 ? 0 : stdDev(gaps) / m;
-}
-
-/** Index of the first sample whose magnitude exceeds `threshold`. */
-export function firstSampleAbove(x: Float32Array | number[], threshold: number): number {
-  for (let i = 0; i < x.length; i++) if (Math.abs(x[i]!) > threshold) return i;
-  return -1;
 }

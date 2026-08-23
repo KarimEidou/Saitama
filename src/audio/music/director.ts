@@ -25,7 +25,7 @@
  */
 
 import { createRng, lerp, type IRandom } from '@/util';
-import { createInstruments, type IInstrument, type InstrumentId } from './instruments';
+import { INSTRUMENT_FACTORIES, type IInstrument, type InstrumentId } from './instruments';
 import {
   BOREDOM_COLLAPSE,
   degreeToMidi,
@@ -61,7 +61,18 @@ export interface IMusicDirectorOptions {
 
 export class MusicDirector {
   private readonly ctx: BaseAudioContext;
-  private readonly instruments: Record<InstrumentId, IInstrument>;
+  private readonly destination: AudioNode;
+  /**
+   * Instruments built so far, keyed by id.
+   *
+   * The palette is built ON DEMAND. `AudioSystem` constructs the director
+   * eagerly — before `unlock()`, and whether or not music ever plays — and the
+   * full palette is ~39 permanently-running sources. The `calm` layer plays two
+   * of the ten instruments, so anything not in the current arrangement would be
+   * pure cost. Every entry here is an instrument that has actually been asked
+   * to sound at least once.
+   */
+  private readonly built = new Map<InstrumentId, IInstrument>();
   private readonly rng: IRandom;
   private readonly onNote: ((note: IScheduledNote) => void) | undefined;
 
@@ -78,7 +89,7 @@ export class MusicDirector {
 
   constructor(ctx: BaseAudioContext, destination: AudioNode, options: IMusicDirectorOptions = {}) {
     this.ctx = ctx;
-    this.instruments = createInstruments(ctx, destination);
+    this.destination = destination;
     this.rng = createRng(options.seed ?? 0x5a17a3);
     this.onNote = options.onNote;
     this.activeParts = partsFor(this.currentState, this.boredomValue);
@@ -161,14 +172,14 @@ export class MusicDirector {
   setStateImmediate(state: MusicState, time = this.ctx.currentTime): void {
     this.queuedState = undefined;
     this.applyState(state, time);
-    // Silence EVERY instrument, not just the ones that dropped out. Most
-    // escalations share their whole palette — combat to boss drops nothing — so
-    // `refreshParts` alone leaves the old layer's already-scheduled notes
+    // Silence every instrument that EXISTS, not just the ones that dropped out.
+    // Most escalations share their whole palette — combat to boss drops nothing
+    // — so `refreshParts` alone leaves the old layer's already-scheduled notes
     // sounding, at the old root, over the new one: a bitonal smear on a cut the
-    // caller asked to be instantaneous.
-    for (const id of Object.keys(this.instruments) as InstrumentId[]) {
-      this.instruments[id].allNotesOff(time, 0.02);
-    }
+    // caller asked to be instantaneous. An instrument that was never built has
+    // nothing scheduled on it, so building one here to silence it would be
+    // exactly backwards.
+    for (const made of this.built.values()) made.allNotesOff(time, 0.02);
     // Realign the grid so the new state starts a fresh bar AT THE CUT, rather
     // than wherever the old lookahead window happened to reach.
     this.stepCounter = 0;
@@ -204,9 +215,7 @@ export class MusicDirector {
   stop(time = this.ctx.currentTime, fadeSeconds = 0.5): void {
     if (!this.running) return;
     this.running = false;
-    for (const id of Object.keys(this.instruments) as InstrumentId[]) {
-      this.instruments[id].allNotesOff(time, fadeSeconds);
-    }
+    for (const made of this.built.values()) made.allNotesOff(time, fadeSeconds);
   }
 
   /**
@@ -285,8 +294,20 @@ export class MusicDirector {
     this.activeParts = partsFor(this.currentState, this.boredomValue);
     const now = new Set(this.activeParts.map((p) => p.instrument));
     for (const id of previous) {
-      if (!now.has(id)) this.instruments[id].allNotesOff(time);
+      // `built.get`, never `instrument()`: silencing a part that never sounded
+      // must not construct the graph it is silencing.
+      if (!now.has(id)) this.built.get(id)?.allNotesOff(time);
     }
+  }
+
+  /** The instrument for `id`, built on first use. */
+  private instrument(id: InstrumentId): IInstrument {
+    let made = this.built.get(id);
+    if (!made) {
+      made = INSTRUMENT_FACTORIES[id](this.ctx, this.destination);
+      this.built.set(id, made);
+    }
+    return made;
   }
 
   private scheduleStep(stepInBar: number, time: number): number {
@@ -306,7 +327,7 @@ export class MusicDirector {
       // sixteenth-note hat from sounding like a click track.
       const velocity = Math.min(1, part.velocity * lerp(0.88, 1.08, this.rng.next()));
       const seconds = part.gate * stepSeconds;
-      this.instruments[part.instrument].noteOn(time, midi, velocity, seconds);
+      this.instrument(part.instrument).noteOn(time, midi, velocity, seconds);
       count++;
       this.notesScheduled++;
       this.onNote?.({
@@ -323,8 +344,14 @@ export class MusicDirector {
   }
 
   dispose(): void {
-    for (const id of Object.keys(this.instruments) as InstrumentId[]) {
-      this.instruments[id].dispose();
-    }
+    // Stop first, and set the flag directly rather than calling `stop()`: a
+    // disposed director must not report `isRunning`, and `advanceTo` must not be
+    // able to write automation onto nodes that are about to be torn down.
+    // `stop()` would schedule multi-second fades on instruments this very loop
+    // disconnects on the next line, which is pure waste.
+    this.running = false;
+    this.queuedState = undefined;
+    this.queuedBoredom = undefined;
+    for (const made of this.built.values()) made.dispose();
   }
 }

@@ -576,6 +576,11 @@ async function measureBudget(page: Page, tier: string): Promise<BudgetReport> {
     snap.vfx.decals <= snap.vfx.decalCapacity,
     `[${tier}] ${snap.vfx.decals} decals exceeds the capacity of ${snap.vfx.decalCapacity}`
   );
+  check(
+    snap.post.direct || snap.post.passNames.length > 0,
+    `[${tier}] the post chain reported no pass names while a composer is live ` +
+      `(mode "${snap.post.mode}")`
+  );
 
   notes.push(
     `[${tier}] VFX cost ${budget.vfxDrawCalls}/${DRAW_CALL_BUDGET} draw calls and ` +
@@ -767,6 +772,9 @@ async function main(): Promise<void> {
   } finally {
     await browser?.close();
     server.close();
+    // Nothing outside this block reads BUILD_DIR — the reports and screenshots
+    // all go to OUT_DIR — so the Vite tree in os.tmpdir() is pure residue.
+    await rm(BUILD_DIR, { recursive: true, force: true });
   }
 
   await writeFile(

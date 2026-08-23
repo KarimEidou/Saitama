@@ -397,7 +397,7 @@ function matchesFilter(entry: IModelSourceEntry, filters: readonly string[]): bo
 }
 
 /** Longest edge clamped to `max`, both edges rounded up to a multiple of 4. */
-function fitSize(width: number, height: number, max: number): [number, number] {
+export function fitSize(width: number, height: number, max: number): [number, number] {
   const scale = Math.min(1, max / Math.max(width, height));
   const round = (v: number): number => {
     const n = Math.max(4, Math.round(v * scale));
@@ -407,8 +407,30 @@ function fitSize(width: number, height: number, max: number): [number, number] {
 }
 
 /** Manifest quality (0..100) → the `ktx` encoder's own 1..255 quality level. */
-function toQLevel(quality: number): number {
+export function toQLevel(quality: number): number {
   return Math.max(1, Math.min(255, Math.round((quality / 100) * 255)));
+}
+
+/**
+ * Manifest quality (0..100) → `ktx --uastc-quality` (0..4), capped at 3.
+ *
+ * Measured on this box, and recorded in the sibling stage's header
+ * (`tools/process-textures.ts`):
+ *
+ *   2 →   8.1 s  36.24 dB
+ *   3 →  12.3 s  36.52 dB
+ *   4 → 224.0 s  36.59 dB   <- 27x the time of level 3 for +0.07 dB
+ *
+ * Its verdict — "level 4 is not a quality setting, it is a way to lose an
+ * afternoon" — is already acted on there, where `uastcQuality` is hard-coded to
+ * 3. This stage paid the multiplier only because it derived the level
+ * arithmetically from a manifest number instead of choosing it: every ultra
+ * model entry declares quality 92, and `Math.round(92 / 25)` is 4. Three is the
+ * ceiling.
+ */
+export function uastcQualityFor(quality: number): number {
+  const level = Math.round((Number.isFinite(quality) ? quality : 0) / 25);
+  return Math.max(0, Math.min(3, level));
 }
 
 function triangleCount(mesh: Mesh): number {
@@ -813,6 +835,12 @@ async function encodeTextureToKTX2(
       sha256Of(Buffer.from(image)),
       params.codec,
       params.quality,
+      // The DERIVED encoder level, not just the manifest quality it comes from:
+      // capping the mapping at 3 would otherwise be a no-op on any machine with
+      // a warm cache, which still holds level-4 output for quality 92. Appended
+      // only on the uastc branch so the ETC1S entries — the whole mobile tier,
+      // 180 MB of it in this tree — are not needlessly invalidated.
+      ...(params.codec === 'uastc' ? [uastcQualityFor(params.quality)] : []),
       params.zstdLevel,
       width,
       height,
@@ -856,7 +884,7 @@ async function encodeTextureToKTX2(
   ];
 
   if (params.codec === 'uastc') {
-    args.push('--uastc-quality', String(Math.max(0, Math.min(4, Math.round(params.quality / 25)))));
+    args.push('--uastc-quality', String(uastcQualityFor(params.quality)));
     if (params.zstdLevel > 0) args.push('--zstd', String(params.zstdLevel));
   } else {
     args.push('--qlevel', String(toQLevel(params.quality)));
@@ -1618,7 +1646,3 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exit(1);
   });
 }
-
-/** Exported for the verification harness and the orchestrator's reporting. */
-export const MODEL_OUTPUT_DIR = OUTPUT_DIR;
-export const MODEL_LOD_RATIOS = LOD_RATIOS;

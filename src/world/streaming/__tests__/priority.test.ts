@@ -207,6 +207,32 @@ describe('ChunkPriorityQueue', () => {
     expect(queue.peek()!.chunk).toBe(hint);
   });
 
+  it('consults the PVS exactly once per entry', () => {
+    // `rescore` is the one per-frame O(n) pass, and at a cold start the queue
+    // holds hundreds of entries — each PVS lookup is a closure hop into the
+    // spatial index's bitset. Asking twice also lets the SCORE and the RECORDED
+    // FLAG come from different answers, so a diagnostic would be free to lie
+    // about why an entry is ranked where it is.
+    const queue = new ChunkPriorityQueue();
+    for (let i = 0; i < 8; i++) push(queue, chunkIndex(i - 4, 2), i * 10);
+
+    const asked: number[] = [];
+    queue.rescore(view, (chunk) => {
+      asked.push(chunk);
+      return chunk % 2 === 0;
+    });
+
+    expect(asked.length).toBe(queue.size);
+    expect(new Set(asked).size).toBe(queue.size);
+    for (const entry of queue.entries()) {
+      expect(entry.pvsVisible).toBe(entry.chunk % 2 === 0);
+      expect(entry.score).toBeCloseTo(
+        scoreChunk(entry.chunk, entry.ring, view, entry.pvsVisible).score,
+        9
+      );
+    }
+  });
+
   it('re-scores against a new view in one heapify', () => {
     const queue = new ChunkPriorityQueue();
     const ahead = chunkIndex(0, -3);

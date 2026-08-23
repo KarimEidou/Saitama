@@ -684,7 +684,7 @@ function measureSpeed(dash: boolean): SpeedResult {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scenario 3/4 — jump and landing                                            */
+/* Scenario 3 — jump and landing                                              */
 /* -------------------------------------------------------------------------- */
 
 interface JumpRun {
@@ -792,7 +792,7 @@ function measureJump(hold: boolean, moving: boolean): JumpRun {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scenario 5 — coyote time                                                   */
+/* Scenario 4 — coyote time                                                   */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -819,7 +819,6 @@ function coyoteAttempt(delayFrames: number): boolean {
 
   for (let i = 0; i < delayFrames; i++) sim.step(poll());
 
-  const yBefore = sim.rig.controller.position.y;
   const vyBefore = sim.rig.controller.verticalSpeed;
   let launched = false;
   sim.rig.controller.stateMachine.onEnter('jumpLaunch', () => {
@@ -828,13 +827,12 @@ function coyoteAttempt(delayFrames: number): boolean {
   manager.synthetic.tap('jump');
   for (let i = 0; i < 4; i++) sim.step(poll());
   const rose = sim.rig.controller.verticalSpeed > vyBefore + 5;
-  void yBefore;
   sim.dispose();
   return launched && rose;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scenario 6 — jump buffering                                                */
+/* Scenario 5 — jump buffering                                                */
 /* -------------------------------------------------------------------------- */
 
 interface BufferAttempt {
@@ -888,7 +886,7 @@ function findHopLandingFrame(): number {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scenario 7 — camera behaviour                                              */
+/* Scenario 6 — camera behaviour                                              */
 /* -------------------------------------------------------------------------- */
 
 function measureCamera(): HarnessReport['camera'] {
@@ -980,7 +978,7 @@ function measureCamera(): HarnessReport['camera'] {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scenario 8 — camera clearance through a tight alley                        */
+/* Scenario 7 — camera clearance through a tight alley                        */
 /* -------------------------------------------------------------------------- */
 
 const CLEARANCE_DIRS: readonly THREE.Vector3[] = [
@@ -1125,7 +1123,7 @@ function measureClearance(): HarnessReport['clearance'] {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scenario 9 — determinism                                                   */
+/* Scenario 8 — determinism                                                   */
 /* -------------------------------------------------------------------------- */
 
 const SCRIPT: readonly { frames: number; apply: () => void }[] = [
@@ -1170,7 +1168,7 @@ function runScript(variant: number): number[] {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Scenario 10 — CPU cost                                                     */
+/* Scenario 9 — CPU cost                                                      */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -1283,20 +1281,20 @@ async function main(): Promise<void> {
   });
   manager.syntheticEnabled = true;
 
-  await status('scenario 1/9 — mirrored constants');
+  await status('scenario 1/10 — mirrored constants');
   const mirrors = checkMirrors();
 
-  await status('scenario 2/9 — run');
+  await status('scenario 2/10 — run');
   const run = measureSpeed(false);
-  await status('scenario 2/9 — dash');
+  await status('scenario 2/10 — dash');
   const dash = measureSpeed(true);
 
-  await status('scenario 3/9 — tap jump');
+  await status('scenario 3/10 — tap jump');
   const tap = measureJump(false, false);
-  await status('scenario 3/9 — held leap');
+  await status('scenario 3/10 — held leap');
   const held = measureJump(true, true);
 
-  await status('scenario 4/9 — coyote time');
+  await status('scenario 4/10 — coyote time');
   let lastAccepted = -1;
   let firstRejected = -1;
   for (let delay = 0; delay <= 14; delay++) {
@@ -1305,7 +1303,7 @@ async function main(): Promise<void> {
     else if (firstRejected < 0) firstRejected = delay;
   }
 
-  await status('scenario 5/9 — jump buffering');
+  await status('scenario 5/10 — jump buffering');
   const hopLandFrame = findHopLandingFrame();
   let earliestAccepted = -1;
   let tooEarly = -1;
@@ -1318,15 +1316,15 @@ async function main(): Promise<void> {
     } else if (tooEarly < 0) tooEarly = before;
   }
 
-  await status('scenario 6/9 — camera');
+  await status('scenario 6/10 — camera');
   const camera = measureCamera();
   camera.armAtJumpApexM = held.armAtApex;
   camera.apexHeightAtSampleM = held.heightAtArmSample;
 
-  await status('scenario 7/9 — camera clearance through the alley');
+  await status('scenario 7/10 — camera clearance through the alley');
   const clearance = measureClearance();
 
-  await status('scenario 8/9 — determinism');
+  await status('scenario 8/10 — determinism');
   const a = runScript(0);
   const b = runScript(0);
   const c = runScript(1);
@@ -1335,9 +1333,10 @@ async function main(): Promise<void> {
   let variantDelta = 0;
   for (let i = 0; i < a.length; i++) variantDelta = Math.max(variantDelta, Math.abs(a[i]! - c[i]!));
 
-  await status('scenario 9/9 — CPU cost');
+  await status('scenario 9/10 — CPU cost');
   const timings = measureTimings();
 
+  await status('scenario 10/10 — screenshot poses');
   installShotApi();
   window.__PLAYER_SHOT__?.('run');
 
