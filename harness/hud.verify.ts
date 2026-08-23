@@ -4,7 +4,7 @@
  * Bundles `harness/hud.html` with Vite, serves it, drives it in headless
  * Chromium with SwiftShader, and asserts the things a unit test cannot reach.
  *
- * ── THE FOUR CLAIMS UNDER TEST ─────────────────────────────────────────────
+ * ── THE CLAIMS UNDER TEST ──────────────────────────────────────────────────
  *
  *   1. LAYOUT DISCIPLINE. During a scripted 60 Hz animation — boredom drifting,
  *      the charge arc filling, the fight timer running, the collateral ticker
@@ -27,6 +27,24 @@
  *
  *   4. REACHABILITY. Every screen can be opened and dismissed, by its own
  *      control and by the Android back button, ending back at the HUD.
+ *
+ *   5. NOTHING PAINTS ON ANYTHING ELSE. No two panels in a scene share more
+ *      than a rounding error's worth of area. This is the claim whose absence
+ *      let a threat banner sit on top of the encounter card through every gate
+ *      this project has: safe-area containment and thumb clearance are both
+ *      satisfied by two panels stacked on the same pixels.
+ *
+ *   6. THE BAND FITS. Nothing in the top half reaches down into a hand, at
+ *      100% HUD scale and at 130% — the scale where a font fallback grows a row
+ *      past the height it was designed for.
+ *
+ *   7. THE CONTROLS OWN THE TOUCH. Every point on the arc and in the stick
+ *      band hit-tests into `.opm-input-root`. A stick that is drawn right and
+ *      hit-tested by a stray HUD layer looks perfect in a screenshot.
+ *
+ *   8. MOUNT PARITY. The controls mount where `src/game/game.ts` mounts them
+ *      and stack where the shipping page stacks them, so these screenshots are
+ *      frames the game can actually produce.
  *
  * ── THE `sharp` TRAP, HANDLED ──────────────────────────────────────────────
  * `sharp(file).extract(region).stats()` does NOT crop. `stats()` reads the
@@ -316,6 +334,10 @@ interface IPanelRect {
   id: string;
   kind: 'panel' | 'marker';
   screen: string;
+  /** DOM index chain relative to `.hud-root`. See `harness/hud.ts`. */
+  path: string;
+  /** A modal screen is painting over this box. */
+  occluded: boolean;
   x: number;
   y: number;
   width: number;
@@ -329,6 +351,200 @@ interface IInputGeometry {
   maxReach: number;
   hudReserve: number;
   stickReserve: number;
+}
+
+interface IHitSample {
+  label: string;
+  x: number;
+  y: number;
+  owner: string;
+}
+
+interface IHitOwnership {
+  zone: { x: number; y: number; width: number; height: number };
+  sampled: number;
+  stolen: IHitSample[];
+}
+
+interface IMountParity {
+  inputParent: string;
+  parentIsBody: boolean;
+  siblings: boolean;
+  inputZIndex: number;
+  uiZIndex: number;
+  probe: string[];
+  hudAbove: boolean;
+}
+
+interface IBandBudget {
+  declared: number | null;
+  declaredRaw: string;
+  gap: number;
+  rowOneBottom: number | null;
+  insetTop: number;
+  members: string[];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Panel geometry                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * How much area two panels may share before it is an overlap, in px².
+ *
+ * Not zero. Rects come back at sub-pixel precision on a dpr-3 viewport, and two
+ * panels laid out edge to edge can share a hairline of a few hundredths of a
+ * pixel without a single pixel of ink landing twice. Four square pixels is
+ * below the area of one dpr-1 pixel of genuine double-painting and far above
+ * any rounding artefact; the real failures this catches are three and four
+ * orders of magnitude larger.
+ */
+const OVERLAP_TOLERANCE_PX2 = 4;
+
+/**
+ * Pairs of panel ids allowed to overlap.
+ *
+ * EMPTY, and it stays empty until somebody can write down why a pair of
+ * readable boxes is allowed to share pixels. Every entry is a hole in claim 5,
+ * so every entry needs a comment saying what the pair is and why the overlap is
+ * intended — "it fails and I do not want to fix the layout" is not a reason.
+ */
+const OVERLAP_ALLOWED: readonly (readonly [string, string])[] = [];
+
+interface IOverlap {
+  a: IPanelRect;
+  b: IPanelRect;
+  area: number;
+}
+
+/**
+ * Is `ancestor` a DOM ancestor of (or the same node as) `descendant`?
+ *
+ * Compared SEGMENT-WISE and never with `startsWith`: `"0/1"` is a string prefix
+ * of `"0/11"` and those are siblings, not relatives. That one shortcut would
+ * silently excuse a real overlap every time a container happened to have more
+ * than ten children.
+ */
+function isAncestorPath(ancestor: string, descendant: string): boolean {
+  if (ancestor === descendant) return true;
+  // The empty path is `.hud-root` itself, which is an ancestor of everything.
+  if (ancestor === '') return true;
+  const a = ancestor.split('/');
+  const d = descendant.split('/');
+  if (a.length > d.length) return false;
+  return a.every((segment, index) => segment === d[index]);
+}
+
+/** Does `outer` fully contain `inner`, allowing for sub-pixel rounding? */
+function rectContains(outer: IPanelRect, inner: IPanelRect): boolean {
+  const slack = 0.5;
+  return (
+    inner.x >= outer.x - slack &&
+    inner.y >= outer.y - slack &&
+    inner.x + inner.width <= outer.x + outer.width + slack &&
+    inner.y + inner.height <= outer.y + outer.height + slack
+  );
+}
+
+/**
+ * Every pair of panels sharing more than a rounding error, worst first.
+ *
+ * ── THE TWO WAYS THIS CHECK FIRES ON ITSELF ────────────────────────────────
+ *
+ *   THE SAME BOX, TWICE. `panels()` matches an alert as both its
+ *   `[data-hud="alerts"]` container and its `.hud-alert` child, with rects that
+ *   agree to the pixel. Reported naively that is a 19 530 px² "overlap" of the
+ *   alert layer with itself, sitting at the top of the list above the real
+ *   failure. A box CONTAINED IN A DOM ANCESTOR is therefore dropped before the
+ *   pairs are formed: anything it overlaps, its ancestor overlaps by at least
+ *   as much, so detection loses nothing and the surviving report names the
+ *   outer box, which is the one a human recognises.
+ *
+ *   Containment alone is NOT enough to drop a box — it has to be containment by
+ *   an ANCESTOR. Dropping any box contained in any other box would delete the
+ *   card that a banner has completely covered, i.e. the worst overlap there is,
+ *   and the check would report nothing at all.
+ *
+ *   WORLD-SPACE PINS. Markers are projected, not laid out: two objectives
+ *   behind one another on screen legitimately produce overlapping pins, and no
+ *   HUD change can prevent it without detaching a pin from the thing it points
+ *   at. They are excluded for the same reason the thumb assertion excludes
+ *   them.
+ *
+ * Panels a modal screen is covering are excluded too — see `IPanelRect`.
+ */
+function findOverlaps(panels: readonly IPanelRect[]): IOverlap[] {
+  const boxes = panels.filter((panel) => panel.kind !== 'marker' && !panel.occluded);
+  const distinct = boxes.filter(
+    (box, index) =>
+      !boxes.some(
+        (other, otherIndex) =>
+          otherIndex !== index && isAncestorPath(other.path, box.path) && rectContains(other, box)
+      )
+  );
+
+  const found: IOverlap[] = [];
+  for (let i = 0; i < distinct.length; i++) {
+    for (let j = i + 1; j < distinct.length; j++) {
+      const a = distinct[i]!;
+      const b = distinct[j]!;
+      // A descendant that OVERFLOWS its ancestor survived the filter above; it
+      // still is not painting on a second panel, it is painting on its own box.
+      if (isAncestorPath(a.path, b.path) || isAncestorPath(b.path, a.path)) continue;
+      if (
+        OVERLAP_ALLOWED.some(
+          ([one, two]) => (one === a.id && two === b.id) || (one === b.id && two === a.id)
+        )
+      ) {
+        continue;
+      }
+      const width = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+      const height = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+      if (width <= 0 || height <= 0) continue;
+      const area = width * height;
+      if (area <= OVERLAP_TOLERANCE_PX2) continue;
+      found.push({ a, b, area });
+    }
+  }
+  return found.sort((left, right) => right.area - left.area);
+}
+
+function describeRect(panel: IPanelRect): string {
+  return `${panel.id}[${panel.x.toFixed(0)},${panel.y.toFixed(0)} ${panel.width.toFixed(0)}x${panel.height.toFixed(0)}]`;
+}
+
+function describeOverlaps(overlaps: readonly IOverlap[]): string {
+  const shown = overlaps
+    .slice(0, 6)
+    .map((o) => `${describeRect(o.a)} × ${describeRect(o.b)} = ${o.area.toFixed(0)}px²`)
+    .join('; ');
+  return overlaps.length > 6 ? `${shown}; +${overlaps.length - 6} more` : shown;
+}
+
+/**
+ * Panels that start in the top half and reach down into a hand.
+ *
+ * The thumb assertion measures a quarter-DISC struck from each bottom corner,
+ * which is the shape of a hand. This measures the BAND below the reserve, which
+ * is the shape of the constraint the top-band layout is built on: `styles.ts`
+ * puts the whole combat HUD in the top band because on a 390 px-tall landscape
+ * viewport the bottom reserve is more than half the screen. A panel that starts
+ * up in the band and then grows down through that line has stopped being a
+ * top-band panel, and it does that long before its corner enters either disc.
+ */
+function bandIntruders(
+  panels: readonly IPanelRect[],
+  profile: IProfile,
+  reserve: number
+): IPanelRect[] {
+  const floor = profile.height - profile.insets.bottom - reserve;
+  return panels.filter(
+    (panel) =>
+      panel.kind !== 'marker' &&
+      !panel.occluded &&
+      panel.y < profile.height / 2 &&
+      panel.y + panel.height > floor + 0.5
+  );
 }
 
 /* -------------------------------------------------------------------------- */

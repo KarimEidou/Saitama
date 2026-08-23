@@ -5,7 +5,7 @@
  * exposes `window.__HUD_HARNESS__` for Playwright to drive.
  *
  * ── WHAT THIS PAGE IS FOR ──────────────────────────────────────────────────
- * Three claims about `src/ui/hud/**` cannot be made in a unit test, because
+ * Five claims about `src/ui/hud/**` cannot be made in a unit test, because
  * they are claims about a browser:
  *
  *   1. LAYOUT DISCIPLINE. That the 60 Hz path writes only custom properties,
@@ -24,6 +24,17 @@
  *      real `src/ui/input` overlay and reads its OWN exported arc geometry, so
  *      the reserve the HUD respects is checked against the buttons that
  *      actually exist rather than against a number copied into a comment.
+ *
+ *   4. HIT OWNERSHIP. That the controls actually RECEIVE the touches aimed at
+ *      them. A stick drawn perfectly and hit-tested by something else is broken
+ *      in a way no screenshot can show, so the page samples
+ *      `elementFromPoint` over the arc and the stick band and reports anything
+ *      that answered instead of `.opm-input-root`.
+ *
+ *   5. STACKING. That the HUD paints ABOVE the controls, as it does in the
+ *      shipping page. That is a property of mount points and z-indices spread
+ *      across two stylesheets and a bootstrap, and this page reproduces it
+ *      rather than approximating it — see the mount comment below.
  *
  * ── THE BACKDROP IS NOT DECORATION ─────────────────────────────────────────
  * A HUD screenshotted on flat black always looks readable. This one is drawn
@@ -609,6 +620,12 @@ interface IHarnessApi {
   panels(): IPanelRect[];
   /** The input overlay's own geometry, read from its exported constants. */
   inputGeometry(): IInputGeometry;
+  /** Who owns the touch at every point the thumbs actually reach. */
+  hitOwnership(): IHitOwnership;
+  /** Whether the controls mount and stack the way the shipping page does. */
+  mountParity(): IMountParity;
+  /** The top band's declared budget against the row it actually holds. */
+  bandBudget(): IBandBudget;
   /** Whatever the HUD currently believes. */
   snapshot(): Record<string, unknown>;
   back(): boolean;
@@ -654,6 +671,32 @@ interface IPanelRect {
    */
   kind: 'panel' | 'marker';
   screen: string;
+  /**
+   * The box's position in the DOM, as an index chain relative to `.hud-root` —
+   * `"0/2/1"` is "third child of the first child of the HUD root".
+   *
+   * Rectangles alone cannot tell an OVERLAP from the SAME BOX REPORTED TWICE.
+   * The query below matches an alert as both its `[data-hud="alerts"]`
+   * container and its `.hud-alert` child, and those two rects agree to the
+   * pixel — so a pair-wise overlap check without a DOM relation opens by
+   * accusing the alert layer of painting on itself. The chain gives every rect
+   * an ancestry the check can test (one path is a prefix of the other, compared
+   * SEGMENT-WISE — `"0/1"` is not an ancestor of `"0/11"`), and it costs the
+   * report nothing but a short string that also makes it far easier to read.
+   */
+  path: string;
+  /**
+   * True when a modal screen is painting over this box.
+   *
+   * The combat HUD deliberately stays mounted under a pause sheet
+   * (`manager.ts` keeps it visible so the fight is still legible behind the
+   * scrim), so in every modal scene the whole top band "overlaps" the sheet.
+   * That is the stack working, not a layout collision, and an overlap check
+   * that reports it drowns the one real failure in twenty invented ones. The
+   * manager's own `modal` flag — the same one that decides whether the game
+   * clock pauses — is what marks them.
+   */
+  occluded: boolean;
   x: number;
   y: number;
   width: number;
@@ -669,6 +712,53 @@ interface IInputGeometry {
   stickReserve: number;
 }
 
+/** One `elementFromPoint` probe and whatever answered it. */
+interface IHitSample {
+  /** What was being sampled: `stick-anchor`, `slot:punch`, `grid`. */
+  label: string;
+  x: number;
+  y: number;
+  /** A readable description of the element that took the touch. */
+  owner: string;
+}
+
+interface IHitOwnership {
+  /** The band a pointer-down turns into stick input, in viewport px. */
+  zone: { x: number; y: number; width: number; height: number };
+  sampled: number;
+  /** Probes the input overlay did NOT own. Must be empty. */
+  stolen: IHitSample[];
+}
+
+/** Where the touch overlay is mounted, and how it stacks against the HUD. */
+interface IMountParity {
+  /** Description of `.opm-input-root`'s parent. */
+  inputParent: string;
+  parentIsBody: boolean;
+  /** Both roots must be siblings, or comparing their z-indices proves nothing. */
+  siblings: boolean;
+  inputZIndex: number;
+  uiZIndex: number;
+  /** The hit-test chain at a HUD button, topmost first. */
+  probe: string[];
+  /** Empirical: where both roots cover a point, the HUD answers first. */
+  hudAbove: boolean;
+}
+
+/** The top band's declared height budget, measured against what it holds. */
+interface IBandBudget {
+  /** `--hud-band-row` in px, or null when the HUD declares no budget. */
+  declared: number | null;
+  /** The raw token, so an unparseable declaration is visible, not silently skipped. */
+  declaredRaw: string;
+  /** `--hud-gap`, the slack the grid itself puts between the rows. */
+  gap: number;
+  /** Bottom edge of the lowest panel that starts in the band's FIRST row. */
+  rowOneBottom: number | null;
+  insetTop: number;
+  members: string[];
+}
+
 declare global {
   interface Window {
     __HUD_HARNESS__?: IHarnessApi;
@@ -682,15 +772,35 @@ const banner = document.getElementById('banner') as HTMLElement;
 
 const bus: IEventBus = createEventBus() as EventBus;
 
-/* The touch overlay, mounted first, exactly as the shipping page mounts it.
-   Mount ORDER is not what decides the stacking here and the harness must not
-   pretend otherwise: `.opm-input-root` declares `z-index:1` and `.hud-root`
-   declares none, so inside `#ui-root`'s stacking context the controls paint
-   ABOVE every HUD layer, modal sheets included. That is what the shipping page
-   does today and therefore what these screenshots must show; if the intended
-   order is the other way round, the fix belongs in `src/ui/hud/styles.ts` or
-   `src/ui/input/touch-overlay.ts`, not here. */
-const touch = createTouchOverlay(uiRoot, DEFAULT_INPUT_TUNING);
+/* ── WHERE THE CONTROLS MOUNT, AND WHY IT IS NOT `#ui-root` ─────────────────
+   The shipping page stacks three siblings on `document.body`: `#app` (z-index
+   auto, holding the canvas), `.opm-input-root` (z-index 1, mounted on
+   `document.body` by `src/game/game.ts`), and `#ui-root` (z-index 10). So in
+   the real game the HUD paints ABOVE the controls and a modal sheet covers
+   them completely.
+
+   This page used to mount the overlay INSIDE `#ui-root`, where
+   `.opm-input-root{z-index:1}` beats `.hud-root`'s `auto` and the controls
+   paint over every HUD layer — the exact opposite order. The comment that
+   stood here claimed that WAS the shipping order. It was not, and the cost of
+   believing it is in `docs/screenshots/`: every modal shot showed a punch
+   button sitting on top of the sheet, a frame the game cannot produce.
+
+   Mounting on `document.body` is necessary but not sufficient. `#stage` is
+   `position:fixed`, and a fixed element ALWAYS establishes a stacking context,
+   so `#ui-root` nested inside it cannot out-paint a body-level `z-index:1`
+   sibling however large its own z-index is — mounting on the body alone would
+   invert the order again, in the other direction. The three overlay layers are
+   therefore lifted out of `#stage` first, leaving it holding the backdrop
+   canvas alone, which is exactly what `index.html`'s `#app` holds. Paint order
+   is then decided by the z-indices the two stylesheets already declare
+   (1 < 10 < 60 < 80) rather than by DOM order, which is why the overlay may be
+   appended last and still land underneath.
+
+   None of this is taken on trust: `mountParity()` re-derives it from the live
+   document and the verifier asserts it. */
+for (const layer of [uiRoot, overlays, banner]) document.body.appendChild(layer);
+const touch = createTouchOverlay(document.body, DEFAULT_INPUT_TUNING);
 
 let currentInsets: SafeAreaInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 let modalOpen = false;
@@ -1002,6 +1112,27 @@ function resize(): void {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * A node's DOM position as an index chain relative to `.hud-root`.
+ *
+ * Walking `parentElement` and recording each step's index among its siblings
+ * produces a string that is a PREFIX of every descendant's string, which is the
+ * whole point: an overlap check can then ask "are these two boxes the same box,
+ * or one inside the other?" without shipping element references across the
+ * `page.evaluate` boundary, where they cannot go. See `IPanelRect.path`.
+ */
+function domPath(node: HTMLElement): string {
+  const segments: number[] = [];
+  let current: HTMLElement | null = node;
+  while (current !== null && current !== hud.root) {
+    const parent: HTMLElement | null = current.parentElement;
+    if (parent === null) break;
+    segments.push(Array.from(parent.children).indexOf(current));
+    current = parent;
+  }
+  return segments.reverse().join('/');
+}
+
+/**
  * Every VISIBLE, PAINTING HUD box, in viewport coordinates.
  *
  * Two exclusions, both of which the safe-area assertion would otherwise report
@@ -1019,7 +1150,12 @@ function resize(): void {
  *   reports a rect past the bottom of the screen because that is where it is —
  *   inside a scroll container, not under the home indicator. Anything clipped
  *   by its scrolling ancestor is skipped, which is the difference between
- *   measuring the layout and measuring the scroll position.
+ *   measuring the layout and measuring the scroll position. A row that is
+ *   PARTLY under the fold gets the same treatment a marker gets: its rect is
+ *   intersected with the scroller's, because the half hanging past the fold is
+ *   not painted. Reporting the whole box made the last row of the settings
+ *   sheet appear to sit on top of the Close button in the foot below it, which
+ *   is an artefact of `overflow-y:auto` and not something a player can see.
  */
 function panelRects(): IPanelRect[] {
   const out: IPanelRect[] = [];
@@ -1033,15 +1169,18 @@ function panelRects(): IPanelRect[] {
     const rect = node.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) continue;
 
+    let box = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+
     const scroller = node.closest<HTMLElement>('.hud-sheet__body');
     if (scroller && scroller !== node) {
       const clip = scroller.getBoundingClientRect();
-      const visible =
-        rect.bottom > clip.top + 0.5 &&
-        rect.top < clip.bottom - 0.5 &&
-        rect.right > clip.left + 0.5 &&
-        rect.left < clip.right - 0.5;
-      if (!visible) continue;
+      box = {
+        left: Math.max(box.left, clip.left),
+        top: Math.max(box.top, clip.top),
+        right: Math.min(box.right, clip.right),
+        bottom: Math.min(box.bottom, clip.bottom),
+      };
+      if (box.right - box.left < 1 || box.bottom - box.top < 1) continue;
     }
 
     /* A marker is clipped to the safe box by its host's `clip-path`, which
@@ -1049,7 +1188,6 @@ function panelRects(): IPanelRect[] {
        inset is `max(env, override, floor)`, exactly as the stylesheet
        composes it; `env()` is 0 on the harness page. */
     const markerHost = node.closest<HTMLElement>('.hud-markers');
-    let box = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
     if (markerHost) {
       const host = markerHost.getBoundingClientRect();
       const clipLeft = host.left + Math.max(currentInsets.left, EDGE_FLOOR_PX);
@@ -1070,6 +1208,10 @@ function panelRects(): IPanelRect[] {
       id: node.dataset.hud ?? node.className.split(' ')[0] ?? 'panel',
       kind: markerHost ? 'marker' : 'panel',
       screen: screenRoot?.dataset.screen ?? hud.active,
+      path: domPath(node),
+      // Chrome that belongs to the screen itself is never the thing being
+      // covered; everything else is, for as long as the screen is up.
+      occluded: modalOpen && screenRoot === null,
       x: box.left,
       y: box.top,
       width: box.right - box.left,
@@ -1078,6 +1220,185 @@ function panelRects(): IPanelRect[] {
     });
   }
   return out;
+}
+
+/** `div#ui-root.hud-root` — enough to recognise a thief in a failure line. */
+function describeElement(element: Element | null): string {
+  if (element === null) return 'nothing';
+  const id = element.id === '' ? '' : `#${element.id}`;
+  const classes = element.classList.length === 0 ? '' : `.${[...element.classList].join('.')}`;
+  return `${element.tagName.toLowerCase()}${id}${classes}`;
+}
+
+/** Spacing of the sampling lattice over the stick band, CSS px. */
+const HIT_GRID_PX = 40;
+
+/**
+ * WHO OWNS THE TOUCH — the check that would have caught the joystick bug.
+ *
+ * A control that is drawn correctly and does not RECEIVE the touch is broken in
+ * a way no screenshot and no rectangle assertion can see: the pixels are right
+ * in both. What decides it is hit testing, and hit testing is decided by
+ * `pointer-events`, stacking order and mount point — three things spread across
+ * two stylesheets and a bootstrap, none of which the layout claims cover.
+ *
+ * So this asks the browser directly, at the points a thumb actually lands: the
+ * stick's resting anchor, every button centre on the arc, and a lattice over
+ * the whole band `TouchCore` treats as stick input. Every one of them must
+ * resolve into `.opm-input-root`. A HUD panel that forgot `pointer-events:none`,
+ * a screen left mounted full-bleed after a dismiss, a z-order inversion — all
+ * three show up here as the same failure, with the thief named.
+ *
+ * The geometry is READ FROM THE INPUT LAYER's own exports rather than copied,
+ * for the same reason the thumb-reserve assertion reads them: a retuned arc must
+ * fail this test, not quietly move out from under it.
+ */
+function hitOwnership(): IHitOwnership {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const stolen: IHitSample[] = [];
+  let sampled = 0;
+
+  const probe = (label: string, x: number, y: number): void => {
+    // `elementFromPoint` answers null outside the viewport, which would read as
+    // a stolen touch. Clamp instead: the edge pixel is a real place to press.
+    const px = Math.min(Math.max(x, 0), width - 1);
+    const py = Math.min(Math.max(y, 0), height - 1);
+    sampled++;
+    const element = document.elementFromPoint(px, py);
+    if (element?.closest('.opm-input-root')) return;
+    stolen.push({ label, x: Math.round(px), y: Math.round(py), owner: describeElement(element) });
+  };
+
+  /* The stick has no fixed anchor — it is floating, and its origin is wherever
+     the thumb lands. What can be named is the innermost resting place: one full
+     deflection in from the bottom-left safe corner, which is the closest a
+     player can grab it with the whole ring still on screen. */
+  probe(
+    'stick-anchor',
+    currentInsets.left + DEFAULT_INPUT_TUNING.stickFullDeflectionPx,
+    height - currentInsets.bottom - DEFAULT_INPUT_TUNING.stickFullDeflectionPx
+  );
+
+  /* Button centres. `.opm-btn` is offset from the safe corner and then pulled
+     back by `translate(50%,50%)`, so the centre lands exactly on the arc offset
+     — the same number `inputGeometry()` reports. */
+  for (const slot of THUMB_ARC) {
+    const offset = thumbArcOffset(slot);
+    probe(
+      `slot:${slot.id}`,
+      width - currentInsets.right - offset.right,
+      height - currentInsets.bottom - offset.bottom
+    );
+  }
+
+  /* The stick band, as `TouchCore` defines it: a pointer-down left of
+     `stickZoneFraction` of the RAW viewport width becomes stick input, insets
+     included — a touch on the notch strip still drives the character. */
+  const zone = {
+    x: 0,
+    y: 0,
+    width: width * DEFAULT_INPUT_TUNING.stickZoneFraction,
+    height,
+  };
+  for (let x = zone.x; x < zone.x + zone.width; x += HIT_GRID_PX) {
+    for (let y = zone.y; y < zone.y + zone.height; y += HIT_GRID_PX) {
+      probe('grid', x, y);
+    }
+  }
+
+  return { zone, sampled, stolen };
+}
+
+/**
+ * Does this page stack the controls and the HUD the way the shipping page does?
+ *
+ * Two answers, because either alone can be satisfied while the frame is still
+ * wrong. The STRUCTURAL half re-derives the mount point and the two z-indices,
+ * and only means anything when the roots are siblings — a z-index comparison
+ * across stacking contexts is worth nothing, which is the trap that made the
+ * old mount look correct. The EMPIRICAL half asks the browser: at the centre of
+ * a HUD button, both roots are under the point, so whichever the hit-test chain
+ * names first is the one painting on top.
+ */
+function mountParity(): IMountParity {
+  const inputRoot = document.querySelector<HTMLElement>('.opm-input-root');
+  const parent = inputRoot?.parentElement ?? null;
+
+  const button = [...hud.root.querySelectorAll<HTMLElement>('.hud-btn')]
+    .map((element) => element.getBoundingClientRect())
+    .find((rect) => rect.width > 1 && rect.height > 1);
+  const chain =
+    button === undefined
+      ? []
+      : [
+          ...document.elementsFromPoint(
+            button.left + button.width / 2,
+            button.top + button.height / 2
+          ),
+        ];
+  const hudIndex = chain.findIndex((element) => hud.root.contains(element));
+  const inputIndex = chain.findIndex((element) => element.closest('.opm-input-root') !== null);
+
+  const zIndex = (element: Element | null): number =>
+    element === null ? Number.NaN : Number.parseInt(getComputedStyle(element).zIndex, 10);
+
+  return {
+    inputParent: describeElement(parent),
+    parentIsBody: parent === document.body,
+    siblings: parent !== null && parent === uiRoot.parentElement,
+    inputZIndex: zIndex(inputRoot),
+    uiZIndex: zIndex(uiRoot),
+    probe: chain.map(describeElement),
+    hudAbove: hudIndex >= 0 && inputIndex >= 0 && hudIndex < inputIndex,
+  };
+}
+
+/**
+ * The top band's declared height budget, and what the band actually holds.
+ *
+ * `--hud-band-row` is the HUD's own statement of how tall one row of the combat
+ * band is allowed to be. It does not exist yet; the verifier skips the
+ * comparison when `declared` is null rather than inventing a number, because a
+ * budget assertion against a made-up budget tests the number, not the layout.
+ *
+ * Which panels count as "row one" is decided by the GRID, not by which column
+ * class a panel carries: the portrait media query moves `.hud-top__centre` down
+ * to row 2, so a class-based split would report the wrong row on exactly the
+ * profile whose band is tightest. `grid-template-rows` computes to the USED
+ * track sizes in px, so the first track's end is the honest row boundary.
+ */
+function bandBudget(): IBandBudget {
+  const rootStyle = getComputedStyle(hud.root);
+  const declaredRaw = rootStyle.getPropertyValue('--hud-band-row').trim();
+  const declared = Number.parseFloat(declaredRaw);
+  const gap = Number.parseFloat(rootStyle.getPropertyValue('--hud-gap'));
+
+  const top = hud.root.querySelector<HTMLElement>('.hud-top');
+  const topRect = top?.getBoundingClientRect();
+  const members: string[] = [];
+  let rowOneBottom: number | null = null;
+
+  if (top && topRect && topRect.height >= 1) {
+    const track = Number.parseFloat(getComputedStyle(top).gridTemplateRows);
+    const rowOneEnd = topRect.top + (Number.isFinite(track) ? track : topRect.height);
+    for (const node of top.querySelectorAll<HTMLElement>('[data-hud], .hud-panel')) {
+      const rect = node.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) continue;
+      if (rect.top >= rowOneEnd) continue;
+      members.push(node.dataset.hud ?? node.className.split(' ')[0] ?? 'panel');
+      rowOneBottom = Math.max(rowOneBottom ?? 0, rect.bottom);
+    }
+  }
+
+  return {
+    declared: Number.isFinite(declared) ? declared : null,
+    declaredRaw,
+    gap: Number.isFinite(gap) ? gap : 0,
+    rowOneBottom,
+    insetTop: currentInsets.top,
+    members,
+  };
 }
 
 const api: IHarnessApi = {
@@ -1177,6 +1498,12 @@ const api: IHarnessApi = {
       stickReserve: STICK_RESERVE_PX,
     };
   },
+
+  hitOwnership,
+
+  mountParity,
+
+  bandBudget,
 
   snapshot(): Record<string, unknown> {
     const model = hud.store.model;
