@@ -188,6 +188,20 @@ const BLOOM_THRESHOLD = 2.2;
  */
 const FRAME_FAILURE_LOG_INTERVAL = 60;
 
+/**
+ * Where the impact smear radiates from, in 0..1 screen space.
+ *
+ * The frame centre, because that is where the third-person camera frames the
+ * player, and the punch is his. `triggerImpact` used to be called without one,
+ * so the pass kept whatever `uFocal` was last set to — and `captureState` /
+ * `restoreState` carries that stale point across a tier rebuild, so the smear
+ * could radiate from a corner of a frame that no longer exists.
+ *
+ * `trigger()` copies the value and never retains the object, so one shared
+ * vector is safe and keeps the impact path allocation-free.
+ */
+const IMPACT_FOCAL = new THREE.Vector2(0.5, 0.5);
+
 export interface IBootOptions {
   readonly canvas: HTMLCanvasElement;
   readonly uiRoot: HTMLElement;
@@ -1014,7 +1028,7 @@ export class Game {
       // is the one moment it is for: the hit-stop on a lethal punch.
       onImpact: (intensity) => {
         vfx.shake.add(0.25 + intensity * 0.4);
-        renderer.postProcessing?.triggerImpact(intensity);
+        renderer.postProcessing?.triggerImpact(intensity, IMPACT_FOCAL);
       },
     });
 
