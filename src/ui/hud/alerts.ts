@@ -6,8 +6,20 @@
  * ── WHY THE TIER WORD IS ALWAYS THERE ──────────────────────────────────────
  * A five-step severity ramp cannot survive dichromacy as colour alone, and a
  * player who cannot tell DEMON from DRAGON at a glance is a player who fights a
- * dragon the way they fought a demon. So every alert prints the word, the
- * Association's own advisory line under it, and only then tints itself.
+ * dragon the way they fought a demon. So a tiered alert prints the word as a
+ * CLASSIFICATION STAMP — an outlined chip, the one place in this HUD where an
+ * all-round hairline survives, because a stamp is what it is — and the tier
+ * colour only ever appears beside it.
+ *
+ * ── AND WHY THE TITLE OFTEN IS NOT ─────────────────────────────────────────
+ * `HudStore` raises a threat as title "THREAT LEVEL DEMON" with the
+ * Association's advisory as the body. Printed under a chip that already says
+ * DEMON, that title is the same word a third time in one box — and the banner
+ * used to be laid over an encounter card that said "THREAT DEMON" as well.
+ * So when the stamp already carries the tier and the title only restates it,
+ * the ADVISORY becomes the headline and the title is dropped. When it does not
+ * — "FINAL PHASE" carries a tier and says something else entirely — the title
+ * stays. The rule is about redundancy, not about threats.
  *
  * ── WHY THREE, AND WHY THE OLDEST GOES ─────────────────────────────────────
  * Three stacked banners is already more than anyone reads mid-fight. When a
@@ -23,7 +35,7 @@
 
 import { el } from './dom';
 import type { IHudAlert, IHudModel } from './model';
-import { TIER_COLOR } from './tokens';
+import { TIER_COLOR, TIER_LABEL } from './tokens';
 
 /** Colour per alert kind, resolved against the active palette. */
 const KIND_COLOR: Readonly<Record<IHudAlert['kind'], string>> = {
@@ -62,14 +74,33 @@ export class AlertLayer {
 
   private node(alert: IHudAlert): HTMLElement {
     const colour = alert.tier ? TIER_COLOR[alert.tier] : KIND_COLOR[alert.kind];
+    const stamp = alert.tier === undefined ? null : TIER_LABEL[alert.tier];
+    // Case-insensitive because the store's wording is the store's business:
+    // this only has to notice that the headline would be the third printing of
+    // one word, not police how it is capitalised.
+    const body = alert.body;
+    const restatesStamp =
+      stamp !== null && body !== undefined && alert.title.toUpperCase().endsWith(stamp);
+    const headline = restatesStamp && body !== undefined ? body : alert.title;
+    const caption = restatesStamp ? undefined : body;
     return el(this.doc, 'div', {
       className: 'hud-panel hud-alert',
       dataset: { kind: alert.kind, alert: String(alert.id) },
       vars: { '--hud-alert-color': colour },
       attrs: { role: 'alert' },
       children: [
-        el(this.doc, 'div', { className: 'hud-alert__title', text: alert.title }),
-        alert.body ? el(this.doc, 'div', { className: 'hud-alert__body', text: alert.body }) : null,
+        stamp === null
+          ? null
+          : el(this.doc, 'span', { className: 'hud-chip hud-alert__chip', text: stamp }),
+        el(this.doc, 'div', {
+          className: 'hud-alert__main',
+          children: [
+            el(this.doc, 'div', { className: 'hud-alert__title', text: headline }),
+            caption === undefined
+              ? null
+              : el(this.doc, 'div', { className: 'hud-alert__body', text: caption }),
+          ],
+        }),
       ],
     });
   }

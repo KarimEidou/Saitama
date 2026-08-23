@@ -2,17 +2,47 @@
  * THE COMBAT HUD
  *
  * What is on screen while the game is being played, and — because the game is
- * played in landscape on a phone with a hand over each bottom corner — almost
- * all of it is in the top band.
+ * played in landscape on a phone with a hand over each bottom corner — all of
+ * it is in the top band. On the 844x390 profile that band is 121 px tall. That
+ * number decided the whole composition.
  *
- * ── WHAT IS HERE, AND WHY EACH ONE EARNS ITS PIXELS ────────────────────────
+ * ── THREE PLATES AND A STRIP ───────────────────────────────────────────────
+ * There used to be six panels up here, each with an identical hairline box, and
+ * at 130 % HUD scale they did not fit — the right-hand column reached 6 px into
+ * the hand. Panels that say two halves of one sentence are now ONE plate:
  *
- *   BOREDOM        The game's actual progress bar. Rendered as a mood, never a
- *                  percentage: a word, a colour draining towards grey, and a
- *                  breath that slows from 2.4 s to 12 s as he stops caring. The
- *                  only number beside it is the ×0.15 throttle on rank gain,
- *                  shown because a player who cannot see it concludes the
- *                  RANKING SYSTEM is broken instead of the character.
+ *   THE HERO FILE  Class, seat number, name, mood, gain multiplier and the
+ *                  boredom meter. Two panels before, and they were the same
+ *                  subject: who the Association thinks you are, and how much
+ *                  you care. The RANK NUMBER is now the largest thing in the
+ *                  corner by 2.4x with "RANK" demoted to an overline, because
+ *                  the seat is the content and the word is the caption.
+ *
+ *                  BOREDOM is the game's actual progress bar, rendered as a
+ *                  mood and never as a percentage: a word, a colour draining
+ *                  towards grey, and a breath that slows from 2.4 s to 12 s as
+ *                  he stops caring. The one number beside it is the throttle on
+ *                  rank gain, labelled GAIN — it used to be labelled RANK, 20 px
+ *                  under a chip that says "RANK 388", so one word meant a ladder
+ *                  position and a multiplier at the same time.
+ *
+ *   THE INCIDENT   Tier word, name and fight clock on one baseline, with the
+ *                  boss health as the plate's base rule instead of a second
+ *                  panel underneath it. TIME-TO-KILL is the only performance
+ *                  figure a game where every hit is fatal actually has.
+ *
+ *   THE COST       Saved, lost, watching and the live yen, as four cells of one
+ *                  register with the damage meter as its base rule. Credit
+ *                  needs an audience and blame does not, so the witness count
+ *                  sits in the same row as the two it decides. The yen is in
+ *                  BILLIONS with a fixed unit so the readout never changes width
+ *                  mid-fight, and the METER reads `propertyDamageScore` — the
+ *                  bounded 0..1 companion — because yen is unbounded and would
+ *                  peg on the first serious punch of the game.
+ *
+ *   THE DUTY STRIP The pinned quest across the foot of the band: title, lead
+ *                  objective, clock. One line on a landscape phone, two rows
+ *                  everywhere else.
  *
  *   CHARGE ARC     Not a second copy of the input layer's ring. That ring, on
  *                  the punch button, answers "how long have I held this". This
@@ -21,21 +51,19 @@
  *                  RESTRAINT, and prints the forecast bill under it. It lives
  *                  centre-bottom, in the corridor between the two thumbs.
  *
- *   TIMER          Seconds since the encounter started. In a game where every
- *                  fight ends in one hit, time-to-kill is the only performance
- *                  figure that exists.
+ * ── WHAT WENT, AND WHAT THAT COST ──────────────────────────────────────────
+ * The tracker's OBJECTIVE LIST and its CONFLICT WARNING are gone from the
+ * playing HUD. Both are in the quest log — the conflict line with more room
+ * than it ever had here — and both were multi-line boxes on a band with no
+ * lines to spare. The supermarket warning losing its live position is a real
+ * loss and the quest log had better keep printing it loudly.
  *
- *   LEDGER         Saved and lost, plus the witness count — because credit
- *                  needs an audience and blame does not, and the player should
- *                  be able to see whether anyone is watching.
+ * The SEAT-PROGRESS sliver under the rank went too: an unlabelled 2 px dash
+ * that cost the hero file a whole row. Its content is on the rank board, in
+ * words and with a bar — "388.0 hero points · 12.4 to the next seat".
  *
- *   COLLATERAL     Live yen, in BILLIONS with a fixed unit so the readout never
- *                  changes width, and a bounded meter driven by
- *                  `propertyDamageScore` rather than by the yen — the yen is
- *                  unbounded and would peg any meter on the first serious punch
- *                  of the game.
- *
- *   TRACKER        The pinned quest, its objectives, and — loudly — its clock.
+ * The DEBRIS PIECE COUNT went. It is flavour, nobody acts on it mid-fight, and
+ * the invoice prints it afterwards where there is time to be appalled by it.
  *
  * ── WHAT IS DELIBERATELY ABSENT ────────────────────────────────────────────
  * No health bar for the player. He does not have one, and drawing one would be
@@ -57,9 +85,8 @@ import { clamp01 } from '@/util';
 import { CssNumber, escapeCssString } from '../css-number';
 import { button, el, svg } from '../dom';
 import type { FrameWriter } from '../frame-writer';
-import { questUrgency, type IHudModel, type IQuestRow } from '../model';
+import { questUrgency, type IHudModel, type IQuestObjectiveRow, type IQuestRow } from '../model';
 import { HudScreen, type HudScreenName } from '../screen';
-import { conflictTitles, objectiveRows } from './objective-row';
 import {
   BOREDOM_BANDS,
   CLASS_COLOR,
@@ -144,50 +171,45 @@ export interface ICombatHudOptions {
 export class CombatHudScreen extends HudScreen {
   readonly name: HudScreenName = 'hud';
 
-  /* rank chip */
+  /* the hero file */
   private readonly rankClass: HTMLElement;
   private readonly rankNumber: CssNumber;
   private readonly rankName: HTMLElement;
-  private readonly rankProgress: HTMLElement;
-
-  /* boredom */
   private readonly boredom: HTMLElement;
   private readonly boredomMood: HTMLElement;
   private readonly boredomFill: HTMLElement;
   private readonly boredomBreath: HTMLElement;
   private readonly boredomMult: CssNumber;
 
-  /* encounter */
+  /* the incident */
   private readonly encounterCard: HTMLElement;
   private readonly encounterTier: HTMLElement;
   private readonly encounterName: HTMLElement;
   private readonly clockMinutes: CssNumber;
   private readonly clockSeconds: CssNumber;
-  private readonly bossCard: HTMLElement;
+  private readonly bossTrack: HTMLElement;
   private readonly bossFill: HTMLElement;
-  private readonly bossPhase: HTMLElement;
 
-  /* ledger */
+  /* the cost */
   private readonly ledger: HTMLElement;
   private readonly savedCount: CssNumber;
   private readonly lostCell: HTMLElement;
   private readonly lostCount: CssNumber;
   private readonly witnessCount: CssNumber;
+  private readonly costCell: HTMLElement;
+  private readonly costYen: CssNumber;
+  private readonly costTrack: HTMLElement;
+  private readonly costFill: HTMLElement;
 
-  /* collateral */
-  private readonly collateral: HTMLElement;
-  private readonly collateralYen: CssNumber;
-  private readonly collateralFill: HTMLElement;
-  private readonly debrisCount: CssNumber;
-
-  /* tracker */
+  /* the duty strip */
   private readonly tracker: HTMLElement;
   private readonly trackerTitle: HTMLElement;
-  private readonly trackerObjectives: HTMLElement;
+  private readonly trackerObj: HTMLElement;
+  private readonly trackerCount: HTMLElement;
+  private readonly trackerWhat: HTMLElement;
   private readonly trackerClock: HTMLElement;
   private readonly trackerMinutes: CssNumber;
   private readonly trackerSeconds: CssNumber;
-  private readonly trackerConflict: HTMLElement;
 
   /* charge */
   private readonly charge: HTMLElement;
@@ -199,171 +221,150 @@ export class CombatHudScreen extends HudScreen {
   private lastEncounterId: string | null = null;
   private lastTrackerSignature = '';
   private lastLostCount = 0;
-  private collateralVisible = false;
+  private costVisible = false;
 
   constructor(doc: Document, options: ICombatHudOptions) {
     super(doc, 'hud-layer hud-layer--hud hud-combat', false);
 
-    /* ---- rank chip ---- */
+    /* ---- the hero file ---- */
     this.rankClass = el(doc, 'span', { className: 'hud-rankchip__class', text: 'C' });
     this.rankNumber = new CssNumber(doc, { id: 'rank' });
-    this.rankName = el(doc, 'div', { className: 'hud-label hud-rankchip__name', text: '' });
-    this.rankProgress = el(doc, 'span', { className: 'hud-rankchip__pts' });
+    this.rankName = el(doc, 'div', { className: 'hud-rankchip__name', text: '' });
+    this.boredomMood = el(doc, 'span', { className: 'hud-boredom__mood', text: 'ENGAGED' });
+    // GAIN, not RANK. See the note in `styles.ts` on `.hud-boredom__mult`: the
+    // overline two lines above this says RANK and means a seat on a ladder.
+    this.boredomMult = new CssNumber(doc, { decimals: 2, prefix: '×', id: 'gain' });
+    this.boredomFill = el(doc, 'span', { className: 'hud-boredom__fill' });
+    // The breath lives INSIDE the fill, so a bar reading zero has nothing to
+    // shimmer. Over the track it was an indeterminate spinner on an empty bar.
+    this.boredomBreath = el(doc, 'span', { className: 'hud-boredom__breath' });
+    this.boredomFill.appendChild(this.boredomBreath);
+    this.boredom = el(doc, 'div', {
+      className: 'hud-boredom',
+      dataset: { throttled: 'false' },
+      children: [
+        this.boredomMood,
+        el(doc, 'span', {
+          className: 'hud-boredom__mult',
+          children: [doc.createTextNode('GAIN '), this.boredomMult.element],
+        }),
+      ],
+    });
     const rankChip = el(doc, 'div', {
       className: 'hud-panel hud-rankchip',
       attrs: { 'data-hud': 'rank-chip' },
       children: [
         this.rankClass,
         el(doc, 'div', {
+          className: 'hud-rankchip__file',
           children: [
             el(doc, 'div', {
-              className: 'hud-rankchip__rank',
-              children: [doc.createTextNode('RANK '), this.rankNumber.element],
+              className: 'hud-rankchip__head',
+              children: [
+                el(doc, 'span', { className: 'hud-rankchip__overline', text: 'RANK' }),
+                this.rankName,
+              ],
             }),
-            this.rankName,
-            this.rankProgress,
+            el(doc, 'div', {
+              className: 'hud-rankchip__seat',
+              children: [
+                el(doc, 'span', {
+                  className: 'hud-rankchip__rank',
+                  children: [this.rankNumber.element],
+                }),
+                this.boredom,
+              ],
+            }),
+            el(doc, 'div', {
+              className: 'hud-boredom__track',
+              attrs: { 'data-hud': 'boredom' },
+              children: [this.boredomFill],
+            }),
           ],
         }),
       ],
     });
 
-    /* ---- boredom ---- */
-    this.boredomMood = el(doc, 'span', { className: 'hud-boredom__mood', text: 'ENGAGED' });
-    this.boredomMult = new CssNumber(doc, { decimals: 2, prefix: '×', id: 'gain' });
-    this.boredomFill = el(doc, 'span', { className: 'hud-boredom__fill' });
-    this.boredomBreath = el(doc, 'span', { className: 'hud-boredom__breath' });
-    this.boredom = el(doc, 'div', {
-      className: 'hud-panel hud-boredom',
-      attrs: { 'data-hud': 'boredom' },
-      dataset: { throttled: 'false' },
-      children: [
-        el(doc, 'div', {
-          className: 'hud-boredom__head',
-          children: [
-            this.boredomMood,
-            el(doc, 'span', {
-              className: 'hud-boredom__mult',
-              attrs: { title: 'Rank gain multiplier' },
-              children: [doc.createTextNode('RANK '), this.boredomMult.element],
-            }),
-          ],
-        }),
-        el(doc, 'div', {
-          className: 'hud-boredom__track',
-          children: [this.boredomFill, this.boredomBreath],
-        }),
-      ],
-    });
-
-    /* ---- encounter ---- */
+    /* ---- the incident ---- */
     this.encounterTier = el(doc, 'span', { className: 'hud-encounter__tier', text: '' });
     this.encounterName = el(doc, 'span', { className: 'hud-encounter__name', text: '' });
     this.clockMinutes = new CssNumber(doc, { id: 'enc-m' });
     this.clockSeconds = new CssNumber(doc, { pad2: true, id: 'enc-s' });
+    this.bossFill = el(doc, 'span', { className: 'hud-boss__fill' });
+    this.bossTrack = el(doc, 'div', {
+      className: 'hud-boss',
+      attrs: { 'data-hud': 'boss' },
+      children: [this.bossFill],
+    });
+    this.bossTrack.hidden = true;
     this.encounterCard = el(doc, 'div', {
       className: 'hud-panel hud-encounter',
       attrs: { 'data-hud': 'encounter' },
       children: [
         el(doc, 'div', {
-          children: [this.encounterTier, el(doc, 'div', { children: [this.encounterName] })],
-        }),
-        el(doc, 'span', {
-          className: 'hud-encounter__clock',
+          className: 'hud-encounter__head',
           children: [
-            this.clockMinutes.element,
-            el(doc, 'span', { className: 'hud-encounter__sep', text: ':' }),
-            this.clockSeconds.element,
+            this.encounterTier,
+            this.encounterName,
+            el(doc, 'span', {
+              className: 'hud-encounter__clock',
+              children: [
+                this.clockMinutes.element,
+                el(doc, 'span', { className: 'hud-encounter__sep', text: ':' }),
+                this.clockSeconds.element,
+              ],
+            }),
           ],
         }),
+        this.bossTrack,
       ],
     });
     this.encounterCard.hidden = true;
 
-    this.bossFill = el(doc, 'span', { className: 'hud-boss__fill' });
-    this.bossPhase = el(doc, 'span', { className: 'hud-label', text: 'PHASE 1' });
-    this.bossCard = el(doc, 'div', {
-      className: 'hud-panel hud-boss',
-      attrs: { 'data-hud': 'boss' },
-      children: [
-        this.bossPhase,
-        el(doc, 'div', { className: 'hud-boss__track', children: [this.bossFill] }),
-      ],
-    });
-    this.bossCard.hidden = true;
-
-    /* ---- ledger ---- */
+    /* ---- the cost ---- */
     this.savedCount = new CssNumber(doc, { id: 'saved' });
     this.lostCount = new CssNumber(doc, { id: 'lost' });
     this.witnessCount = new CssNumber(doc, { id: 'witness' });
-    this.lostCell = el(doc, 'div', {
-      className: 'hud-ledger__cell hud-ledger__cell--lost',
-      children: [
-        el(doc, 'span', { className: 'hud-ledger__value', children: [this.lostCount.element] }),
-        el(doc, 'span', { className: 'hud-label', text: 'LOST' }),
-      ],
-    });
-    this.ledger = el(doc, 'div', {
-      className: 'hud-panel hud-ledger',
-      attrs: { 'data-hud': 'ledger' },
-      children: [
-        el(doc, 'div', {
-          className: 'hud-ledger__cell hud-ledger__cell--saved',
-          children: [
-            el(doc, 'span', {
-              className: 'hud-ledger__value',
-              children: [this.savedCount.element],
-            }),
-            el(doc, 'span', { className: 'hud-label', text: 'SAVED' }),
-          ],
-        }),
-        this.lostCell,
-        el(doc, 'div', {
-          className: 'hud-ledger__cell',
-          children: [
-            el(doc, 'span', {
-              className: 'hud-ledger__value hud-ledger__witness',
-              children: [this.witnessCount.element],
-            }),
-            el(doc, 'span', { className: 'hud-label', text: 'WATCHING' }),
-          ],
-        }),
-      ],
-    });
-    this.ledger.hidden = true;
-
-    /* ---- collateral ---- */
-    this.collateralYen = new CssNumber(doc, {
-      className: 'hud-collateral__value',
+    this.costYen = new CssNumber(doc, {
+      className: 'hud-ledger__value',
       decimals: 2,
       prefix: '¥',
       suffix: 'B',
       id: 'yen',
     });
-    this.collateralFill = el(doc, 'span', { className: 'hud-collateral__fill' });
-    this.debrisCount = new CssNumber(doc, { suffix: ' PIECES', id: 'debris' });
-    this.collateral = el(doc, 'div', {
-      className: 'hud-panel hud-collateral',
-      attrs: { 'data-hud': 'collateral' },
+    this.lostCell = this.cell('LOST', this.lostCount.element, 'hud-ledger__cell--lost');
+    this.costCell = el(doc, 'div', {
+      className: 'hud-ledger__cell hud-ledger__cell--cost',
+      children: [el(doc, 'span', { className: 'hud-label', text: 'COST' }), this.costYen.element],
+    });
+    this.costFill = el(doc, 'span', { className: 'hud-ledger__fill' });
+    this.costTrack = el(doc, 'div', {
+      className: 'hud-ledger__track',
+      children: [this.costFill],
+    });
+    this.ledger = el(doc, 'div', {
+      className: 'hud-panel hud-ledger',
+      attrs: { 'data-hud': 'ledger' },
+      dataset: { lost: 'false' },
       children: [
-        el(doc, 'div', {
-          className: 'hud-collateral__row',
-          children: [
-            el(doc, 'span', { className: 'hud-label', text: 'COLLATERAL' }),
-            this.collateralYen.element,
-          ],
-        }),
-        el(doc, 'div', { className: 'hud-collateral__track', children: [this.collateralFill] }),
-        el(doc, 'span', {
-          className: 'hud-label hud-collateral__debris',
-          children: [this.debrisCount.element],
-        }),
+        this.cell('SAVED', this.savedCount.element, 'hud-ledger__cell--saved'),
+        this.lostCell,
+        this.cell('WATCHING', this.witnessCount.element, 'hud-ledger__witness'),
+        this.costCell,
+        this.costTrack,
       ],
     });
-    this.collateral.hidden = true;
+    this.ledger.hidden = true;
 
-    /* ---- tracker ---- */
+    /* ---- the duty strip ---- */
     this.trackerTitle = el(doc, 'div', { className: 'hud-tracker__title', text: '' });
-    this.trackerObjectives = el(doc, 'div', {});
+    this.trackerCount = el(doc, 'span', { className: 'hud-tracker__count', text: '' });
+    this.trackerWhat = el(doc, 'span', { className: 'hud-tracker__what', text: '' });
+    this.trackerObj = el(doc, 'div', {
+      className: 'hud-tracker__obj',
+      dataset: { complete: 'false' },
+      children: [this.trackerCount, this.trackerWhat],
+    });
     this.trackerMinutes = new CssNumber(doc, { id: 'q-m' });
     this.trackerSeconds = new CssNumber(doc, { pad2: true, id: 'q-s' });
     this.trackerClock = el(doc, 'div', {
@@ -375,23 +376,27 @@ export class CombatHudScreen extends HudScreen {
         this.trackerSeconds.element,
       ],
     });
-    this.trackerConflict = el(doc, 'div', { className: 'hud-tracker__conflict', text: '' });
     this.tracker = el(doc, 'div', {
       className: 'hud-panel hud-tracker',
       attrs: { 'data-hud': 'tracker', role: 'button', tabindex: '0' },
       dataset: { urgency: 'none', errand: 'false' },
       children: [
-        el(doc, 'div', { className: 'hud-label', text: 'TRACKING' }),
-        this.trackerTitle,
-        this.trackerObjectives,
+        el(doc, 'div', {
+          className: 'hud-tracker__main',
+          children: [this.trackerTitle, this.trackerObj],
+        }),
         this.trackerClock,
-        this.trackerConflict,
       ],
     });
     this.tracker.hidden = true;
     if (options.onOpenQuests) {
       const open = options.onOpenQuests;
-      this.tracker.style.pointerEvents = 'auto';
+      // NOT `style.pointerEvents = 'auto'`. The stylesheet owns whether this is
+      // a control, because the answer depends on the viewport: on a landscape
+      // phone the strip sits inside the rectangle `src/ui/input` treats as
+      // stick input, so a tap there is a movement input whatever the HUD
+      // believes — the harness's hit-ownership grid measured it stealing three
+      // probes. An inline style would have overridden that media query.
       this.tracker.addEventListener('pointerup', open);
       this.onDispose(() => this.tracker.removeEventListener('pointerup', open));
     }
@@ -436,7 +441,7 @@ export class CombatHudScreen extends HudScreen {
 
     /* ---- assembly ---- */
     const pauseButton = button(doc, 'Pause', options.onPause, {
-      className: 'hud-btn--ghost hud-pausebtn',
+      className: 'hud-pausebtn',
       text: '❚❚',
       attrs: { 'data-hud': 'pause-button' },
     });
@@ -447,31 +452,44 @@ export class CombatHudScreen extends HudScreen {
     // reserves for cannot drift apart.
     const rightColumn = el(doc, 'div', {
       className: 'hud-top__right',
-      children: [this.ledger, this.collateral],
+      children: [this.ledger],
     });
 
     this.element.append(
       el(doc, 'div', {
         className: 'hud-top',
         children: [
-          el(doc, 'div', {
-            className: 'hud-top__left',
-            children: [rankChip, this.boredom],
-          }),
-          el(doc, 'div', {
-            className: 'hud-top__centre',
-            children: [this.encounterCard, this.bossCard],
-          }),
+          el(doc, 'div', { className: 'hud-top__left', children: [rankChip] }),
+          el(doc, 'div', { className: 'hud-top__centre', children: [this.encounterCard] }),
           rightColumn,
-          // Placed by the stylesheet, not by its position in this list: under
-          // the centre column in landscape, fixed to the bottom-left in
-          // portrait. See `.hud-tracker` in styles.ts.
+          // Placed by the stylesheet, not by its position in this list: row two
+          // of the band, spanning it, in every orientation. See `.hud-tracker`.
           this.tracker,
         ],
       }),
       pauseButton,
       this.charge
     );
+  }
+
+  /**
+   * One register cell: the label on top, the number under it.
+   *
+   * LABEL ON TOP and both flush left, which is a correctness fix and not a
+   * preference. The cells used to be `align-items:flex-end` with the number
+   * above a TRACKED label, and CSS adds letter-spacing after the FINAL glyph
+   * too — so every counter sat over the last letter and a half of its own label
+   * and overhung its right edge by ~1 px. Left-aligned columns cannot do that,
+   * and a printed register reads label-first anyway.
+   */
+  private cell(label: string, value: Node, modifier: string): HTMLElement {
+    return el(this.doc, 'div', {
+      className: `hud-ledger__cell ${modifier}`,
+      children: [
+        el(this.doc, 'span', { className: 'hud-label', text: label }),
+        el(this.doc, 'span', { className: 'hud-ledger__value', children: [value] }),
+      ],
+    });
   }
 
   /* ---------------------------------------------------------------------- */
@@ -494,6 +512,7 @@ export class CombatHudScreen extends HudScreen {
       this.lastMood = band.label;
       this.boredomMood.textContent = band.label;
       this.boredom.style.setProperty('--hud-mood', band.color);
+      this.boredomFill.style.setProperty('--hud-mood', band.color);
       this.boredomBreath.style.setProperty('--hud-breath', `${band.breathSeconds}s`);
     }
     this.boredom.dataset.throttled = model.rank.rankGainMultiplier < 0.55 ? 'true' : 'false';
@@ -503,28 +522,29 @@ export class CombatHudScreen extends HudScreen {
     const hasEncounter = encounter !== null;
     this.encounterCard.hidden = !hasEncounter;
     this.ledger.hidden = !hasEncounter;
-    this.collateralVisible = hasEncounter && model.settings.showCollateralTicker;
-    this.collateral.hidden = !this.collateralVisible;
-    this.bossCard.hidden = !(encounter?.isBoss ?? false);
+    this.costVisible = hasEncounter && model.settings.showCollateralTicker;
+    this.costCell.hidden = !this.costVisible;
+    this.costTrack.hidden = !this.costVisible;
+    this.bossTrack.hidden = !(encounter?.isBoss ?? false);
 
     if (encounter && encounter.id !== this.lastEncounterId) {
       this.lastEncounterId = encounter.id;
       this.encounterName.textContent = encounter.name;
+      // The tier word ALWAYS prints beside the tier colour. No five-hue ramp
+      // survives dichromacy as colour alone.
       this.encounterTier.textContent = `THREAT ${TIER_LABEL[encounter.tier]}`;
-      const tint = TIER_COLOR[encounter.tier];
-      this.encounterCard.style.setProperty('--hud-tier', tint);
-      this.bossCard.style.setProperty('--hud-tier', tint);
+      this.encounterCard.style.setProperty('--hud-tier', TIER_COLOR[encounter.tier]);
       this.lastLostCount = 0;
     } else if (!encounter) {
       this.lastEncounterId = null;
     }
-    if (encounter?.bossPhase !== undefined) {
-      const text = `PHASE ${encounter.bossPhase}`;
-      if (this.bossPhase.textContent !== text) this.bossPhase.textContent = text;
-    }
+
+    /* The ledger's edge rule is the ledger's headline: green while everyone is
+       accounted for, red the moment somebody is not. */
+    const lost = encounter?.civiliansLost ?? 0;
+    this.ledger.dataset.lost = lost > 0 ? 'true' : 'false';
 
     /* the lost counter is the only one that gets to move */
-    const lost = encounter?.civiliansLost ?? 0;
     if (lost > this.lastLostCount) {
       this.lastLostCount = lost;
       const cell = this.lostCell;
@@ -550,6 +570,7 @@ export class CombatHudScreen extends HudScreen {
     this.tracker.hidden = false;
 
     const urgency = questUrgency(quest);
+    const lead = leadObjective(quest.objectives);
     /* Every field the gated block below writes has to be in here. `hidden` and
        `complete` are first-class on `IQuestObjectiveRow` precisely so they can
        change WITHOUT the counter moving — an objective revealed by progress
@@ -565,7 +586,6 @@ export class CombatHudScreen extends HudScreen {
           (o) => `${o.id}:${o.current}/${o.required}:${o.hidden ? 'h' : ''}${o.complete ? 'c' : ''}`
         )
         .join(','),
-      quest.conflictsWith?.join(',') ?? '',
     ].join('|');
     if (signature === this.lastTrackerSignature) return;
     this.lastTrackerSignature = signature;
@@ -575,18 +595,16 @@ export class CombatHudScreen extends HudScreen {
     this.trackerTitle.textContent = quest.title;
     this.trackerClock.hidden = quest.timeRemaining === undefined;
 
-    this.trackerObjectives.replaceChildren(...objectiveRows(this.doc, quest.objectives));
-
-    /* The conflict warning. This is the supermarket, and it is the point. */
-    const conflicts = quest.conflictsWith ?? [];
-    if (conflicts.length === 0) {
-      this.trackerConflict.hidden = true;
-    } else {
-      this.trackerConflict.hidden = false;
-      const names = conflictTitles(model.quests, conflicts);
-      this.trackerConflict.textContent = quest.errand
-        ? `Ends if you take: ${names}`
-        : `Taking this ends: ${names}`;
+    this.trackerObj.hidden = lead === undefined;
+    if (lead !== undefined) {
+      this.trackerObj.dataset.complete = lead.complete ? 'true' : 'false';
+      this.trackerCount.textContent =
+        lead.required > 1
+          ? `${Math.min(lead.current, lead.required)}/${lead.required}`
+          : lead.complete
+            ? '✓'
+            : '•';
+      this.trackerWhat.textContent = lead.description;
     }
   }
 
@@ -597,7 +615,6 @@ export class CombatHudScreen extends HudScreen {
   override frame(model: IHudModel, writer: FrameWriter): void {
     /* rank */
     this.rankNumber.write(writer, model.rank.rank);
-    writer.setNumber(this.rankProgress, '--fill', clamp01(model.rank.rankProgress), 3);
 
     /* boredom */
     writer.setNumber(this.boredomFill, '--boredom', clamp01(model.boredom), 3);
@@ -612,10 +629,9 @@ export class CombatHudScreen extends HudScreen {
       this.savedCount.write(writer, encounter.civiliansSaved);
       this.lostCount.write(writer, encounter.civiliansLost);
       this.witnessCount.write(writer, encounter.witnesses);
-      if (this.collateralVisible) {
-        this.debrisCount.write(writer, encounter.debrisPieces);
-        this.collateralYen.write(writer, encounter.collateralYen / YEN_PER_BILLION);
-        writer.setNumber(this.collateralFill, '--collateral', encounter.collateralScore, 3);
+      if (this.costVisible) {
+        this.costYen.write(writer, encounter.collateralYen / YEN_PER_BILLION);
+        writer.setNumber(this.costFill, '--collateral', encounter.collateralScore, 3);
       }
       // Full until told otherwise, and written every frame rather than only
       // when known: a boss card that opened on the PREVIOUS fight's health
@@ -682,6 +698,28 @@ export function pickTrackedQuest(model: IHudModel): IQuestRow | undefined {
     }
   }
   return best;
+}
+
+/**
+ * The one objective the duty strip has room to print.
+ *
+ * The first VISIBLE objective that is not yet done, because that is the thing
+ * the player is currently supposed to be doing; the last visible one when they
+ * are all done, so a finished quest reads as finished rather than as blank.
+ * Hidden objectives never appear — `IQuestObjectiveRow.hidden` exists so the
+ * quest system can reveal a step later, and a leaked one spoils it.
+ *
+ * The full list is in the quest log. On a 121 px band this HUD gets one line.
+ */
+function leadObjective(objectives: readonly IQuestObjectiveRow[]): IQuestObjectiveRow | undefined {
+  let last: IQuestObjectiveRow | undefined;
+  for (let i = 0; i < objectives.length; i++) {
+    const objective = objectives[i]!;
+    if (objective.hidden) continue;
+    if (!objective.complete) return objective;
+    last = objective;
+  }
+  return last;
 }
 
 /** Re-exported so the harness can walk the band table for screenshots. */

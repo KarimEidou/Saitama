@@ -33,27 +33,43 @@
     ],
     "maxReach": 221.61528610283162,
     "hudReserve": 240,
-    "stickReserve": 200
+    "stickReserve": 225
+  },
+  "mountParity": {
+    "inputParent": "body",
+    "parentIsBody": true,
+    "siblings": true,
+    "inputZIndex": 1,
+    "uiZIndex": 10,
+    "probe": [
+      "button.hud-btn.hud-pausebtn",
+      "div.opm-input-root",
+      "canvas#backdrop",
+      "div#stage",
+      "body",
+      "html"
+    ],
+    "hudAbove": true
   },
   "regions": {
     "whole": {
-      "meanLuma": 37.19314902445726,
-      "stdDev": 28.333931374024246,
-      "colours": 972,
+      "meanLuma": 37.02643262403861,
+      "stdDev": 31.44793922015774,
+      "colours": 1166,
       "width": 2532,
       "height": 1170
     },
     "band": {
-      "meanLuma": 43.80387272683541,
-      "stdDev": 32.5747193832819,
-      "colours": 522,
+      "meanLuma": 40.52253439101057,
+      "stdDev": 35.10469323726155,
+      "colours": 647,
       "width": 2532,
       "height": 360
     },
     "corridor": {
-      "meanLuma": 27.8417112736478,
-      "stdDev": 18.894797936792358,
-      "colours": 306,
+      "meanLuma": 28.536432753653358,
+      "stdDev": 18.68119983129901,
+      "colours": 233,
       "width": 1013,
       "height": 351
     }
@@ -62,10 +78,9 @@
     "frames": 120,
     "properties": [
       "--boredom",
-      "--n-i",
-      "--n-f",
-      "--collateral",
+      "--n-text",
       "--charge",
+      "--collateral",
       "--hud-intent",
       "--hud-intent-label"
     ],
@@ -75,9 +90,9 @@
     "uninstrumentedReads": [],
     "layoutShift": 0,
     "layoutShiftObserved": true,
-    "setPropertyCalls": 511,
-    "writerWrites": 511,
-    "writerSkipped": 2013
+    "setPropertyCalls": 493,
+    "writerWrites": 493,
+    "writerSkipped": 1429
   },
   "snapshot.phone-landscape": {
     "scene": "combat",
@@ -86,7 +101,7 @@
       "hud"
     ],
     "modalOpen": false,
-    "boredom": 0.5060454732033068,
+    "boredom": 0.33314317733382603,
     "rank": {
       "heroName": "Caped Baldy",
       "heroClass": "C",
@@ -110,9 +125,9 @@
       "elapsed": 6.60000000000008,
       "civiliansSaved": 6,
       "civiliansLost": 2,
-      "collateralYen": 5955561528.127368,
-      "collateralScore": 0.6897232674222894,
-      "debrisPieces": 1445,
+      "collateralYen": 5500229984.72177,
+      "collateralScore": 0.6100402473263098,
+      "debrisPieces": 1454,
       "debrisMassKg": 91400,
       "witnesses": 9
     },
@@ -120,7 +135,7 @@
     "settings": {
       "qualityTier": "medium",
       "resolutionScale": 1,
-      "stickLayout": "floating",
+      "stickLayout": "fixed",
       "stickHand": "left",
       "invertLookY": false,
       "lookSensitivity": 1,
@@ -140,7 +155,7 @@
       "width": 844,
       "height": 390
     },
-    "cumulativeLayoutShift": 0.05262031388313438
+    "cumulativeLayoutShift": 0.0842504913591627
   },
   "snapshot.phone-portrait": {
     "scene": "pause",
@@ -183,7 +198,7 @@
     "settings": {
       "qualityTier": "medium",
       "resolutionScale": 1,
-      "stickLayout": "floating",
+      "stickLayout": "fixed",
       "stickHand": "left",
       "invertLookY": false,
       "lookSensitivity": 1,
@@ -203,7 +218,7 @@
       "width": 390,
       "height": 844
     },
-    "cumulativeLayoutShift": 0.00004460585871605391
+    "cumulativeLayoutShift": 0.0976438517346179
   },
   "snapshot.tablet": {
     "scene": "combat-charging",
@@ -212,7 +227,7 @@
       "hud"
     ],
     "modalOpen": false,
-    "boredom": 0.5907320479505631,
+    "boredom": 0.6366896291272142,
     "rank": {
       "heroName": "Caped Baldy",
       "heroClass": "C",
@@ -236,9 +251,9 @@
       "elapsed": 6.533333333333331,
       "civiliansSaved": 6,
       "civiliansLost": 2,
-      "collateralYen": 5553857829.706441,
-      "collateralScore": 0.6194251201986272,
-      "debrisPieces": 1404,
+      "collateralYen": 5686345981.247634,
+      "collateralScore": 0.642610546718336,
+      "debrisPieces": 1407,
       "debrisMassKg": 91400,
       "witnesses": 9
     },
@@ -246,7 +261,7 @@
     "settings": {
       "qualityTier": "medium",
       "resolutionScale": 1,
-      "stickLayout": "floating",
+      "stickLayout": "fixed",
       "stickHand": "left",
       "invertLookY": false,
       "lookSensitivity": 1,
@@ -266,237 +281,237 @@
       "width": 1024,
       "height": 768
     },
-    "cumulativeLayoutShift": 0.01550478239854177
+    "cumulativeLayoutShift": 0.01227192514731238
   },
   "shots": {
     "hud-loading-phone-landscape.png": {
-      "meanLuma": 10.004193724188053,
-      "stdDev": 19.76838040860196,
-      "colours": 673,
+      "meanLuma": 17.7822888548299,
+      "stdDev": 26.276379312207926,
+      "colours": 172,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-phone-landscape.png": {
-      "meanLuma": 37.19314902445726,
-      "stdDev": 28.333931374024246,
-      "colours": 972,
+      "meanLuma": 37.02643262403861,
+      "stdDev": 31.44793922015774,
+      "colours": 1166,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-boss-phone-landscape.png": {
-      "meanLuma": 36.2563874800693,
-      "stdDev": 28.404371093646674,
-      "colours": 1003,
+      "meanLuma": 37.094336217427696,
+      "stdDev": 31.608933804081968,
+      "colours": 1227,
       "width": 2532,
       "height": 1170
     },
     "hud-quests-phone-landscape.png": {
-      "meanLuma": 31.208887048879447,
-      "stdDev": 21.30018403708587,
-      "colours": 967,
+      "meanLuma": 21.244284347977917,
+      "stdDev": 31.06850517581245,
+      "colours": 463,
       "width": 2532,
       "height": 1170
     },
     "hud-rank-phone-landscape.png": {
-      "meanLuma": 20.652957308321156,
-      "stdDev": 29.351883443573865,
-      "colours": 591,
+      "meanLuma": 29.65850759960656,
+      "stdDev": 21.77053003102842,
+      "colours": 1081,
       "width": 2532,
       "height": 1170
     },
     "hud-results-phone-landscape.png": {
-      "meanLuma": 30.640900684908875,
-      "stdDev": 20.24345557918658,
-      "colours": 786,
+      "meanLuma": 27.351614308455495,
+      "stdDev": 19.124488980226918,
+      "colours": 923,
       "width": 2532,
       "height": 1170
     },
     "hud-pause-phone-landscape.png": {
-      "meanLuma": 20.684002736985395,
-      "stdDev": 21.230360045634,
-      "colours": 602,
+      "meanLuma": 25.91677701502224,
+      "stdDev": 21.07562213900824,
+      "colours": 974,
       "width": 2532,
       "height": 1170
     },
     "hud-settings-phone-landscape.png": {
-      "meanLuma": 28.45910922466403,
-      "stdDev": 19.549983360365697,
-      "colours": 841,
+      "meanLuma": 17.72743006262721,
+      "stdDev": 24.618730412809576,
+      "colours": 341,
       "width": 2532,
       "height": 1170
     },
     "hud-idle-phone-landscape.png": {
-      "meanLuma": 37.626695284583604,
-      "stdDev": 25.305682567463414,
-      "colours": 885,
+      "meanLuma": 38.256777301458754,
+      "stdDev": 28.196747787620335,
+      "colours": 1039,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-alert-phone-landscape.png": {
-      "meanLuma": 35.89771931422856,
-      "stdDev": 27.168700884405464,
-      "colours": 1015,
+      "meanLuma": 37.352440083015175,
+      "stdDev": 31.863169782984013,
+      "colours": 1200,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-charging-phone-landscape.png": {
-      "meanLuma": 37.96723350126408,
-      "stdDev": 29.478610926448063,
-      "colours": 1204,
+      "meanLuma": 37.436218141809604,
+      "stdDev": 31.82654707337514,
+      "colours": 1423,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-bored-phone-landscape.png": {
-      "meanLuma": 37.074051695151404,
-      "stdDev": 27.75982869910744,
-      "colours": 970,
+      "meanLuma": 36.974743373564614,
+      "stdDev": 31.099949793515215,
+      "colours": 1174,
       "width": 2532,
       "height": 1170
     },
     "hud-markers-phone-landscape.png": {
-      "meanLuma": 37.50307672929384,
-      "stdDev": 29.57197645366457,
-      "colours": 1275,
+      "meanLuma": 37.61136380264499,
+      "stdDev": 33.097249838398895,
+      "colours": 1547,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-deuteranopia.png": {
-      "meanLuma": 37.258846745391885,
-      "stdDev": 28.378112030777803,
-      "colours": 953,
+      "meanLuma": 37.12490886996276,
+      "stdDev": 31.914890786206996,
+      "colours": 1138,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-protanopia.png": {
-      "meanLuma": 37.33061609923012,
-      "stdDev": 28.73071601489074,
-      "colours": 919,
+      "meanLuma": 37.21019420462078,
+      "stdDev": 32.16165622933156,
+      "colours": 1142,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-tritanopia.png": {
-      "meanLuma": 37.164621105377265,
-      "stdDev": 28.29748734977225,
-      "colours": 956,
+      "meanLuma": 37.01982605445388,
+      "stdDev": 31.46374177232498,
+      "colours": 1213,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-highContrast.png": {
-      "meanLuma": 35.721072231829375,
-      "stdDev": 32.3003801362903,
-      "colours": 948,
+      "meanLuma": 35.6606178277207,
+      "stdDev": 34.62816142896563,
+      "colours": 1160,
       "width": 2532,
       "height": 1170
     },
     "hud-loading-phone-portrait.png": {
-      "meanLuma": 10.434112475579003,
-      "stdDev": 21.882326914369067,
-      "colours": 674,
+      "meanLuma": 16.2501484890651,
+      "stdDev": 20.134598843845893,
+      "colours": 160,
       "width": 1170,
       "height": 2532
     },
     "hud-combat-phone-portrait.png": {
-      "meanLuma": 50.83331148049554,
-      "stdDev": 37.472990603262474,
-      "colours": 890,
+      "meanLuma": 48.941793516498464,
+      "stdDev": 39.231437766388275,
+      "colours": 1016,
       "width": 1170,
       "height": 2532
     },
     "hud-combat-boss-phone-portrait.png": {
-      "meanLuma": 49.445705772879585,
-      "stdDev": 37.298699267165404,
-      "colours": 937,
+      "meanLuma": 48.830470670410804,
+      "stdDev": 39.48316002902216,
+      "colours": 1093,
       "width": 1170,
       "height": 2532
     },
     "hud-quests-phone-portrait.png": {
-      "meanLuma": 40.81413846923562,
-      "stdDev": 27.531475979049397,
-      "colours": 1053,
+      "meanLuma": 29.151069912371817,
+      "stdDev": 35.61201916748014,
+      "colours": 765,
       "width": 1170,
       "height": 2532
     },
     "hud-rank-phone-portrait.png": {
-      "meanLuma": 43.51930773846176,
-      "stdDev": 28.166552168176395,
-      "colours": 1079,
+      "meanLuma": 25.762700266422502,
+      "stdDev": 41.5285787434632,
+      "colours": 453,
       "width": 1170,
       "height": 2532
     },
     "hud-results-phone-portrait.png": {
-      "meanLuma": 42.04226882979166,
-      "stdDev": 27.17386498598929,
-      "colours": 941,
+      "meanLuma": 37.81996151878139,
+      "stdDev": 26.157962615327733,
+      "colours": 1165,
       "width": 1170,
       "height": 2532
     },
     "hud-pause-phone-portrait.png": {
-      "meanLuma": 39.646438293593505,
-      "stdDev": 29.002013439691677,
-      "colours": 786,
+      "meanLuma": 27.63106043851887,
+      "stdDev": 23.25939533477072,
+      "colours": 677,
       "width": 1170,
       "height": 2532
     },
     "hud-settings-phone-portrait.png": {
-      "meanLuma": 38.3256488918904,
-      "stdDev": 25.490826602414668,
-      "colours": 947,
+      "meanLuma": 34.032200609347136,
+      "stdDev": 26.045902470668317,
+      "colours": 894,
       "width": 1170,
       "height": 2532
     },
     "hud-loading-tablet.png": {
-      "meanLuma": 9.35515954282814,
-      "stdDev": 19.554951702280587,
-      "colours": 649,
+      "meanLuma": 15.810296958364653,
+      "stdDev": 17.534871160819822,
+      "colours": 164,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-tablet.png": {
-      "meanLuma": 42.994653741274284,
-      "stdDev": 29.00032386931856,
-      "colours": 916,
+      "meanLuma": 43.637424824723176,
+      "stdDev": 30.44388822858608,
+      "colours": 923,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-boss-tablet.png": {
-      "meanLuma": 42.659686192691616,
-      "stdDev": 29.246236398253984,
-      "colours": 952,
+      "meanLuma": 43.71472447432024,
+      "stdDev": 30.59049101533697,
+      "colours": 981,
       "width": 2048,
       "height": 1536
     },
     "hud-quests-tablet.png": {
-      "meanLuma": 33.54110644141753,
-      "stdDev": 20.965937575886276,
-      "colours": 906,
+      "meanLuma": 33.9354808185103,
+      "stdDev": 21.693635106125218,
+      "colours": 1070,
       "width": 2048,
       "height": 1536
     },
     "hud-rank-tablet.png": {
-      "meanLuma": 32.40110131778606,
-      "stdDev": 20.605287934585256,
-      "colours": 893,
+      "meanLuma": 36.478355654122616,
+      "stdDev": 22.395762142288696,
+      "colours": 910,
       "width": 2048,
       "height": 1536
     },
     "hud-results-tablet.png": {
-      "meanLuma": 30.437105426219745,
-      "stdDev": 19.229105333285624,
-      "colours": 877,
+      "meanLuma": 16.609789068165743,
+      "stdDev": 21.888813255736856,
+      "colours": 551,
       "width": 2048,
       "height": 1536
     },
     "hud-pause-tablet.png": {
-      "meanLuma": 28.738182398016026,
-      "stdDev": 18.98572670488863,
-      "colours": 680,
+      "meanLuma": 10.780580590203572,
+      "stdDev": 15.520635744336479,
+      "colours": 279,
       "width": 2048,
       "height": 1536
     },
     "hud-settings-tablet.png": {
-      "meanLuma": 28.910008180104768,
-      "stdDev": 19.85853257351045,
-      "colours": 815,
+      "meanLuma": 21.35482193033573,
+      "stdDev": 25.402033361728133,
+      "colours": 473,
       "width": 2048,
       "height": 1536
     }
@@ -507,10 +522,12 @@
         "id": "loading-track",
         "kind": "panel",
         "screen": "boot",
-        "x": 274.5,
-        "y": 186.59375,
-        "width": 320,
-        "height": 3,
+        "path": "1/0/2",
+        "occluded": false,
+        "x": 212,
+        "y": 185.359375,
+        "width": 420,
+        "height": 5,
         "text": ""
       }
     ],
@@ -519,66 +536,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "GOING THROUGH THE MOTIONSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 365.5,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 316.34375,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 236.3125,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 617.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 558.65625,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 628,
-        "y": 64,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 201.34375,
+        "height": 97,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 334.5,
-        "y": 132,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 111,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -589,7 +608,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": false,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -601,76 +622,80 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "GOING THROUGH THE MOTIONSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 364.546875,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 316.34375,
         "y": 8,
-        "width": 139.890625,
-        "height": 54,
+        "width": 236.3125,
+        "height": 46,
         "text": "THREAT DRAGONDeep Sea King:"
       },
       {
         "id": "boss",
         "kind": "panel",
         "screen": "hud",
-        "x": 284.5,
-        "y": 68,
-        "width": 300,
-        "height": 40,
-        "text": "PHASE 2"
+        "path": "2/0/1/0/1",
+        "occluded": false,
+        "x": 327.34375,
+        "y": 42,
+        "width": 214.3125,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 617.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 558.65625,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 628,
-        "y": 64,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 201.34375,
+        "height": 97,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 334.5,
-        "y": 132,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 111,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -681,7 +706,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": false,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -693,36 +720,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "quests",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "quests",
-        "x": 334.5,
-        "y": 115,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 59,
+        "y": 71,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/1",
+        "occluded": true,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -733,7 +768,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "quests",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": true,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -743,6 +780,8 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "quests",
+        "path": "4/0",
+        "occluded": false,
         "x": 69,
         "y": 18,
         "width": 731,
@@ -753,9 +792,11 @@
         "id": "quests-close",
         "kind": "panel",
         "screen": "quests",
-        "x": 714,
-        "y": 304,
-        "width": 71,
+        "path": "4/0/2/0",
+        "occluded": false,
+        "x": 712.59375,
+        "y": 305,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -765,36 +806,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "rank",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "rank",
-        "x": 334.5,
-        "y": 115,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 59,
+        "y": 71,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/1",
+        "occluded": true,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -805,7 +854,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "rank",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": true,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -815,6 +866,8 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "rank",
+        "path": "5/0",
+        "occluded": false,
         "x": 69,
         "y": 18,
         "width": 731,
@@ -825,19 +878,23 @@
         "id": "standing",
         "kind": "panel",
         "screen": "rank",
-        "x": 84,
-        "y": 78,
-        "width": 701,
-        "height": 43.09375,
+        "path": "5/0/1/0",
+        "occluded": false,
+        "x": 85,
+        "y": 74,
+        "width": 699,
+        "height": 49.234375,
         "text": "C-388Caped Baldy12.4 hero points · 33.6 to the next seat · r"
       },
       {
         "id": "rank-close",
         "kind": "panel",
         "screen": "rank",
-        "x": 714,
-        "y": 304,
-        "width": 71,
+        "path": "5/0/2/0",
+        "occluded": false,
+        "x": 712.59375,
+        "y": 305,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -847,36 +904,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "results",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "results",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "results",
-        "x": 334.5,
-        "y": 115,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 59,
+        "y": 71,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "results",
+        "path": "2/1",
+        "occluded": true,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -887,7 +952,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "results",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": true,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -897,6 +964,8 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "results",
+        "path": "7/0",
+        "occluded": false,
         "x": 114.5,
         "y": 18,
         "width": 640,
@@ -907,9 +976,11 @@
         "id": "results-dismiss",
         "kind": "panel",
         "screen": "results",
-        "x": 664.890625,
-        "y": 304,
-        "width": 74.609375,
+        "path": "7/0/2/0",
+        "occluded": false,
+        "x": 663.9375,
+        "y": 305,
+        "width": 74.5625,
         "height": 44,
         "text": "File it"
       }
@@ -919,66 +990,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "pause",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "pause",
-        "x": 365.5,
+        "path": "2/0/1/0",
+        "occluded": true,
+        "x": 316.34375,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 236.3125,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "pause",
-        "x": 617.1875,
+        "path": "2/0/2/0",
+        "occluded": true,
+        "x": 558.65625,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "pause",
-        "x": 628,
-        "y": 64,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 201.34375,
+        "height": 97,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "pause",
-        "x": 334.5,
-        "y": 132,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 59,
+        "y": 111,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/1",
+        "occluded": true,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -989,7 +1062,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "pause",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": true,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -999,19 +1074,23 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "pause",
+        "path": "3/0",
+        "occluded": false,
         "x": 224.5,
-        "y": 43.53125,
+        "y": 44.578125,
         "width": 420,
-        "height": 289.9375,
+        "height": 287.84375,
         "text": "PausedCaped Baldy · C-388ResumeRequestsHero AssociationSetti"
       },
       {
         "id": "pause-resume",
         "kind": "panel",
         "screen": "pause",
-        "x": 239.5,
-        "y": 103.53125,
-        "width": 390,
+        "path": "3/0/1/0/0",
+        "occluded": false,
+        "x": 240.5,
+        "y": 100.578125,
+        "width": 388,
         "height": 44,
         "text": "Resume"
       },
@@ -1019,9 +1098,11 @@
         "id": "pause-quests",
         "kind": "panel",
         "screen": "pause",
-        "x": 239.5,
-        "y": 153.53125,
-        "width": 390,
+        "path": "3/0/1/0/1",
+        "occluded": false,
+        "x": 240.5,
+        "y": 150.578125,
+        "width": 388,
         "height": 44,
         "text": "Requests"
       },
@@ -1029,9 +1110,11 @@
         "id": "pause-rank",
         "kind": "panel",
         "screen": "pause",
-        "x": 239.5,
-        "y": 203.53125,
-        "width": 390,
+        "path": "3/0/1/0/2",
+        "occluded": false,
+        "x": 240.5,
+        "y": 200.578125,
+        "width": 388,
         "height": 44,
         "text": "Hero Association"
       },
@@ -1039,9 +1122,11 @@
         "id": "pause-settings",
         "kind": "panel",
         "screen": "pause",
-        "x": 239.5,
-        "y": 253.53125,
-        "width": 390,
+        "path": "3/0/1/0/3",
+        "occluded": false,
+        "x": 240.5,
+        "y": 250.578125,
+        "width": 388,
         "height": 44,
         "text": "Settings"
       }
@@ -1051,36 +1136,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "settings",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "settings",
-        "x": 334.5,
-        "y": 115,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 59,
+        "y": 71,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/1",
+        "occluded": true,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -1091,7 +1184,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "settings",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": true,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -1101,6 +1196,8 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "settings",
+        "path": "6/0",
+        "occluded": false,
         "x": 69,
         "y": 18,
         "width": 731,
@@ -1111,8 +1208,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 627.578125,
-        "y": 113,
+        "path": "6/0/1/0/1/1/0",
+        "occluded": false,
+        "x": 628.3125,
+        "y": 108,
         "width": 44,
         "height": 44,
         "text": "low"
@@ -1121,9 +1220,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 674.578125,
-        "y": 113,
-        "width": 60.25,
+        "path": "6/0/1/0/1/1/1",
+        "occluded": false,
+        "x": 675.3125,
+        "y": 108,
+        "width": 58.6875,
         "height": 44,
         "text": "medium"
       },
@@ -1131,9 +1232,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 737.828125,
-        "y": 113,
-        "width": 44.171875,
+        "path": "6/0/1/0/1/1/2",
+        "occluded": false,
+        "x": 737,
+        "y": 108,
+        "width": 44,
         "height": 44,
         "text": "high"
       },
@@ -1141,8 +1244,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 544.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/0",
+        "occluded": false,
+        "x": 544.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "50%"
@@ -1151,8 +1256,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 591.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/1",
+        "occluded": false,
+        "x": 591.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "60%"
@@ -1161,8 +1268,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 638.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/2",
+        "occluded": false,
+        "x": 638.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "75%"
@@ -1171,8 +1280,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 685.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/3",
+        "occluded": false,
+        "x": 685.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "85%"
@@ -1181,9 +1292,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 732.828125,
-        "y": 177,
-        "width": 49.171875,
+        "path": "6/0/1/0/2/1/4",
+        "occluded": false,
+        "x": 732.875,
+        "y": 172,
+        "width": 48.125,
         "height": 44,
         "text": "100%"
       },
@@ -1191,29 +1304,35 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 663.46875,
-        "y": 280,
-        "width": 66.328125,
-        "height": 44,
+        "path": "6/0/1/1/1/1/0",
+        "occluded": false,
+        "x": 665.84375,
+        "y": 274,
+        "width": 64.25,
+        "height": 20,
         "text": "Floating"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 732.796875,
-        "y": 280,
-        "width": 49.203125,
-        "height": 44,
+        "path": "6/0/1/1/1/1/1",
+        "occluded": false,
+        "x": 733.09375,
+        "y": 274,
+        "width": 47.90625,
+        "height": 20,
         "text": "Fixed"
       },
       {
         "id": "settings-close",
         "kind": "panel",
         "screen": "settings",
-        "x": 714,
-        "y": 304,
-        "width": 71,
+        "path": "6/0/2/0",
+        "occluded": false,
+        "x": 712.59375,
+        "y": 305,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -1223,36 +1342,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 334.5,
-        "y": 115,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 71,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -1263,7 +1390,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": false,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -1275,66 +1404,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 365.5,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 316.34375,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 236.3125,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 617.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 558.65625,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 628,
-        "y": 64,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 201.34375,
+        "height": 97,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 334.5,
-        "y": 132,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 111,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -1345,7 +1476,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": false,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -1355,21 +1488,25 @@
         "id": "alerts",
         "kind": "panel",
         "screen": "hud",
-        "x": 212,
-        "y": 12,
-        "width": 420,
-        "height": 46.5,
-        "text": "THREAT LEVEL DEMONThreat to an entire city"
+        "path": "8/0",
+        "occluded": false,
+        "x": 59,
+        "y": 233.3125,
+        "width": 751,
+        "height": 33.6875,
+        "text": "DEMONThreat to an entire city"
       },
       {
         "id": "hud-panel",
         "kind": "panel",
         "screen": "hud",
-        "x": 212,
-        "y": 12,
-        "width": 420,
-        "height": 46.5,
-        "text": "THREAT LEVEL DEMONThreat to an entire city"
+        "path": "8/0/0",
+        "occluded": false,
+        "x": 312.03125,
+        "y": 233.3125,
+        "width": 244.921875,
+        "height": 33.6875,
+        "text": "DEMONThreat to an entire city"
       }
     ],
     "combat-charging@phone-landscape": [
@@ -1377,66 +1514,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "GOING THROUGH THE MOTIONSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 365.5,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 316.34375,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 236.3125,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 617.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 558.65625,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 628,
-        "y": 64,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 201.34375,
+        "height": 97,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 334.5,
-        "y": 132,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 111,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -1447,7 +1586,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
-        "x": 347,
+        "path": "2/2",
+        "occluded": false,
+        "x": 359.5,
         "y": 273,
         "width": 150,
         "height": 86,
@@ -1459,66 +1600,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyNUMBGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "NUMBRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 365.5,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 316.34375,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 236.3125,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 617.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 558.65625,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 628,
-        "y": 64,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 201.34375,
+        "height": 97,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 334.5,
-        "y": 132,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 111,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -1529,7 +1672,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": false,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -1541,116 +1686,128 @@
         "id": "hud-marker",
         "kind": "marker",
         "screen": "hud",
-        "x": 387.59375,
-        "y": 148.82310485839844,
-        "width": 68.8125,
-        "height": 41,
+        "path": "0/0/0",
+        "occluded": false,
+        "x": 384.4375,
+        "y": 149.32310485839844,
+        "width": 75.125,
+        "height": 40,
         "text": "Mosquito Girl25 m"
       },
       {
         "id": "hud-marker",
         "kind": "marker",
         "screen": "hud",
-        "x": 236.41845703125,
-        "y": 154.49111938476562,
-        "width": 76.40625,
-        "height": 41,
+        "path": "0/0/1",
+        "occluded": false,
+        "x": 233.43408203125,
+        "y": 154.99111938476562,
+        "width": 82.375,
+        "height": 40,
         "text": "Route 7 Tunnel35 m"
       },
       {
         "id": "hud-marker",
         "kind": "marker",
         "screen": "hud",
-        "x": 510.64599609375,
-        "y": 162.16404724121094,
-        "width": 158.40625,
-        "height": 41,
+        "path": "0/0/2",
+        "occluded": false,
+        "x": 503.86474609375,
+        "y": 162.66404724121094,
+        "width": 171.96875,
+        "height": 40,
         "text": "Supermarket — sale ends 18:0035 m"
       },
       {
         "id": "hud-marker",
         "kind": "marker",
         "screen": "hud",
-        "x": 530.1697387695312,
-        "y": 205.4905242919922,
-        "width": 39.8125,
-        "height": 38,
+        "path": "0/0/3",
+        "occluded": false,
+        "x": 528.6150512695312,
+        "y": 205.9905242919922,
+        "width": 42.921875,
+        "height": 37,
         "text": "Civilian20 m"
       },
       {
         "id": "hud-marker",
         "kind": "marker",
         "screen": "hud",
-        "x": 258.2837829589844,
-        "y": 192.8723907470703,
-        "width": 62.609375,
-        "height": 41,
+        "path": "0/0/4",
+        "occluded": false,
+        "x": 256.2681579589844,
+        "y": 193.3723907470703,
+        "width": 66.640625,
+        "height": 40,
         "text": "Mumen Rider20 m"
       },
       {
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 59,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 206,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 59,
-        "y": 66,
-        "width": 190,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 105,
+        "y": 53,
+        "width": 149,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 365.5,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 316.34375,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 236.3125,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 617.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 558.65625,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 628,
-        "y": 64,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 201.34375,
+        "height": 97,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 334.5,
-        "y": 132,
-        "width": 200,
-        "height": 115.640625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 111,
+        "width": 560,
+        "height": 37,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 766,
         "y": 8,
         "width": 44,
@@ -1661,7 +1818,9 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
-        "x": 351.5,
+        "path": "2/2",
+        "occluded": false,
+        "x": 364,
         "y": 285.58001708984375,
         "width": 141,
         "height": 80.83999633789062,
@@ -1673,10 +1832,12 @@
         "id": "loading-track",
         "kind": "panel",
         "screen": "boot",
-        "x": 74.09375,
-        "y": 428.28125,
-        "width": 241.796875,
-        "height": 3,
+        "path": "1/0/2",
+        "occluded": false,
+        "x": 42.90625,
+        "y": 404,
+        "width": 304.1875,
+        "height": 5,
         "text": ""
       }
     ],
@@ -1685,81 +1846,73 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 8,
         "y": 59,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 183,
+        "height": 57,
+        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 8,
-        "y": 119,
-        "width": 195,
-        "height": 43,
-        "text": "GOING THROUGH THE MOTIONSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 54,
+        "y": 104,
+        "width": 126,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/1/0",
+        "occluded": false,
         "x": 8,
-        "y": 185,
-        "width": 138,
-        "height": 54,
+        "y": 201,
+        "width": 300,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 189.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 199,
         "y": 59,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 200,
-        "y": 117,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 133,
+        "height": 136,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/3",
+        "occluded": false,
         "x": 8,
-        "y": 468.109375,
-        "width": 260,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "y": 244,
+        "width": 374,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 338,
         "y": 59,
         "width": 44,
         "height": 44,
         "text": "❚❚"
-      },
-      {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 108.5199966430664,
-        "y": 709.1199951171875,
-        "width": 172.96002197265625,
-        "height": 97.760009765625,
-        "text": ""
       }
     ],
     "combat-boss@phone-portrait": [
@@ -1767,91 +1920,85 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 8,
         "y": 59,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 183,
+        "height": 57,
+        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 8,
-        "y": 119,
-        "width": 195,
-        "height": 43,
-        "text": "GOING THROUGH THE MOTIONSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 54,
+        "y": 104,
+        "width": 126,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/1/0",
+        "occluded": false,
         "x": 8,
-        "y": 185,
-        "width": 139.890625,
-        "height": 54,
+        "y": 201,
+        "width": 300,
+        "height": 46,
         "text": "THREAT DRAGONDeep Sea King:"
       },
       {
         "id": "boss",
         "kind": "panel",
         "screen": "hud",
-        "x": 8,
-        "y": 245,
-        "width": 226.1875,
-        "height": 40,
-        "text": "PHASE 2"
+        "path": "2/0/1/0/1",
+        "occluded": false,
+        "x": 19,
+        "y": 235,
+        "width": 278,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 189.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 199,
         "y": 59,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 200,
-        "y": 117,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 133,
+        "height": 136,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/3",
+        "occluded": false,
         "x": 8,
-        "y": 468.109375,
-        "width": 260,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "y": 253,
+        "width": 374,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 338,
         "y": 59,
         "width": 44,
         "height": 44,
         "text": "❚❚"
-      },
-      {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 108.5199966430664,
-        "y": 709.1199951171875,
-        "width": 172.96002197265625,
-        "height": 97.760009765625,
-        "text": ""
       }
     ],
     "quests@phone-portrait": [
@@ -1859,36 +2006,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 183,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "quests",
-        "x": 8,
-        "y": 119,
-        "width": 195,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 104,
+        "width": 126,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/0/3",
+        "occluded": true,
         "x": 8,
-        "y": 468.109375,
-        "width": 260,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "y": 128,
+        "width": 374,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/1",
+        "occluded": true,
         "x": 338,
         "y": 59,
         "width": 44,
@@ -1896,19 +2051,11 @@
         "text": "❚❚"
       },
       {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "quests",
-        "x": 108.5199966430664,
-        "y": 709.1199951171875,
-        "width": 172.96002197265625,
-        "height": 97.760009765625,
-        "text": ""
-      },
-      {
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "quests",
+        "path": "4/0",
+        "occluded": false,
         "x": 18,
         "y": 69,
         "width": 354,
@@ -1919,9 +2066,11 @@
         "id": "quests-close",
         "kind": "panel",
         "screen": "quests",
-        "x": 286,
-        "y": 745,
-        "width": 71,
+        "path": "4/0/2/0",
+        "occluded": false,
+        "x": 284.59375,
+        "y": 746,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -1931,36 +2080,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 183,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "rank",
-        "x": 8,
-        "y": 119,
-        "width": 195,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 104,
+        "width": 126,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/0/3",
+        "occluded": true,
         "x": 8,
-        "y": 468.109375,
-        "width": 260,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "y": 128,
+        "width": 374,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/1",
+        "occluded": true,
         "x": 338,
         "y": 59,
         "width": 44,
@@ -1968,19 +2125,11 @@
         "text": "❚❚"
       },
       {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "rank",
-        "x": 108.5199966430664,
-        "y": 709.1199951171875,
-        "width": 172.96002197265625,
-        "height": 97.760009765625,
-        "text": ""
-      },
-      {
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "rank",
+        "path": "5/0",
+        "occluded": false,
         "x": 18,
         "y": 69,
         "width": 354,
@@ -1991,19 +2140,23 @@
         "id": "standing",
         "kind": "panel",
         "screen": "rank",
-        "x": 33,
-        "y": 129,
-        "width": 324,
-        "height": 85.25,
+        "path": "5/0/1/0",
+        "occluded": false,
+        "x": 34,
+        "y": 125,
+        "width": 322,
+        "height": 72.15625,
         "text": "C-388Caped Baldy12.4 hero points · 33.6 to the next seat · r"
       },
       {
         "id": "rank-close",
         "kind": "panel",
         "screen": "rank",
-        "x": 286,
-        "y": 745,
-        "width": 71,
+        "path": "5/0/2/0",
+        "occluded": false,
+        "x": 284.59375,
+        "y": 746,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -2013,36 +2166,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "results",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 183,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "results",
-        "x": 8,
-        "y": 119,
-        "width": 195,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 104,
+        "width": 126,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "results",
+        "path": "2/0/3",
+        "occluded": true,
         "x": 8,
-        "y": 468.109375,
-        "width": 260,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "y": 128,
+        "width": 374,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "results",
+        "path": "2/1",
+        "occluded": true,
         "x": 338,
         "y": 59,
         "width": 44,
@@ -2050,32 +2211,26 @@
         "text": "❚❚"
       },
       {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "results",
-        "x": 108.5199966430664,
-        "y": 709.1199951171875,
-        "width": 172.96002197265625,
-        "height": 97.760009765625,
-        "text": ""
-      },
-      {
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "results",
+        "path": "7/0",
+        "occluded": false,
         "x": 18,
-        "y": 79.90625,
+        "y": 69,
         "width": 354,
-        "height": 709.171875,
+        "height": 731,
         "text": "Incident resolvedMosquito Girl · threat DEMONResolved in1.4s"
       },
       {
         "id": "invoice-total",
         "kind": "panel",
         "screen": "results",
-        "x": 33,
-        "y": 568.90625,
-        "width": 324,
+        "path": "7/0/1/0/11",
+        "occluded": false,
+        "x": 34,
+        "y": 581,
+        "width": 322,
         "height": 60,
         "text": "Hero points awarded+0.0held on the ladder"
       },
@@ -2083,9 +2238,11 @@
         "id": "results-dismiss",
         "kind": "panel",
         "screen": "results",
-        "x": 282.390625,
-        "y": 734.078125,
-        "width": 74.609375,
+        "path": "7/0/2/0",
+        "occluded": false,
+        "x": 281.4375,
+        "y": 746,
+        "width": 74.5625,
         "height": 44,
         "text": "File it"
       }
@@ -2095,66 +2252,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 183,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "pause",
-        "x": 8,
-        "y": 119,
-        "width": 195,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 104,
+        "width": 126,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/0/1/0",
+        "occluded": true,
         "x": 8,
-        "y": 185,
-        "width": 138,
-        "height": 54,
+        "y": 201,
+        "width": 300,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "pause",
-        "x": 189.1875,
+        "path": "2/0/2/0",
+        "occluded": true,
+        "x": 199,
         "y": 59,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "pause",
-        "x": 200,
-        "y": 117,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 133,
+        "height": 136,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/0/3",
+        "occluded": true,
         "x": 8,
-        "y": 468.109375,
-        "width": 260,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "y": 244,
+        "width": 374,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/1",
+        "occluded": true,
         "x": 338,
         "y": 59,
         "width": 44,
@@ -2162,32 +2321,26 @@
         "text": "❚❚"
       },
       {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "pause",
-        "x": 108.5199966430664,
-        "y": 709.1199951171875,
-        "width": 172.96002197265625,
-        "height": 97.760009765625,
-        "text": ""
-      },
-      {
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "pause",
+        "path": "3/0",
+        "occluded": false,
         "x": 18,
-        "y": 286.53125,
+        "y": 278.15625,
         "width": 354,
-        "height": 295.9375,
+        "height": 312.6875,
         "text": "PausedCaped Baldy · C-388ResumeRequestsHero AssociationSetti"
       },
       {
         "id": "pause-resume",
         "kind": "panel",
         "screen": "pause",
-        "x": 33,
-        "y": 346.53125,
-        "width": 324,
+        "path": "3/0/1/0/0",
+        "occluded": false,
+        "x": 34,
+        "y": 334.15625,
+        "width": 322,
         "height": 44,
         "text": "Resume"
       },
@@ -2195,9 +2348,11 @@
         "id": "pause-quests",
         "kind": "panel",
         "screen": "pause",
-        "x": 33,
-        "y": 398.53125,
-        "width": 324,
+        "path": "3/0/1/0/1",
+        "occluded": false,
+        "x": 34,
+        "y": 386.15625,
+        "width": 322,
         "height": 44,
         "text": "Requests"
       },
@@ -2205,9 +2360,11 @@
         "id": "pause-rank",
         "kind": "panel",
         "screen": "pause",
-        "x": 33,
-        "y": 450.53125,
-        "width": 324,
+        "path": "3/0/1/0/2",
+        "occluded": false,
+        "x": 34,
+        "y": 438.15625,
+        "width": 322,
         "height": 44,
         "text": "Hero Association"
       },
@@ -2215,9 +2372,11 @@
         "id": "pause-settings",
         "kind": "panel",
         "screen": "pause",
-        "x": 33,
-        "y": 502.53125,
-        "width": 324,
+        "path": "3/0/1/0/3",
+        "occluded": false,
+        "x": 34,
+        "y": 490.15625,
+        "width": 322,
         "height": 44,
         "text": "Settings"
       }
@@ -2227,36 +2386,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 59,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 183,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "settings",
-        "x": 8,
-        "y": 119,
-        "width": 195,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 104,
+        "width": 126,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/0/3",
+        "occluded": true,
         "x": 8,
-        "y": 468.109375,
-        "width": 260,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "y": 128,
+        "width": 374,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/1",
+        "occluded": true,
         "x": 338,
         "y": 59,
         "width": 44,
@@ -2264,19 +2431,11 @@
         "text": "❚❚"
       },
       {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "settings",
-        "x": 108.5199966430664,
-        "y": 709.1199951171875,
-        "width": 172.96002197265625,
-        "height": 97.760009765625,
-        "text": ""
-      },
-      {
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "settings",
+        "path": "6/0",
+        "occluded": false,
         "x": 18,
         "y": 69,
         "width": 354,
@@ -2287,8 +2446,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 199.578125,
-        "y": 164,
+        "path": "6/0/1/0/1/1/0",
+        "occluded": false,
+        "x": 200.3125,
+        "y": 161.890625,
         "width": 44,
         "height": 44,
         "text": "low"
@@ -2297,9 +2458,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 246.578125,
-        "y": 164,
-        "width": 60.25,
+        "path": "6/0/1/0/1/1/1",
+        "occluded": false,
+        "x": 247.3125,
+        "y": 161.890625,
+        "width": 58.6875,
         "height": 44,
         "text": "medium"
       },
@@ -2307,9 +2470,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 309.828125,
-        "y": 164,
-        "width": 44.171875,
+        "path": "6/0/1/0/1/1/2",
+        "occluded": false,
+        "x": 309,
+        "y": 161.890625,
+        "width": 44,
         "height": 44,
         "text": "high"
       },
@@ -2317,8 +2482,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 116.828125,
-        "y": 270.53125,
+        "path": "6/0/1/0/2/1/0",
+        "occluded": false,
+        "x": 116.875,
+        "y": 284.390625,
         "width": 44,
         "height": 44,
         "text": "50%"
@@ -2327,8 +2494,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 163.828125,
-        "y": 270.53125,
+        "path": "6/0/1/0/2/1/1",
+        "occluded": false,
+        "x": 163.875,
+        "y": 284.390625,
         "width": 44,
         "height": 44,
         "text": "60%"
@@ -2337,8 +2506,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 210.828125,
-        "y": 270.53125,
+        "path": "6/0/1/0/2/1/2",
+        "occluded": false,
+        "x": 210.875,
+        "y": 284.390625,
         "width": 44,
         "height": 44,
         "text": "75%"
@@ -2347,8 +2518,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 257.828125,
-        "y": 270.53125,
+        "path": "6/0/1/0/2/1/3",
+        "occluded": false,
+        "x": 257.875,
+        "y": 284.390625,
         "width": 44,
         "height": 44,
         "text": "85%"
@@ -2357,9 +2530,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 304.828125,
-        "y": 270.53125,
-        "width": 49.171875,
+        "path": "6/0/1/0/2/1/4",
+        "occluded": false,
+        "x": 304.875,
+        "y": 284.390625,
+        "width": 48.125,
         "height": 44,
         "text": "100%"
       },
@@ -2367,9 +2542,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 235.46875,
-        "y": 416.078125,
-        "width": 66.328125,
+        "path": "6/0/1/1/1/1/0",
+        "occluded": false,
+        "x": 237.84375,
+        "y": 453.34375,
+        "width": 64.25,
         "height": 44,
         "text": "Floating"
       },
@@ -2377,9 +2554,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 304.796875,
-        "y": 416.078125,
-        "width": 49.203125,
+        "path": "6/0/1/1/1/1/1",
+        "occluded": false,
+        "x": 305.09375,
+        "y": 453.34375,
+        "width": 47.90625,
         "height": 44,
         "text": "Fixed"
       },
@@ -2387,9 +2566,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 256.625,
-        "y": 480.078125,
-        "width": 44.171875,
+        "path": "6/0/1/1/2/1/0",
+        "occluded": false,
+        "x": 257.09375,
+        "y": 531.578125,
+        "width": 44,
         "height": 44,
         "text": "Left"
       },
@@ -2397,9 +2578,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 303.796875,
-        "y": 480.078125,
-        "width": 50.203125,
+        "path": "6/0/1/1/2/1/1",
+        "occluded": false,
+        "x": 304.09375,
+        "y": 531.578125,
+        "width": 48.90625,
         "height": 44,
         "text": "Right"
       },
@@ -2407,8 +2590,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 263,
-        "y": 544.078125,
+        "path": "6/0/1/1/3/1/0",
+        "occluded": false,
+        "x": 262,
+        "y": 598.46875,
         "width": 44,
         "height": 44,
         "text": "Off"
@@ -2417,8 +2602,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 310,
-        "y": 544.078125,
+        "path": "6/0/1/1/3/1/1",
+        "occluded": false,
+        "x": 309,
+        "y": 598.46875,
         "width": 44,
         "height": 44,
         "text": "On"
@@ -2427,99 +2614,95 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 46,
-        "y": 636.3125,
+        "path": "6/0/1/1/4/1/0",
+        "occluded": false,
+        "x": 47,
+        "y": 701.1875,
         "width": 44,
-        "height": 44,
+        "height": 33.8125,
         "text": "0.4×"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 93,
-        "y": 636.3125,
+        "path": "6/0/1/1/4/1/1",
+        "occluded": false,
+        "x": 94,
+        "y": 701.1875,
         "width": 44,
-        "height": 44,
+        "height": 33.8125,
         "text": "0.6×"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 140,
-        "y": 636.3125,
+        "path": "6/0/1/1/4/1/2",
+        "occluded": false,
+        "x": 141,
+        "y": 701.1875,
         "width": 44,
-        "height": 44,
+        "height": 33.8125,
         "text": "0.8×"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 187,
-        "y": 636.3125,
+        "path": "6/0/1/1/4/1/3",
+        "occluded": false,
+        "x": 188,
+        "y": 701.1875,
         "width": 44,
-        "height": 44,
+        "height": 33.8125,
         "text": "1×"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 234,
-        "y": 636.3125,
+        "path": "6/0/1/1/4/1/4",
+        "occluded": false,
+        "x": 235,
+        "y": 701.1875,
         "width": 44,
-        "height": 44,
+        "height": 33.8125,
         "text": "1.3×"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 281,
-        "y": 636.3125,
+        "path": "6/0/1/1/4/1/5",
+        "occluded": false,
+        "x": 282,
+        "y": 701.1875,
         "width": 44,
-        "height": 44,
+        "height": 33.8125,
         "text": "1.6×"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 328,
-        "y": 636.3125,
-        "width": 44,
-        "height": 44,
+        "path": "6/0/1/1/4/1/6",
+        "occluded": false,
+        "x": 329,
+        "y": 701.1875,
+        "width": 43,
+        "height": 33.8125,
         "text": "2×"
-      },
-      {
-        "id": "hud-seg__opt",
-        "kind": "panel",
-        "screen": "settings",
-        "x": 263,
-        "y": 728.5625,
-        "width": 44,
-        "height": 44,
-        "text": "Off"
-      },
-      {
-        "id": "hud-seg__opt",
-        "kind": "panel",
-        "screen": "settings",
-        "x": 310,
-        "y": 728.5625,
-        "width": 44,
-        "height": 44,
-        "text": "On"
       },
       {
         "id": "settings-close",
         "kind": "panel",
         "screen": "settings",
-        "x": 286,
-        "y": 745,
-        "width": 71,
+        "path": "6/0/2/0",
+        "occluded": false,
+        "x": 284.59375,
+        "y": 746,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -2529,10 +2712,12 @@
         "id": "loading-track",
         "kind": "panel",
         "screen": "boot",
-        "x": 352,
-        "y": 398.09375,
-        "width": 320,
-        "height": 3,
+        "path": "1/0/2",
+        "occluded": false,
+        "x": 302,
+        "y": 374.359375,
+        "width": 420,
+        "height": 5,
         "text": ""
       }
     ],
@@ -2541,66 +2726,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 8,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 232,
+        "height": 57,
+        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 8,
-        "y": 68,
-        "width": 214,
-        "height": 43,
-        "text": "GOING THROUGH THE MOTIONSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 54,
+        "y": 53,
+        "width": 175,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 443,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 362,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 300,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 823.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 670,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 834,
-        "y": 66,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 296,
+        "height": 58,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 396,
-        "y": 136,
-        "width": 232,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 8,
+        "y": 74,
+        "width": 560,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 972,
         "y": 8,
         "width": 44,
@@ -2611,6 +2798,8 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/2",
+        "occluded": false,
         "x": 425.5199890136719,
         "y": 659.1199951171875,
         "width": 172.95999145507812,
@@ -2623,76 +2812,80 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
         "x": 8,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 232,
+        "height": 57,
+        "text": "CRANKCaped BaldyGOING THROUGH THE MOTIONSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "hud",
-        "x": 8,
-        "y": 68,
-        "width": 214,
-        "height": 43,
-        "text": "GOING THROUGH THE MOTIONSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 54,
+        "y": 53,
+        "width": 175,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "hud",
-        "x": 442.046875,
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 362,
         "y": 8,
-        "width": 139.890625,
-        "height": 54,
+        "width": 300,
+        "height": 46,
         "text": "THREAT DRAGONDeep Sea King:"
       },
       {
         "id": "boss",
         "kind": "panel",
         "screen": "hud",
-        "x": 342,
-        "y": 68,
-        "width": 340,
-        "height": 40,
-        "text": "PHASE 2"
+        "path": "2/0/1/0/1",
+        "occluded": false,
+        "x": 373,
+        "y": 42,
+        "width": 278,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "hud",
-        "x": 823.1875,
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 670,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "hud",
-        "x": 834,
-        "y": 66,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 296,
+        "height": 58,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "hud",
-        "x": 396,
-        "y": 136,
-        "width": 232,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 8,
+        "y": 74,
+        "width": 560,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
         "x": 972,
         "y": 8,
         "width": 44,
@@ -2703,6 +2896,8 @@
         "id": "charge",
         "kind": "panel",
         "screen": "hud",
+        "path": "2/2",
+        "occluded": false,
         "x": 425.5199890136719,
         "y": 659.1199951171875,
         "width": 172.95999145507812,
@@ -2715,36 +2910,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 232,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "quests",
-        "x": 8,
-        "y": 68,
-        "width": 214,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 53,
+        "width": 175,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "quests",
-        "x": 396,
-        "y": 119,
-        "width": 232,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 8,
+        "y": 73,
+        "width": 560,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/1",
+        "occluded": true,
         "x": 972,
         "y": 8,
         "width": 44,
@@ -2755,6 +2958,8 @@
         "id": "charge",
         "kind": "panel",
         "screen": "quests",
+        "path": "2/2",
+        "occluded": true,
         "x": 425.5199890136719,
         "y": 659.1199951171875,
         "width": 172.95999145507812,
@@ -2765,19 +2970,23 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "quests",
+        "path": "4/0",
+        "occluded": false,
         "x": 102,
-        "y": 44.34375,
+        "y": 29.125,
         "width": 820,
-        "height": 679.3125,
+        "height": 709.75,
         "text": "Requests3 active requests · 1 resolvedWOLFRoute 7 Tunnel Col"
       },
       {
         "id": "quests-close",
         "kind": "panel",
         "screen": "quests",
-        "x": 836,
-        "y": 668.65625,
-        "width": 71,
+        "path": "4/0/2/0",
+        "occluded": false,
+        "x": 834.59375,
+        "y": 684.875,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -2787,36 +2996,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 232,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "rank",
-        "x": 8,
-        "y": 68,
-        "width": 214,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 53,
+        "width": 175,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "rank",
-        "x": 396,
-        "y": 119,
-        "width": 232,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 8,
+        "y": 73,
+        "width": 560,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/1",
+        "occluded": true,
         "x": 972,
         "y": 8,
         "width": 44,
@@ -2827,6 +3044,8 @@
         "id": "charge",
         "kind": "panel",
         "screen": "rank",
+        "path": "2/2",
+        "occluded": true,
         "x": 425.5199890136719,
         "y": 659.1199951171875,
         "width": 172.95999145507812,
@@ -2837,29 +3056,35 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "rank",
+        "path": "5/0",
+        "occluded": false,
         "x": 102,
-        "y": 50.15625,
+        "y": 34.640625,
         "width": 820,
-        "height": 667.6875,
+        "height": 698.71875,
         "text": "Hero AssociationRegister of active heroesC-388Caped Baldy12."
       },
       {
         "id": "standing",
         "kind": "panel",
         "screen": "rank",
-        "x": 117,
-        "y": 110.15625,
-        "width": 790,
-        "height": 43.09375,
+        "path": "5/0/1/0",
+        "occluded": false,
+        "x": 118,
+        "y": 90.640625,
+        "width": 788,
+        "height": 49.234375,
         "text": "C-388Caped Baldy12.4 hero points · 33.6 to the next seat · r"
       },
       {
         "id": "rank-close",
         "kind": "panel",
         "screen": "rank",
-        "x": 836,
-        "y": 662.84375,
-        "width": 71,
+        "path": "5/0/2/0",
+        "occluded": false,
+        "x": 834.59375,
+        "y": 679.359375,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
@@ -2869,36 +3094,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "results",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 232,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "results",
-        "x": 8,
-        "y": 68,
-        "width": 214,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 53,
+        "width": 175,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "results",
-        "x": 396,
-        "y": 119,
-        "width": 232,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 8,
+        "y": 73,
+        "width": 560,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "results",
+        "path": "2/1",
+        "occluded": true,
         "x": 972,
         "y": 8,
         "width": 44,
@@ -2909,6 +3142,8 @@
         "id": "charge",
         "kind": "panel",
         "screen": "results",
+        "path": "2/2",
+        "occluded": true,
         "x": 425.5199890136719,
         "y": 659.1199951171875,
         "width": 172.95999145507812,
@@ -2919,19 +3154,23 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "results",
+        "path": "7/0",
+        "occluded": false,
         "x": 192,
-        "y": 45.109375,
+        "y": 42.65625,
         "width": 640,
-        "height": 677.78125,
+        "height": 682.6875,
         "text": "Incident resolvedMosquito Girl · threat DEMONResolved in1.4s"
       },
       {
         "id": "invoice-total",
         "kind": "panel",
         "screen": "results",
-        "x": 207,
-        "y": 520.109375,
-        "width": 610,
+        "path": "7/0/1/0/11",
+        "occluded": false,
+        "x": 208,
+        "y": 522.65625,
+        "width": 608,
         "height": 60,
         "text": "Hero points awarded+0.0held on the ladder"
       },
@@ -2939,9 +3178,11 @@
         "id": "results-dismiss",
         "kind": "panel",
         "screen": "results",
-        "x": 742.390625,
-        "y": 667.890625,
-        "width": 74.609375,
+        "path": "7/0/2/0",
+        "occluded": false,
+        "x": 741.4375,
+        "y": 671.34375,
+        "width": 74.5625,
         "height": 44,
         "text": "File it"
       }
@@ -2951,66 +3192,68 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 232,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "pause",
-        "x": 8,
-        "y": 68,
-        "width": 214,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 53,
+        "width": 175,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "encounter",
         "kind": "panel",
         "screen": "pause",
-        "x": 443,
+        "path": "2/0/1/0",
+        "occluded": true,
+        "x": 362,
         "y": 8,
-        "width": 138,
-        "height": 54,
+        "width": 300,
+        "height": 37,
         "text": "THREAT DEMONMosquito Girl:"
       },
       {
         "id": "ledger",
         "kind": "panel",
         "screen": "pause",
-        "x": 823.1875,
+        "path": "2/0/2/0",
+        "occluded": true,
+        "x": 670,
         "y": 8,
-        "width": 142.8125,
-        "height": 50,
-        "text": "SAVEDLOSTWATCHING"
-      },
-      {
-        "id": "collateral",
-        "kind": "panel",
-        "screen": "pause",
-        "x": 834,
-        "y": 66,
-        "width": 132,
-        "height": 62,
-        "text": "COLLATERAL"
+        "width": 296,
+        "height": 58,
+        "text": "SAVEDLOSTWATCHINGCOST"
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "pause",
-        "x": 396,
-        "y": 136,
-        "width": 232,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 8,
+        "y": 74,
+        "width": 560,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/1",
+        "occluded": true,
         "x": 972,
         "y": 8,
         "width": 44,
@@ -3021,6 +3264,8 @@
         "id": "charge",
         "kind": "panel",
         "screen": "pause",
+        "path": "2/2",
+        "occluded": true,
         "x": 425.5199890136719,
         "y": 659.1199951171875,
         "width": 172.95999145507812,
@@ -3031,19 +3276,23 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "pause",
+        "path": "3/0",
+        "occluded": false,
         "x": 302,
-        "y": 236.03125,
+        "y": 237.078125,
         "width": 420,
-        "height": 295.9375,
+        "height": 293.84375,
         "text": "PausedCaped Baldy · C-388ResumeRequestsHero AssociationSetti"
       },
       {
         "id": "pause-resume",
         "kind": "panel",
         "screen": "pause",
-        "x": 317,
-        "y": 296.03125,
-        "width": 390,
+        "path": "3/0/1/0/0",
+        "occluded": false,
+        "x": 318,
+        "y": 293.078125,
+        "width": 388,
         "height": 44,
         "text": "Resume"
       },
@@ -3051,9 +3300,11 @@
         "id": "pause-quests",
         "kind": "panel",
         "screen": "pause",
-        "x": 317,
-        "y": 348.03125,
-        "width": 390,
+        "path": "3/0/1/0/1",
+        "occluded": false,
+        "x": 318,
+        "y": 345.078125,
+        "width": 388,
         "height": 44,
         "text": "Requests"
       },
@@ -3061,9 +3312,11 @@
         "id": "pause-rank",
         "kind": "panel",
         "screen": "pause",
-        "x": 317,
-        "y": 400.03125,
-        "width": 390,
+        "path": "3/0/1/0/2",
+        "occluded": false,
+        "x": 318,
+        "y": 397.078125,
+        "width": 388,
         "height": 44,
         "text": "Hero Association"
       },
@@ -3071,9 +3324,11 @@
         "id": "pause-settings",
         "kind": "panel",
         "screen": "pause",
-        "x": 317,
-        "y": 452.03125,
-        "width": 390,
+        "path": "3/0/1/0/3",
+        "occluded": false,
+        "x": 318,
+        "y": 449.078125,
+        "width": 388,
         "height": 44,
         "text": "Settings"
       }
@@ -3083,36 +3338,44 @@
         "id": "rank-chip",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/0/0/0",
+        "occluded": true,
         "x": 8,
         "y": 8,
-        "width": 116,
-        "height": 52,
-        "text": "CRANK Caped Baldy"
+        "width": 232,
+        "height": 57,
+        "text": "CRANKCaped BaldyRESTLESSGAIN"
       },
       {
         "id": "boredom",
         "kind": "panel",
         "screen": "settings",
-        "x": 8,
-        "y": 68,
-        "width": 214,
-        "height": 43,
-        "text": "RESTLESSRANK"
+        "path": "2/0/0/0/1/2",
+        "occluded": true,
+        "x": 54,
+        "y": 53,
+        "width": 175,
+        "height": 5,
+        "text": ""
       },
       {
         "id": "tracker",
         "kind": "panel",
         "screen": "settings",
-        "x": 396,
-        "y": 119,
-        "width": 232,
-        "height": 101.890625,
-        "text": "TRACKINGRoute 7 Tunnel Collapse✓Reach the tunnel mouth6/9Car"
+        "path": "2/0/3",
+        "occluded": true,
+        "x": 8,
+        "y": 73,
+        "width": 560,
+        "height": 50.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
       },
       {
         "id": "pause-button",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/1",
+        "occluded": true,
         "x": 972,
         "y": 8,
         "width": 44,
@@ -3123,6 +3386,8 @@
         "id": "charge",
         "kind": "panel",
         "screen": "settings",
+        "path": "2/2",
+        "occluded": true,
         "x": 425.5199890136719,
         "y": 659.1199951171875,
         "width": 172.95999145507812,
@@ -3133,6 +3398,8 @@
         "id": "hud-sheet",
         "kind": "panel",
         "screen": "settings",
+        "path": "6/0",
+        "occluded": false,
         "x": 102,
         "y": 18,
         "width": 820,
@@ -3143,8 +3410,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 749.578125,
-        "y": 113,
+        "path": "6/0/1/0/1/1/0",
+        "occluded": false,
+        "x": 750.3125,
+        "y": 108,
         "width": 44,
         "height": 44,
         "text": "low"
@@ -3153,9 +3422,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 796.578125,
-        "y": 113,
-        "width": 60.25,
+        "path": "6/0/1/0/1/1/1",
+        "occluded": false,
+        "x": 797.3125,
+        "y": 108,
+        "width": 58.6875,
         "height": 44,
         "text": "medium"
       },
@@ -3163,9 +3434,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 859.828125,
-        "y": 113,
-        "width": 44.171875,
+        "path": "6/0/1/0/1/1/2",
+        "occluded": false,
+        "x": 859,
+        "y": 108,
+        "width": 44,
         "height": 44,
         "text": "high"
       },
@@ -3173,8 +3446,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 666.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/0",
+        "occluded": false,
+        "x": 666.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "50%"
@@ -3183,8 +3458,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 713.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/1",
+        "occluded": false,
+        "x": 713.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "60%"
@@ -3193,8 +3470,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 760.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/2",
+        "occluded": false,
+        "x": 760.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "75%"
@@ -3203,8 +3482,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 807.828125,
-        "y": 177,
+        "path": "6/0/1/0/2/1/3",
+        "occluded": false,
+        "x": 807.875,
+        "y": 172,
         "width": 44,
         "height": 44,
         "text": "85%"
@@ -3213,9 +3494,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 854.828125,
-        "y": 177,
-        "width": 49.171875,
+        "path": "6/0/1/0/2/1/4",
+        "occluded": false,
+        "x": 854.875,
+        "y": 172,
+        "width": 48.125,
         "height": 44,
         "text": "100%"
       },
@@ -3223,9 +3506,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 785.46875,
-        "y": 280,
-        "width": 66.328125,
+        "path": "6/0/1/1/1/1/0",
+        "occluded": false,
+        "x": 787.84375,
+        "y": 274,
+        "width": 64.25,
         "height": 44,
         "text": "Floating"
       },
@@ -3233,9 +3518,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 854.796875,
-        "y": 280,
-        "width": 49.203125,
+        "path": "6/0/1/1/1/1/1",
+        "occluded": false,
+        "x": 855.09375,
+        "y": 274,
+        "width": 47.90625,
         "height": 44,
         "text": "Fixed"
       },
@@ -3243,9 +3530,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 806.625,
-        "y": 344,
-        "width": 44.171875,
+        "path": "6/0/1/1/2/1/0",
+        "occluded": false,
+        "x": 807.09375,
+        "y": 338,
+        "width": 44,
         "height": 44,
         "text": "Left"
       },
@@ -3253,9 +3542,11 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 853.796875,
-        "y": 344,
-        "width": 50.203125,
+        "path": "6/0/1/1/2/1/1",
+        "occluded": false,
+        "x": 854.09375,
+        "y": 338,
+        "width": 48.90625,
         "height": 44,
         "text": "Right"
       },
@@ -3263,8 +3554,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 813,
-        "y": 408,
+        "path": "6/0/1/1/3/1/0",
+        "occluded": false,
+        "x": 812,
+        "y": 402,
         "width": 44,
         "height": 44,
         "text": "Off"
@@ -3273,8 +3566,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 860,
-        "y": 408,
+        "path": "6/0/1/1/3/1/1",
+        "occluded": false,
+        "x": 859,
+        "y": 402,
         "width": 44,
         "height": 44,
         "text": "On"
@@ -3283,8 +3578,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 578,
-        "y": 472,
+        "path": "6/0/1/1/4/1/0",
+        "occluded": false,
+        "x": 577,
+        "y": 466,
         "width": 44,
         "height": 44,
         "text": "0.4×"
@@ -3293,8 +3590,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 625,
-        "y": 472,
+        "path": "6/0/1/1/4/1/1",
+        "occluded": false,
+        "x": 624,
+        "y": 466,
         "width": 44,
         "height": 44,
         "text": "0.6×"
@@ -3303,8 +3602,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 672,
-        "y": 472,
+        "path": "6/0/1/1/4/1/2",
+        "occluded": false,
+        "x": 671,
+        "y": 466,
         "width": 44,
         "height": 44,
         "text": "0.8×"
@@ -3313,8 +3614,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 719,
-        "y": 472,
+        "path": "6/0/1/1/4/1/3",
+        "occluded": false,
+        "x": 718,
+        "y": 466,
         "width": 44,
         "height": 44,
         "text": "1×"
@@ -3323,8 +3626,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 766,
-        "y": 472,
+        "path": "6/0/1/1/4/1/4",
+        "occluded": false,
+        "x": 765,
+        "y": 466,
         "width": 44,
         "height": 44,
         "text": "1.3×"
@@ -3333,8 +3638,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 813,
-        "y": 472,
+        "path": "6/0/1/1/4/1/5",
+        "occluded": false,
+        "x": 812,
+        "y": 466,
         "width": 44,
         "height": 44,
         "text": "1.6×"
@@ -3343,8 +3650,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 860,
-        "y": 472,
+        "path": "6/0/1/1/4/1/6",
+        "occluded": false,
+        "x": 859,
+        "y": 466,
         "width": 44,
         "height": 44,
         "text": "2×"
@@ -3353,8 +3662,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 813,
-        "y": 536,
+        "path": "6/0/1/1/5/1/0",
+        "occluded": false,
+        "x": 812,
+        "y": 530,
         "width": 44,
         "height": 44,
         "text": "Off"
@@ -3363,8 +3674,10 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 860,
-        "y": 536,
+        "path": "6/0/1/1/5/1/1",
+        "occluded": false,
+        "x": 859,
+        "y": 530,
         "width": 44,
         "height": 44,
         "text": "On"
@@ -3373,62 +3686,188 @@
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 469.171875,
-        "y": 639,
+        "path": "6/0/1/2/1/1/0",
+        "occluded": false,
+        "x": 479.859375,
+        "y": 643.328125,
         "width": 74,
-        "height": 44,
+        "height": 41.671875,
         "text": "Standard"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 546.171875,
-        "y": 639,
-        "width": 93.484375,
-        "height": 44,
+        "path": "6/0/1/2/1/1/1",
+        "occluded": false,
+        "x": 556.859375,
+        "y": 643.328125,
+        "width": 90.375,
+        "height": 41.671875,
         "text": "Deuteranopia"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 642.65625,
-        "y": 639,
-        "width": 80.40625,
-        "height": 44,
+        "path": "6/0/1/2/1/1/2",
+        "occluded": false,
+        "x": 650.234375,
+        "y": 643.328125,
+        "width": 77.8125,
+        "height": 41.671875,
         "text": "Protanopia"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 726.0625,
-        "y": 639,
-        "width": 78.40625,
-        "height": 44,
+        "path": "6/0/1/2/1/1/3",
+        "occluded": false,
+        "x": 731.046875,
+        "y": 643.328125,
+        "width": 75.8125,
+        "height": 41.671875,
         "text": "Tritanopia"
       },
       {
         "id": "hud-seg__opt",
         "kind": "panel",
         "screen": "settings",
-        "x": 807.46875,
-        "y": 639,
-        "width": 96.53125,
-        "height": 44,
+        "path": "6/0/1/2/1/1/4",
+        "occluded": false,
+        "x": 809.859375,
+        "y": 643.328125,
+        "width": 93.140625,
+        "height": 41.671875,
         "text": "High contrast"
       },
       {
         "id": "settings-close",
         "kind": "panel",
         "screen": "settings",
-        "x": 836,
-        "y": 695,
-        "width": 71,
+        "path": "6/0/2/0",
+        "occluded": false,
+        "x": 834.59375,
+        "y": 696,
+        "width": 71.40625,
         "height": 44,
         "text": "Close"
       }
+    ]
+  },
+  "stolenTouches": {
+    "combat@phone-portrait": [
+      "left/grid@40,280 -> div.hud-tracker__obj",
+      "left/grid@80,280 -> span.hud-tracker__what",
+      "left/grid@120,280 -> span.hud-tracker__what",
+      "left/grid@160,280 -> span.hud-tracker__what",
+      "right/grid@40,280 -> div.hud-tracker__obj",
+      "right/grid@80,280 -> span.hud-tracker__what",
+      "right/grid@120,280 -> span.hud-tracker__what",
+      "right/grid@160,280 -> span.hud-tracker__what"
+    ],
+    "combat-boss@phone-portrait": [
+      "left/grid@40,280 -> div.hud-tracker__obj",
+      "left/grid@80,280 -> span.hud-tracker__what",
+      "left/grid@120,280 -> span.hud-tracker__what",
+      "left/grid@160,280 -> span.hud-tracker__what",
+      "right/grid@40,280 -> div.hud-tracker__obj",
+      "right/grid@80,280 -> span.hud-tracker__what",
+      "right/grid@120,280 -> span.hud-tracker__what",
+      "right/grid@160,280 -> span.hud-tracker__what"
+    ],
+    "combat@tablet": [
+      "left/grid@40,80 -> div.hud-tracker__title",
+      "left/grid@40,120 -> div.hud-panel.hud-tracker",
+      "left/grid@80,80 -> div.hud-tracker__title",
+      "left/grid@80,120 -> div.hud-panel.hud-tracker",
+      "left/grid@120,80 -> div.hud-tracker__title",
+      "left/grid@120,120 -> div.hud-panel.hud-tracker",
+      "left/grid@160,80 -> div.hud-tracker__title",
+      "left/grid@160,120 -> div.hud-panel.hud-tracker",
+      "left/grid@200,80 -> div.hud-tracker__title",
+      "left/grid@200,120 -> div.hud-panel.hud-tracker",
+      "left/grid@240,80 -> div.hud-tracker__title",
+      "left/grid@240,120 -> div.hud-panel.hud-tracker",
+      "left/grid@280,80 -> div.hud-tracker__title",
+      "left/grid@280,120 -> div.hud-panel.hud-tracker",
+      "left/grid@320,80 -> div.hud-tracker__title",
+      "left/grid@320,120 -> div.hud-panel.hud-tracker",
+      "left/grid@360,80 -> div.hud-tracker__title",
+      "left/grid@360,120 -> div.hud-panel.hud-tracker",
+      "left/grid@400,80 -> div.hud-tracker__title",
+      "left/grid@400,120 -> div.hud-panel.hud-tracker",
+      "left/grid@440,80 -> div.hud-tracker__title",
+      "left/grid@440,120 -> div.hud-panel.hud-tracker",
+      "right/grid@40,80 -> div.hud-tracker__title",
+      "right/grid@40,120 -> div.hud-panel.hud-tracker",
+      "right/grid@80,80 -> div.hud-tracker__title",
+      "right/grid@80,120 -> div.hud-panel.hud-tracker",
+      "right/grid@120,80 -> div.hud-tracker__title",
+      "right/grid@120,120 -> div.hud-panel.hud-tracker",
+      "right/grid@160,80 -> div.hud-tracker__title",
+      "right/grid@160,120 -> div.hud-panel.hud-tracker",
+      "right/grid@200,80 -> div.hud-tracker__title",
+      "right/grid@200,120 -> div.hud-panel.hud-tracker",
+      "right/grid@240,80 -> div.hud-tracker__title",
+      "right/grid@240,120 -> div.hud-panel.hud-tracker",
+      "right/grid@280,80 -> div.hud-tracker__title",
+      "right/grid@280,120 -> div.hud-panel.hud-tracker",
+      "right/grid@320,80 -> div.hud-tracker__title",
+      "right/grid@320,120 -> div.hud-panel.hud-tracker",
+      "right/grid@360,80 -> div.hud-tracker__title",
+      "right/grid@360,120 -> div.hud-panel.hud-tracker",
+      "right/grid@400,80 -> div.hud-tracker__title",
+      "right/grid@400,120 -> div.hud-panel.hud-tracker",
+      "right/grid@440,80 -> div.hud-tracker__title",
+      "right/grid@440,120 -> div.hud-panel.hud-tracker"
+    ],
+    "combat-boss@tablet": [
+      "left/grid@40,80 -> div.hud-tracker__title",
+      "left/grid@40,120 -> div.hud-panel.hud-tracker",
+      "left/grid@80,80 -> div.hud-tracker__title",
+      "left/grid@80,120 -> div.hud-panel.hud-tracker",
+      "left/grid@120,80 -> div.hud-tracker__title",
+      "left/grid@120,120 -> div.hud-panel.hud-tracker",
+      "left/grid@160,80 -> div.hud-tracker__title",
+      "left/grid@160,120 -> div.hud-panel.hud-tracker",
+      "left/grid@200,80 -> div.hud-tracker__title",
+      "left/grid@200,120 -> div.hud-panel.hud-tracker",
+      "left/grid@240,80 -> div.hud-tracker__title",
+      "left/grid@240,120 -> div.hud-panel.hud-tracker",
+      "left/grid@280,80 -> div.hud-tracker__title",
+      "left/grid@280,120 -> div.hud-panel.hud-tracker",
+      "left/grid@320,80 -> div.hud-tracker__title",
+      "left/grid@320,120 -> div.hud-panel.hud-tracker",
+      "left/grid@360,80 -> div.hud-tracker__title",
+      "left/grid@360,120 -> div.hud-panel.hud-tracker",
+      "left/grid@400,80 -> div.hud-tracker__title",
+      "left/grid@400,120 -> div.hud-panel.hud-tracker",
+      "left/grid@440,80 -> div.hud-tracker__title",
+      "left/grid@440,120 -> div.hud-panel.hud-tracker",
+      "right/grid@40,80 -> div.hud-tracker__title",
+      "right/grid@40,120 -> div.hud-panel.hud-tracker",
+      "right/grid@80,80 -> div.hud-tracker__title",
+      "right/grid@80,120 -> div.hud-panel.hud-tracker",
+      "right/grid@120,80 -> div.hud-tracker__title",
+      "right/grid@120,120 -> div.hud-panel.hud-tracker",
+      "right/grid@160,80 -> div.hud-tracker__title",
+      "right/grid@160,120 -> div.hud-panel.hud-tracker",
+      "right/grid@200,80 -> div.hud-tracker__title",
+      "right/grid@200,120 -> div.hud-panel.hud-tracker",
+      "right/grid@240,80 -> div.hud-tracker__title",
+      "right/grid@240,120 -> div.hud-panel.hud-tracker",
+      "right/grid@280,80 -> div.hud-tracker__title",
+      "right/grid@280,120 -> div.hud-panel.hud-tracker",
+      "right/grid@320,80 -> div.hud-tracker__title",
+      "right/grid@320,120 -> div.hud-panel.hud-tracker",
+      "right/grid@360,80 -> div.hud-tracker__title",
+      "right/grid@360,120 -> div.hud-panel.hud-tracker",
+      "right/grid@400,80 -> div.hud-tracker__title",
+      "right/grid@400,120 -> div.hud-panel.hud-tracker",
+      "right/grid@440,80 -> div.hud-tracker__title",
+      "right/grid@440,120 -> div.hud-panel.hud-tracker"
     ]
   },
   "checks": [
@@ -3438,9 +3877,19 @@
       "detail": "reserve 240px vs furthest painted button pixel 221.6px"
     },
     {
+      "name": "the controls mount on document.body, where `game.ts` mounts them",
+      "pass": true,
+      "detail": ".opm-input-root parent: body, sibling of #ui-root: true"
+    },
+    {
+      "name": "the HUD paints ABOVE the controls, as it does in the shipping page",
+      "pass": true,
+      "detail": "#ui-root z-index 10 over .opm-input-root z-index 1"
+    },
+    {
       "name": "loading @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 19.8, colours 673"
+      "detail": "stdDev 26.3, colours 172"
     },
     {
       "name": "loading @ phone-landscape respects the safe area",
@@ -3448,39 +3897,84 @@
       "detail": "1 panels inside the safe box"
     },
     {
+      "name": "loading @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "1 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "combat @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 28.3, colours 972"
+      "detail": "stdDev 31.4, colours 1166"
     },
     {
       "name": "combat @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "combat @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat @ phone-landscape keeps the thumb corners clear",
+      "pass": false,
+      "detail": "tracker"
+    },
+    {
+      "name": "combat @ phone-landscape keeps the top band above the hands",
+      "pass": false,
+      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+    },
+    {
+      "name": "combat @ phone-landscape row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "combat @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "no readable panel inside either hand"
+      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "combat-boss @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 28.4, colours 1003"
+      "detail": "stdDev 31.6, colours 1227"
     },
     {
       "name": "combat-boss @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "9 panels inside the safe box"
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "combat-boss @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "8 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-boss @ phone-landscape keeps the thumb corners clear",
+      "pass": false,
+      "detail": "tracker"
+    },
+    {
+      "name": "combat-boss @ phone-landscape keeps the top band above the hands",
+      "pass": false,
+      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+    },
+    {
+      "name": "combat-boss @ phone-landscape row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, boss, ledger)"
+    },
+    {
+      "name": "combat-boss @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "no readable panel inside either hand"
+      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "quests @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 21.3, colours 967"
+      "detail": "stdDev 31.1, colours 463"
     },
     {
       "name": "quests @ phone-landscape respects the safe area",
@@ -3488,9 +3982,14 @@
       "detail": "7 panels inside the safe box"
     },
     {
+      "name": "quests @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "rank @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 29.4, colours 591"
+      "detail": "stdDev 21.8, colours 1081"
     },
     {
       "name": "rank @ phone-landscape respects the safe area",
@@ -3498,9 +3997,14 @@
       "detail": "8 panels inside the safe box"
     },
     {
+      "name": "rank @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "8 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "results @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 20.2, colours 786"
+      "detail": "stdDev 19.1, colours 923"
     },
     {
       "name": "results @ phone-landscape respects the safe area",
@@ -3508,19 +4012,29 @@
       "detail": "7 panels inside the safe box"
     },
     {
+      "name": "results @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "pause @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 21.2, colours 602"
+      "detail": "stdDev 21.1, colours 974"
     },
     {
       "name": "pause @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "13 panels inside the safe box"
+      "detail": "12 panels inside the safe box"
+    },
+    {
+      "name": "pause @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "12 panels, no pair sharing more than 4px²"
     },
     {
       "name": "settings @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 19.5, colours 841"
+      "detail": "stdDev 24.6, colours 341"
     },
     {
       "name": "settings @ phone-landscape respects the safe area",
@@ -3528,9 +4042,14 @@
       "detail": "17 panels inside the safe box"
     },
     {
+      "name": "settings @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "17 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "idle @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 25.3, colours 885"
+      "detail": "stdDev 28.2, colours 1039"
     },
     {
       "name": "idle @ phone-landscape respects the safe area",
@@ -3538,84 +4057,184 @@
       "detail": "5 panels inside the safe box"
     },
     {
+      "name": "idle @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "5 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "idle @ phone-landscape keeps the thumb corners clear",
       "pass": true,
       "detail": "no readable panel inside either hand"
     },
     {
+      "name": "idle @ phone-landscape keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
+    },
+    {
+      "name": "idle @ phone-landscape row 1 fits its declared budget",
+      "pass": true,
+      "detail": "row 1 runs 65.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom)"
+    },
+    {
+      "name": "idle @ phone-landscape lets the controls own every touch they need",
+      "pass": true,
+      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
+    },
+    {
       "name": "combat-alert @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 27.2, colours 1015"
+      "detail": "stdDev 31.9, colours 1200"
     },
     {
       "name": "combat-alert @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "10 panels inside the safe box"
+      "detail": "9 panels inside the safe box"
+    },
+    {
+      "name": "combat-alert @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-alert @ phone-landscape keeps the thumb corners clear",
+      "pass": false,
+      "detail": "tracker, alerts"
+    },
+    {
+      "name": "combat-alert @ phone-landscape keeps the top band above the hands",
+      "pass": false,
+      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+    },
+    {
+      "name": "combat-alert @ phone-landscape row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "combat-alert @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "no readable panel inside either hand"
+      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "combat-charging @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 29.5, colours 1204"
+      "detail": "stdDev 31.8, colours 1423"
     },
     {
       "name": "combat-charging @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "combat-charging @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-charging @ phone-landscape keeps the thumb corners clear",
+      "pass": false,
+      "detail": "tracker"
+    },
+    {
+      "name": "combat-charging @ phone-landscape keeps the top band above the hands",
+      "pass": false,
+      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+    },
+    {
+      "name": "combat-charging @ phone-landscape row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "combat-charging @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "no readable panel inside either hand"
+      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "combat-bored @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 27.8, colours 970"
+      "detail": "stdDev 31.1, colours 1174"
     },
     {
       "name": "combat-bored @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "combat-bored @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-bored @ phone-landscape keeps the thumb corners clear",
+      "pass": false,
+      "detail": "tracker"
+    },
+    {
+      "name": "combat-bored @ phone-landscape keeps the top band above the hands",
+      "pass": false,
+      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+    },
+    {
+      "name": "combat-bored @ phone-landscape row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "combat-bored @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "no readable panel inside either hand"
+      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "markers @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 29.6, colours 1275"
+      "detail": "stdDev 33.1, colours 1547"
     },
     {
       "name": "markers @ phone-landscape respects the safe area",
       "pass": true,
-      "detail": "13 panels inside the safe box"
+      "detail": "12 panels inside the safe box"
+    },
+    {
+      "name": "markers @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "12 panels, no pair sharing more than 4px²"
     },
     {
       "name": "markers @ phone-landscape keeps the thumb corners clear",
+      "pass": false,
+      "detail": "tracker"
+    },
+    {
+      "name": "markers @ phone-landscape keeps the top band above the hands",
+      "pass": false,
+      "detail": "tracker[59,111 560x37] reaches y=148, 19px into the reserve"
+    },
+    {
+      "name": "markers @ phone-landscape row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 105.0px from the top inset against a 60px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "markers @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "no readable panel inside either hand"
+      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
     },
     {
       "name": "the region crop actually crops",
       "pass": true,
-      "detail": "band 2532x360 mean 43.8 vs frame 2532x1170 mean 37.2"
+      "detail": "band 2532x360 mean 40.5 vs frame 2532x1170 mean 37.0"
     },
     {
       "name": "the HUD band carries far more detail than the empty corridor",
       "pass": true,
-      "detail": "band stdDev 32.6 vs corridor 18.9"
+      "detail": "band stdDev 35.1 vs corridor 18.7"
     },
     {
       "name": "the 60 Hz path writes ONLY custom properties",
       "pass": true,
-      "detail": "7 distinct properties, all --custom: --boredom --n-i --n-f --collateral --charge --hud-intent --hud-intent-label"
+      "detail": "6 distinct properties, all --custom: --boredom --n-text --charge --collateral --hud-intent --hud-intent-label"
     },
     {
       "name": "no direct assignment to a layout-affecting property",
@@ -3625,7 +4244,7 @@
     {
       "name": "ZERO forced reflows — no layout property is read during the window",
       "pass": true,
-      "detail": "120 frames, 511 CSSOM writes, 0 layout reads, every watched accessor instrumented"
+      "detail": "120 frames, 493 CSSOM writes, 0 layout reads, every watched accessor instrumented"
     },
     {
       "name": "zero cumulative layout shift while the meters animate",
@@ -3635,27 +4254,27 @@
     {
       "name": "the writer skips unchanged values rather than rewriting them",
       "pass": true,
-      "detail": "511 writes, 2013 skipped over 120 frames (4.3 CSSOM writes/frame)"
+      "detail": "493 writes, 1429 skipped over 120 frames (4.1 CSSOM writes/frame)"
     },
     {
       "name": "deuteranopia palette renders",
       "pass": true,
-      "detail": "stdDev 28.4, colours 953"
+      "detail": "stdDev 31.9, colours 1138"
     },
     {
       "name": "protanopia palette renders",
       "pass": true,
-      "detail": "stdDev 28.7, colours 919"
+      "detail": "stdDev 32.2, colours 1142"
     },
     {
       "name": "tritanopia palette renders",
       "pass": true,
-      "detail": "stdDev 28.3, colours 956"
+      "detail": "stdDev 31.5, colours 1213"
     },
     {
       "name": "highContrast palette renders",
       "pass": true,
-      "detail": "stdDev 32.3, colours 948"
+      "detail": "stdDev 34.6, colours 1160"
     },
     {
       "name": "the layout survives HUD scale at 130%",
@@ -3663,9 +4282,14 @@
       "detail": "nothing overflows the safe box"
     },
     {
+      "name": "the top band still clears the hands at HUD scale 130%",
+      "pass": false,
+      "detail": "tracker[59,132 728x44] reaches y=176"
+    },
+    {
       "name": "loading @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 21.9, colours 674"
+      "detail": "stdDev 20.1, colours 160"
     },
     {
       "name": "loading @ phone-portrait respects the safe area",
@@ -3673,14 +4297,24 @@
       "detail": "1 panels inside the safe box"
     },
     {
+      "name": "loading @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "1 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "combat @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 37.5, colours 890"
+      "detail": "stdDev 39.2, colours 1016"
     },
     {
       "name": "combat @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "6 panels inside the safe box"
+    },
+    {
+      "name": "combat @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "6 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat @ phone-portrait keeps the thumb corners clear",
@@ -3688,14 +4322,34 @@
       "detail": "no readable panel inside either hand"
     },
     {
+      "name": "combat @ phone-portrait keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=570"
+    },
+    {
+      "name": "combat @ phone-portrait row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 136.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, ledger)"
+    },
+    {
+      "name": "combat @ phone-portrait lets the controls own every touch they need",
+      "pass": false,
+      "detail": "left/grid@40,280 -> div.hud-tracker__obj; left/grid@80,280 -> span.hud-tracker__what; left/grid@120,280 -> span.hud-tracker__what; left/grid@160,280 -> span.hud-tracker__what; +4 more"
+    },
+    {
       "name": "combat-boss @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 37.3, colours 937"
+      "detail": "stdDev 39.5, colours 1093"
     },
     {
       "name": "combat-boss @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "9 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "combat-boss @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-boss @ phone-portrait keeps the thumb corners clear",
@@ -3703,54 +4357,94 @@
       "detail": "no readable panel inside either hand"
     },
     {
+      "name": "combat-boss @ phone-portrait keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=570"
+    },
+    {
+      "name": "combat-boss @ phone-portrait row 1 fits its declared budget",
+      "pass": false,
+      "detail": "row 1 runs 136.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, ledger)"
+    },
+    {
+      "name": "combat-boss @ phone-portrait lets the controls own every touch they need",
+      "pass": false,
+      "detail": "left/grid@40,280 -> div.hud-tracker__obj; left/grid@80,280 -> span.hud-tracker__what; left/grid@120,280 -> span.hud-tracker__what; left/grid@160,280 -> span.hud-tracker__what; +4 more"
+    },
+    {
       "name": "quests @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 27.5, colours 1053"
+      "detail": "stdDev 35.6, colours 765"
     },
     {
       "name": "quests @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "7 panels inside the safe box"
+      "detail": "6 panels inside the safe box"
+    },
+    {
+      "name": "quests @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "6 panels, no pair sharing more than 4px²"
     },
     {
       "name": "rank @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 28.2, colours 1079"
+      "detail": "stdDev 41.5, colours 453"
     },
     {
       "name": "rank @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "rank @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "results @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 27.2, colours 941"
+      "detail": "stdDev 26.2, colours 1165"
     },
     {
       "name": "results @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "results @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "pause @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 29.0, colours 786"
+      "detail": "stdDev 23.3, colours 677"
     },
     {
       "name": "pause @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "13 panels inside the safe box"
+      "detail": "11 panels inside the safe box"
+    },
+    {
+      "name": "pause @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "11 panels, no pair sharing more than 4px²"
     },
     {
       "name": "settings @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 25.5, colours 947"
+      "detail": "stdDev 26.0, colours 894"
     },
     {
       "name": "settings @ phone-portrait respects the safe area",
       "pass": true,
-      "detail": "30 panels inside the safe box"
+      "detail": "27 panels inside the safe box"
+    },
+    {
+      "name": "settings @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "27 panels, no pair sharing more than 4px²"
     },
     {
       "name": "pause is reachable from the combat HUD",
@@ -3810,7 +4504,7 @@
     {
       "name": "loading @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 19.6, colours 649"
+      "detail": "stdDev 17.5, colours 164"
     },
     {
       "name": "loading @ tablet respects the safe area",
@@ -3818,14 +4512,24 @@
       "detail": "1 panels inside the safe box"
     },
     {
+      "name": "loading @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "1 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "combat @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 29.0, colours 916"
+      "detail": "stdDev 30.4, colours 923"
     },
     {
       "name": "combat @ tablet respects the safe area",
       "pass": true,
-      "detail": "8 panels inside the safe box"
+      "detail": "7 panels inside the safe box"
+    },
+    {
+      "name": "combat @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat @ tablet keeps the thumb corners clear",
@@ -3833,14 +4537,34 @@
       "detail": "no readable panel inside either hand"
     },
     {
+      "name": "combat @ tablet keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=528"
+    },
+    {
+      "name": "combat @ tablet row 1 fits its declared budget",
+      "pass": true,
+      "detail": "row 1 runs 66.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "combat @ tablet lets the controls own every touch they need",
+      "pass": false,
+      "detail": "left/grid@40,80 -> div.hud-tracker__title; left/grid@40,120 -> div.hud-panel.hud-tracker; left/grid@80,80 -> div.hud-tracker__title; left/grid@80,120 -> div.hud-panel.hud-tracker; +40 more"
+    },
+    {
       "name": "combat-boss @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 29.2, colours 952"
+      "detail": "stdDev 30.6, colours 981"
     },
     {
       "name": "combat-boss @ tablet respects the safe area",
       "pass": true,
-      "detail": "9 panels inside the safe box"
+      "detail": "8 panels inside the safe box"
+    },
+    {
+      "name": "combat-boss @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "8 panels, no pair sharing more than 4px²"
     },
     {
       "name": "combat-boss @ tablet keeps the thumb corners clear",
@@ -3848,9 +4572,24 @@
       "detail": "no readable panel inside either hand"
     },
     {
+      "name": "combat-boss @ tablet keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=528"
+    },
+    {
+      "name": "combat-boss @ tablet row 1 fits its declared budget",
+      "pass": true,
+      "detail": "row 1 runs 66.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, encounter, boss, ledger)"
+    },
+    {
+      "name": "combat-boss @ tablet lets the controls own every touch they need",
+      "pass": false,
+      "detail": "left/grid@40,80 -> div.hud-tracker__title; left/grid@40,120 -> div.hud-panel.hud-tracker; left/grid@80,80 -> div.hud-tracker__title; left/grid@80,120 -> div.hud-panel.hud-tracker; +40 more"
+    },
+    {
       "name": "quests @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 21.0, colours 906"
+      "detail": "stdDev 21.7, colours 1070"
     },
     {
       "name": "quests @ tablet respects the safe area",
@@ -3858,9 +4597,14 @@
       "detail": "7 panels inside the safe box"
     },
     {
+      "name": "quests @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "7 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "rank @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 20.6, colours 893"
+      "detail": "stdDev 22.4, colours 910"
     },
     {
       "name": "rank @ tablet respects the safe area",
@@ -3868,9 +4612,14 @@
       "detail": "8 panels inside the safe box"
     },
     {
+      "name": "rank @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "8 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "results @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 19.2, colours 877"
+      "detail": "stdDev 21.9, colours 551"
     },
     {
       "name": "results @ tablet respects the safe area",
@@ -3878,19 +4627,29 @@
       "detail": "8 panels inside the safe box"
     },
     {
+      "name": "results @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "8 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "pause @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 19.0, colours 680"
+      "detail": "stdDev 15.5, colours 279"
     },
     {
       "name": "pause @ tablet respects the safe area",
       "pass": true,
-      "detail": "13 panels inside the safe box"
+      "detail": "12 panels inside the safe box"
+    },
+    {
+      "name": "pause @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "12 panels, no pair sharing more than 4px²"
     },
     {
       "name": "settings @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 19.9, colours 815"
+      "detail": "stdDev 25.4, colours 473"
     },
     {
       "name": "settings @ tablet respects the safe area",
@@ -3898,10 +4657,15 @@
       "detail": "35 panels inside the safe box"
     },
     {
+      "name": "settings @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "35 panels, no pair sharing more than 4px²"
+    },
+    {
       "name": "no console errors from any profile",
       "pass": true,
       "detail": "clean"
     }
   ],
-  "generatedAt": "2026-08-23T18:36:24.684Z"
+  "generatedAt": "2026-08-23T21:00:19.102Z"
 }

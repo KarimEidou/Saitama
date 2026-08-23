@@ -5,6 +5,13 @@
  * table's first entry, so each is TOTAL only while that first entry starts at 0.
  * Both tables and both scans are asserted here, together, because the failure
  * mode when they drift is a HUD that silently shows the wrong word.
+ *
+ * The scans also have a DIRECTION when the input is broken. A seeded scan gives
+ * a non-finite value the seed — the calmest entry in both tables — because every
+ * comparison against NaN is false, and both functions now refuse that: they fail
+ * to the top of the ramp instead. Asserted below for both, because the whole
+ * point of the choice is that the wrong direction is indistinguishable from an
+ * ordinary reading.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -45,9 +52,21 @@ describe('boredomBand', () => {
   });
 
   it('never returns undefined, whatever it is handed', () => {
+    // A NEGATIVE value is a real reading below the bottom of the ramp, so it
+    // stays ENGAGED. Only non-finite input takes the fail-loud escape below.
     expect(boredomBand(-5).label).toBe('ENGAGED');
-    expect(boredomBand(Number.NaN).label).toBe('ENGAGED');
     expect(boredomBand(99).label).toBe('NUMB');
+  });
+
+  it('fails toward the alarming band, not the calm one', () => {
+    // The seeded scan used to answer ENGAGED here, because `NaN >= 0` is false
+    // and nothing ever moved the initialiser. A meter that reports "he is having
+    // a good time" when its input stopped meaning anything is worse than no
+    // meter: ENGAGED is also an ordinary answer, so nobody would ever notice.
+    const worst = BOREDOM_BANDS[BOREDOM_BANDS.length - 1]!;
+    expect(boredomBand(Number.NaN)).toBe(worst);
+    expect(boredomBand(Number.POSITIVE_INFINITY)).toBe(worst);
+    expect(boredomBand(Number.NEGATIVE_INFINITY)).toBe(worst);
   });
 
   it('never moves backwards as boredom rises', () => {
@@ -76,6 +95,17 @@ describe('intentForCharge', () => {
       expect(INTENT_THRESHOLDS[i]!.at).toBeGreaterThan(INTENT_THRESHOLDS[i - 1]!.at);
     }
     expect(intentForCharge(-1)).toBe('normal');
+  });
+
+  it('fails toward the heaviest intent, not the lightest', () => {
+    // Same asymmetry as `boredomBand`, for a different reason. The player reads
+    // the arc to decide when to LET GO: told "full" on a light charge they
+    // release early and waste a punch, told "normal" on a heavy one they commit
+    // and take the block down with the monster. Only one of those is undoable.
+    const heaviest = INTENT_THRESHOLDS[INTENT_THRESHOLDS.length - 1]!.intent;
+    expect(intentForCharge(Number.NaN)).toBe(heaviest);
+    expect(intentForCharge(Number.POSITIVE_INFINITY)).toBe(heaviest);
+    expect(intentForCharge(Number.NEGATIVE_INFINITY)).toBe(heaviest);
   });
 
   it('only ever returns an intent the table names, and never goes backwards', () => {

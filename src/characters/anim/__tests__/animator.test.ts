@@ -12,6 +12,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
+import { resetLogState } from '@/util';
 import type { BoneName, ClipName, IAnimator } from '@/types';
 import { ProceduralAnimator, type AnimatorOptions } from '../animator';
 import { createCharacterParts, buildCharacter } from '@/characters/mesh';
@@ -444,6 +445,94 @@ describe('hostile input', () => {
     step(animator, 0.5);
     expect(Number.isFinite(animator.solver.phase)).toBe(true);
     expect(Number.isFinite(animator.pose.rot[0]!)).toBe(true);
+    animator.dispose();
+  });
+
+  it('sweeps non-finite clip params before they reach the pose functions', () => {
+    // `params` is public and mutable, so a caller can put a NaN straight into
+    // the angle every `poseArm` / `poseSpine` / `poseLeg` is about to compute —
+    // no `dt` involved, and the `dt` guard above does not see it. The result is
+    // not a wrong pose but NO character: NaN quaternions render as nothing.
+    const { animator } = makeAnimator();
+    animator.setLocomotion({ speed: 2 });
+    step(animator, 0.5);
+
+    animator.params.boredom = NaN;
+    animator.params.alertness = Number.POSITIVE_INFINITY;
+    animator.params.phaseOffset = Number.NEGATIVE_INFINITY;
+    animator.params.vigour = NaN;
+    animator.update(1 / 60);
+
+    // Repaired IN PLACE, because the caller is holding this exact object; a
+    // replacement would leave them writing to something nothing reads.
+    expect(Number.isFinite(animator.params.boredom)).toBe(true);
+    expect(Number.isFinite(animator.params.alertness)).toBe(true);
+    expect(Number.isFinite(animator.params.phaseOffset)).toBe(true);
+    expect(Number.isFinite(animator.params.vigour)).toBe(true);
+
+    step(animator, 0.5);
+    const pose = animator.pose;
+    for (let i = 0; i < pose.rot.length; i++) {
+      expect(Number.isFinite(pose.rot[i]!), `rot ${i}`).toBe(true);
+    }
+    for (let i = 0; i < pose.pos.length; i++) {
+      expect(Number.isFinite(pose.pos[i]!), `pos ${i}`).toBe(true);
+    }
+    animator.dispose();
+  });
+
+  it('repairs only the broken field, and leaves finite outliers alone', () => {
+    // The sweep tests FINITENESS, not range. `vigour` is per-instance jitter
+    // and `boredom` is legitimately driven to 1, so a guard that also clamped
+    // to some tidy interval would quietly flatten a crowd's variation — a much
+    // harder bug to see than the one it was added to fix.
+    const { animator } = makeAnimator({ seed: 7 });
+    const vigour = animator.params.vigour;
+    const phase = animator.params.phaseOffset;
+    animator.params.boredom = NaN;
+    animator.params.alertness = 1;
+    animator.update(1 / 60);
+    expect(animator.params.boredom).toBe(0);
+    expect(animator.params.alertness).toBe(1);
+    expect(animator.params.vigour).toBe(vigour);
+    expect(animator.params.phaseOffset).toBe(phase);
+    animator.dispose();
+  });
+
+  it('says so out loud, once, instead of papering over it', () => {
+    // Substituting a default for a visual parameter is defensible; doing it
+    // silently is how a broken caller ships. And it must stay ONE line: this
+    // runs per character per frame, so an unlatched warning from a crowd is
+    // itself a worse bug than the pose it is reporting.
+    resetLogState();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { animator } = makeAnimator();
+      animator.params.boredom = NaN;
+      step(animator, 0.5);
+      animator.dispose();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]!.join(' '))).toContain('ClipParams');
+    } finally {
+      warn.mockRestore();
+      resetLogState();
+    }
+  });
+
+  it('never bakes a NaN track, even from params that were bad at bake time', () => {
+    // `animationClip` is the other door into the same pose functions and it
+    // does not go through `update`. A bake is CACHED, so a NaN written here
+    // outlives the bad frame and keeps being handed back.
+    const { animator } = makeAnimator();
+    animator.params.boredom = NaN;
+    animator.params.vigour = Number.POSITIVE_INFINITY;
+    const clip = animator.animationClip('idle', 8);
+    expect(clip.tracks.length).toBeGreaterThan(0);
+    for (const track of clip.tracks) {
+      for (let i = 0; i < track.values.length; i++) {
+        expect(Number.isFinite(track.values[i]!), `${track.name}[${i}]`).toBe(true);
+      }
+    }
     animator.dispose();
   });
 });

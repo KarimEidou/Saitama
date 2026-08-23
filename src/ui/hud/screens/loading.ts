@@ -19,6 +19,23 @@
  * the HUD exists and outlives it — it comes back for every subsequent load
  * (fast travel, a save restore), which the inline one cannot do because it is
  * removed from the document.
+ *
+ * ── IT IS A CARD, NOT A SPLASH ─────────────────────────────────────────────
+ * Everything on this screen used to be centred, and centring is what was wrong
+ * with it. Measured off a real device: the title sat 2.00 CSS px left of centre
+ * and the subtitle 1.83 px, because CSS adds letter-spacing after the FINAL
+ * glyph too and heavy tracking therefore pushes centred text half a tracking
+ * unit left — the two untracked flavour lines measured 0.17 and 0.33 px, i.e.
+ * dead centre, which is the control that proves it. On top of that the whole
+ * column was centred inside an ASYMMETRIC padding box, so the vertical centre
+ * was 213.5 px on a 440 px viewport instead of 220.
+ *
+ * It is a filed card now: one plate, one measure, everything flush left against
+ * it, and the ONE PUNCH MAN / CITY Z pair tight together above the bar because
+ * they are one unit — "CITY Z" used to sit 15 px from the progress bar and
+ * 18.3 px from the title it is the subtitle of, so it optically belonged to the
+ * bar. The order of the four blocks is the order they are read in and the gaps
+ * say which of them belong together.
  */
 
 import { clamp01 } from '@/util';
@@ -69,21 +86,33 @@ export class LoadingScreen extends HudScreen {
     });
 
     this.element.append(
-      el(doc, 'div', { className: 'hud-loading__title', text: 'One Punch Man' }),
-      el(doc, 'div', { className: 'hud-loading__sub', text: 'City Z' }),
       el(doc, 'div', {
-        className: 'hud-loading__track',
-        attrs: { 'data-hud': 'loading-track' },
-        children: [this.fill],
-      }),
-      el(doc, 'div', {
-        className: 'hud-loading__row',
+        className: 'hud-loading__card',
         children: [
-          this.label,
-          el(doc, 'span', { className: 'hud-loading__pct', children: [this.percent.element] }),
+          el(doc, 'div', { className: 'hud-loading__title', text: 'One Punch Man' }),
+          el(doc, 'div', { className: 'hud-loading__sub', text: 'City Z' }),
+          el(doc, 'div', {
+            className: 'hud-loading__track',
+            attrs: { 'data-hud': 'loading-track' },
+            children: [this.fill],
+          }),
+          // The percentage LEADS the row, at the same x as the fill's origin.
+          // It used to trail a flex:1 label in a row exactly as wide as the
+          // bar, which stranded it 238 px from the fill head across a 167 px
+          // void — and made the row's own justify-content:center dead code.
+          el(doc, 'div', {
+            className: 'hud-loading__row',
+            children: [
+              el(doc, 'span', {
+                className: 'hud-loading__pct',
+                children: [this.percent.element],
+              }),
+              this.label,
+            ],
+          }),
+          this.tip,
         ],
-      }),
-      this.tip
+      })
     );
     this.element.setAttribute('data-screen', 'boot');
   }

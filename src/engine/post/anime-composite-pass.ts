@@ -31,7 +31,40 @@
 import * as THREE from 'three';
 import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 
-const MOTION_BLUR_TAPS = 6;
+/**
+ * Motion-blur sampling. These two are ONE decision and have to be read
+ * together: `MOTION_BLUR_SPAN_PX` is how far the pixel furthest from the focal
+ * point is smeared at full intensity, in DEVICE pixels, and
+ * `MOTION_BLUR_TAPS` is how many samples that span is divided into. What the
+ * eye judges is the QUOTIENT — the gap between consecutive taps.
+ *
+ * Bilinear filtering blends a tap into its neighbour only while their 2x2
+ * texel footprints still overlap, i.e. while the taps are under about 1.5 px
+ * apart. Wider than that and the taps stop reading as a blur and start reading
+ * as N discrete copies of the frame. That is precisely what shipped: 6 taps
+ * spread across 16% of each pixel's own radius put the copies ~47 px apart on
+ * a 1440p frame (0.16 x 1469 px corner radius / 5 intervals), and ~23 px apart
+ * on a 1280x720 one. On screen it was not motion blur at all — it was a
+ * violent dark smear with the kerb, the road markings and every building edge
+ * repeated six times over, and it destroyed readability at the exact moment
+ * the player was trying to read what had just landed.
+ *
+ * 16 px across 12 taps is 1.33 px between taps, and it stays 1.33 px at every
+ * resolution: the span is budgeted in pixels and converted to a UV reach in
+ * `setSize` rather than being a fixed fraction of the frame, so a 4K buffer
+ * gets a 16 px smear sampled 12 times instead of a 42 px one sampled 12 times.
+ * RAISING THE SPAN REQUIRES RAISING THE TAPS IN PROPORTION — 24 px wants 18
+ * taps — or the ghosting comes straight back.
+ *
+ * Cost: three fetches per tap (the chromatic offsets ride along), so 36
+ * texture fetches per pixel while a burst is live against 18 before. It is
+ * paid on the HIGH tier alone — `low` and `medium` set all three anime flags
+ * false and `PostProcessing` never constructs this pass for them — and only
+ * for the ~0.9 s a burst takes to decay. Idle cost is untouched — a frame with
+ * no burst in flight never enters this loop at all.
+ */
+const MOTION_BLUR_TAPS = 12;
+const MOTION_BLUR_SPAN_PX = 16;
 
 /**
  * Resting chromatic aberration, present at all times on the HIGH tier as a
@@ -39,6 +72,31 @@ const MOTION_BLUR_TAPS = 6;
  * outside of an impact reads as a broken shader rather than as a lens.
  */
 const REST_CHROMATIC = 0.16;
+
+/**
+ * The UV reach one unit of `direction` earns at full intensity.
+ *
+ * `direction` is a UV vector, so `direction * reach` is a UV offset, and that
+ * offset's length in pixels is `reach * radius * height` — it grows with the
+ * pixel's distance from the focal point, which is what makes a zoom blur a
+ * zoom blur rather than a uniform one. Anchoring the reach to the frame's own
+ * corner radius (half the diagonal, in pixels) is what turns
+ * `MOTION_BLUR_SPAN_PX` into a promise the shader can keep at any resolution.
+ */
+function motionBlurReach(width: number, height: number): number {
+  return MOTION_BLUR_SPAN_PX / Math.max(1, 0.5 * Math.hypot(width, height));
+}
+
+/**
+ * The value `radius` takes at the frame corner, which is where the smear is
+ * budgeted to be exactly `MOTION_BLUR_SPAN_PX` long. The shader saturates
+ * `radius` here so a focal point parked off to one side — or off-screen
+ * entirely — cannot buy a longer smear, and therefore cannot buy back the
+ * tap spacing this pass exists to keep down.
+ */
+function motionBlurMaxRadius(width: number, height: number): number {
+  return 0.5 * Math.hypot(width / Math.max(1, height), 1);
+}
 
 const VERTEX_SHADER = /* glsl */ `
 	varying vec2 vUv;
@@ -54,6 +112,8 @@ const FRAGMENT_SHADER = /* glsl */ `
 	uniform float uAspect;
 	uniform float uTime;
 	uniform float uMotionBlur;
+	uniform float uMotionBlurReach;
+	uniform float uMotionBlurMaxRadius;
 	uniform float uChromatic;
 	uniform float uSpeedLines;
 	uniform vec3 uSpeedLineColor;
@@ -80,10 +140,32 @@ const FRAGMENT_SHADER = /* glsl */ `
 		if ( uMotionBlur > 0.001 ) {
 			// Zoom smear towards the focal point, with the chromatic offsets
 			// folded into the same taps.
+			//
+			// The centre is PROTECTED. Everything radial here converges on the
+			// focal point, and the subject is standing on it — that is what an
+			// impact focal point means. Smearing hardest exactly there made the
+			// player the least readable object on screen during the one moment
+			// the frame exists to communicate. The speed lines below hold their
+			// centre clear for the same reason, but their mask is a moving
+			// annulus rebuilt per angular cell, so it cannot be shared; this is
+			// a plain static guard over the same radial term.
+			float centreGuard = smoothstep( 0.12, 0.45, radius );
+			// Nothing clamps the focal point to the frame, and callers can leave
+			// a stale one behind, so the radius may run to twice its corner
+			// value on the far side of an edge-anchored focal point. Left alone
+			// that doubles the span AND the tap spacing, which is the ghosting
+			// back. Saturating the radius costs one divide and holds the budget
+			// for any focal point at all.
+			float radiusGuard = min( 1.0, uMotionBlurMaxRadius / max( radius, 0.0001 ) );
+			float smear = uMotionBlur * uMotionBlurReach * centreGuard * radiusGuard;
 			vec3 accum = vec3( 0.0 );
 			for ( int i = 0; i < ${MOTION_BLUR_TAPS}; i ++ ) {
-				float t = float( i ) / float( ${MOTION_BLUR_TAPS} - 1 );
-				vec2 offset = direction * ( -uMotionBlur * 0.16 * t );
+				// The MIDPOINT of each of the ${MOTION_BLUR_TAPS} equal slices of
+				// the span, not i/(N-1) across its two ends: the same fetch count
+				// then buys N gaps instead of N-1, and the box being averaged
+				// stops being double-weighted at the ends.
+				float t = ( float( i ) + 0.5 ) / float( ${MOTION_BLUR_TAPS} );
+				vec2 offset = direction * ( -smear * t );
 				vec2 uvTap = vUv + offset;
 				accum.r += texture2D( tDiffuse, uvTap + direction * ca ).r;
 				accum.g += texture2D( tDiffuse, uvTap ).g;
@@ -184,6 +266,11 @@ export class AnimeCompositePass extends Pass {
         uAspect: { value: 1 },
         uTime: { value: 0 },
         uMotionBlur: { value: 0 },
+        // Overwritten by the first `setSize`, which `EffectComposer` calls the
+        // moment the pass joins a chain. The 1080p seed is what a pass built
+        // and never sized gets — the unit tests do exactly that.
+        uMotionBlurReach: { value: motionBlurReach(1920, 1080) },
+        uMotionBlurMaxRadius: { value: motionBlurMaxRadius(1920, 1080) },
         uChromatic: { value: this.chromaticEnabled ? REST_CHROMATIC : 0 },
         uSpeedLines: { value: 0 },
         uSpeedLineColor: { value: new THREE.Color(options.speedLineColor ?? 0xffffff) },
@@ -353,6 +440,14 @@ export class AnimeCompositePass extends Pass {
 
   override setSize(width: number, height: number): void {
     this.material.uniforms.uAspect!.value = width / Math.max(1, height);
+    // These arrive in DRAWING-BUFFER pixels — `PostProcessing.setSize` is fed
+    // `Renderer.width/height`, which are physical, DPR-clamped and already
+    // scaled by the resolution governor. That is the right domain for the
+    // budget: the smear is spent in pixels the GPU actually rasterises, so a
+    // frame the governor has shrunk gets a proportionally shorter smear and
+    // holds the same 1.33 px between taps rather than stretching them apart.
+    this.material.uniforms.uMotionBlurReach!.value = motionBlurReach(width, height);
+    this.material.uniforms.uMotionBlurMaxRadius!.value = motionBlurMaxRadius(width, height);
   }
 
   override render(

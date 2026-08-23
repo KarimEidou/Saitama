@@ -5,34 +5,175 @@
  * here, so the TypeScript builds a tree and then only ever writes custom
  * properties into it.
  *
+ * ── THE PANEL LANGUAGE: A HERO ASSOCIATION FILE ────────────────────────────
+ * Every panel used to get the identical treatment — 10 px radius, a 1 px
+ * hairline all round, a whisper of gradient, a 20 px drop shadow — so the rank
+ * chip, the boredom meter, the threat banner and the property-damage invoice
+ * were visually interchangeable. A Tiger-level threat was drawn with exactly
+ * the same weight as the hero name that never changes. That is a weather
+ * widget. Nothing in it was from the Association.
+ *
+ * The source material has a very specific look, and the game already has the
+ * IDEAS: a tier system, a seat number, a civilian ledger, a damage invoice.
+ * They were rendered as generic chrome. So:
+ *
+ *   THE PLATE      A chamfered rectangle — square at the top-left where the ink
+ *                  rule starts, cut across the top-right and bottom-left. Not a
+ *                  border-radius: `--hud-radius` is 0 and every corner in the
+ *                  HUD is either square or cut. `clip-path` is composited and
+ *                  static, so the shape costs a single paint-time mask.
+ *
+ *   ONE INK RULE   One 3 px rule down the leading edge, and NO hairline round
+ *                  the rest. The rule carries the meaning — class colour on the
+ *                  hero file, tier colour on the incident, urgency on the duty
+ *                  strip, alert colour on a bulletin — so the panel's identity
+ *                  is legible before a single word is read. `.hud-tracker` was
+ *                  already doing exactly this with `border-left`; it is now the
+ *                  system rather than one panel's exception.
+ *
+ *   THE LEAN       `skewX(-3deg)`, on the BACKING LAYER only. A 3° lean is the
+ *                  single strongest "this is not a generic card" signal
+ *                  available for one declaration, and putting it on a
+ *                  `::before` instead of the panel box keeps the type upright
+ *                  on the pixel grid and — the reason it is not on the box —
+ *                  keeps `getBoundingClientRect()` reporting the LAYOUT
+ *                  rectangle. Every geometry assertion in `harness/hud.verify`
+ *                  measures those rects; a skewed box reports a bounding box
+ *                  ~1.6 px wider on each side than anything the layout knows
+ *                  about, which would spend the safe-area and overlap budgets
+ *                  on a decoration.
+ *
+ *   HALFTONE       A 3 px dot screen at 5.5 % alpha, composed INTO
+ *                  `--hud-panel` above `var(--hud-surface)`. One extra paint
+ *                  layer, no image, no request. It is what stops a flat fill
+ *                  reading as a flat fill.
+ *
+ *   INK ON PAPER   Semantic colour appears in exactly three places: the edge
+ *                  rule, the numeral glyph, and the meter fill. No panel is
+ *                  ever TINTED — the primary button's `color-mix` background
+ *                  and the selected row's wash are both edge-and-ink now. That
+ *                  raises the panel contrast `__tests__/palette.test.ts`
+ *                  measures, and it makes High contrast the palette the design
+ *                  was drawn for rather than a degradation of it.
+ *
+ * ── FIVE TYPE SIZES, NOT SEVENTEEN ─────────────────────────────────────────
+ * The sheet used to contain 10, 11, 11.5, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+ * 21, 22, 23, 26 and 52 px. There was no system, which is precisely why nothing
+ * lined up — the loading row's baseline mismatch was two of those steps meeting.
+ * Everything is now one of five, anchored at 13 px on a ~1.35 ratio:
+ *
+ *   --t-micro   10   labels, tabular meta, chips        tracking .14em
+ *   --t-body    13   prose, hints, blurbs               tracking .01em
+ *   --t-title   18   panel titles, row titles, names    tracking .06em
+ *   --t-readout 24   every live number on the HUD       tracking .01em
+ *   --t-hero    44   the rank-board standing, the boot  tracking .06em
+ *
+ * TRACKING IS A FUNCTION OF SIZE. Uniform heavy tracking (.14em labels, .12em
+ * buttons, .16em tier words) at every size flattens the hierarchy the sizes are
+ * trying to establish: it makes 10 px look like 18 px look like 24 px. Heavy
+ * tracking survives only where it earns its keep — 10 px uppercase, where the
+ * letterforms need the air. `__tests__/styles.test.ts` fails the build if a
+ * sixth size appears.
+ *
  * ── THE LAYOUT CONSTRAINT NOBODY WRITES DOWN ───────────────────────────────
  * On a phone held in landscape — which is how this game is played — the bottom
- * 200 px of BOTH lower corners is under a hand. `src/ui/input` floats the stick
- * anywhere in the left half and strikes its button arc out to ~215 px from the
- * bottom-right safe-area corner. On a 390 px-tall landscape viewport that is
- * more than half the screen.
+ * of BOTH lower corners is under a hand. `src/ui/input` anchors the stick 96 px
+ * inside the bottom-left safe corner and strikes its button arc out to ~222 px
+ * from the bottom-right one. `THUMB_RESERVE_PX` and `STICK_RESERVE_PX` are the
+ * quarter-discs that leaves.
  *
- * So the combat HUD lives in the TOP BAND and nowhere else. Not as a style
- * choice — there is no other space. Everything that must be readable mid-fight
- * is inside `.hud-top`, and the only thing allowed below it is the charge arc,
- * which sits centre-bottom in the gap BETWEEN the two thumbs and is transient.
+ * On the 844x390 profile that ships, the arithmetic is brutal and worth writing
+ * down: 390 − 21 (home indicator) − 240 (the deeper reserve) = 129. The combat
+ * HUD gets y ∈ [8, 129]. ONE HUNDRED AND TWENTY-ONE PIXELS, at 130 % HUD scale
+ * as well as at 100 %. That is the whole budget, and it is why:
+ *
+ *   · the rank chip and the boredom meter are ONE plate (the hero file),
+ *   · the ledger and the collateral ticker are ONE plate (the incident cost),
+ *   · the encounter card and the boss bar are ONE plate (the incident),
+ *   · the quest tracker is a single-line DUTY STRIP, not a card.
+ *
+ * Four panels became three plates and a strip, and the band went from
+ * overflowing at 100 % to fitting at 130 %.
+ *
+ * ── WHERE THE ALERTS WENT, AND WHY ─────────────────────────────────────────
+ * The threat banner used to be `left:50%` in the z-index 4 layer while the
+ * encounter card was grid-area 1/2 in the z-index 2 layer: two layout systems
+ * claiming one rectangle. Measured on a real device it covered 85.2 % of the
+ * card — 100 % of its width, 46 of its 54 px — and its own 3-cycle throb
+ * animated the buried card back into view three times. Two elements, one
+ * rectangle, saying nearly the same thing.
+ *
+ * There is no free rectangle left in the landscape band, so the bulletin goes
+ * where the free rectangle actually is: the CORRIDOR between the two hands,
+ * above the charge arc. In portrait and on a tablet there is no corridor and
+ * there is height to spare, so it sits under the band instead. Two placements,
+ * each derived from which free space that shape of screen has.
  *
  * ── WHY THERE IS NO `backdrop-filter` ──────────────────────────────────────
  * A blurred HUD panel looks expensive because it is: `backdrop-filter` forces
  * the compositor to read back and blur the frame behind every panel, every
- * frame, on a tile-based mobile GPU that would much rather not. Panels are flat
- * gradients with a hairline instead. On a dark game frame the difference is
- * invisible; in the frame budget it is not.
+ * frame, on a tile-based mobile GPU that would much rather not.
+ *
+ * ── AND WHY THERE ARE NO DROP SHADOWS EITHER ───────────────────────────────
+ * `clip-path` clips an outer `box-shadow` away with everything else the element
+ * paints, so a chamfered plate cannot have one; the alternative,
+ * `filter:drop-shadow`, is a per-element filter pass — the same trade this file
+ * already refuses above. The separation comes from OPACITY instead, which the
+ * panels needed anyway: `--hud-surface` is 82 % opaque, tuned against the dusk
+ * sky in the committed reference shots, and the shipping game is DAYTIME. The
+ * rank chip's fill measurably swung rgb(30,32,37)→(39,44,52) with the windows
+ * behind it. `--hud-panel` now lays the palette's own surface down TWICE, so
+ * every palette composes to ~97 % by its own colour rather than by a literal,
+ * and the city bleed drops from ~18 % to ~3 %.
  *
  * ── EVERY ANIMATED PROPERTY IS COMPOSITED ──────────────────────────────────
- * `transform` and `opacity` only. A keyframe on `width` or `left` would defeat
- * the entire point of the custom-property discipline by moving the work into
- * the style engine instead of the compositor.
+ * `transform` and `opacity` only, and only three motions exist:
+ *
+ *   STAMP    entry. scale(1.06)→1 with opacity, 120 ms, plus a one-shot
+ *            speed-line sweep that wipes across and fades. It is a rubber stamp
+ *            hitting paper, not a card sliding in.
+ *   BREATHE  idle. The boredom meter's slow sweep, scoped to the FILL — over
+ *            the empty TRACK it was an indeterminate spinner shimmering on a
+ *            bar that said zero.
+ *   PULSE    urgent. A hard `steps(1,end)` flash. Never a fade: a fade reads as
+ *            a rendering artefact, a flash reads as an alarm.
+ *
+ * All three are killed outright by `[data-reduced-motion='true']` at the bottom
+ * of this file.
+ *
+ * ── HOW THIS FILE IS PARSED, AND WHAT THAT FORBIDS ─────────────────────────
+ * `__tests__/styles.test.ts` reads this stylesheet with a REGULAR EXPRESSION,
+ * not a CSS parser:
+ *
+ *     (?:^|[\n},])\s*ESCAPED_SELECTOR\s*\{([^{}]*)\}
+ *
+ * Two rules follow from that, and breaking either fails the build with a
+ * confusing message rather than a useful one:
+ *
+ *   EVERY INSPECTED RULE STANDS ALONE. `.hud-boredom,.hud-tracker{…}` matches
+ *   nothing, and the failure reads "no rule for .hud-boredom". Since the guards
+ *   are now COMPLETENESS guards — every rule that paints a fill must be listed,
+ *   every rule that takes a touch must be listed — that applies to any rule
+ *   carrying `transform:scaleX(var(--` or `pointer-events:auto`.
+ *
+ *   NO NESTED BRACES INSIDE A RULE BODY. No CSS nesting, no `&`, no `@supports`
+ *   inside a rule. Media queries are fine: the regex anchors on a newline, so
+ *   rules inside one are found normally.
+ *
+ * Upgrading that regex to a real parser is a reasonable change. It is not one
+ * that rides along with a redesign, because a parser that quietly accepts what
+ * the regex rejects removes the guard on the day it is most likely to matter.
  */
 
 import { CSS_NUMBER_STYLES } from './css-number';
 import { SAFE_AREA_STYLES } from './safe-area';
-import { MIN_TAP_PX, PALETTES, THUMB_RESERVE_PX, type PaletteName } from './tokens';
+import {
+  MIN_TAP_PX,
+  PALETTES,
+  STICK_RESERVE_PX,
+  THUMB_RESERVE_PX,
+  type PaletteName,
+} from './tokens';
 
 export const HUD_STYLE_ID = 'opm-hud-styles';
 
@@ -79,11 +220,11 @@ export function hudStyles(): string {
 /* lets it be transitioned and interpolated. Without this, --boredom is a     */
 /* token string and transition: --boredom does nothing at all.              */
 /* ========================================================================== */
-/* --fill INHERITS, and that is load-bearing rather than incidental: two of its  */
-/* consumers are ::after pseudo-elements (.hud-rankchip__pts, .hud-standing__bar) */
-/* and a writer can only reach the ORIGINATING element. A pseudo inherits from   */
-/* its originator exactly as a child does, so with inherits:false the registered  */
-/* initial-value wins inside ::after and every progress sliver reads 0 forever.  */
+/* --fill INHERITS, and that is load-bearing rather than incidental: one of its  */
+/* consumers is a ::after pseudo-element (.hud-standing__bar) and a writer can   */
+/* only reach the ORIGINATING element. A pseudo inherits from its originator      */
+/* exactly as a child does, so with inherits:false the registered initial-value  */
+/* wins inside ::after and the rank board's progress sliver reads 0 forever.     */
 @property --boredom{syntax:'<number>';inherits:true;initial-value:0}
 @property --charge{syntax:'<number>';inherits:true;initial-value:0}
 @property --fill{syntax:'<number>';inherits:true;initial-value:0}
@@ -101,21 +242,78 @@ ${CSS_NUMBER_STYLES}
   color:var(--hud-ink);
   -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
   --hud-scale:1;
-  --hud-radius:10px;
+  /* Zero, and it stays zero. Every corner in this HUD is square or chamfered;
+     the token survives because the meter TRACKS read it, and a square-ended
+     meter is the point rather than an oversight. */
+  --hud-radius:0px;
+  --hud-chamfer:9px;
+  --hud-plate:polygon(0 0,calc(100% - var(--hud-chamfer)) 0,100% var(--hud-chamfer),100% 100%,var(--hud-chamfer) 100%,0 calc(100% - var(--hud-chamfer)));
+  --hud-skew:-3deg;
+  --hud-rule:3px;
+  --hud-edge:var(--hud-line);
   --hud-gap:8px;
+  /* The type scale. Five steps, 13 px anchor, ~1.35 ratio. See the header. */
+  --t-micro:calc(10px * var(--hud-scale));
+  --t-body:calc(13px * var(--hud-scale));
+  --t-title:calc(18px * var(--hud-scale));
+  --t-readout:calc(24px * var(--hud-scale));
+  --t-hero:calc(44px * var(--hud-scale));
+  /* The two hands, as the rectangles they actually occupy. Mirrored from
+     tokens.ts, which mirrors src/ui/input; the harness asserts both against the
+     input layer's OWN exported arc geometry, so a retune fails loudly. */
   --hud-thumb-reserve:${THUMB_RESERVE_PX}px;
+  --hud-stick-reserve:${STICK_RESERVE_PX}px;
+  --hud-reserve-l:var(--hud-stick-reserve);
+  --hud-reserve-r:var(--hud-thumb-reserve);
   --hud-pause-size:${MIN_TAP_PX}px;
-  /* Composed from the PALETTE's surface, not hard-coded: IHudPalette.surface
-     is documented as the panel fill, and the High-contrast palette's whole
-     point is an opaque one. A literal gradient here made four of the five
-     surface values dead data and left that setting changing nothing. */
-  --hud-panel:linear-gradient(180deg,color-mix(in srgb,#fff 4%,var(--hud-surface)),var(--hud-surface));
-  --hud-shadow:0 6px 20px rgba(0,0,0,.55);
+  /* What one row of the combat band is allowed to cost, measured from the top
+     inset. The tallest plate is the hero file — micro overline, 24 px readout,
+     a meter rule and its padding — and this is that, rounded up to the next
+     even number. harness/hud.verify.ts reads it off the root and fails if
+     row one outgrows it, so the number is a promise rather than a comment. */
+  --hud-band-row:64px;
+  /* And what the whole band costs: both rows plus the gap between them. The
+     alert stack hangs off the bottom of this, so the bulletin cannot drift into
+     the band by growing a row taller. */
+  --hud-band-h:124px;
+  /* The charge arc's box, so the alert stack can sit on top of it without
+     either one knowing the other's markup. */
+  --hud-arc-w:184px;
+  --hud-arc-h:104px;
+  --hud-arc-lift:10px;
+  /* One reading measure for the boot card: bar, readout row and flavour line
+     all share it, so the three cannot rag against each other. 420 px at 13 px
+     is ~64 characters, inside the 45-75 a line wants. */
+  --hud-measure:min(calc(420px * var(--hud-scale)),78vw);
+  /* A meter track has to read as a CONTAINER or the fill inside it is not a
+     proportion, it is a floating dash. WCAG 1.4.11 wants 3:1 for a component
+     boundary and the old rgba(255,255,255,.10) measured 1.24:1 on the boot
+     screen. .36 over the composed panel measures ~3.2:1. */
+  --hud-track:rgba(255,255,255,.36);
+  --hud-halftone:rgba(255,255,255,.055);
+  /* THE PLATE FILL. Four layers, no colour, top to bottom:
+       1. the halftone dot screen — one dot per 3 px cell,
+       2. a top sheen, so the plate has a light source,
+       3. the palette's surface,
+       4. the palette's surface AGAIN.
+     Doubling layer 3 is the whole fix for daylight bleed: alpha composes to
+     1-(1-a)^2, so the default 0.82 becomes 0.968 and High contrast's 0.92
+     becomes 0.994 — each palette denser BY ITS OWN COLOUR rather than by a
+     literal, which is what keeps five palettes from becoming dead data. */
+  --hud-panel:
+    radial-gradient(circle at 0 0,var(--hud-halftone) 0 0.8px,transparent 0.9px) 0 0/3px 3px,
+    linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 55%),
+    linear-gradient(var(--hud-surface),var(--hud-surface)),
+    linear-gradient(var(--hud-surface),var(--hud-surface));
   ${paletteVars('default')};
 }
 ${allPalettes()}
 .hud-root *{box-sizing:border-box;margin:0}
 .hud-root [hidden]{display:none !important}
+/* Which bottom corner each hand claims. HudManager.applySettings publishes
+   data-stick-hand; the reserves swap so the charge arc keeps clearing the
+   STICK on whichever side it is, not just the side it defaulted to. */
+.hud-root[data-stick-hand='right']{--hud-reserve-l:var(--hud-thumb-reserve);--hud-reserve-r:var(--hud-stick-reserve)}
 
 .hud-layer{position:absolute;inset:0;pointer-events:none}
 .hud-layer--world{z-index:0}
@@ -124,48 +322,78 @@ ${allPalettes()}
 .hud-layer--screen{z-index:6}
 
 /* ========================================================================== */
-/* Primitives                                                                 */
+/* The plate                                                                  */
 /* ========================================================================== */
+/* The panel itself holds NO paint. Everything visible is on the ::before, and
+   that is the point: the backing layer carries the chamfer and the 3° lean,
+   while the element keeps an upright, un-skewed layout box for
+   getBoundingClientRect() and for the type inside it. contain:layout makes
+   the panel a containing block AND a stacking context, which is what lets the
+   backing sit at z-index -1 — behind the content, in front of nothing. */
 .hud-panel{
-  background:var(--hud-panel);
-  border:1px solid var(--hud-line);
-  border-radius:var(--hud-radius);
-  box-shadow:var(--hud-shadow);
-  padding:6px 9px;
+  position:relative;
+  padding:6px 11px 7px;
   contain:layout style;
 }
+.hud-panel::before{
+  content:'';position:absolute;inset:0;z-index:-1;
+  background:var(--hud-panel);
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge);
+  clip-path:var(--hud-plate);
+  transform:skewX(var(--hud-skew));
+}
+/* ---- type primitives --------------------------------------------------- */
 .hud-label{
   font-family:${DISPLAY_FONT};
-  font-size:calc(10px * var(--hud-scale));
+  font-size:var(--t-micro);
   letter-spacing:.14em;text-transform:uppercase;
   color:var(--hud-ink-muted);line-height:1.1;white-space:nowrap;
 }
-.hud-value{
+/* Every live number on the playing HUD, at one size. The rank, the fight
+   clock, the ledger counts, the yen, the quest clock — they were 19, 21, 23,
+   17 and 20 px, which is why no two of them ever sat on a shared baseline. */
+.hud-readout{
   font-family:${DISPLAY_FONT};
-  font-size:calc(20px * var(--hud-scale));
-  line-height:1;letter-spacing:.02em;
+  font-size:var(--t-readout);
+  line-height:1;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;
 }
+/* A classification stamp: the one place an all-round outline survives, because
+   a stamp is exactly what it is. Never rendered without its word inside it. */
+.hud-chip{
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
+  padding:2px 6px 1px;border:1px solid currentColor;
+  color:var(--hud-chip-color,var(--hud-ink-muted));flex:0 0 auto;
+  clip-path:var(--hud-plate);--hud-chamfer:4px;
+}
+
+/* ---- controls ---------------------------------------------------------- */
 .hud-btn{
-  pointer-events:auto;
-  min-height:44px;min-width:44px;
+  pointer-events:auto;position:relative;
+  min-height:${MIN_TAP_PX}px;min-width:${MIN_TAP_PX}px;
   font-family:${DISPLAY_FONT};
-  font-size:calc(15px * var(--hud-scale));
-  letter-spacing:.12em;text-transform:uppercase;
+  font-size:var(--t-title);
+  letter-spacing:.06em;text-transform:uppercase;
   color:var(--hud-ink);
-  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.02));
-  border:1px solid var(--hud-line);border-radius:8px;
+  background:none;border:none;
   padding:9px 16px;cursor:pointer;
-  transition:transform .08s ease-out,border-color .12s,background .12s;
-  touch-action:none;will-change:transform;
+  transition:transform .08s ease-out,color .12s;
+  touch-action:none;will-change:transform;contain:layout style;
 }
-.hud-btn[data-pressed]{transform:scale(.95);border-color:var(--hud-accent)}
-.hud-btn--primary{
-  border-color:color-mix(in srgb,var(--hud-accent) 70%,transparent);
-  background:linear-gradient(180deg,color-mix(in srgb,var(--hud-accent) 26%,transparent),rgba(0,0,0,.2));
-  color:var(--hud-accent);
+.hud-btn::before{
+  content:'';position:absolute;inset:0;z-index:-1;
+  background:var(--hud-panel);
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge);
+  clip-path:var(--hud-plate);
+  transform:skewX(var(--hud-skew));
 }
-.hud-btn--ghost{background:none}
-.hud-btn--icon{padding:0;width:44px;display:grid;place-items:center;font-size:18px}
+.hud-btn[data-pressed]{transform:scale(.95)}
+/* Ink, not a wash. The old rule filled the button with 26 % of the accent,
+   which is a TINTED PANEL — the one thing the language does not do — and it
+   dropped the panel contrast the palette test measures. The edge rule and the
+   glyph carry it instead, and High contrast gets louder rather than muddier. */
+.hud-btn--primary{--hud-edge:var(--hud-accent);color:var(--hud-accent)}
+.hud-btn--ghost{--hud-edge:transparent}
 
 /* ========================================================================== */
 /* Combat HUD — the top band                                                  */
@@ -180,76 +408,95 @@ ${allPalettes()}
   gap:var(--hud-gap);
   pointer-events:none;
 }
-.hud-top__left{grid-area:1 / 1;display:flex;flex-direction:column;gap:var(--hud-gap);align-items:flex-start;min-width:0}
-.hud-top__centre{grid-area:1 / 2;display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
+.hud-top__left{grid-area:1 / 1;display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.hud-top__centre{grid-area:1 / 2;display:flex;flex-direction:column;align-items:center;min-width:0}
 /* The reserve for the pause affordance, which is absolutely positioned in the
    same corner. Expressed in terms of --hud-pause-size so the button and the
    space kept clear for it cannot drift apart. */
 .hud-top__right{
-  grid-area:1 / 3;display:flex;flex-direction:column;gap:var(--hud-gap);
-  align-items:flex-end;min-width:0;
+  grid-area:1 / 3;display:flex;flex-direction:column;
+  align-items:stretch;min-width:0;
   padding-right:calc(var(--hud-pause-size) + 6px);
 }
-/* The tracker is a PLACED GRID ITEM rather than a member of a column.
-   In landscape it hangs under the centre column, which is the only region of a
-   390 px-tall viewport that is neither under a hand nor holding a live readout;
-   in portrait it becomes fixed to the bottom-left, above the thumb reserve. Two
-   very different places, one element, no duplicated DOM. */
-.hud-tracker{grid-area:2 / 2;justify-self:center}
 
-/* ---- rank chip --------------------------------------------------------- */
-.hud-rankchip{display:flex;align-items:center;gap:8px;padding:5px 10px 6px}
+/* ---- the hero file ----------------------------------------------------- */
+/* Rank chip and boredom meter, which were two panels saying two halves of one
+   sentence: who the Association thinks you are, and how much you care about
+   it. Three rows, and every one of them had to be argued for against a 121 px
+   band — the seat-progress sliver lost, and the report says what that cost.
+   The rank is now the largest thing in the corner by 2.4x with RANK demoted to
+   an overline, which is what turns a widget into a title card. */
+.hud-rankchip{
+  --hud-edge:var(--hud-class,var(--hud-accent));
+  display:flex;align-items:center;gap:10px;
+  width:min(calc(232px * var(--hud-scale)),44vw);
+}
 .hud-rankchip__class{
-  font-family:${DISPLAY_FONT};font-size:calc(22px * var(--hud-scale));line-height:.9;
+  flex:0 0 auto;
+  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;
   color:var(--hud-class,var(--hud-accent));
-  padding:0 6px;border:1px solid currentColor;border-radius:5px;
+  padding:3px 7px 1px;border:1px solid currentColor;
+  clip-path:var(--hud-plate);--hud-chamfer:4px;
 }
-.hud-rankchip__rank{font-family:${DISPLAY_FONT};font-size:calc(19px * var(--hud-scale));line-height:1}
-.hud-rankchip__name{max-width:110px;overflow:hidden;text-overflow:ellipsis}
-.hud-rankchip__pts{
-  display:block;height:2px;width:64px;margin-top:3px;border-radius:2px;
-  background:var(--hud-line);overflow:hidden;
+.hud-rankchip__file{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hud-rankchip__head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+/* The overline. 10 px, tracked, muted — the WORD is the caption and the number
+   under it is the content, which is the exact inverse of how it read before. */
+.hud-rankchip__overline{
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
+  color:var(--hud-ink-muted);line-height:1.1;
 }
-.hud-rankchip__pts::after{
-  content:'';display:block;height:100%;width:100%;
-  background:var(--hud-accent);
-  transform-origin:0 50%;transform:scaleX(var(--fill,0));
+.hud-rankchip__name{
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--hud-ink-muted);line-height:1.1;
+  max-width:min(calc(128px * var(--hud-scale)),24vw);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.hud-rankchip__seat{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
+.hud-rankchip__rank{
+  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;color:var(--hud-class,var(--hud-accent));flex:0 0 auto;
 }
 
-/* ---- boredom ----------------------------------------------------------- */
-/* The game's real progress bar. Presented as a MOOD: a word, a slow breath,  */
-/* and a fill that drains of colour rather than filling up with it.           */
-/* The container scales WITH the type it holds. --hud-scale is an
-   accessibility setting; a fixed-width panel around scaled type turns 130 % into
-   "GOING THROUGH TH…", which makes the setting worse than useless. The vw cap
-   is unchanged, so at the default scale the geometry is identical. */
-.hud-boredom{width:min(calc(214px * var(--hud-scale)),42vw);padding:6px 9px 7px}
-.hud-boredom__head{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+/* ---- boredom, inside the hero file ------------------------------------- */
+/* The game's real progress bar. Presented as a MOOD: a word, a slow breath,
+   and a fill that drains of colour rather than filling up with it. The mood
+   word and the gain share the seat row's baseline, so the meter costs the
+   plate one 5 px rule rather than a row of its own. */
+.hud-boredom{display:flex;align-items:baseline;gap:8px;min-width:0;overflow:hidden}
 .hud-boredom__mood{
-  font-family:${DISPLAY_FONT};font-size:calc(11px * var(--hud-scale));
-  letter-spacing:.1em;text-transform:uppercase;
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);
+  letter-spacing:.14em;text-transform:uppercase;
   color:var(--hud-mood,var(--hud-ink-muted));
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
 }
+/* GAIN, not RANK. The overline two lines above says "RANK" and means a ladder
+   position; this said "RANK ×0.83" and meant a multiplier, so the eye parsed
+   the second as "rank times zero". One word, two meanings, 20 px apart. It also
+   carried a title tooltip, on a touch device, where no player will ever see
+   it — the visible word now says what the tooltip said. */
 .hud-boredom__mult{
-  font-family:${DISPLAY_FONT};font-size:calc(11px * var(--hud-scale));
-  color:var(--hud-ink-muted);white-space:nowrap;
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
+  color:var(--hud-ink-muted);white-space:nowrap;flex:0 0 auto;
 }
 .hud-boredom[data-throttled='true'] .hud-boredom__mult{color:var(--hud-lost)}
 .hud-boredom__track{
-  position:relative;height:7px;margin-top:5px;border-radius:4px;overflow:hidden;
-  background:rgba(255,255,255,.07);
+  position:relative;height:5px;overflow:hidden;
+  background:var(--hud-track);border-radius:var(--hud-radius);
 }
 .hud-boredom__fill{
   position:absolute;inset:0;transform-origin:0 50%;transform:scaleX(var(--boredom,0));
   background:linear-gradient(90deg,
-    color-mix(in srgb,var(--hud-mood,#54e08a) 25%,transparent),
+    color-mix(in srgb,var(--hud-mood,#54e08a) 30%,transparent),
     var(--hud-mood,#54e08a));
   will-change:transform;
 }
-/* The breath. Slows as he stops caring — 2.4 s engaged, 12 s numb — which is  */
-/* the difference between a HUD element that is alive and one that has given   */
-/* up, and it says so without a number.                                        */
+/* BREATHE. Slows as he stops caring — 2.4 s engaged, 12 s numb — which is the
+   difference between a HUD element that is alive and one that has given up.
+   It lives INSIDE the fill now. Over the track it played unconditionally, so at
+   --boredom:0 the player watched a shimmer travel across an empty bar: the
+   universal language for "indeterminate, still loading". It was animating the
+   absence of the thing it was meant to be animating. */
 .hud-boredom__breath{
   position:absolute;inset:0;opacity:.5;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);
@@ -262,29 +509,35 @@ ${allPalettes()}
   60%,100%{transform:translateX(240%)}
 }
 
-/* ---- encounter card ---------------------------------------------------- */
+/* ---- the incident ------------------------------------------------------ */
+/* Encounter card and boss bar, one plate: the tier word, the name, the clock,
+   and the health rule under all three. Two panels stacked in the centre column
+   is two ink rules and two chamfers to say one thing. */
 .hud-encounter{
-  display:flex;align-items:center;gap:9px;padding:5px 12px 6px;
-  border-color:color-mix(in srgb,var(--hud-tier,var(--hud-accent)) 55%,var(--hud-line));
+  --hud-edge:var(--hud-tier,var(--hud-accent));
+  display:grid;row-gap:4px;
+  width:min(calc(300px * var(--hud-scale)),34vw);
 }
+.hud-encounter__head{display:flex;align-items:baseline;gap:9px;min-width:0}
+/* Colour is the accelerator; the word is the message. No five-hue ramp
+   survives dichromacy alone, so the tier NEVER appears without its word. */
 .hud-encounter__tier{
-  font-family:${DISPLAY_FONT};font-size:calc(11px * var(--hud-scale));letter-spacing:.16em;
-  color:var(--hud-tier,var(--hud-accent));
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
+  color:var(--hud-tier,var(--hud-accent));white-space:nowrap;
 }
 .hud-encounter__name{
-  font-family:${DISPLAY_FONT};font-size:calc(16px * var(--hud-scale));
-  max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
+  flex:1 1 auto;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .hud-encounter__clock{
-  font-family:${DISPLAY_FONT};font-size:calc(23px * var(--hud-scale));line-height:1;
-  color:var(--hud-ink);
+  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;color:var(--hud-ink);flex:0 0 auto;
 }
 .hud-encounter__clock .hud-num{font-size:inherit}
 .hud-encounter__sep{opacity:.55}
-
-/* boss bar: only geometry the compositor can do */
-.hud-boss{width:min(calc(340px * var(--hud-scale)),58vw);padding:5px 10px 7px}
-.hud-boss__track{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+/* Boss health: the plate's base rule, only the geometry the compositor can do */
+.hud-boss{height:5px;overflow:hidden;background:var(--hud-track);border-radius:var(--hud-radius)}
 /* display:block is not decoration. The fill is a <span>, and a non-replaced
    INLINE box is not a transformable element (CSS Transforms 1) and ignores
    height (CSS 2.1) — so without this the bar has no box, no transform, and
@@ -298,86 +551,120 @@ ${allPalettes()}
   will-change:transform;
 }
 
-/* ---- civilian ledger --------------------------------------------------- */
-.hud-ledger{display:flex;gap:14px;padding:5px 11px 6px;align-items:flex-start}
-.hud-ledger__cell{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+/* ---- the incident cost ------------------------------------------------- */
+/* Civilian ledger and collateral ticker, one plate — because they are one
+   document: what this fight has cost so far. Four cells reading left to right
+   with the labels ON TOP, which is how a printed register reads and which also
+   deletes a whole class of bug: right-aligning a TRACKED label puts the trailing
+   letter-space inside the alignment, so every counter sat a letter and a half
+   left of its own label and overhung it by ~1 px. Left-aligned columns cannot
+   do that. */
+.hud-ledger{
+  --hud-edge:var(--hud-saved);
+  display:flex;flex-wrap:wrap;align-items:flex-start;
+  column-gap:15px;row-gap:3px;
+}
+.hud-ledger[data-lost='true']{--hud-edge:var(--hud-lost)}
+.hud-ledger__cell{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
 .hud-ledger__value{
-  font-family:${DISPLAY_FONT};font-size:calc(21px * var(--hud-scale));line-height:1;
+  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;
 }
 .hud-ledger__cell--saved .hud-ledger__value{color:var(--hud-saved)}
 .hud-ledger__cell--lost .hud-ledger__value{color:var(--hud-lost)}
-/* A lost civilian is the only counter that gets to move. One 320 ms pulse,   */
-/* driven by re-adding the class, so it cannot be mistaken for decoration.    */
-.hud-ledger__cell--lost[data-bump='true'] .hud-ledger__value{animation:hud-bump .32s ease-out}
-@keyframes hud-bump{
-  0%{transform:scale(1)}35%{transform:scale(1.32)}100%{transform:scale(1)}
-}
+.hud-ledger__cell--cost .hud-ledger__value{color:var(--hud-collateral)}
+/* A lost civilian is the only counter that gets to move: one STAMP, driven by
+   re-adding the attribute, so it cannot be mistaken for decoration. */
+.hud-ledger__cell--lost[data-bump='true'] .hud-ledger__value{animation:hud-stamp-mark .32s cubic-bezier(.2,.9,.3,1)}
 .hud-ledger__witness{color:var(--hud-ink-muted)}
-
-/* ---- collateral ticker ------------------------------------------------- */
-.hud-collateral{padding:5px 11px 7px;min-width:132px}
-.hud-collateral__row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.hud-collateral__value{
-  font-family:${DISPLAY_FONT};font-size:calc(19px * var(--hud-scale));line-height:1;
-  color:var(--hud-collateral);
+.hud-ledger__track{
+  flex:1 0 100%;height:4px;margin-top:2px;overflow:hidden;
+  background:var(--hud-track);border-radius:var(--hud-radius);
 }
-.hud-collateral__track{
-  height:4px;margin-top:5px;border-radius:2px;overflow:hidden;background:rgba(255,255,255,.07);
-}
-/* propertyDamageScore, NOT yen. Yen is unbounded and would peg this meter on  */
-/* the first serious punch of the game; the score is the compressed 0..1 field */
-/* that exists precisely so a meter has something honest to read.              */
-/* display:block for the same reason as .hud-boss__fill — see there. */
-.hud-collateral__fill{
+/* propertyDamageScore, NOT yen. Yen is unbounded and would peg this meter on
+   the first serious punch of the game; the score is the compressed 0..1 field
+   that exists precisely so a meter has something honest to read.
+   display:block for the same reason as .hud-boss__fill — see there. */
+.hud-ledger__fill{
   display:block;height:100%;transform-origin:0 50%;transform:scaleX(var(--collateral,0));
   background:linear-gradient(90deg,var(--hud-collateral),#ff4d4d);
   will-change:transform;
 }
-.hud-collateral__debris{color:var(--hud-ink-muted);margin-top:3px;display:block}
 
-/* ---- quest tracker ----------------------------------------------------- */
+/* ---- the duty strip ---------------------------------------------------- */
+/* The pinned quest, spanning the whole band as ROW TWO: what it is, what is
+   left of it, and — loudly — the clock.
+   It used to be a 200x112 card in the centre column, and the harness caught
+   exactly what that cost: it hung 105 px into the hand reserve on the shipping
+   profile and it won three hit-test probes off the movement stick. A strip that
+   spans the band has the width to say the same thing on one line, and one line
+   fits.
+   The objective LIST and the conflict warning went with the card. Both are in
+   the quest log, one tap away, with room to print them properly — and on a
+   121 px band they were the two rows that pushed the strip into a hand.
+   The edge rule carries urgency, which is what the old border-left did and
+   what this whole language is generalised from. */
 .hud-tracker{
-  width:min(calc(232px * var(--hud-scale)),46vw);padding:6px 10px 8px;
-  border-left:2px solid var(--hud-accent);
+  grid-area:2 / 1 / auto / -1;
+  --hud-edge:var(--hud-accent);
+  pointer-events:auto;cursor:pointer;min-height:${MIN_TAP_PX}px;
+  display:flex;align-items:center;gap:12px;
+  width:min(calc(560px * var(--hud-scale)),100%);
 }
-.hud-tracker[data-urgency='soon']{border-left-color:var(--hud-collateral)}
-.hud-tracker[data-urgency='critical']{border-left-color:var(--hud-lost)}
-.hud-tracker[data-errand='true']{border-left-color:var(--hud-commit)}
+.hud-tracker[data-urgency='soon']{--hud-edge:var(--hud-collateral)}
+.hud-tracker[data-urgency='critical']{--hud-edge:var(--hud-lost)}
+.hud-tracker[data-errand='true']{--hud-edge:var(--hud-commit)}
+.hud-tracker__main{display:flex;flex-direction:column;gap:1px;flex:1 1 auto;min-width:0}
 .hud-tracker__title{
-  font-family:${DISPLAY_FONT};font-size:calc(14px * var(--hud-scale));line-height:1.1;
+  font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;line-height:1.15;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
+/* An objective row, and it is the SAME row on two screens: objective-row.ts
+   builds it for the quest log and the strip builds one of them for itself.
+   Only the strip clips it to a line — the log has the width to wrap, and a
+   truncated objective in a screen the player opened to read objectives would be
+   the wrong half of the trade. */
 .hud-tracker__obj{
-  display:flex;gap:6px;align-items:baseline;margin-top:3px;
-  font-size:calc(11px * var(--hud-scale));color:var(--hud-ink-muted);line-height:1.25;
+  display:flex;gap:7px;align-items:baseline;min-width:0;
+  font-size:var(--t-body);color:var(--hud-ink-muted);line-height:1.25;
 }
-.hud-tracker__obj[data-complete='true']{color:var(--hud-saved);text-decoration:line-through}
-.hud-tracker__count{font-variant-numeric:tabular-nums;color:var(--hud-ink)}
+.hud-tracker__obj[data-complete='true']{color:var(--hud-saved)}
+.hud-tracker__count{font-variant-numeric:tabular-nums;color:var(--hud-ink);flex:0 0 auto}
+.hud-tracker .hud-tracker__obj{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hud-tracker__what{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .hud-tracker__clock{
-  display:flex;align-items:baseline;gap:5px;margin-top:5px;
-  font-family:${DISPLAY_FONT};font-size:calc(17px * var(--hud-scale));line-height:1;
+  display:flex;align-items:baseline;gap:2px;flex:0 0 auto;
+  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;
 }
+/* PULSE. A hard flash, never a fade — a fade reads as a rendering artefact. */
 .hud-tracker[data-urgency='critical'] .hud-tracker__clock{
   color:var(--hud-lost);
   animation:hud-pulse 1s steps(1,end) infinite;
 }
 @keyframes hud-pulse{0%,60%{opacity:1}61%,100%{opacity:.35}}
-.hud-tracker__conflict{
-  margin-top:5px;padding-top:5px;border-top:1px dashed var(--hud-line);
-  color:var(--hud-collateral);font-size:calc(10px * var(--hud-scale));line-height:1.3;
-}
 
 /* ---- charge arc -------------------------------------------------------- */
-/* Sits centre-bottom, in the corridor BETWEEN the two thumbs, and appears     */
-/* only while charging. It is not a copy of the input layer's ring on the      */
-/* punch button: that ring answers "how long have I held this", and this arc   */
-/* answers "what am I about to do to the neighbourhood".                       */
-/* Visibility is a NUMBER, not a class or an attribute: --hud-on is 0 or 1   */
-/* and CSS derives opacity and the entry transform from it, so appearing and   */
-/* disappearing stay inside the custom-property-only rule.                     */
+/* Sits centre-bottom, in the corridor BETWEEN the two thumbs, and appears
+   only while charging. It is not a copy of the input layer's ring on the
+   punch button: that ring answers "how long have I held this", and this arc
+   answers "what am I about to do to the neighbourhood".
+   Visibility is a NUMBER, not a class or an attribute: --hud-on is 0 or 1
+   and CSS derives opacity and the entry transform from it, so appearing and
+   disappearing stay inside the custom-property-only rule.
+   CENTRED IN THE SAFE BOX, not at left:50%. Those are two different axes and
+   they were 12.5 px apart on any single-notch device — invisible on the shots
+   in docs/ only because iOS symmetrises landscape insets. left/right/auto
+   margins centre in the box that actually exists, and need no translate.
+   The width is the smaller of the type-scaled box and the CORRIDOR between the
+   two hands, which is the one panel in this HUD that had no --hud-scale term at
+   all and was 184 px wide in a gap measuring 286. */
 .hud-charge{
-  position:absolute;left:50%;bottom:calc(var(--hud-sa-b) + 10px);
-  width:184px;height:104px;margin-left:-92px;
+  position:absolute;
+  left:var(--hud-sa-l);right:var(--hud-sa-r);
+  bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift));
+  width:min(calc(var(--hud-arc-w) * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r) - var(--hud-reserve-l) - var(--hud-reserve-r)));
+  height:var(--hud-arc-h);margin:0 auto;
   opacity:var(--hud-on,0);
   transform:translateY(calc((1 - var(--hud-on,0)) * 10px))
             scale(calc(.94 + .06 * var(--hud-on,0)));
@@ -385,66 +672,109 @@ ${allPalettes()}
   pointer-events:none;
 }
 .hud-charge svg{display:block;width:100%;height:100%;overflow:visible}
-.hud-charge__track{fill:none;stroke:rgba(255,255,255,.14);stroke-width:7;stroke-linecap:round}
+.hud-charge__track{fill:none;stroke:var(--hud-track);stroke-width:7;stroke-linecap:butt}
 .hud-charge__fill{
-  fill:none;stroke:var(--hud-intent,var(--hud-commit));stroke-width:7;stroke-linecap:round;
+  fill:none;stroke:var(--hud-intent,var(--hud-commit));stroke-width:7;stroke-linecap:butt;
   stroke-dasharray:var(--hud-arc-len,239);
   stroke-dashoffset:calc(var(--hud-arc-len,239) * (1 - var(--charge,0)));
-  filter:drop-shadow(0 0 7px color-mix(in srgb,var(--hud-intent,#7ef0ff) 75%,transparent));
 }
 .hud-charge__tick{stroke:rgba(255,255,255,.55);stroke-width:2}
-/* The intent word is GENERATED CONTENT from a custom property, for the same   */
-/* reason the timer digits are: it changes while the player is holding the     */
-/* button, and a text-node swap is not allowed on that path.                   */
+/* The intent word is GENERATED CONTENT from a custom property, for the same
+   reason the timer digits are: it changes while the player is holding the
+   button, and a text-node swap is not allowed on that path. */
 .hud-charge__label{
-  position:absolute;left:0;right:0;bottom:16px;text-align:center;
-  font-family:${DISPLAY_FONT};font-size:15px;letter-spacing:.14em;
+  position:absolute;left:0;right:0;bottom:15px;text-align:center;
+  font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
   color:var(--hud-intent,var(--hud-commit));
 }
 .hud-charge__label::after{content:var(--hud-intent-label,'NORMAL')}
 .hud-charge__cost{
-  position:absolute;left:0;right:0;bottom:1px;text-align:center;
-  font-size:11px;color:var(--hud-collateral);
+  position:absolute;left:0;right:0;bottom:0;text-align:center;
+  font-size:var(--t-micro);letter-spacing:.14em;color:var(--hud-collateral);
   opacity:var(--hud-on,0);
 }
 .hud-charge__cost .hud-num{font-size:inherit}
 
 /* ---- pause affordance -------------------------------------------------- */
-/* Top-right of the safe area and nowhere near a thumb, because a pause button */
-/* under a thumb is pressed by accident during every fight.                    */
-/* MIN_TAP_PX, not a smaller circle that "looks tighter": this is the only
+/* Top-right of the safe area and nowhere near a thumb, because a pause button
+   under a thumb is pressed by accident during every fight.
+   MIN_TAP_PX, not a smaller circle that "looks tighter": this is the only
    in-game escape hatch, and tokens.ts calls anything under 44 px a bug rather
-   than a style. .hud-top__right reserves --hud-pause-size for it. */
+   than a style. .hud-top__right reserves --hud-pause-size for it.
+   It used to inherit .hud-btn--ghost's background:none, which left the ONLY
+   way out of the game as a 1 px hairline and an unshadowed white glyph — about
+   1.2:1 over a lit building facade. It is a plate now, like everything else a
+   finger is meant to find. */
 .hud-pausebtn{
   position:absolute;top:var(--hud-sa-t);right:var(--hud-sa-r);
+  --hud-edge:var(--hud-accent);--hud-chamfer:7px;
   width:var(--hud-pause-size);height:var(--hud-pause-size);
   min-width:var(--hud-pause-size);min-height:var(--hud-pause-size);
-  border-radius:50%;padding:0;display:grid;place-items:center;
-  font-size:15px;letter-spacing:0;
+  padding:0;display:grid;place-items:center;
+  color:var(--hud-accent);
+  font-size:var(--t-title);letter-spacing:0;
 }
 
 /* ========================================================================== */
 /* Alerts                                                                     */
 /* ========================================================================== */
+/* THE BULLETIN, and where it is allowed to be.
+   Default placement — portrait and tablet — is directly under the band, in the
+   safe box, centred by margins rather than by a translate off left:50%. The
+   stack hangs from --hud-band-h so a band that grows a pixel cannot push a
+   bulletin onto a plate. */
 .hud-alerts{
-  position:absolute;top:calc(var(--hud-sa-t) + 4px);left:50%;transform:translateX(-50%);
+  position:absolute;
+  top:calc(var(--hud-sa-t) + var(--hud-band-h) + var(--hud-gap));
+  left:var(--hud-sa-l);right:var(--hud-sa-r);
   display:flex;flex-direction:column;align-items:center;gap:5px;
-  width:min(420px,80vw);pointer-events:none;
+  pointer-events:none;
 }
+/* Sized to its CONTENT, capped, never a fixed 420 px slab. The old banner held
+   125 px of title and 181 px of body inside 420 px, with 116 px of nothing
+   between the accent rule and the first letter on each side — 57 % of the box
+   was empty, so the two accents read as free-floating brackets rather than as
+   the edges of anything. */
 .hud-alert{
-  width:100%;padding:6px 14px 7px;text-align:center;
-  border-left:3px solid var(--hud-alert-color,var(--hud-accent));
-  border-right:3px solid var(--hud-alert-color,var(--hud-accent));
-  animation:hud-alert-in .22s cubic-bezier(.2,.9,.3,1);
+  --hud-edge:var(--hud-alert-color,var(--hud-accent));
+  display:flex;align-items:baseline;gap:9px;
+  width:auto;max-width:min(calc(340px * var(--hud-scale)),74vw);
+  text-align:left;
+  animation:hud-stamp .12s cubic-bezier(.2,.9,.3,1);
 }
+/* SPEED LINES. One shot, scaled out from the leading edge and then faded — a
+   stamp hitting paper. It replaces the old translateY slide, which was the
+   motion of a notification tray. It carries the plate's own chamfer and lean so
+   it wipes the shape rather than a rectangle around it. */
+.hud-alert::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(100deg,var(--hud-alert-color,var(--hud-accent)) 0 1px,transparent 1px 7px);
+  clip-path:var(--hud-plate);
+  transform-origin:0 50%;
+  animation:hud-sweep .34s cubic-bezier(.2,.9,.3,1) forwards;
+}
+.hud-alert__chip{color:var(--hud-alert-color,var(--hud-accent));align-self:center}
+.hud-alert__main{min-width:0;display:flex;flex-direction:column;gap:1px}
 .hud-alert__title{
-  font-family:${DISPLAY_FONT};font-size:calc(15px * var(--hud-scale));letter-spacing:.13em;
-  color:var(--hud-alert-color,var(--hud-accent));line-height:1.1;
+  font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
+  color:var(--hud-alert-color,var(--hud-accent));line-height:1.15;
+  min-width:0;overflow:hidden;text-overflow:ellipsis;
 }
-.hud-alert__body{font-size:calc(11px * var(--hud-scale));color:var(--hud-ink-muted);margin-top:1px}
-.hud-alert[data-kind='threat']{animation:hud-alert-in .22s cubic-bezier(.2,.9,.3,1),hud-throb 1.1s ease-in-out 3}
-@keyframes hud-alert-in{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
-@keyframes hud-throb{0%,100%{opacity:1}50%{opacity:.62}}
+.hud-alert__body{
+  font-size:var(--t-body);color:var(--hud-ink-muted);line-height:1.3;
+  min-width:0;overflow:hidden;text-overflow:ellipsis;
+}
+/* PULSE, on the classification stamp alone. The old rule throbbed the WHOLE
+   banner's opacity down to .62 three times, which — with the banner sitting on
+   the encounter card — animated the thing underneath it into view. */
+.hud-alert[data-kind='threat'] .hud-alert__chip{animation:hud-pulse 1.1s steps(1,end) 3}
+@keyframes hud-stamp{from{opacity:0;transform:scale(1.06)}to{opacity:1;transform:none}}
+@keyframes hud-stamp-mark{0%{transform:scale(1)}30%{transform:scale(1.28)}100%{transform:scale(1)}}
+@keyframes hud-sweep{
+  0%{transform:skewX(var(--hud-skew)) scaleX(0);opacity:.55}
+  70%{transform:skewX(var(--hud-skew)) scaleX(1);opacity:.3}
+  100%{transform:skewX(var(--hud-skew)) scaleX(1);opacity:0}
+}
 
 /* ========================================================================== */
 /* World-space markers (CSS2DRenderer positions these)                        */
@@ -463,7 +793,7 @@ ${allPalettes()}
 .hud-marker{
   position:absolute;pointer-events:none;
   display:flex;flex-direction:column;align-items:center;gap:2px;
-  font-family:${DISPLAY_FONT};letter-spacing:.1em;white-space:nowrap;
+  font-family:${DISPLAY_FONT};letter-spacing:.14em;white-space:nowrap;
   text-shadow:0 1px 3px rgba(0,0,0,.95);
 }
 .hud-marker__pip{
@@ -474,8 +804,8 @@ ${allPalettes()}
 .hud-marker[data-kind='objective'] .hud-marker__pip{border-radius:50%}
 .hud-marker[data-kind='civilian'] .hud-marker__pip{border-radius:50%;width:9px;height:9px}
 .hud-marker[data-kind='errand'] .hud-marker__pip{border-radius:2px}
-.hud-marker__label{font-size:11px;color:var(--hud-marker-color,var(--hud-accent))}
-.hud-marker__dist{font-size:10px;color:var(--hud-ink-muted)}
+.hud-marker__label{font-size:var(--t-micro);color:var(--hud-marker-color,var(--hud-accent))}
+.hud-marker__dist{font-size:var(--t-micro);color:var(--hud-ink-muted);letter-spacing:.14em}
 .hud-marker[data-far='true'] .hud-marker__label{display:none}
 
 /* ========================================================================== */
@@ -490,11 +820,18 @@ ${allPalettes()}
 }
 @keyframes hud-screen-in{from{opacity:0}to{opacity:1}}
 .hud-screen--centre{align-items:center;justify-content:center}
+/* A document lies FLAT. The lean is for field plates stamped in a hurry; the
+   paperwork the Association files is not in a hurry, and a 3° skew over 400 px
+   of sheet is a 21 px lean, which stops being a signal and starts being a
+   rendering fault. Same chamfer, same ink rule, no skew — so the sheet reads as
+   the same institution's stationery without pretending to be a stamp. */
 .hud-sheet{
+  --hud-edge:var(--hud-accent);--hud-chamfer:14px;
   display:flex;flex-direction:column;
   width:100%;max-width:640px;max-height:100%;margin:0 auto;
-  background:var(--hud-panel);border:1px solid var(--hud-line);
-  border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.7);
+  background:var(--hud-panel);background-color:var(--hud-surface);
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-edge);
+  clip-path:var(--hud-plate);
   overflow:hidden;
 }
 .hud-sheet--wide{max-width:820px}
@@ -502,75 +839,83 @@ ${allPalettes()}
 .hud-sheet--narrow{max-width:420px}
 .hud-menu{display:grid;gap:var(--hud-gap)}
 .hud-sheet__head{
-  display:flex;align-items:center;gap:10px;
-  padding:11px 14px;border-bottom:1px solid var(--hud-line);flex:0 0 auto;
+  display:flex;align-items:baseline;gap:10px;
+  padding:11px 16px;border-bottom:1px solid var(--hud-line);flex:0 0 auto;
 }
 .hud-sheet__title{
-  font-family:${DISPLAY_FONT};font-size:calc(20px * var(--hud-scale));letter-spacing:.1em;
+  font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
   text-transform:uppercase;color:var(--hud-accent);flex:1 1 auto;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.hud-sheet__sub{font-size:11px;color:var(--hud-ink-muted)}
+.hud-sheet__sub{font-size:var(--t-body);color:var(--hud-ink-muted)}
 .hud-sheet__body{
   flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
-  padding:12px 14px;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+  padding:12px 16px;-webkit-overflow-scrolling:touch;touch-action:pan-y;
 }
 .hud-sheet__foot{
   display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
-  padding:10px 14px;border-top:1px solid var(--hud-line);flex:0 0 auto;
+  padding:10px 16px;border-top:1px solid var(--hud-line);flex:0 0 auto;
 }
 
 .hud-section{margin:0 0 14px}
 .hud-section:last-child{margin-bottom:0}
 .hud-section__title{
-  font-family:${DISPLAY_FONT};font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
   color:var(--hud-ink-muted);padding-bottom:4px;margin-bottom:7px;
   border-bottom:1px solid var(--hud-line);
 }
-.hud-note{font-size:11px;line-height:1.45;color:var(--hud-ink-muted);margin-top:7px}
+.hud-note{font-size:var(--t-body);line-height:1.45;color:var(--hud-ink-muted);margin-top:7px}
 
 /* ---- lists ------------------------------------------------------------- */
+/* A register entry: chamfered, faint paper tint, and an ink rule that only
+   appears when the row means something. */
 .hud-row{
-  display:flex;align-items:center;gap:10px;
-  padding:8px 9px;border-radius:8px;border:1px solid transparent;
-  background:rgba(255,255,255,.03);margin-bottom:6px;
+  position:relative;display:flex;align-items:center;gap:10px;
+  padding:8px 11px;
+  background:rgba(255,255,255,.03);clip-path:var(--hud-plate);
+  margin-bottom:6px;
 }
 .hud-row:last-child{margin-bottom:0}
-.hud-row--button{pointer-events:auto;cursor:pointer;width:100%;text-align:left;min-height:44px}
-.hud-row[data-selected='true']{
-  border-color:color-mix(in srgb,var(--hud-accent) 60%,transparent);
-  background:color-mix(in srgb,var(--hud-accent) 10%,transparent);
-}
+.hud-row--button{pointer-events:auto;cursor:pointer;width:100%;text-align:left;min-height:${MIN_TAP_PX}px}
+/* Edge and ink, not a wash. A 10 %-accent background on the selected row was
+   the same tinted-panel move the primary button was making, and it made the
+   row's own text harder to read to say something a 3 px rule says louder. */
+.hud-row[data-selected='true']{box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-accent)}
+.hud-row[data-selected='true'] .hud-row__title{color:var(--hud-accent)}
 .hud-row__main{flex:1 1 auto;min-width:0}
 .hud-row__title{
-  font-family:${DISPLAY_FONT};font-size:calc(15px * var(--hud-scale));line-height:1.15;
+  font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;line-height:1.15;
   overflow:hidden;text-overflow:ellipsis;
 }
-.hud-row__meta{font-size:11px;color:var(--hud-ink-muted);line-height:1.35;margin-top:2px}
-.hud-row__value{
-  font-family:${DISPLAY_FONT};font-size:calc(17px * var(--hud-scale));
-  font-variant-numeric:tabular-nums;text-align:right;flex:0 0 auto;
+.hud-row__meta{font-size:var(--t-body);color:var(--hud-ink-muted);line-height:1.35;margin-top:2px}
+/* THE SUPERMARKET WARNING. It used to sit on the combat tracker as well, and
+   losing that live position is the one thing this redesign took away that the
+   player will miss — so here it gets the room it never had there: its own rule,
+   its own colour, and no truncation. */
+.hud-quest__conflict{
+  margin-top:6px;padding:4px 0 4px 10px;
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-collateral);
+  color:var(--hud-collateral);font-size:var(--t-body);line-height:1.35;
 }
-.hud-chip{
-  font-family:${DISPLAY_FONT};font-size:10px;letter-spacing:.12em;
-  padding:2px 6px;border-radius:4px;border:1px solid currentColor;
-  color:var(--hud-chip-color,var(--hud-ink-muted));flex:0 0 auto;
+.hud-row__value{
+  font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
+  font-variant-numeric:tabular-nums;text-align:right;flex:0 0 auto;
 }
 
 /* ---- rank board -------------------------------------------------------- */
-.hud-standing{display:flex;align-items:flex-end;gap:12px;margin-bottom:12px}
+.hud-standing{display:flex;align-items:flex-end;gap:14px;margin-bottom:12px}
 .hud-standing__rank{
-  font-family:${DISPLAY_FONT};font-size:calc(52px * var(--hud-scale));line-height:.82;
+  font-family:${DISPLAY_FONT};font-size:var(--t-hero);line-height:.82;letter-spacing:.06em;
   color:var(--hud-class,var(--hud-accent));
 }
 .hud-standing__meta{flex:1 1 auto;min-width:0}
-.hud-standing__bar{height:3px;border-radius:2px;background:var(--hud-line);overflow:hidden;margin-top:6px}
+.hud-standing__bar{height:3px;background:var(--hud-track);border-radius:var(--hud-radius);overflow:hidden;margin-top:6px}
 .hud-standing__bar::after{
   content:'';display:block;height:100%;background:var(--hud-accent);
   transform-origin:0 50%;transform:scaleX(var(--fill,0));
 }
-.hud-rival{border-left:3px solid var(--hud-rival)}
-.hud-rival[data-above='false']{border-left-color:var(--hud-ink-muted)}
+.hud-rival{box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-rival)}
+.hud-rival[data-above='false']{box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-ink-muted)}
 .hud-rival__gap{color:var(--hud-rival);font-family:${DISPLAY_FONT}}
 .hud-rival[data-above='false'] .hud-rival__gap{color:var(--hud-ink-muted)}
 .hud-feed__delta{font-family:${DISPLAY_FONT};font-variant-numeric:tabular-nums}
@@ -585,128 +930,186 @@ ${allPalettes()}
   border-bottom:1px dashed var(--hud-line);
 }
 .hud-invoice__line:last-child{border-bottom:none}
-.hud-invoice__key{flex:1 1 auto;color:var(--hud-ink-muted);font-size:12px}
-.hud-invoice__val{font-family:${DISPLAY_FONT};font-size:calc(17px * var(--hud-scale))}
+.hud-invoice__key{flex:1 1 auto;color:var(--hud-ink-muted);font-size:var(--t-body)}
+.hud-invoice__val{font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em}
 .hud-invoice__line--total{
   margin-top:6px;border-top:1px solid var(--hud-line);border-bottom:none;padding-top:9px;
 }
-.hud-invoice__line--total .hud-invoice__val{font-size:calc(26px * var(--hud-scale))}
-.hud-invoice__sub{font-size:11px;color:var(--hud-ink-muted);text-align:right}
+.hud-invoice__line--total .hud-invoice__val{font-size:var(--t-readout);letter-spacing:.01em}
+.hud-invoice__sub{font-size:var(--t-body);color:var(--hud-ink-muted);text-align:right}
 .hud-invoice__val--saved{color:var(--hud-saved)}
 .hud-invoice__val--lost{color:var(--hud-lost)}
 .hud-invoice__val--collateral{color:var(--hud-collateral)}
+/* The verdict is the one editorial line on the screen, so it gets the loudest
+   thing the language has that is not a tint: the ink rule, and the ink. */
 .hud-verdict{
-  margin-top:10px;padding:9px 11px;border-radius:9px;
-  border:1px solid color-mix(in srgb,var(--hud-verdict,var(--hud-accent)) 55%,transparent);
-  background:color-mix(in srgb,var(--hud-verdict,var(--hud-accent)) 9%,transparent);
-  color:var(--hud-verdict,var(--hud-accent));font-size:12px;line-height:1.45;
+  margin-top:10px;padding:9px 12px;
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-verdict,var(--hud-accent));
+  background:rgba(255,255,255,.03);clip-path:var(--hud-plate);
+  color:var(--hud-verdict,var(--hud-accent));font-size:var(--t-body);line-height:1.45;
 }
 
 /* ---- settings ---------------------------------------------------------- */
 .hud-setting{display:flex;align-items:center;gap:10px;padding:7px 0;min-height:48px}
 .hud-setting__label{flex:1 1 auto;min-width:0}
-.hud-setting__name{font-family:${DISPLAY_FONT};font-size:calc(14px * var(--hud-scale));letter-spacing:.06em}
-.hud-setting__hint{font-size:11px;color:var(--hud-ink-muted);line-height:1.3;margin-top:1px}
-.hud-seg{display:flex;gap:3px;flex:0 0 auto;background:rgba(255,255,255,.05);padding:3px;border-radius:9px}
+.hud-setting__name{font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em}
+.hud-setting__hint{font-size:var(--t-body);color:var(--hud-ink-muted);line-height:1.3;margin-top:1px}
+.hud-seg{display:flex;gap:3px;flex:0 0 auto;background:rgba(255,255,255,.05);padding:3px}
 /* The segmented options are the ONLY control on the settings screen, chosen
    over sliders precisely because they can be full tap targets. 38 px was not
    one. */
 .hud-seg__opt{
   pointer-events:auto;cursor:pointer;min-height:${MIN_TAP_PX}px;min-width:${MIN_TAP_PX}px;padding:6px 11px;
-  border:none;border-radius:7px;background:none;color:var(--hud-ink-muted);
-  font-family:${DISPLAY_FONT};font-size:calc(13px * var(--hud-scale));letter-spacing:.08em;
+  border:none;background:none;color:var(--hud-ink-muted);
+  font-family:${DISPLAY_FONT};font-size:var(--t-body);letter-spacing:.06em;
   text-transform:uppercase;touch-action:none;
 }
+/* Ink and an underscore rule. The selected option used to be a tinted pill,
+   which is a panel with a colour wash on it — the move this language does not
+   make anywhere else. */
 .hud-seg__opt[aria-pressed='true']{
-  background:color-mix(in srgb,var(--hud-accent) 22%,transparent);
   color:var(--hud-accent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hud-accent) 45%,transparent);
+  box-shadow:inset 0 -2px 0 0 var(--hud-accent);
 }
 .hud-swatches{display:flex;gap:5px;flex:0 0 auto}
 .hud-swatch{
-  width:14px;height:14px;border-radius:3px;border:1px solid rgba(255,255,255,.25);
+  width:14px;height:14px;border:1px solid rgba(255,255,255,.25);
   background:var(--hud-swatch-color,transparent);
 }
 
 /* ---- loading ----------------------------------------------------------- */
+/* THE BOOT CARD.
+   Four separate defects lived on this screen and all four came from the same
+   two decisions: centring inside an ASYMMETRIC padding box, and centring TEXT
+   that carries heavy tracking.
+     · The box was padded calc(safe-inset + 16px) per side, so on a notched
+       phone the "centre" was the centre of a lopsided rectangle: predicted
+       content centre 213.5 CSS px against a true 220, and the ink measured
+       213.17. The padding is symmetric now — max() of each opposing pair — so
+       centred means centred and nothing lands under a cutout either way.
+     · CSS adds letter-spacing AFTER the final glyph too, so centred tracked
+       text sits half a tracking unit left: the title measured 2.00 px off
+       centre at .16em/22px, the subtitle 1.83 px at .3em/12px, and the two
+       untracked tip lines measured 0.17 and 0.33 px, i.e. dead centre. Nothing
+       on this screen is centred any more. It is a FILED CARD, set flush left
+       against one measure, and the whole class of error goes with it.
+     · The bar, the readout row and the flavour line now share --hud-measure.
+       They were 320 px, 320 px and 460 px, so the flavour line overhung the bar
+       by 68 px on each side and ran ~83 characters — past readable — under a
+       symmetric bar it did not line up with.
+     · Every size here was a fixed literal (22/12/11/13/11.5 px), so the one
+       screen a player stares at for the whole boot ignored their HUD scale
+       setting entirely. */
 .hud-loading{
-  position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:16px;
-  background:#05070c;pointer-events:auto;
-  padding:calc(var(--hud-sa-t) + 16px) calc(var(--hud-sa-r) + 16px)
-          calc(var(--hud-sa-b) + 16px) calc(var(--hud-sa-l) + 16px);
+  position:absolute;inset:0;display:grid;place-items:center;
+  background:var(--hud-panel);background-color:var(--hud-surface);
+  pointer-events:auto;
+  padding:calc(max(var(--hud-sa-t),var(--hud-sa-b)) + 16px) calc(max(var(--hud-sa-l),var(--hud-sa-r)) + 16px);
+}
+.hud-loading__card{
+  --hud-edge:var(--hud-accent);
+  display:flex;flex-direction:column;align-items:stretch;
+  width:var(--hud-measure);
 }
 .hud-loading__title{
-  font-family:${DISPLAY_FONT};font-size:clamp(26px,8vw,54px);letter-spacing:.16em;
-  text-transform:uppercase;color:var(--hud-accent);text-align:center;line-height:1;
+  font-family:${DISPLAY_FONT};font-size:clamp(var(--t-readout),7vw,var(--t-hero));
+  letter-spacing:.06em;text-transform:uppercase;color:var(--hud-accent);line-height:1;
 }
 .hud-loading__sub{
-  font-family:${DISPLAY_FONT};letter-spacing:.3em;font-size:12px;
-  color:var(--hud-ink-muted);text-align:center;
+  font-family:${DISPLAY_FONT};letter-spacing:.14em;font-size:var(--t-micro);
+  color:var(--hud-ink-muted);margin-top:3px;
 }
 .hud-loading__track{
-  width:min(62vw,320px);height:3px;border-radius:2px;
-  background:rgba(255,255,255,.10);overflow:hidden;
+  height:5px;margin-top:22px;overflow:hidden;
+  background:var(--hud-track);border-radius:var(--hud-radius);
 }
 .hud-loading__fill{
   display:block;height:100%;background:var(--hud-accent);
   transform-origin:0 50%;transform:scaleX(var(--fill,0));
   will-change:transform;
 }
-.hud-loading__row{
-  display:flex;align-items:baseline;gap:10px;justify-content:center;
-  width:min(62vw,320px);
+/* The percentage LEADS the row, at the same x as the fill's origin. It used to
+   trail it: .hud-loading__label took flex:1 1 auto in a row exactly as wide as
+   the bar, so the label ate every spare pixel and left the number stranded
+   238 px from the fill head with a 167 px void in between — and the row's
+   justify-content:center was dead code for the same reason. */
+.hud-loading__row{display:flex;align-items:baseline;gap:10px;margin-top:9px}
+.hud-loading__pct{
+  font-family:${DISPLAY_FONT};font-size:var(--t-readout);line-height:1;letter-spacing:.01em;
+  color:var(--hud-accent);flex:0 0 auto;
 }
 .hud-loading__label{
-  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hud-ink-muted);
-  flex:1 1 auto;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.hud-loading__pct{
-  font-family:${DISPLAY_FONT};font-size:13px;color:var(--hud-ink-muted);
+  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--hud-ink-muted);
+  flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .hud-loading__tip{
-  max-width:min(88vw,460px);text-align:center;font-size:11.5px;line-height:1.55;
-  color:var(--hud-ink-muted);
+  font-size:var(--t-body);line-height:1.55;color:var(--hud-ink-muted);
+  margin-top:22px;padding-left:11px;
+  box-shadow:inset var(--hud-rule) 0 0 0 var(--hud-line);
 }
 
 /* ========================================================================== */
 /* Landscape phone — the constrained case, and the one that ships             */
 /* ========================================================================== */
+/* 121 px of band, and the arithmetic is at the top of this file. Everything
+   below is what fitting in it costs. */
 @media (max-height:520px){
-  .hud-root{--hud-gap:6px}
-  .hud-boredom{width:min(calc(190px * var(--hud-scale)),32vw)}
-  .hud-tracker{width:min(calc(200px * var(--hud-scale)),32vw)}
-  .hud-encounter__name{max-width:24vw}
-  .hud-boss{width:min(calc(300px * var(--hud-scale)),42vw)}
-  .hud-charge{width:150px;height:86px;margin-left:-75px}
+  .hud-root{--hud-gap:6px;--hud-band-row:60px;--hud-band-h:112px;--hud-arc-w:150px;--hud-arc-h:86px}
+  .hud-rankchip{width:min(calc(206px * var(--hud-scale)),30vw)}
+  .hud-encounter{width:min(calc(240px * var(--hud-scale)),28vw)}
+  .hud-tracker{width:min(calc(560px * var(--hud-scale)),100%)}
+  /* ONE LINE. The strip's two rows become one row so the band closes above the
+     hands at 130 % HUD scale as well as at 100 %; the quest name and its lead
+     objective share a baseline instead of stacking. */
+  .hud-tracker__main{flex-direction:row;align-items:baseline;gap:10px}
+  /* AND IT STOPS BEING A BUTTON. src/ui/input treats the left 45 % of the
+     viewport below 28 % of its height as stick input, and on this profile the
+     strip is inside that rectangle — the harness's hit-ownership grid caught it
+     winning three probes off the movement stick. A tap there is a movement
+     input in the real game whatever the HUD believes, so the strip is a readout
+     here and the quest log is reached from pause. On every other shape of
+     screen the strip sits well above the stick band and stays a control. */
+  .hud-tracker{pointer-events:none;cursor:default;min-height:0}
   .hud-sheet{max-height:100%}
-  .hud-loading{gap:11px}
-  .hud-loading__title{font-size:clamp(22px,5vh,34px)}
-  /* Below this height the invoice cannot show everything at once, so it       */
-  /* scrolls rather than shrinking the type past readable.                     */
-  .hud-invoice__line--total .hud-invoice__val{font-size:calc(21px * var(--hud-scale))}
+  /* THE BULLETIN GOES TO THE CORRIDOR. There is no room under the band on this
+     profile — the band ends where the hands begin — and the corridor between
+     the two hands, above the charge arc, is the only rectangle left. Anchored
+     to the arc's own box so the two cannot collide when a threat is classified
+     mid-charge. */
+  .hud-alerts{
+    top:auto;
+    bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift) + var(--hud-arc-h) + var(--hud-gap));
+  }
+  /* One at a time, here only. Three stacked bulletins is already more than
+     anyone reads mid-fight — alerts.ts says exactly that about its own queue —
+     and a stack of three reaches back up into the band on a 390 px viewport.
+     The queue still holds three; this screen shows the newest. */
+  .hud-alert{max-width:min(calc(300px * var(--hud-scale)),38vw)}
+  .hud-alerts > *:nth-child(n+2){display:none}
+  /* Below this height the invoice cannot show everything at once, so it
+     scrolls rather than shrinking the type past readable. */
+  .hud-setting{min-height:${MIN_TAP_PX}px}
 }
 
-/* Narrow portrait: the top band stacks, and the tracker moves to the bottom  */
-/* LEFT — which in portrait is above the thumb rather than under it, because  */
-/* the reserve is measured from the bottom and portrait has 844 px of height. */
+/* Narrow portrait: the band stacks into three rows and there is height to
+   spare, so nothing has to be given up — the strip keeps both of its lines and
+   stays a control, because in portrait it sits ~60 px above the top of the
+   stick band rather than inside it. */
 @media (orientation:portrait) and (max-width:460px){
   .hud-top{grid-template-columns:minmax(0,1fr) minmax(0,1fr);row-gap:6px}
   .hud-top__left{grid-area:1 / 1}
   .hud-top__right{grid-area:1 / 2}
-  .hud-top__centre{grid-area:2 / 1 / auto / -1;align-items:flex-start}
-  .hud-boredom{width:min(calc(200px * var(--hud-scale)),50vw)}
-  /* FIXED, not absolute. .hud-top is itself absolutely positioned with an
-     auto height, so an absolutely-positioned child resolving bottom against
-     IT lands above the top of the screen — which is precisely the bug the
-     safe-area assertion caught, at y = -208. Fixed resolves against the
-     viewport, which is what "above the thumb" means. */
-  .hud-tracker{
-    position:fixed;left:var(--hud-sa-l);
-    bottom:calc(var(--hud-sa-b) + var(--hud-thumb-reserve));
-    width:min(calc(260px * var(--hud-scale)),68vw);
-  }
-  .hud-encounter__name{max-width:52vw}
+  .hud-top__centre{grid-area:2 / 1 / auto / -1;align-items:stretch}
+  .hud-root{--hud-band-h:170px}
+  .hud-rankchip{width:min(calc(232px * var(--hud-scale)),100%)}
+  .hud-encounter{width:min(calc(300px * var(--hud-scale)),100%)}
+  /* The strip used to be position:fixed in the bottom-left corner, "above the
+     thumb". It was above the thumb and INSIDE THE STICK, which is a bigger
+     rectangle than the reserve: the stick zone is the left 45 % of the viewport
+     below 28 % of its height, and no reserve value can move a bottom-left panel
+     out of it. The harness found 24 stolen probes there. It joins the band. */
+  .hud-tracker{grid-area:3 / 1 / auto / -1;width:min(calc(560px * var(--hud-scale)),100%)}
   .hud-sheet{max-width:100%}
 }
 

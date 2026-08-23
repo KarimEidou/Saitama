@@ -163,7 +163,7 @@ export class QuestLogScreen extends HudScreen {
             ...objectives,
             conflicts
               ? el(this.doc, 'div', {
-                  className: 'hud-tracker__conflict',
+                  className: 'hud-quest__conflict',
                   text: quest.errand
                     ? `The sale ends if you accept: ${conflicts}`
                     : `Accepting this ends: ${conflicts}`,

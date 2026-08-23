@@ -408,6 +408,11 @@ export class ProceduralAnimator implements IAnimator {
    * ever ask for.
    */
   animationClip(slot: ClipName, frames = 24): THREE.AnimationClip {
+    // The other door into the pose functions, and it does not go through
+    // `update`: a bake taken from non-finite params writes NaN quaternion
+    // tracks into a real `THREE.AnimationClip` and CACHES them, so the damage
+    // outlives the bad frame. Free to check here — this runs once per key.
+    this.sanitiseParams();
     const entry = this.resolve(slot);
     const name = `${entry.def.slot}:${entry.def.variant}`;
     // The frame count AND the live params are baked into the result, so both
@@ -493,6 +498,8 @@ export class ProceduralAnimator implements IAnimator {
   private retargetCooldown = 0;
   /** False until one animated frame exists to measure bone velocities against. */
   private hasPrevBones = false;
+  /** Set once `sanitiseParams` has reported this animator. See there. */
+  private paramsReported = false;
 
   update(dt: number): void {
     if (this.disposed) return;
@@ -503,6 +510,11 @@ export class ProceduralAnimator implements IAnimator {
     const scale = Number.isFinite(this.timeScale) ? this.timeScale : 1;
     const step = Number.isFinite(dt) ? Math.max(0, dt) * scale : 0;
     this.lastDt = Math.max(1e-4, step);
+    // `params` is the OTHER way a non-finite number gets in. It is public and
+    // mutable by design — gameplay writes `animator.params.boredom` between
+    // frames — so it has to be swept here, at the frame boundary, and not at a
+    // setter that does not exist.
+    this.sanitiseParams();
     // Snapshot LAST frame's pose before anything overwrites the output; the
     // handoff differences it against the new one to recover per-bone
     // velocities. Snapshotting afterwards would make every velocity zero, and
@@ -585,6 +597,64 @@ export class ProceduralAnimator implements IAnimator {
   /* ------------------------------------------------------------------ */
   /* Internals                                                          */
   /* ------------------------------------------------------------------ */
+
+  /**
+   * Repair a non-finite `ClipParams` before anything reads it.
+   *
+   * `update` already refuses a non-finite `dt` and `timeScale`, for a reason
+   * that applies just as hard one field over: `params` feeds `slouch` into the
+   * locomotion solver and then every `poseArm` / `poseSpine` / `poseLeg` angle,
+   * a NaN angle makes a NaN quaternion, and a NaN quaternion does not render as
+   * a wrong pose — the character VANISHES, silently, for the rest of the
+   * session. Guarding `dt` and leaving the clip parameters open closes one
+   * instance of that, not the class.
+   *
+   * Substituting the documented defaults is the right failure for a purely
+   * VISUAL parameter: a Saitama who stands a little too upright for a frame is
+   * strictly better than no Saitama, and unlike a throw it cannot take the
+   * frame down with it. But silence is not — a default that quietly papers over
+   * a broken caller is a bug that ships. Hence the `warnOnce`.
+   *
+   * ── COST ────────────────────────────────────────────────────────────────
+   * This runs once per character per frame with a crowd on screen, so the
+   * common path is one add-chain and one `Number.isFinite`, with no allocation,
+   * no property enumeration and no per-field branch. The sum is a sound test
+   * for the whole struct: no combination of non-finite terms adds up to a
+   * finite number (`Infinity + finite` is `Infinity`, `Infinity + -Infinity` is
+   * `NaN`), so `isFinite(sum)` is true exactly when all four are finite. It can
+   * only cry wolf by overflowing, which needs a term near `Number.MAX_VALUE` —
+   * itself a value worth repairing.
+   *
+   * The per-field work and the diagnostic are paid only on the broken path.
+   * `paramsReported` keeps a crowd from rebuilding the same diagnostic 250
+   * times a frame for as long as the bad value lasts; `warnOnce` keeps 250
+   * characters from each printing their own copy of it. Both, because they
+   * bound different axes of the same spam.
+   */
+  private sanitiseParams(): void {
+    const p = this.params;
+    if (Number.isFinite(p.boredom + p.alertness + p.phaseOffset + p.vigour)) return;
+    if (!this.paramsReported) {
+      this.paramsReported = true;
+      log.warnOnce(
+        'clip-params',
+        'non-finite ClipParams reached the animator; substituting defaults ' +
+          `(boredom=${p.boredom}, alertness=${p.alertness}, ` +
+          `phaseOffset=${p.phaseOffset}, vigour=${p.vigour})`
+      );
+    }
+    const defaults = defaultClipParams();
+    // Repaired in place. `params` is handed out by reference — the caller that
+    // wrote the bad value is holding this object — so replacing it would leave
+    // them writing to a copy nothing reads.
+    if (!Number.isFinite(p.boredom)) p.boredom = defaults.boredom;
+    if (!Number.isFinite(p.alertness)) p.alertness = defaults.alertness;
+    // A repaired `phaseOffset` re-synchronises this one character with anything
+    // else sitting at zero phase, which is a visible cost in a crowd. It is
+    // still the right trade: the alternative is that character not being there.
+    if (!Number.isFinite(p.phaseOffset)) p.phaseOffset = defaults.phaseOffset;
+    if (!Number.isFinite(p.vigour)) p.vigour = defaults.vigour;
+  }
 
   private resolve(slot: ClipName): ClipEntry {
     return findClip(slot, this.variants[slot]);

@@ -269,6 +269,24 @@ export const MAX_DELTA = 1 / 15;
 export const AUTOSAVE_INTERVAL = 60;
 
 /**
+ * Metres beyond which a world marker is not published at all.
+ *
+ * `MarkerLayer` already detaches a pin past its own `maxRange`, but it builds
+ * the element FIRST and keeps it — so a model holding every monster in the
+ * district costs one DOM node each, forever, to draw nothing. The model is
+ * gated here instead and the layer's range is set to match, which makes the two
+ * numbers one number.
+ *
+ * 300 m is roughly four city blocks in this plan: far enough that a dragon-level
+ * threat announces itself well before it is a problem, close enough that the
+ * screen is not a constellation.
+ */
+export const MARKER_RANGE = 300;
+
+/** Longest marker label, in characters. See `markerLabel`. */
+export const MARKER_LABEL_CHARS = 28;
+
+/**
  * Seconds between quest re-pushes while a quest clock is running.
  *
  * `HudStore.setQuests` takes a SNAPSHOT — `timeRemaining` is a number on the

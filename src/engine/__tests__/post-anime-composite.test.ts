@@ -94,3 +94,57 @@ describe('AnimeCompositePass speed-line spokes', () => {
     expect(source).toMatch(/sin\(\s*travel\s*\*/);
   });
 });
+
+/**
+ * The ghosting regression. Six taps spread over 16% of each pixel's own radius
+ * put ~47 px between samples on a 1440p frame, and the "motion blur" arrived on
+ * screen as six discrete copies of the kerb, the road markings and every
+ * building edge. Consecutive taps have to land inside each other's bilinear
+ * footprint — under about 1.5 px apart — or they read as copies rather than as
+ * blur, and that has to hold at every resolution the high tier runs at, not
+ * just at the one the constants were tuned against.
+ */
+describe('AnimeCompositePass motion-blur sampling', () => {
+  /** The tap count the shader actually loops over, read from its own source. */
+  function tapCount(pass: AnimeCompositePass): number {
+    const match = /i\s*<\s*(\d+)\s*;\s*i\s*\+\+/.exec(pass.material.fragmentShader);
+    if (match === null) throw new Error('motion-blur tap loop not found in the shader');
+    return Number(match[1]);
+  }
+
+  /** Drawing-buffer sizes in PHYSICAL pixels, which is what `setSize` receives. */
+  const FRAMES: readonly (readonly [number, number])[] = [
+    [1280, 720],
+    [1920, 1080],
+    [2560, 1440],
+    [3840, 2160],
+    // A phone talked onto the high tier by the settings UI: portrait, DPR
+    // clamped to the tier's maxPixelRatio of 2.
+    [786, 1704],
+  ];
+
+  for (const [width, height] of FRAMES) {
+    it(`keeps consecutive taps inside the bilinear footprint at ${width}x${height}`, () => {
+      const pass = new AnimeCompositePass();
+      pass.setSize(width, height);
+      // `direction * reach` is a UV offset whose length in pixels is
+      // `reach * radius * height`, and the shader saturates `radius` at the
+      // frame corner — so this is the longest smear any pixel can receive,
+      // under any focal point, at full intensity.
+      const spanPx =
+        uniform(pass, 'uMotionBlurReach') * uniform(pass, 'uMotionBlurMaxRadius') * height;
+      expect(spanPx).toBeCloseTo(16, 3);
+      expect(spanPx / tapCount(pass)).toBeLessThan(1.5);
+      pass.dispose();
+    });
+  }
+
+  it('holds the smear off the centre of the frame', () => {
+    // The subject stands on the focal point every radial term converges on, so
+    // an unmasked zoom smear makes the player the least readable thing on
+    // screen at the exact moment the frame exists to communicate.
+    const source = new AnimeCompositePass().material.fragmentShader;
+    expect(source).toMatch(/centreGuard\s*=\s*smoothstep\(\s*0\.12,\s*0\.45,\s*radius\s*\)/);
+    expect(source).toMatch(/smear\s*=\s*uMotionBlur\s*\*\s*uMotionBlurReach\s*\*\s*centreGuard/);
+  });
+});

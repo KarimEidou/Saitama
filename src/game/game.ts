@@ -50,6 +50,8 @@ import type {
   ICharacterInstance,
   IQualityTier,
   InputState,
+  SafeAreaInsets,
+  ThreatTier,
   Vec3,
 } from '@/types';
 import { EventBus, clamp01, createLogger, createRng } from '@/util';
@@ -111,17 +113,26 @@ import { MonsterSystem, monsterArchetype, type IMonsterTarget } from '@/entities
 
 import { createCombatSystem, type CombatSystem } from '@/gameplay/combat';
 import { DestructionSystem } from '@/gameplay/destruction';
-import { ProgressionCoordinator } from '@/gameplay/progression';
+import { ProgressionCoordinator, indexForPoints, pointsForIndex } from '@/gameplay/progression';
 
 import { VFXSystem } from '@/vfx';
 import { AudioSystem, type ReverbPreset } from '@/audio';
 import { createInputManager, type IInputManager } from '@/ui/input';
-import { HudManager, type IHudSettings } from '@/ui/hud';
+import {
+  HudManager,
+  LOADING_LINES,
+  MarkerLayer,
+  type IHudSettings,
+  type IWorldMarker,
+  type MarkerKind,
+} from '@/ui/hud';
 
 import {
   AUTOSAVE_INTERVAL,
   BOOT_RADIUS,
   FIXED_STEP,
+  MARKER_LABEL_CHARS,
+  MARKER_RANGE,
   MAX_DELTA,
   QUEST_CLOCK_INTERVAL,
   SPAWN_POSITION,
@@ -231,6 +242,16 @@ export class Game {
   readonly audio: AudioSystem;
   readonly input: IInputManager;
   readonly hud: HudManager;
+  /**
+   * The world-space pin layer.
+   *
+   * Built HERE and not by `HudManager`, for the same reason the harness builds
+   * its own: `MarkerLayer` is the one HUD module allowed to import `three`, it
+   * projects against the game's camera, and handing the HUD a camera would make
+   * a display layer a build dependency of the renderer. The composition root
+   * owns both ends already.
+   */
+  readonly markers: MarkerLayer;
   readonly freeze: ImpactFreeze;
 
   /**
@@ -291,6 +312,12 @@ export class Game {
   private questClockTimer = 0;
   /** True while at least one pushed quest row carries a running clock. */
   private questClocksRunning = false;
+  /** Last standing pushed to the HUD, so the push happens on change only. */
+  private rankPoints = Number.NaN;
+  private rankReputation = Number.NaN;
+  /** Marker ids this frame and the ids currently published, reused per frame. */
+  private readonly markerSeen = new Set<string>();
+  private readonly markerIds = new Set<string>();
   private modalPaused = false;
   /** Last district handed to the audio system, so the reverb only glides on a change. */
   private audioDistrict: DistrictType | undefined;
@@ -331,6 +358,7 @@ export class Game {
     this.audio = parts.audio;
     this.input = parts.input;
     this.hud = parts.hud;
+    this.markers = parts.markers;
     this.freeze = parts.freeze;
     this.roster = parts.roster;
     this.playerSkin = parts.playerSkin;
@@ -406,9 +434,35 @@ export class Game {
       bus,
       onModalChange: (modal) => hudHooks.onModal?.(modal),
       onSettingsChange: (settings) => hudHooks.onSettings?.(settings),
+      // ══════════════════════════════════════════════════════════════════════
+      //  SIX LOADING LINES, ONE OF WHICH THE PLAYER HAD EVER SEEN
+      // ══════════════════════════════════════════════════════════════════════
+      // `LOADING_LINES` holds six rules-of-the-world lines and `LoadingScreen`
+      // resolves `lineIndex ?? 0`, so every launch of the shipped game showed
+      // the first one and the other five existed only in the harness. They are
+      // the one place the game explains that credit needs a witness and that
+      // boredom throttles rank gain — a player who reads the same sentence
+      // every boot learns one sixth of what the screen was written to teach.
+      // Random per launch rather than cycled: nothing persists across a cold
+      // start on a phone that was killed in the background, so a stored cursor
+      // would show line 0 forever anyway.
+      loadingLineIndex: Math.floor(Math.random() * LOADING_LINES.length),
     });
     hud.store.setPhase('loading');
     hud.show('boot');
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE PINS, WHICH THE SHIPPED GAME HAS NEVER DRAWN
+    // ══════════════════════════════════════════════════════════════════════
+    // `MarkerLayer` is 228 lines of finished, tested, screenshotted code that
+    // nothing in `src/` had ever instantiated, and `HudStore.setMarker` had no
+    // caller either — so a resting frame gave the player no direction at all: no
+    // waypoint on the tracked request, no diamond over the thing that is about
+    // to hit them, and a committed screenshot of a feature the build did not
+    // have. Constructed here rather than inside `HudManager` (see the field),
+    // and inserted UNDER every screen so a pause sheet covers the pins rather
+    // than being covered by them.
+    const markers = new MarkerLayer(document, { labelRange: 140, maxRange: MARKER_RANGE });
+    hud.root.insertBefore(markers.element, hud.root.firstChild);
     const step = (fraction: number, label: string): void => {
       hud.store.setLoading(clamp01(fraction), label);
       hud.update(0);
@@ -544,11 +598,19 @@ export class Game {
     const skyReady = sky?.load() ?? Promise.resolve([]);
     const physicsReady = initPhysics();
     step(0.14, 'Loading core assets');
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE BAR AND THE LABEL NOW COUNT THE SAME THING
+    // ══════════════════════════════════════════════════════════════════════
+    // The fraction handed to `step` is BOOT progress — this phase occupies
+    // 0.14..0.50 of it — while the label used to read `Loading assets N/M`,
+    // which is ASSET progress. So the screen opened this phase showing 14%
+    // against `0/34` and closed it showing 50% against `34/34`: two counters,
+    // two scales, one of them always wrong. The label is the half that goes,
+    // because the number the player watches is the one on the bar and the bar
+    // has to keep meaning "how much of the boot is left". The file counts are
+    // not lost — they are what MOVES the bar through this phase.
     const corePreload = registry.preloadCore((progress) => {
-      step(
-        0.14 + clamp01(progress.fraction) * 0.36,
-        `Loading assets ${progress.loaded}/${progress.total}`
-      );
+      step(0.14 + clamp01(progress.fraction) * 0.36, 'Loading core assets');
     });
 
     /* ---- 4. PHYSICS ---------------------------------------------------- */
@@ -1046,6 +1108,7 @@ export class Game {
       audio,
       input,
       hud,
+      markers,
       freeze,
       roster,
       playerSkin: saitama.body.material,
@@ -1469,12 +1532,23 @@ export class Game {
         // keyboard and gamepad, which emit a normalised rate and never see it.
         lookSensitivity: settings.lookSensitivity,
         invertLookY: settings.invertLookY,
-        // Haptics were never written at all, so they stayed on after the
-        // player turned them off. `floatingStick` is written for the same
-        // reason but is ADVISORY (see `IInputConfig`): the touch stick always
-        // floats, so this records the preference rather than acting on it.
+        // Haptics were never written at all, so they stayed on after the player
+        // turned them off.
         hapticsEnabled: settings.hapticsEnabled,
+        // ══════════════════════════════════════════════════════════════════
+        //  THE TWO STICK KNOBS NOW MOVE THE STICK
+        // ══════════════════════════════════════════════════════════════════
+        // `floatingStick` used to be ADVISORY — the touch stick always floated,
+        // and this line recorded a preference the input layer then ignored. It
+        // is the real switch now, and the default is FIXED, so the control the
+        // player finds without looking is the one they get unless they ask for
+        // the other. `stickHand` was never forwarded at all: the settings screen
+        // offered a left/right choice, wrote it into the model, moved the HUD's
+        // own reserve to the other corner — and left the actual stick in the
+        // left one. A left-handed player got a mirrored HUD around an
+        // unmirrored control.
         floatingStick: settings.stickLayout === 'floating',
+        stickHand: settings.stickHand,
       });
     } catch (error) {
       recordError(this.diagnostics, 'settings', error);
@@ -1494,6 +1568,7 @@ export class Game {
     for (const off of this.disposers) off();
     this.disposers.length = 0;
 
+    this.markers.dispose();
     this.hud.dispose();
     this.input.dispose();
     this.audio.dispose();
@@ -2144,7 +2219,14 @@ export class Game {
       // out as the reason the ladder renders empty when nobody wires this. The
       // rows are pushed on every player rank change and on every incident,
       // which is when a rival's standing relative to the player can move.
-      bus.on('RankChanged', () => this.pushRivals()),
+      // `pushRank` as well, and for a different reason than the rivals: a seat
+      // change moves the two thresholds the progress fraction is measured
+      // between, so the bar has to be recomputed even when the point total the
+      // event carries has already been applied by the store.
+      bus.on('RankChanged', () => {
+        this.pushRank();
+        this.pushRivals();
+      }),
       bus.on('EncounterEnded', () => this.pushRivals()),
       // Same gap, one storey louder: `QuestStateChangedEvent` carries an id and
       // two states and nothing a log can draw — no title, tier, objectives,
@@ -2154,8 +2236,55 @@ export class Game {
       // sitting in the catalogue.
       bus.on('QuestStateChanged', () => this.pushQuests())
     );
+    this.pushRank();
     this.pushRivals();
     this.pushQuests();
+  }
+
+  /**
+   * Publish the player's whole standing, including the two numbers the bus
+   * cannot carry.
+   *
+   * ── WHY THE CHIP'S PROGRESS BAR WAS ALWAYS EMPTY ───────────────────────────
+   * `HudStore.setRank()` had no caller in `src/` at all — only its unit test and
+   * the harness — so the only thing that ever wrote the rank block was the
+   * store's own `RankChanged` handler, which sets `heroClass`, `rank` and
+   * `points` and cannot set the rest. `rankProgress` therefore stayed at its
+   * constructed 0 for the whole session and the 64 px sliver under CAPED BALDY
+   * was a decorative grey line: the one place the game shows a C-class hero that
+   * the next seat is close, permanently reading "no progress at all".
+   *
+   * It cannot be derived inside the HUD, and `IRankState.rankProgress`'s own
+   * comment says why: the denominator is the ladder's step cost, which lives in
+   * progression's constants and which the HUD may not import. It CAN be derived
+   * here — the composition root is the one layer allowed to hold both sides —
+   * so it is, from the two thresholds either side of the seat the points buy.
+   *
+   * `rankGainMultiplier` is deliberately NOT pushed: the store derives it from
+   * `BoredomChanged`, which arrives far more often than this does, and pushing a
+   * second opinion would race it. `setRank` copies only the keys present.
+   */
+  private pushRank(): void {
+    const state = this.progression.progression.state;
+    const rank = state.rank;
+    // The seat the point total buys, and the cumulative cost of that seat and of
+    // the one above it. At the top of the ladder `seatIndex` clamps, so the two
+    // thresholds are equal and the bar reads full — which is the honest answer
+    // for a hero with nowhere left to climb.
+    const seat = indexForPoints(rank.points);
+    const floor = pointsForIndex(seat);
+    const span = pointsForIndex(seat + 1) - floor;
+    this.rankPoints = rank.points;
+    this.rankReputation = state.reputation;
+    this.hud.store.setRank({
+      heroName: rank.heroName,
+      heroClass: rank.heroClass,
+      rank: rank.rank,
+      points: rank.points,
+      pointsToNextRank: rank.pointsToNextRank,
+      reputation: state.reputation,
+      rankProgress: span > 0 ? clamp01((rank.points - floor) / span) : 1,
+    });
   }
 
   /** Publish the rival ladder. `seatsAbovePlayer` needs the player's own rank. */
@@ -2230,6 +2359,23 @@ export class Game {
   }
 
   private updateHud(rawDt: number): void {
+    // ══════════════════════════════════════════════════════════════════════
+    //  POINTS MOVE INSIDE A SEAT, AND `RankChanged` DOES NOT FIRE FOR THAT
+    // ══════════════════════════════════════════════════════════════════════
+    // `ProgressionSystem.publishRank` returns early unless the CLASS or the RANK
+    // changed, which is correct for an event called `RankChanged` and useless
+    // for a progress bar: every award between two seats is silent, so a bar fed
+    // only from the bus would sit at whatever the last promotion left it at and
+    // jump a whole seat at a time. Two number comparisons a frame, and a push
+    // only when the standing actually moved — which is a few times a minute, the
+    // cadence the HUD's render path is built for.
+    const progression = this.progression.progression;
+    if (
+      progression.points !== this.rankPoints ||
+      progression.state.reputation !== this.rankReputation
+    ) {
+      this.pushRank();
+    }
     const combat = this.combat.diagnostics();
     this.hud.store.setCharge(
       combat.charge,
@@ -2238,7 +2384,97 @@ export class Game {
       combat.chargeForecastYen
     );
     this.hud.store.setWitnesses(this.progression.witnesses.size);
+    this.syncMarkers();
     this.hud.update(rawDt);
+    // Unconditional, and after the store has settled: `MarkerLayer.update` is
+    // the ONLY thing that reconciles the marker DOM against the model, so a
+    // gated call would leave the pins of a cleared model parented in
+    // `.hud-markers` for the rest of the run. It projects with the camera's
+    // world matrix, which the frame updated before the HUD phase.
+    this.markers.update(this.hud.store.model, this.camera);
+  }
+
+  /**
+   * Reconcile the world markers against what is actually out there.
+   *
+   * ── WHAT THE PLAYER GOT WITHOUT THIS ───────────────────────────────────────
+   * Nothing. No waypoint, no compass, no off-screen threat pip: a player who
+   * accepted an evacuation two districts away was told the objective's
+   * DESCRIPTION and left to find it. The quest data has carried a `location` and
+   * a `radius` the whole time and nothing had ever drawn one.
+   *
+   * ── THE FRAME CONTRACT ─────────────────────────────────────────────────────
+   * Positions are mutated IN PLACE on the marker objects the store already
+   * holds, which is why this can run every frame: the model's map is only
+   * touched when a marker appears or disappears, so `markDirty` — and the HUD's
+   * arbitrary-DOM render pass behind it — fires when a monster arrives, not when
+   * one walks. `MarkerLayer` reads the positions each frame either way.
+   */
+  private syncMarkers(): void {
+    const seen = this.markerSeen;
+    seen.clear();
+    const focus = this.player.controller.position;
+    const rangeSq = MARKER_RANGE * MARKER_RANGE;
+
+    for (const monster of this.monsters.all()) {
+      if (monster.isDead) continue;
+      const position = monster.transform.position;
+      const dx = position.x - focus.x;
+      const dz = position.z - focus.z;
+      if (dx * dx + dz * dz > rangeSq) continue;
+      const id = `threat:${monster.id}`;
+      seen.add(id);
+      const marker = this.publishMarker(
+        id,
+        'threat',
+        monster.displayName,
+        monster.archetype.threatTier
+      );
+      marker.x = position.x;
+      // Above the head, not at the feet: a pin at ground level is behind
+      // whatever the monster is standing in front of.
+      marker.y = position.y + monster.archetype.bodyHeightMetres + 0.6;
+      marker.z = position.z;
+    }
+
+    // THE TRACKED request only. Every active quest's objectives at once is a
+    // screen of rings, and the tracker chip already names the one the player
+    // said they were doing.
+    const tracked = this.progression.quests.trackedQuestId;
+    const quest = tracked === undefined ? undefined : this.progression.quests.quests.get(tracked);
+    if (quest?.state === 'active') {
+      for (const objective of quest.objectives) {
+        const at = objective.location;
+        if (at === undefined || objective.complete || objective.hidden === true) continue;
+        const id = `objective:${quest.id}:${objective.id}`;
+        seen.add(id);
+        const marker = this.publishMarker(id, 'objective', markerLabel(objective.description));
+        marker.x = at.x;
+        marker.y = at.y + 2.2;
+        marker.z = at.z;
+      }
+    }
+
+    for (const id of this.markerIds) {
+      if (seen.has(id)) continue;
+      this.markerIds.delete(id);
+      this.hud.store.removeMarker(id);
+    }
+  }
+
+  /** Get or publish one marker. The object is the store's; this holds no copy. */
+  private publishMarker(
+    id: string,
+    kind: MarkerKind,
+    label: string,
+    tier?: ThreatTier
+  ): IWorldMarker {
+    const existing = this.hud.store.model.markers.get(id);
+    if (existing !== undefined) return existing;
+    const marker: IWorldMarker = { id, kind, label, x: 0, y: 0, z: 0, tier };
+    this.markerIds.add(id);
+    this.hud.store.setMarker(marker);
+    return marker;
   }
 
   /**
@@ -2248,9 +2484,29 @@ export class Game {
    * position after the physics step — which is why this runs in the camera
    * phase and not in simulation. Feeding it the commanded velocity instead
    * makes the feet slide every time a wall stops the character.
+   *
+   * ── NO `dt <= 0` GUARD, AND THAT IS THE POINT ──────────────────────────────
+   * This used to return immediately on a zero delta, which made "the world is
+   * paused" and "nothing writes this character's bones" the same condition. The
+   * failure mode is not subtle and this file already describes it (see
+   * `playerAnimator`): a skeleton nobody writes holds its BIND POSE — arms
+   * straight out, elbows locked, cape a rigid cone — and no amount of staring at
+   * the clip table explains it, because the clips are fine and were never
+   * applied. One stuck flag anywhere upstream and the protagonist is a
+   * mannequin for the rest of the session.
+   *
+   * So the pose is applied on EVERY frame and the clock only decides how far
+   * the clips advance. `ProceduralAnimator.update(0)` does no integration —
+   * `step` is zero, phases do not move, no footfall is emitted — and still ends
+   * with `applyPose`, so a paused frame re-asserts the pose it already had and a
+   * character can never be left in the bind pose by a delta.
+   *
+   * The delta stays SCALED, deliberately, unlike audio's. `ImpactFreeze` drops
+   * `timeScale` to 0.04 for 90 ms and the whole beat is that the CHARACTER stops
+   * with the world; feeding this the unscaled delta would keep the punch
+   * swinging at full speed through the freeze frame the freeze exists to make.
    */
   private tickAnimators(dt: number): void {
-    if (dt <= 0) return;
     const controller = this.player.controller;
     this.playerAnimator.setLocomotion({
       speed: controller.speed,
@@ -2385,6 +2641,13 @@ export class Game {
     w.assetTiersUnavailable = [...registry.unavailableTiers];
   }
 
+  /**
+   * Viewport changed: aspect, buffers, cascades, screen-space effects — and the
+   * two layers that lay themselves out against the notch.
+   *
+   * Also the ONE place the safe area is applied, which is why `start()` calls
+   * this before the first frame rather than seeding the insets separately.
+   */
   private readonly onResize = (): void => {
     const width = window.innerWidth;
     const height = Math.max(1, window.innerHeight);
@@ -2410,6 +2673,26 @@ export class Game {
     // viewport aspect, which they otherwise keep from construction: after a
     // rotation every streak was stretched along the wrong axis.
     this.vfx.setViewport(width, height);
+    // `CSS2DRenderer` never reads layout — the viewport it projects into comes
+    // from here and nowhere else, so without this every pin stays projected
+    // into the 1x1 box the layer is constructed with (see `MarkerLayer`).
+    this.markers.setSize(width, height);
+    // ══════════════════════════════════════════════════════════════════════
+    //  THE NOTCH MOVES WHEN THE PHONE TURNS; THE INSETS DID NOT
+    // ══════════════════════════════════════════════════════════════════════
+    // `IInputManager.setSafeArea` and `HudManager.refreshSafeArea` both existed
+    // with ZERO callers in `src/`. Both layers were therefore holding the
+    // override they were constructed with — nothing — for the whole session,
+    // and a player who turned the phone got a HUD and a control overlay laid out
+    // against the boot orientation's cutout. It matters more now than it did:
+    // the fixed stick anchors off the safe-area CORNER, so a stale inset does
+    // not merely crowd a label, it puts the stick somewhere the thumb is not.
+    //
+    // Called on every resize AND on `orientationchange`, both of which land
+    // here, and once from `start()` before the first frame.
+    const insets = readSafeAreaInsets(document);
+    this.input.setSafeArea(insets);
+    this.hud.refreshSafeArea(insets);
   };
 }
 
@@ -2450,6 +2733,7 @@ interface IGameParts {
   audio: AudioSystem;
   input: IInputManager;
   hud: HudManager;
+  markers: MarkerLayer;
   freeze: ImpactFreeze;
   roster: RosterRuntime;
   /** Saitama's baked material, when his atlas landed during boot. */
@@ -2511,6 +2795,63 @@ function reverbForDistrict(district: DistrictType): ReverbPreset {
     default:
       return 'openStreet';
   }
+}
+
+/**
+ * Trim an objective's sentence down to something that fits over a pin.
+ *
+ * Objective descriptions are authored for the quest log, where they have a full
+ * row — "Buy: ground beef, cabbage, eggs, a punnet of strawberries" is 55
+ * characters. A marker label is `white-space: nowrap` inside an `overflow:
+ * hidden` host, so an untrimmed one is a bar of text across the sky.
+ */
+function markerLabel(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length <= MARKER_LABEL_CHARS
+    ? trimmed
+    : `${trimmed.slice(0, MARKER_LABEL_CHARS - 1)}…`;
+}
+
+/**
+ * The device's safe-area insets, in CSS pixels.
+ *
+ * ── WHY THIS READS CSS RATHER THAN A PLATFORM ADAPTER ──────────────────────
+ * `IPlatformAdapter.safeArea` is the documented source (see the precedence list
+ * in `src/ui/hud/safe-area.ts`) and this repository contains no implementation
+ * of that interface — only the contract. So the browser's own `env()` is the
+ * only source that exists, and it is read the one way that is reliable across
+ * WebViews: a probe element whose PADDING is the four `env()` values, resolved
+ * by `getComputedStyle`. Reading a custom property back instead returns
+ * whatever the author wrote, `env()` call and all, on more than one engine.
+ *
+ * When a native adapter does arrive it replaces the body of this function and
+ * nothing else: both consumers already come through here.
+ *
+ * Not free — it appends a node and forces a style resolve — and therefore
+ * called only from `onResize`, which is a rotation-rate path, never a frame one.
+ * Zeros are a perfectly good answer: the HUD and the touch overlay both compose
+ * `max(env(), override, floor)`, so an override of 0 changes nothing.
+ */
+function readSafeAreaInsets(doc: Document): SafeAreaInsets {
+  const probe = doc.createElement('div');
+  probe.style.cssText =
+    'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+    'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) ' +
+    'env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+  doc.body.appendChild(probe);
+  const style = getComputedStyle(probe);
+  const px = (value: string): number => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
+  };
+  const insets: SafeAreaInsets = {
+    top: px(style.paddingTop),
+    right: px(style.paddingRight),
+    bottom: px(style.paddingBottom),
+    left: px(style.paddingLeft),
+  };
+  probe.remove();
+  return insets;
 }
 
 /**

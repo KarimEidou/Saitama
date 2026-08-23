@@ -52,7 +52,16 @@ export interface IHudSettings {
 export const DEFAULT_HUD_SETTINGS: IHudSettings = Object.freeze({
   qualityTier: 'medium',
   resolutionScale: 1,
-  stickLayout: 'floating',
+  // FIXED, not floating. A floating stick has no resting position, so a thumb
+  // that lifts for half a second comes back down to a control that is not where
+  // it was — and on a phone held two-handed the thumb rarely leaves the glass in
+  // the same place twice. The always-visible stick in the safe-area corner is
+  // the one a player can find without looking; floating stays available for the
+  // players who prefer it. Changed WITH the coercion in `normaliseSettings`
+  // below: they are the same decision written twice, and a save file whose
+  // `stickLayout` is missing or unrecognised must land on the same answer this
+  // does.
+  stickLayout: 'fixed',
   stickHand: 'left',
   invertLookY: false,
   lookSensitivity: 1,
@@ -121,7 +130,11 @@ export function normaliseSettings(patch: Partial<IHudSettings> | undefined): IHu
       finite(patch.resolutionScale, base.resolutionScale),
       RESOLUTION_STEPS
     ),
-    stickLayout: patch.stickLayout === 'fixed' ? 'fixed' : 'floating',
+    // The UNRECOGNISED case lands on 'fixed', matching the default above. A save
+    // written before the default flipped carries `'floating'` and is honoured;
+    // anything else — a missing key, a renamed value, a `null` from a
+    // hand-edited file — gets the control that can be found without looking.
+    stickLayout: patch.stickLayout === 'floating' ? 'floating' : 'fixed',
     stickHand: patch.stickHand === 'right' ? 'right' : 'left',
     invertLookY: patch.invertLookY === true,
     lookSensitivity: snapToStep(

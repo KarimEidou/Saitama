@@ -248,8 +248,28 @@ export const INTENT_THRESHOLDS: readonly { readonly at: number; readonly intent:
     { at: 0.85, intent: 'full' },
   ];
 
-/** Which intent a charge ratio currently commits. */
+/**
+ * Which intent a charge ratio currently commits.
+ *
+ * A non-finite ratio resolves to the TOP rung, not the bottom one. The scan is
+ * a linear walk that seeds with the gentlest intent and only ever moves up, so
+ * a value that satisfies no `>=` keeps the seed — and every comparison against
+ * NaN is false, so a broken ratio would take the gentlest reading whole.
+ *
+ * That is the expensive direction to be wrong in. The player reads this arc to
+ * decide WHEN TO LET GO. Over-reporting force makes them release early and
+ * throw a punch softer than they meant to, which costs them a few seconds.
+ * Under-reporting makes them hold a blow the HUD called routine and flatten the
+ * block behind the monster, which costs civilians and cannot be taken back. The
+ * two errors are not symmetric, so the guard picks the recoverable one.
+ *
+ * Read off the table's last row rather than naming an intent, so a future rung
+ * above `full` is covered without anyone remembering to come back here.
+ * Negative ratios are NOT non-finite and keep flowing through the scan: below
+ * the bottom of the ramp genuinely is the gentlest intent.
+ */
 export function intentForCharge(ratio: number): LethalIntent {
+  if (!Number.isFinite(ratio)) return INTENT_THRESHOLDS[INTENT_THRESHOLDS.length - 1]!.intent;
   let intent: LethalIntent = 'normal';
   for (const step of INTENT_THRESHOLDS) {
     if (ratio >= step.at) intent = step.intent;
@@ -290,8 +310,31 @@ export const BOREDOM_BANDS: readonly IBoredomBand[] = [
   { from: 0.92, label: 'NUMB', color: '#6a6a72', breathSeconds: 12 },
 ];
 
-/** The band a boredom value falls in. Never returns undefined. */
+/**
+ * The band a boredom value falls in. Never returns undefined.
+ *
+ * A non-finite value resolves to the LAST band, not the first. The scan seeds
+ * with the calmest band and only ever climbs, and every comparison against NaN
+ * is false, so an unguarded broken input would take that seed untouched and the
+ * meter would sit on ENGAGED.
+ *
+ * Which is the one reading it must never give for free. This meter is the
+ * game's real progress bar; a HUD element that degrades toward "everything is
+ * fine" tells the player nothing is wrong at exactly the moment something is,
+ * and it does it silently, because ENGAGED is also a perfectly ordinary answer.
+ * NUMB is the honest failure: it is the state the meter exists to warn about,
+ * so a stuck reading is at worst alarming, and someone goes and looks.
+ *
+ * Belt and braces — the boredom model can no longer emit a non-finite value.
+ * This is the READER refusing to launder a broken input into a calm one.
+ *
+ * Only NON-FINITE input takes the escape. A negative value is a real number
+ * below the bottom of the ramp and still means ENGAGED, which is why the test
+ * is `Number.isFinite` and not a range check. The last row is read off the
+ * table so a band appended above NUMB is covered automatically.
+ */
 export function boredomBand(value: number): IBoredomBand {
+  if (!Number.isFinite(value)) return BOREDOM_BANDS[BOREDOM_BANDS.length - 1]!;
   let band = BOREDOM_BANDS[0]!;
   for (const candidate of BOREDOM_BANDS) {
     if (value >= candidate.from) band = candidate;
