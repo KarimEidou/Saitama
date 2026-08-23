@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_INPUT_TUNING } from './config';
 import { createInputTestBridge } from './test-bridge';
 import { createInputManager, type IInputManager } from './input-manager';
 import { INPUT_ACTIONS } from './buttons';
@@ -289,7 +290,7 @@ describe('window.__INPUT__ bridge', () => {
   it('exposes tuning and accepts overrides', () => {
     const manager = makeManager();
     const bridge = createInputTestBridge(manager);
-    expect(bridge.config().stickDeadZonePx).toBe(56);
+    expect(bridge.config().stickDeadZonePx).toBe(DEFAULT_INPUT_TUNING.stickDeadZonePx);
     bridge.setConfig({ stickDeadZonePx: 20 });
     expect(bridge.config().stickDeadZonePx).toBe(20);
   });

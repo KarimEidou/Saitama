@@ -93,9 +93,7 @@ export function fixedStickAnchor(
  * fails, instead of the HUD quietly ending up underneath the ring.
  */
 export function stickReachPx(tuning: IInputTuning): number {
-  return (
-    Math.hypot(tuning.stickFixedInsetPx, tuning.stickFixedInsetPx) + tuning.stickBaseRadiusPx
-  );
+  return Math.hypot(tuning.stickFixedInsetPx, tuning.stickFixedInsetPx) + tuning.stickBaseRadiusPx;
 }
 
 /**

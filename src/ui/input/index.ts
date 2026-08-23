@@ -108,7 +108,20 @@
 export { createInputManager, type IInputManager, type IInputManagerOptions } from './input-manager';
 
 /* -- tuning --------------------------------------------------------------- */
-export { DEFAULT_INPUT_TUNING, resolveTuning, type IInputTuning } from './config';
+export { DEFAULT_INPUT_TUNING, resolveTuning, type IInputTuning, type StickHand } from './config';
+
+/* -- stick geometry (pure; shared by the core and the overlay) ------------- */
+export {
+  fixedStickAnchor,
+  isStickZone,
+  stickKnobTravelPx,
+  stickOriginFor,
+  stickReachPx,
+  STICK_KNOB_RADIUS_PX,
+  ZERO_SAFE_AREA,
+  type IStickOrigin,
+  type IStickPoint,
+} from './stick-geometry';
 
 /* -- synthetic driver (THE test entry point) ------------------------------ */
 export {

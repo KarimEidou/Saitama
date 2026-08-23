@@ -211,11 +211,14 @@ export interface IInputConfig {
   /** Virtual stick radius in CSS pixels. */
   readonly stickRadius: number;
   /**
-   * ADVISORY — UNIMPLEMENTED. Re-centre the virtual stick where the thumb
-   * lands.
+   * LIVE. Re-centre the virtual stick wherever the thumb lands.
    *
-   * The touch stick is always floating; there is no fixed-origin path to
-   * select, so setting this false does not pin it.
+   * `false` — the default — anchors the ring near the stick hand's bottom
+   * corner and paints it at rest, which is the layout most players can find.
+   * `true` restores the floating stick. `src/ui/input/touch-core.ts` branches
+   * on this at `pointerdown` and `src/ui/input/touch-overlay.ts` switches its
+   * whole positioning strategy on it; it was advisory once, when the stick had
+   * no fixed-origin path to select.
    */
   readonly floatingStick: boolean;
   /** Fire haptics on action presses. */

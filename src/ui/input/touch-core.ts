@@ -28,12 +28,13 @@
  *     the old and new centroid.
  */
 
-import type { InputAction, PointerSample } from '@/types';
+import type { InputAction, PointerSample, SafeAreaInsets } from '@/types';
 import { clamp, clamp01 } from '@/util';
 import { radialDeflection } from './axis';
 import { InputContribution } from './backend';
 import type { IInputTuning } from './config';
 import { ChargeTracker, LookSmoother } from './look';
+import { isStickZone, stickOriginFor, ZERO_SAFE_AREA } from './stick-geometry';
 
 /* -------------------------------------------------------------------------- */
 /* Input records                                                              */
@@ -171,6 +172,18 @@ export class TouchCore {
 
   private viewportW = 1;
   private viewportH = 1;
+  /**
+   * The safe-area insets the LAYOUT is using. Pushed in by `touch-source.ts`,
+   * which reads them back off the overlay's own resolved CSS.
+   *
+   * This class is DOM-free and would rather not know about notches at all. It
+   * has to: the anchored stick's origin is measured from the safe-area corner,
+   * and the ring is painted from the same corner by CSS. Compute the origin
+   * from the raw viewport instead and the two disagree by exactly the inset —
+   * 44px in landscape on a notched phone — so the ring is drawn in one place
+   * and the stick reads from another, on the devices this game ships to.
+   */
+  private safeArea: SafeAreaInsets = ZERO_SAFE_AREA;
 
   private readonly pointers = new Map<number, TrackedPointer>();
   /** Pointers that ended this frame, held so they can be reported once. */
@@ -226,6 +239,25 @@ export class TouchCore {
   setViewport(width: number, height: number): void {
     this.viewportW = Math.max(1, width);
     this.viewportH = Math.max(1, height);
+  }
+
+  /** Insets to anchor the fixed stick from. See the field's note. */
+  setSafeArea(insets: SafeAreaInsets): void {
+    this.safeArea = {
+      top: Math.max(0, insets.top),
+      right: Math.max(0, insets.right),
+      bottom: Math.max(0, insets.bottom),
+      left: Math.max(0, insets.left),
+    };
+  }
+
+  /**
+   * Does a touch here become stick input? Exposed because it is the single
+   * decision that makes a swipe walk instead of look, and it deserves to be
+   * assertable without synthesising a pointer.
+   */
+  isStickZone(x: number, y: number): boolean {
+    return isStickZone(x, y, this.viewportW, this.viewportH, this.tuning);
   }
 
   /** Context-sensitive interact button visibility. */
@@ -341,10 +373,7 @@ export class TouchCore {
         role = 'button';
         button = hit.button;
       }
-    } else if (
-      event.x < this.viewportW * this.tuning.stickZoneFraction &&
-      this.stickPointerId < 0
-    ) {
+    } else if (this.isStickZone(event.x, event.y) && this.stickPointerId < 0) {
       role = 'stick';
     } else {
       role = 'camera';
@@ -371,11 +400,21 @@ export class TouchCore {
 
     if (role === 'stick') {
       this.stickPointerId = event.id;
-      // Floating origin: the stick materialises exactly where the thumb landed.
-      // Never a fixed position — a fixed stick forces the player to look at
-      // their thumb instead of the game.
-      this.stickOriginX = event.x;
-      this.stickOriginY = event.y;
+      // Floating materialises the origin under the thumb; anchored puts it on
+      // the anchor, unless the thumb landed too far from the anchor to be
+      // grabbing it at all. All three cases, and the reasoning for the third,
+      // live in `stickOriginFor` — the overlay needs the same arithmetic to
+      // decide where to paint, and the two must not be derived separately.
+      const origin = stickOriginFor(
+        event.x,
+        event.y,
+        this.viewportW,
+        this.viewportH,
+        this.safeArea,
+        this.tuning
+      );
+      this.stickOriginX = origin.x;
+      this.stickOriginY = origin.y;
     } else if (role === 'camera') {
       this.cameraIds.push(event.id);
       this.reseedCameraBaseline();

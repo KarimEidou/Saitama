@@ -39,15 +39,15 @@ describe('resolveTuning', () => {
   });
 
   it('repairs a NaN dead zone back to the default ratio', () => {
-    expect(resolveTuning({ stickDeadZonePx: Number.NaN }).stickDeadZonePx).toBe(56);
+    expect(resolveTuning({ stickDeadZonePx: Number.NaN }).stickDeadZonePx).toBe(12);
   });
 
   it('repairs the dead zone AFTER the stickRadius mirror, not before', () => {
-    // A 40px stick is smaller than the default 56px dead zone, so the repair
-    // has to run on the mirrored value or it leaves an inverted pair behind.
-    const tuning = resolveTuning({ stickRadius: 40 });
-    expect(tuning.stickFullDeflectionPx).toBe(40);
-    expect(tuning.stickDeadZonePx).toBeLessThan(40);
+    // A 10px stick is smaller than the default dead zone, so the repair has to
+    // run on the mirrored value or it leaves an inverted pair behind.
+    const tuning = resolveTuning({ stickRadius: 10 });
+    expect(tuning.stickFullDeflectionPx).toBe(10);
+    expect(tuning.stickDeadZonePx).toBeLessThan(10);
     expect(tuning.stickDeadZonePx).toBeGreaterThan(0);
   });
 

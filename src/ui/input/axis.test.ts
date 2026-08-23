@@ -9,22 +9,38 @@ import {
 } from './axis';
 import { DEFAULT_INPUT_TUNING } from './config';
 
-const DEAD = DEFAULT_INPUT_TUNING.stickDeadZonePx; // 56
-const FULL = DEFAULT_INPUT_TUNING.stickFullDeflectionPx; // 120
+/* Derived, never re-typed. These two numbers moved once already — a 56px dead
+   zone against a 120px full deflection swallowed 47% of the travel and shipped
+   as "the character cannot be moved" — and a test that hard-codes them keeps
+   asserting the old feel while the game has the new one. */
+const DEAD = DEFAULT_INPUT_TUNING.stickDeadZonePx;
+const FULL = DEFAULT_INPUT_TUNING.stickFullDeflectionPx;
 
 describe('radialDeflection — dead zone', () => {
   it('reads centred inside the dead zone', () => {
+    const inside = DEAD - 1;
+    const leg = inside * Math.SQRT1_2; // same distance, on a 45-degree ray
     for (const [dx, dy] of [
       [0, 0],
-      [30, 0],
-      [0, 55],
-      [-39, 39], // 55.2px diagonal, still inside
+      [inside, 0],
+      [0, inside],
+      [-leg, leg],
     ] as const) {
       const d = radialDeflection(dx, dy, DEAD, FULL);
       expect(d.magnitude, `(${dx},${dy})`).toBe(0);
       expect(d.x).toBe(0);
       expect(d.y).toBe(0);
     }
+  });
+
+  it('A SHORT, NATURAL THUMB DRAG MOVES THE CHARACTER', () => {
+    // The regression this file exists to hold. With the old 56px dead zone a
+    // 20px flick — which is what a thumb does when you want to take a step —
+    // deflected the knob visibly, reported `active: true`, and handed gameplay
+    // magnitude 0. Users reported the game as broken, and they were right.
+    const d = radialDeflection(0, -20, DEAD, FULL);
+    expect(d.magnitude).toBeGreaterThan(0);
+    expect(d.y).toBeGreaterThan(0);
   });
 
   it('is a barely-perceptible nudge just past the dead zone, not a lurch', () => {
@@ -34,11 +50,12 @@ describe('radialDeflection — dead zone', () => {
   });
 
   it('the dead-zone edge is circular, not square', () => {
-    // 56px along a 45-degree ray: still exactly at the boundary.
-    const at = (56 * Math.SQRT1_2) as number;
+    // Exactly the dead-zone radius, along a 45-degree ray: still at the
+    // boundary. A square edge would have let this through at 1.41x the radius.
+    const at = DEAD * Math.SQRT1_2;
     expect(radialDeflection(at, -at, DEAD, FULL).magnitude).toBeCloseTo(0, 5);
     // A hair beyond it in the same direction reads non-zero.
-    const past = 57 * Math.SQRT1_2;
+    const past = (DEAD + 1) * Math.SQRT1_2;
     expect(radialDeflection(past, -past, DEAD, FULL).magnitude).toBeGreaterThan(0);
   });
 });
@@ -58,8 +75,8 @@ describe('radialDeflection — full deflection and clamping', () => {
   });
 
   it('DIAGONALS ARE NOT CLAMPED SHORT — same travel, same magnitude', () => {
-    // The whole point: 120px of thumb travel is magnitude 1.0 in every
-    // direction, not just the cardinals.
+    // The whole point: a full-deflection thumb travel is magnitude 1.0 in
+    // every direction, not just the cardinals.
     for (let deg = 0; deg < 360; deg += 15) {
       const rad = (deg * Math.PI) / 180;
       const dx = Math.cos(rad) * FULL;

@@ -21,10 +21,11 @@
  *
  * COVERAGE, accurately: path 1 end-to-end in `harness/input.verify.ts` (§6/§7,
  * via CDP `touchCancel`); path 4 in `touch-core.test.ts` ("recovers from a
- * duplicate pointerdown for a live id"). Paths 2 and 3 exist only in this
- * adapter — CDP has no per-pointer cancel and cannot background the page — so
- * they have NO automated coverage: re-verify the listener wiring below by hand
- * whenever it changes.
+ * duplicate pointerdown for a live id"); path 2's ACCIDENTAL trigger — a
+ * descendant's capture loss bubbling up here — in
+ * `__tests__/overlay-browser.test.ts`, which is where the bug below was found.
+ * Path 3 still has NO automated coverage (CDP cannot background the page), so
+ * re-verify that listener wiring by hand whenever it changes.
  */
 
 import type { SafeAreaInsets } from '@/types';
@@ -139,6 +140,33 @@ export function createTouchSource(
   }
   refreshViewport();
 
+  /**
+   * Hand the core the insets the OVERLAY's CSS actually resolved.
+   *
+   * `setSafeArea` only ever reached the overlay, which was fine while the core
+   * had no geometry of its own. It does now: the anchored stick's origin is
+   * measured from the safe-area corner, and the CSS paints the ring from that
+   * same corner. Two sources for one number is how the ring ends up 44px from
+   * the origin on exactly the notched phones the safe-area apparatus exists for.
+   *
+   * Read from the overlay rather than from the argument to `setSafeArea`,
+   * because the two are not the same thing: the CSS uses
+   * `max(env(...), override)` and the game never calls `setSafeArea` at all on
+   * a platform where `env()` already works.
+   *
+   * Deliberately NOT called from `refreshViewport`: that runs on every
+   * `pointerdown`, and this forces style resolution.
+   */
+  function refreshCoreSafeArea(): void {
+    if (overlay) core.setSafeArea(overlay.resolvedSafeArea());
+  }
+  refreshCoreSafeArea();
+
+  function onViewportChange(): void {
+    refreshViewport();
+    refreshCoreSafeArea();
+  }
+
   /* ---------------------------------------------------------------------- */
   /* Pointer plumbing                                                       */
   /* ---------------------------------------------------------------------- */
@@ -159,13 +187,25 @@ export function createTouchSource(
     if (!enabled) return;
     refreshViewport();
     core.handle(toInput(event, 'down'));
-    // Explicit capture so a thumb that slides off the element — or off the
-    // screen edge — keeps delivering moves to us. Touch pointers get implicit
-    // capture already; mouse and pen do not.
-    try {
-      listenerRoot?.setPointerCapture(event.pointerId);
-    } catch {
-      /* capture is best-effort; the core copes without it */
+    // Explicit capture so a cursor that slides off the element — or off the
+    // screen edge — keeps delivering moves to us. TOUCH POINTERS ARE EXCLUDED,
+    // and that exclusion is a bug fix, not an optimisation.
+    //
+    // A touch already has IMPLICIT capture, granted to whatever element it
+    // landed on. Land on `.opm-btn` and the button holds it; transferring it to
+    // the root fires `lostpointercapture` AT THE BUTTON, which BUBBLES to the
+    // root, where `onLostCapture` cancelled the press — a finger still
+    // physically on the punch button, released by our own capture call. Every
+    // event a touch generates already bubbles up to this root regardless of
+    // which descendant holds the capture, so there was never anything to gain.
+    //
+    // Mouse and pen get no implicit capture and still need this.
+    if (event.pointerType !== 'touch') {
+      try {
+        listenerRoot?.setPointerCapture(event.pointerId);
+      } catch {
+        /* capture is best-effort; the core copes without it */
+      }
     }
     event.preventDefault();
   }
@@ -210,8 +250,17 @@ export function createTouchSource(
    * on `up`/`cancel` removes the pointer BEFORE we release capture, so the
    * `lostpointercapture` that follows a normal release finds nothing to do.
    * Anything left here is a genuine steal.
+   *
+   * ...as long as it is OUR capture. This event bubbles, so a descendant losing
+   * its own implicit touch capture — which is a routine part of every press on
+   * a button — arrives here looking identical to a steal, and cancelling on it
+   * releases a button the player is still holding. Only a loss reported against
+   * the listener root is ours to act on. (A real browser gesture-steal fires
+   * `pointercancel` as well, which we handle on its own path, so nothing is
+   * missed by being strict here.)
    */
   function onLostCapture(event: PointerEvent): void {
+    if (event.target !== listenerRoot) return;
     core.cancelPointer(event.pointerId, now());
   }
 
@@ -241,8 +290,8 @@ export function createTouchSource(
     listenerRoot.addEventListener('dragstart', swallow);
     window.addEventListener('blur', onWindowBlur);
     window.addEventListener('pagehide', onWindowBlur);
-    window.addEventListener('resize', refreshViewport, { passive: true });
-    window.addEventListener('orientationchange', refreshViewport, { passive: true });
+    window.addEventListener('resize', onViewportChange, { passive: true });
+    window.addEventListener('orientationchange', onViewportChange, { passive: true });
     document.addEventListener('visibilitychange', onVisibility);
     log.info('touch backend attached');
   } else if (!options.headless) {
@@ -319,8 +368,8 @@ export function createTouchSource(
         listenerRoot.removeEventListener('dragstart', swallow);
         window.removeEventListener('blur', onWindowBlur);
         window.removeEventListener('pagehide', onWindowBlur);
-        window.removeEventListener('resize', refreshViewport);
-        window.removeEventListener('orientationchange', refreshViewport);
+        window.removeEventListener('resize', onViewportChange);
+        window.removeEventListener('orientationchange', onViewportChange);
         document.removeEventListener('visibilitychange', onVisibility);
       }
       overlay?.dispose();
@@ -335,12 +384,19 @@ export function createTouchSource(
 
     setSafeArea(insets: SafeAreaInsets): void {
       overlay?.setSafeArea(insets);
+      refreshCoreSafeArea();
+      // No overlay (headless) means no CSS to resolve, so the argument is the
+      // only truth there is.
+      if (!overlay) core.setSafeArea(insets);
     },
 
     setTuning(next: IInputTuning): void {
       activeTuning = next;
       core.setTuning(next);
       overlay?.setTuning(next);
+      // The stylesheet the insets resolve against was just regenerated, and the
+      // anchor inset itself may have moved with it.
+      refreshCoreSafeArea();
     },
 
     debugPointers(): PointerDebug[] {

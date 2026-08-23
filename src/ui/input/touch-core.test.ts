@@ -4,12 +4,21 @@ import { axisFromVector, NEUTRAL_AXIS } from './axis';
 import { InputContribution } from './backend';
 import { ButtonTracker } from './buttons';
 import { DEFAULT_INPUT_TUNING, resolveTuning, type IInputTuning } from './config';
+import { fixedStickAnchor, isStickZone, ZERO_SAFE_AREA } from './stick-geometry';
 import { TouchCore, type GestureEvent, type TouchButtonId, type TouchHit } from './touch-core';
 
 const W = 1000;
 const H = 600;
 const DT = 1 / 60;
 const T = DEFAULT_INPUT_TUNING;
+/** The shipping tuning with the FLOATING layout selected, for the tests about it. */
+const FLOATING = resolveTuning({ floatingStick: true });
+/**
+ * A point deep in the stick zone and far from the anchored stick's home, so the
+ * origin lands under the thumb in BOTH layouts and a test that is about
+ * something else (roles, cancellation, taps) does not have to care which is on.
+ */
+const FAR = { x: 200, y: 400 } as const;
 
 interface Frame {
   readonly move: AxisState;
@@ -90,12 +99,12 @@ function makeRig(tuning: IInputTuning = DEFAULT_INPUT_TUNING) {
 }
 
 /* ========================================================================== */
-/* Floating stick                                                             */
+/* Virtual stick                                                              */
 /* ========================================================================== */
 
-describe('floating virtual stick', () => {
-  it('anchors its origin wherever the thumb lands — never a fixed position', () => {
-    const rig = makeRig();
+describe('virtual stick', () => {
+  it('FLOATING anchors its origin wherever the thumb lands', () => {
+    const rig = makeRig(FLOATING);
     rig.down(1, 137, 511);
     expect(rig.core.stick).toMatchObject({ originX: 137, originY: 511 });
     rig.up(1, 137, 511);
@@ -103,6 +112,56 @@ describe('floating virtual stick', () => {
 
     rig.down(2, 402, 190);
     expect(rig.core.stick).toMatchObject({ originX: 402, originY: 190 });
+  });
+
+  it('ANCHORED puts the origin ON the ring, so thumb position IS deflection', () => {
+    // This is what makes a painted ring mean anything. The origin does not
+    // follow the thumb, so where on the artwork the thumb sits is the stick's
+    // reading — land dead centre and you are centred, land 36px north-east and
+    // you are already walking north-east, exactly as the picture says.
+    const rig = makeRig();
+    const anchor = fixedStickAnchor(T, W, H, ZERO_SAFE_AREA);
+
+    rig.down(1, anchor.x, anchor.y);
+    expect(rig.core.stick).toMatchObject({ originX: anchor.x, originY: anchor.y });
+    expect(rig.frame().move.magnitude).toBe(0);
+    rig.up(1, anchor.x, anchor.y);
+    rig.frame();
+
+    const offset = 36;
+    rig.down(2, anchor.x + offset, anchor.y);
+    expect(rig.core.stick).toMatchObject({ originX: anchor.x, originY: anchor.y });
+    const f = rig.frame();
+    expect(f.move.magnitude).toBeCloseTo(
+      (offset - T.stickDeadZonePx) / (T.stickFullDeflectionPx - T.stickDeadZonePx),
+      5
+    );
+    expect(f.move.x).toBeGreaterThan(0);
+  });
+
+  it('ANCHORED falls back to the touch point for a thumb nowhere near it', () => {
+    // The alternative is a character that sprints off the instant a thumb lands
+    // in the far corner of the stick zone, at a full deflection nobody asked
+    // for. The ring stays painted at the anchor; only the origin moves.
+    const rig = makeRig();
+    const anchor = fixedStickAnchor(T, W, H, ZERO_SAFE_AREA);
+    expect(Math.hypot(FAR.x - anchor.x, FAR.y - anchor.y)).toBeGreaterThan(T.stickCaptureRadiusPx);
+    rig.down(1, FAR.x, FAR.y);
+    expect(rig.core.stick).toMatchObject({ originX: FAR.x, originY: FAR.y });
+    expect(rig.frame().move.magnitude).toBe(0);
+  });
+
+  it('ANCHORED measures its home from the SAFE-AREA corner, not the glass', () => {
+    // Without this the ring (positioned by CSS from `env(safe-area-inset-*)`)
+    // and the origin (computed here) sit 44px apart in landscape on a notched
+    // phone: the stick reads from one place and is drawn in another.
+    const rig = makeRig();
+    rig.core.setSafeArea({ top: 0, right: 44, bottom: 34, left: 44 });
+    const anchor = fixedStickAnchor(T, W, H, { top: 0, right: 44, bottom: 34, left: 44 });
+    expect(anchor.x).toBe(44 + T.stickFixedInsetPx);
+    expect(anchor.y).toBe(H - 34 - T.stickFixedInsetPx);
+    rig.down(1, anchor.x, anchor.y);
+    expect(rig.core.stick).toMatchObject({ originX: anchor.x, originY: anchor.y });
   });
 
   it('reads centred on touch-down, before any travel', () => {
@@ -148,12 +207,14 @@ describe('floating virtual stick', () => {
     const rig = makeRig({ ...T });
     rig.down(1, 300, 300);
     rig.frame();
-    rig.move(1, 500, 300); // 200px right: 80px of overshoot
+    rig.move(1, 500, 300); // 200px right, well past full deflection
     rig.frame();
     expect(rig.core.stick!.originX).toBeCloseTo(500 - T.stickFullDeflectionPx, 5);
 
-    // Coming back 64px now lands inside the dead zone and releases the stick.
-    rig.move(1, 500 - 64, 300);
+    // The origin now trails exactly one full deflection behind the thumb, so
+    // coming back that far LESS the dead zone re-centres immediately, rather
+    // than the player having to retrace the whole overshoot first.
+    rig.move(1, 500 - (T.stickFullDeflectionPx - T.stickDeadZonePx + 1), 300);
     expect(rig.frame().move.magnitude).toBe(0);
   });
 
@@ -177,6 +238,34 @@ describe('floating virtual stick', () => {
     const f = rig.frame();
     expect(f.move).toBe(NEUTRAL_AXIS);
     expect(rig.core.stick).toBeNull();
+  });
+
+  it('the TOP of the stick hand’s half is the camera, not the stick', () => {
+    // A swipe up there is someone looking around. It used to walk the
+    // character, because the stick zone ran the full height of the screen.
+    const rig = makeRig();
+    const high = H * T.stickZoneTopFraction - 1;
+    expect(rig.core.isStickZone(120, high)).toBe(false);
+    rig.down(1, 120, high);
+    rig.frame();
+    rig.move(1, 260, high);
+    const f = rig.frame();
+    expect(f.move.magnitude).toBe(0);
+    expect(Math.abs(f.look.x)).toBeGreaterThan(0);
+    expect(rig.core.debugPointers()[0]!.role).toBe('camera');
+  });
+
+  it('asks the same question the zone helper does, at its own viewport', () => {
+    const rig = makeRig();
+    for (const [x, y] of [
+      [1, 1],
+      [120, 560],
+      [W * T.stickZoneFraction - 1, 560],
+      [W * T.stickZoneFraction + 1, 560],
+      [W - 1, H - 1],
+    ] as const) {
+      expect(rig.core.isStickZone(x, y), `(${x},${y})`).toBe(isStickZone(x, y, W, H, T));
+    }
   });
 
   it('a second left-half finger does not steal the stick', () => {
