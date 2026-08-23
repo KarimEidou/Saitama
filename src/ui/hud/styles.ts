@@ -1136,26 +1136,38 @@ ${allPalettes()}
    quests 232 of 601, rank 232 of 623, results 232 of 574, settings 232 of 851.
    The results screen's payoff — "Hero points awarded" — sits 264 px below a
    232 px fold.
-   FOUR LAYERS, TWO PAIRS, NO JAVASCRIPT AND NO LAYOUT READ. The two scroll
-   layers are the shadows and stay pinned to the scroll port; the two local
-   layers are painted in the panel's own surface, scroll WITH the content, and
-   therefore cover the shadow exactly when the content is against that end. So
-   the shadow appears only when there is something past it, which is the whole
-   point — a permanent gradient at both ends would be a decoration that lies at
-   the top of a short list. The covers are one 82 % layer rather than the three
-   --hud-panel uses, because they only have to hide a 12 px radial at 55 %
-   black: the 18 % that survives is under one part in 255 against the composed
-   panel, and three layers on a scrolling box is three layers to repaint on
-   every frame of a flick. */
+   SIX LAYERS, TWO PAIRS, NO JAVASCRIPT AND NO LAYOUT READ. The last two are
+   the fold bands and are attached to the SCROLL PORT, so they stay at the top
+   and bottom of the window whatever the content does. The first four are
+   attached LOCAL — they scroll with the content — and are painted in the
+   panel's own surface, so they cover a fold band exactly when the content is
+   against that end. The band therefore appears only when there is something
+   past it, which is the whole point: a permanent gradient at both ends is a
+   decoration that lies at the top of a short list.
+   THE BAND IS LIT, NOT SHADOWED, and that is measurement rather than
+   preference. A drop shadow is the reflex, and the reflex is wrong here: the
+   composed sheet reads at luma 9.9 out of 255, so 55 % black over it lands at
+   4.4 — a five-level move on a surface nobody can see five levels of. The same
+   7 % of WHITE lands at 27, a seventeen-level move, and reads as the lip the
+   next row is disappearing under. It is also the sheet's own idiom: every
+   structural wash in this file (--hud-line, --hud-track, --hud-halftone) is
+   white at low alpha over near-black.
+   The covers are the surface laid down TWICE for the same reason --hud-panel
+   lays it down three times: one 82 % layer leaves 18 % of a seventeen-level
+   band standing, which is a visible seam at rest; two compose to 96.7 % and
+   leave half a level. They are flat rather than fading, and exactly as tall as
+   the band, so the two edges end together and neither shows. */
 .hud-sheet__body{
   flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
   padding:12px 16px;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   background:
-    linear-gradient(var(--hud-surface),transparent) 0 0 / 100% 22px no-repeat,
-    linear-gradient(transparent,var(--hud-surface)) 0 100% / 100% 22px no-repeat,
-    radial-gradient(farthest-side at 50% 0,rgba(0,0,0,.55),transparent) 0 0 / 100% 12px no-repeat,
-    radial-gradient(farthest-side at 50% 100%,rgba(0,0,0,.55),transparent) 0 100% / 100% 12px no-repeat;
-  background-attachment:local,local,scroll,scroll;
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 0 / 100% 14px no-repeat,
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 0 / 100% 14px no-repeat,
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 100% / 100% 14px no-repeat,
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 100% / 100% 14px no-repeat,
+    linear-gradient(rgba(255,255,255,.07),transparent) 0 0 / 100% 14px no-repeat,
+    linear-gradient(transparent,rgba(255,255,255,.07)) 0 100% / 100% 14px no-repeat;
+  background-attachment:local,local,local,local,scroll,scroll;
 }
 .hud-sheet__foot{
   display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;
