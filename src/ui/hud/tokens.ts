@@ -318,14 +318,40 @@ export function boredomBand(value: number): IBoredomBand {
 export const THUMB_RESERVE_PX = 240;
 
 /**
- * The same reservation for the left thumb.
+ * The same reservation for the stick hand, in CSS px from the safe-area corner.
  *
- * The stick is FLOATING: its origin is wherever the thumb lands in the left
- * half, so there is no fixed rectangle to avoid. What can be said is that the
- * hand covers the bottom-left corner out to roughly a full-deflection radius
- * (120 px) plus the palm.
+ * The stick used to be floating-only, and this comment used to say there was no
+ * fixed rectangle to avoid. There is one now. `src/ui/input/config.ts` anchors
+ * the stick by default: `stickFixedInsetPx` (96) puts the anchor CENTRE that
+ * far inside the safe-area corner on both axes, and `stickBaseRadiusPx` (76) is
+ * the ring painted around it — a visual radius, deliberately decoupled from
+ * `stickFullDeflectionPx` (92) so the artwork can be sized for the eye and the
+ * input for the thumb. The furthest painted stick pixel from the corner is
+ * therefore hypot(96, 96) + 76 = 211.8, plus a ~13 px margin so the HUD clears
+ * the HAND and not merely the ring, exactly as `THUMB_RESERVE_PX` does above.
+ *
+ * FLOATING is still a setting, and floating cannot be bounded at all: the origin
+ * is wherever the thumb lands in the stick zone, so no number reserves it. The
+ * anchored default is the case worth reserving; a player who turns floating on
+ * has chosen to put their own thumb wherever they put it.
+ *
+ * There is a CEILING as well as a floor. The portrait quest tracker sits in the
+ * bottom-left corner and the harness measures its distance from that pivot
+ * against this constant, so a reserve larger than the tracker's own offset
+ * fails the layout it is supposed to protect. 225 leaves headroom under it.
+ *
+ * Hand-maintained mirror, like `THUMB_RESERVE_PX`: `__tests__/imports.test.ts`
+ * forbids `src/ui/hud/**` from importing `@/ui/input`, so this cannot be
+ * computed from the tuning it mirrors. The arithmetic is asserted in
+ * `__tests__/settings-and-safe-area.test.ts` and again in the harness against
+ * the input layer's own exported geometry, so a retune of the stick fails
+ * loudly here instead of quietly overlapping.
+ *
+ * Which corner this claims follows `IHudSettings.stickHand`: the manager writes
+ * it to `data-stick-hand` on the HUD root and the stylesheet swaps the two
+ * reserves between the bottom corners.
  */
-export const STICK_RESERVE_PX = 200;
+export const STICK_RESERVE_PX = 225;
 
 /** Minimum tap target, CSS px. Anything smaller is a bug, not a style. */
 export const MIN_TAP_PX = 44;

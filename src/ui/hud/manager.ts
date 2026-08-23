@@ -288,6 +288,18 @@ export class HudManager {
     const settings = normaliseSettings({ ...this.store.model.settings, ...patch });
     this.store.setSettings(settings);
     this.root.dataset.palette = settings.palette;
+    // Which bottom corner the stick occupies. The stylesheet reads it to swap
+    // `--hud-stick-reserve` and `--hud-thumb-reserve` between the corners, so
+    // the tracker keeps clearing the STICK whichever hand drives it.
+    //
+    // A future reader will ask whether an attribute write breaks the frame
+    // contract. It does not: this is step 2 of the loop — the render path,
+    // which runs when the player changes a setting and is allowed arbitrary
+    // DOM — not step 3, the every-frame `frame()` pass whose
+    // custom-properties-only discipline `harness/hud.verify.ts` enforces via
+    // CLS and `writerStats`. `dataset.palette` and `dataset.reducedMotion`
+    // directly above have always been written from exactly here.
+    this.root.dataset.stickHand = settings.stickHand;
     this.root.dataset.reducedMotion = String(settings.reducedMotion);
     this.root.style.setProperty('--hud-scale', String(settings.hudScale));
     this.options.onSettingsChange?.(settings);

@@ -13,6 +13,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   DEFAULT_HUD_SETTINGS,
   HUD_SCALE_STEPS,
@@ -144,8 +146,22 @@ describe('thumb geometry', () => {
     expect(THUMB_RESERVE_PX).toBeGreaterThan(16 + 166 + 33);
   });
 
-  it('reserves a full stick deflection for the left thumb', () => {
-    expect(STICK_RESERVE_PX).toBeGreaterThan(120);
+  it('reserves the whole ANCHORED stick, not just its deflection', () => {
+    // Mirrors two fields of `src/ui/input/config.ts`, written out because
+    // `imports.test.ts` forbids the HUD from importing `@/ui/input` at all:
+    // `stickFixedInsetPx` puts the anchor CENTRE that far inside the safe-area
+    // corner on both axes, and `stickBaseRadiusPx` is the ring painted around
+    // it — the visual radius, not `stickFullDeflectionPx`, which is smaller.
+    // The furthest painted stick pixel from the corner is the diagonal to the
+    // centre plus that radius: hypot(96, 96) + 76 = 211.8. The reserve is
+    // bigger, so a HUD element placed at it clears the HAND and not merely the
+    // ring. Retune either field and this fails loudly instead of the stick
+    // quietly growing out under the tracker.
+    const stickFixedInsetPx = 96;
+    const stickBaseRadiusPx = 76;
+    expect(STICK_RESERVE_PX).toBeGreaterThan(
+      Math.hypot(stickFixedInsetPx, stickFixedInsetPx) + stickBaseRadiusPx
+    );
   });
 
   it('sets the minimum tap target at the platform guidance', () => {
@@ -154,5 +170,25 @@ describe('thumb geometry', () => {
 
   it('gives every edge a typographic floor', () => {
     expect(EDGE_FLOOR_PX).toBeGreaterThan(0);
+  });
+});
+
+describe('the stick hand reaches the stylesheet', () => {
+  // There is no DOM here. Vitest runs in the `node` environment and the repo
+  // carries neither jsdom nor happy-dom, so the manager cannot be constructed
+  // in a unit test and the attribute cannot be read back off a real element —
+  // that measurement belongs to `harness/hud.verify.ts`, in a real browser.
+  // What CAN be checked without one is that the write is still on the render
+  // path at all, which is the same trade `imports.test.ts` and `styles.test.ts`
+  // already make: scan the source rather than skip the guard.
+  const source = readFileSync(path.resolve(import.meta.dirname, '..', 'manager.ts'), 'utf8');
+  const body = /applySettings\(patch[^)]*\)[^{]*\{([\s\S]*?)\n {2}\}/.exec(source)?.[1] ?? '';
+
+  it('writes data-stick-hand beside the palette, in applySettings', () => {
+    // An empty body means the method was renamed or reshaped, not that the
+    // write survived — assert we actually found it before trusting the match.
+    expect(body).not.toBe('');
+    expect(body).toMatch(/this\.root\.dataset\.palette\s*=\s*settings\.palette/);
+    expect(body).toMatch(/this\.root\.dataset\.stickHand\s*=\s*settings\.stickHand/);
   });
 });
