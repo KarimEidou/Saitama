@@ -273,15 +273,20 @@ ${CSS_NUMBER_STYLES}
   --hud-reserve-l:var(--hud-stick-reserve);
   --hud-reserve-r:var(--hud-thumb-reserve);
   --hud-pause-size:${MIN_TAP_PX}px;
-  /* What one row of the combat band is allowed to cost, measured from the top
-     inset. The tallest plate is the hero file — micro overline, 24 px readout,
-     a meter rule and its padding — and this is that, rounded up to the next
-     even number. harness/hud.verify.ts reads it off the root and fails if
-     row one outgrows it, so the number is a promise rather than a comment. */
+  /* What ROW ONE of the combat band is allowed to cost, measured the way the
+     harness measures it: from the top INSET, which on a landscape phone is 0
+     while the band itself starts at the 8 px edge floor. So this is the tallest
+     plate — the hero file: micro caption row, 24 px readout, meter rule and
+     padding, 56 px — plus that floor. Measured at 64.0 against a 64 px budget,
+     with the grid's own 6 px gap as the slack.
+     harness/hud.verify.ts reads it off the root and fails if row one outgrows
+     it, which makes the number a promise rather than a comment. */
   --hud-band-row:64px;
-  /* And what the whole band costs: both rows plus the gap between them. The
-     alert stack hangs off the bottom of this, so the bulletin cannot drift into
-     the band by growing a row taller. */
+  /* And what the WHOLE band costs, every row and every gap. Nothing lays out
+     against it; the alert stack hangs off the bottom of it, so a band that
+     grows a row taller cannot push a bulletin onto a plate. Re-declared per
+     breakpoint, because the band is two rows in landscape and four in
+     portrait. */
   --hud-band-h:124px;
   /* The charge arc's box, so the alert stack can sit on top of it without
      either one knowing the other's markup. */
@@ -339,10 +344,10 @@ ${allPalettes()}
    while the element keeps an upright, un-skewed layout box for
    getBoundingClientRect() and for the type inside it. contain:layout makes
    the panel a containing block AND a stacking context, which is what lets the
-   backing sit at z-index -1 — behind the content, in front of nothing. */
-/* 5/6 px of vertical padding rather than 6/7. Two pixels a plate does not sound
-   like a decision until the band is 121 px tall at 130 % HUD scale, at which
-   point it is most of the margin. */
+   backing sit at z-index -1 — behind the content, in front of nothing.
+   5/6 px of vertical padding rather than 6/7, which does not sound like a
+   decision until the band is 121 px tall at 130 % HUD scale and two pixels a
+   plate is most of the margin. */
 .hud-panel{
   position:relative;
   padding:5px 11px 6px;

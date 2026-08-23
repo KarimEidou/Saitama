@@ -53,23 +53,23 @@
   },
   "regions": {
     "whole": {
-      "meanLuma": 37.278154137565565,
-      "stdDev": 32.393704122351565,
-      "colours": 1165,
+      "meanLuma": 37.27669293025118,
+      "stdDev": 32.39216427006656,
+      "colours": 1169,
       "width": 2532,
       "height": 1170
     },
     "band": {
-      "meanLuma": 39.0192488722012,
-      "stdDev": 43.63146751056023,
-      "colours": 646,
+      "meanLuma": 39.01922983038096,
+      "stdDev": 43.63144235446782,
+      "colours": 648,
       "width": 2532,
       "height": 360
     },
     "corridor": {
-      "meanLuma": 28.536432753653358,
-      "stdDev": 18.68119983129901,
-      "colours": 233,
+      "meanLuma": 28.531717850808292,
+      "stdDev": 18.66579184356608,
+      "colours": 232,
       "width": 1013,
       "height": 351
     }
@@ -155,7 +155,7 @@
       "width": 844,
       "height": 390
     },
-    "cumulativeLayoutShift": 0.07193970720170084
+    "cumulativeLayoutShift": 0.03683664623263352
   },
   "snapshot.phone-portrait": {
     "scene": "pause",
@@ -292,114 +292,114 @@
       "height": 1170
     },
     "hud-combat-phone-landscape.png": {
-      "meanLuma": 37.278154137565565,
-      "stdDev": 32.393704122351565,
-      "colours": 1165,
+      "meanLuma": 37.27669293025118,
+      "stdDev": 32.39216427006656,
+      "colours": 1169,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-boss-phone-landscape.png": {
-      "meanLuma": 37.306933353547294,
-      "stdDev": 32.586329708297626,
-      "colours": 1215,
+      "meanLuma": 37.30547272481002,
+      "stdDev": 32.58480040653919,
+      "colours": 1219,
       "width": 2532,
       "height": 1170
     },
     "hud-quests-phone-landscape.png": {
-      "meanLuma": 18.90809814789202,
-      "stdDev": 31.212814544272305,
+      "meanLuma": 18.90809332011492,
+      "stdDev": 31.212816316387475,
       "colours": 460,
       "width": 2532,
       "height": 1170
     },
     "hud-rank-phone-landscape.png": {
-      "meanLuma": 16.810330053885885,
-      "stdDev": 30.57934611065019,
+      "meanLuma": 16.810325226108784,
+      "stdDev": 30.579347588286293,
       "colours": 335,
       "width": 2532,
       "height": 1170
     },
     "hud-results-phone-landscape.png": {
-      "meanLuma": 12.638060784932236,
-      "stdDev": 22.340132788409292,
+      "meanLuma": 12.63805451604578,
+      "stdDev": 22.34013435092979,
       "colours": 389,
       "width": 2532,
       "height": 1170
     },
     "hud-pause-phone-landscape.png": {
-      "meanLuma": 11.709679577470041,
-      "stdDev": 23.208786370015435,
+      "meanLuma": 11.709656169806086,
+      "stdDev": 23.208791057257045,
       "colours": 275,
       "width": 2532,
       "height": 1170
     },
     "hud-settings-phone-landscape.png": {
-      "meanLuma": 14.337807205261479,
-      "stdDev": 25.581058131131538,
+      "meanLuma": 14.337802377484376,
+      "stdDev": 25.58105943085718,
       "colours": 256,
       "width": 2532,
       "height": 1170
     },
     "hud-idle-phone-landscape.png": {
-      "meanLuma": 37.68616150984877,
-      "stdDev": 28.643314323901762,
-      "colours": 1052,
+      "meanLuma": 37.68471317806951,
+      "stdDev": 28.641650616071228,
+      "colours": 1056,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-alert-phone-landscape.png": {
-      "meanLuma": 37.40870279304416,
-      "stdDev": 32.56854766847777,
-      "colours": 1211,
+      "meanLuma": 37.38436555323124,
+      "stdDev": 32.499944254978594,
+      "colours": 1219,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-charging-phone-landscape.png": {
-      "meanLuma": 37.52688275144051,
-      "stdDev": 32.4856861197364,
-      "colours": 1300,
+      "meanLuma": 37.525437821788984,
+      "stdDev": 32.48395323899495,
+      "colours": 1303,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-bored-phone-landscape.png": {
-      "meanLuma": 37.24479678214101,
-      "stdDev": 32.032218735108096,
-      "colours": 1185,
+      "meanLuma": 37.16799636998125,
+      "stdDev": 31.919220480703164,
+      "colours": 1189,
       "width": 2532,
       "height": 1170
     },
     "hud-markers-phone-landscape.png": {
-      "meanLuma": 37.79816561828138,
-      "stdDev": 33.85671261597068,
-      "colours": 1560,
+      "meanLuma": 37.79614101275504,
+      "stdDev": 33.85227666384487,
+      "colours": 1569,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-deuteranopia.png": {
-      "meanLuma": 37.24168426131651,
-      "stdDev": 32.29349804979836,
-      "colours": 1168,
+      "meanLuma": 37.24134729739611,
+      "stdDev": 32.29543259467719,
+      "colours": 1173,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-protanopia.png": {
-      "meanLuma": 37.36018837690861,
-      "stdDev": 32.95329321664751,
-      "colours": 1145,
+      "meanLuma": 37.23423695828349,
+      "stdDev": 32.57673648250866,
+      "colours": 1142,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-tritanopia.png": {
-      "meanLuma": 37.164531031544136,
-      "stdDev": 32.25628428292134,
-      "colours": 1214,
+      "meanLuma": 37.158989415039585,
+      "stdDev": 32.245576815526725,
+      "colours": 1218,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-highContrast.png": {
-      "meanLuma": 36.206631215739016,
-      "stdDev": 35.30678107034839,
-      "colours": 1175,
+      "meanLuma": 36.31399690536492,
+      "stdDev": 35.523499441908385,
+      "colours": 1177,
       "width": 2532,
       "height": 1170
     },
@@ -411,16 +411,16 @@
       "height": 2532
     },
     "hud-combat-phone-portrait.png": {
-      "meanLuma": 48.43584114269249,
-      "stdDev": 40.75591880990519,
-      "colours": 1021,
+      "meanLuma": 48.435123103373606,
+      "stdDev": 40.75602775849711,
+      "colours": 1020,
       "width": 1170,
       "height": 2532
     },
     "hud-combat-boss-phone-portrait.png": {
-      "meanLuma": 48.16880145806689,
-      "stdDev": 40.895753034659336,
-      "colours": 1071,
+      "meanLuma": 48.16476499278789,
+      "stdDev": 40.88595700857471,
+      "colours": 1073,
       "width": 1170,
       "height": 2532
     },
@@ -446,8 +446,8 @@
       "height": 2532
     },
     "hud-pause-phone-portrait.png": {
-      "meanLuma": 11.5750350647043,
-      "stdDev": 23.390616422842292,
+      "meanLuma": 11.575085735165159,
+      "stdDev": 23.39059260371557,
       "colours": 274,
       "width": 1170,
       "height": 2532
@@ -467,50 +467,50 @@
       "height": 1536
     },
     "hud-combat-tablet.png": {
-      "meanLuma": 43.78487213557977,
-      "stdDev": 30.50611981377976,
+      "meanLuma": 43.78488187545555,
+      "stdDev": 30.50608347316985,
       "colours": 924,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-boss-tablet.png": {
-      "meanLuma": 43.8907497119313,
-      "stdDev": 30.791512414478472,
-      "colours": 951,
+      "meanLuma": 43.89254381911397,
+      "stdDev": 30.7971148043367,
+      "colours": 953,
       "width": 2048,
       "height": 1536
     },
     "hud-quests-tablet.png": {
-      "meanLuma": 20.16349000444821,
-      "stdDev": 31.337340468935363,
+      "meanLuma": 20.163493526240305,
+      "stdDev": 31.337338524384332,
       "colours": 530,
       "width": 2048,
       "height": 1536
     },
     "hud-rank-tablet.png": {
-      "meanLuma": 18.681318274828456,
-      "stdDev": 30.3755743067383,
+      "meanLuma": 18.681321796620548,
+      "stdDev": 30.375572472463304,
       "colours": 463,
       "width": 2048,
       "height": 1536
     },
     "hud-results-tablet.png": {
-      "meanLuma": 13.523937006195695,
-      "stdDev": 22.561001775448307,
+      "meanLuma": 13.523929051916111,
+      "stdDev": 22.560993905078323,
       "colours": 487,
       "width": 2048,
       "height": 1536
     },
     "hud-pause-tablet.png": {
-      "meanLuma": 10.273289779240015,
-      "stdDev": 15.404692971877838,
+      "meanLuma": 10.273252757475897,
+      "stdDev": 15.404681792617032,
       "colours": 271,
       "width": 2048,
       "height": 1536
     },
     "hud-settings-tablet.png": {
-      "meanLuma": 16.092944506054813,
-      "stdDev": 28.255231907301663,
+      "meanLuma": 16.092967644864018,
+      "stdDev": 28.255237551865736,
       "colours": 287,
       "width": 2048,
       "height": 1536
@@ -1952,9 +1952,9 @@
         "screen": "hud",
         "path": "0/0/0",
         "occluded": false,
-        "x": 384.4375,
+        "x": 383.7421875,
         "y": 149.32310485839844,
-        "width": 75.125,
+        "width": 76.515625,
         "height": 40,
         "text": "Mosquito Girl25 m"
       },
@@ -1964,9 +1964,9 @@
         "screen": "hud",
         "path": "0/0/1",
         "occluded": false,
-        "x": 233.43408203125,
+        "x": 232.73876953125,
         "y": 154.99111938476562,
-        "width": 82.375,
+        "width": 83.765625,
         "height": 40,
         "text": "Route 7 Tunnel35 m"
       },
@@ -1976,9 +1976,9 @@
         "screen": "hud",
         "path": "0/0/2",
         "occluded": false,
-        "x": 503.86474609375,
+        "x": 503.16943359375,
         "y": 162.66404724121094,
-        "width": 171.96875,
+        "width": 173.359375,
         "height": 40,
         "text": "Supermarket — sale ends 18:0035 m"
       },
@@ -1988,9 +1988,9 @@
         "screen": "hud",
         "path": "0/0/3",
         "occluded": false,
-        "x": 528.6150512695312,
+        "x": 527.9197387695312,
         "y": 205.9905242919922,
-        "width": 42.921875,
+        "width": 44.3125,
         "height": 37,
         "text": "Civilian20 m"
       },
@@ -2000,9 +2000,9 @@
         "screen": "hud",
         "path": "0/0/4",
         "occluded": false,
-        "x": 256.2681579589844,
+        "x": 255.57284545898438,
         "y": 193.3723907470703,
-        "width": 66.640625,
+        "width": 68.03125,
         "height": 40,
         "text": "Mumen Rider20 m"
       },
@@ -4415,7 +4415,7 @@
     {
       "name": "combat @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.4, colours 1165"
+      "detail": "stdDev 32.4, colours 1169"
     },
     {
       "name": "combat @ phone-landscape respects the safe area",
@@ -4450,7 +4450,7 @@
     {
       "name": "combat-boss @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.6, colours 1215"
+      "detail": "stdDev 32.6, colours 1219"
     },
     {
       "name": "combat-boss @ phone-landscape respects the safe area",
@@ -4560,7 +4560,7 @@
     {
       "name": "idle @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 28.6, colours 1052"
+      "detail": "stdDev 28.6, colours 1056"
     },
     {
       "name": "idle @ phone-landscape respects the safe area",
@@ -4595,7 +4595,7 @@
     {
       "name": "combat-alert @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.6, colours 1211"
+      "detail": "stdDev 32.5, colours 1219"
     },
     {
       "name": "combat-alert @ phone-landscape respects the safe area",
@@ -4630,7 +4630,7 @@
     {
       "name": "combat-charging @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.5, colours 1300"
+      "detail": "stdDev 32.5, colours 1303"
     },
     {
       "name": "combat-charging @ phone-landscape respects the safe area",
@@ -4665,7 +4665,7 @@
     {
       "name": "combat-bored @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.0, colours 1185"
+      "detail": "stdDev 31.9, colours 1189"
     },
     {
       "name": "combat-bored @ phone-landscape respects the safe area",
@@ -4700,7 +4700,7 @@
     {
       "name": "markers @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 33.9, colours 1560"
+      "detail": "stdDev 33.9, colours 1569"
     },
     {
       "name": "markers @ phone-landscape respects the safe area",
@@ -4770,22 +4770,22 @@
     {
       "name": "deuteranopia palette renders",
       "pass": true,
-      "detail": "stdDev 32.3, colours 1168"
+      "detail": "stdDev 32.3, colours 1173"
     },
     {
       "name": "protanopia palette renders",
       "pass": true,
-      "detail": "stdDev 33.0, colours 1145"
+      "detail": "stdDev 32.6, colours 1142"
     },
     {
       "name": "tritanopia palette renders",
       "pass": true,
-      "detail": "stdDev 32.3, colours 1214"
+      "detail": "stdDev 32.2, colours 1218"
     },
     {
       "name": "highContrast palette renders",
       "pass": true,
-      "detail": "stdDev 35.3, colours 1175"
+      "detail": "stdDev 35.5, colours 1177"
     },
     {
       "name": "the layout survives HUD scale at 130%",
@@ -4815,7 +4815,7 @@
     {
       "name": "combat @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 40.8, colours 1021"
+      "detail": "stdDev 40.8, colours 1020"
     },
     {
       "name": "combat @ phone-portrait respects the safe area",
@@ -4850,7 +4850,7 @@
     {
       "name": "combat-boss @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 40.9, colours 1071"
+      "detail": "stdDev 40.9, colours 1073"
     },
     {
       "name": "combat-boss @ phone-portrait respects the safe area",
@@ -5065,7 +5065,7 @@
     {
       "name": "combat-boss @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 30.8, colours 951"
+      "detail": "stdDev 30.8, colours 953"
     },
     {
       "name": "combat-boss @ tablet respects the safe area",
@@ -5178,5 +5178,5 @@
       "detail": "clean"
     }
   ],
-  "generatedAt": "2026-08-23T21:29:39.832Z"
+  "generatedAt": "2026-08-23T21:42:52.973Z"
 }
