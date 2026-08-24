@@ -21,6 +21,11 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import type { IGameDiagnostics } from '../src/types/engine.ts';
+// Type-only, and it is here for the `declare global` in
+// `src/ui/input/test-bridge.ts` rather than for the name: that is what puts
+// `window.__INPUT__` on `Window` for this file. `IInputTuning` is read below.
+import type { IInputTuning } from '../src/ui/input/index.ts';
+import type { IIntegrationDiagnostics } from '../src/game/diagnostics.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -296,6 +301,200 @@ async function main(): Promise<void> {
           `and copied to docs/screenshots is not the frame this harness thinks it configured`
       );
     }
+
+    /* --------------------- a real touch walks him --------------------- */
+    /* THE ONE THING NOTHING IN THIS REPOSITORY PROVED.
+       `harness/input.verify.ts` proves the touch stack produces the right
+       InputState, and `player-controller`'s unit tests prove the controller
+       moves when handed one. Nothing joined them: no test anywhere took a
+       finger, put it on the glass of the real build, and checked that the
+       character went anywhere. That is precisely the bug this branch exists to
+       fix — the stick read `active:true, magnitude:0` and every layer reported
+       itself healthy — so it gets an assertion in the harness that runs against
+       the SHIPPING BUNDLE, with the real assets, after the real boot.
+
+       `__INPUT__.reset()` first, and it is not a formality: while the synthetic
+       source is armed it REPLACES every real backend, so a stale arm makes this
+       whole section prove nothing at all while passing.
+
+       Touches go over CDP because Playwright's touchscreen can tap and cannot
+       drag, and a tap is the one gesture this control is now specifically
+       required NOT to move for.
+
+       All four (layout x hand) combinations, because the setting exists and a
+       control that works on one of its four settings is a control that does not
+       work. */
+    const walkFailures: string[] = [];
+    if (diag) {
+      const cdp = await page.context().newCDPSession(page);
+      const tuning = (await page.evaluate(() =>
+        window.__INPUT__ ? window.__INPUT__.config() : null
+      )) as IInputTuning | null;
+
+      if (!tuning) {
+        walkFailures.push('window.__INPUT__ is not installed in the production bundle');
+      } else {
+        /* Past full deflection, so the reading is 1.0 whichever origin the
+           layout picked — the anchor for a centred grab, the touch point for a
+           floating one. This section is about DISPLACEMENT, not about which of
+           the two answered. */
+        const reach = tuning.stickFullDeflectionPx + 28;
+
+        /* THE HOLD IS COUNTED IN FRAMES, NOT MILLISECONDS, and that is not
+           fussiness. The input manager polls once per rendered frame, and this
+           harness renders through SwiftShader on a machine with no GPU:
+           measured here, the game presents a frame roughly every 400ms. A
+           `waitForTimeout(120)` after lifting the finger therefore read a
+           snapshot from BEFORE the lift and reported a stick pinned at
+           magnitude 1.000 with nothing touching the glass — a harness artefact
+           that looks exactly like the bug this file exists to catch. Wall-clock
+           waits cannot tell the two apart; frames can. */
+        const frameCount = () =>
+          page.evaluate(
+            () => (window.__GAME_DIAG__ as IIntegrationDiagnostics | undefined)?.frameCount ?? 0
+          ) as Promise<number>;
+        const waitFrames = async (count: number): Promise<void> => {
+          const target = (await frameCount()) + count;
+          await page.waitForFunction(
+            (want) =>
+              ((window.__GAME_DIAG__ as IIntegrationDiagnostics | undefined)?.frameCount ?? 0) >=
+              want,
+            target,
+            { timeout: 60_000 }
+          );
+        };
+
+        for (const stickHand of ['left', 'right'] as const) {
+          for (const floatingStick of [false, true]) {
+            const label = `${floatingStick ? 'floating' : 'anchored'}/${stickHand}`;
+            await page.evaluate(
+              (patch) => {
+                window.__INPUT__?.reset();
+                window.__INPUT__?.setConfig(patch);
+              },
+              { stickHand, floatingStick }
+            );
+            await waitFrames(2);
+
+            /* The anchored stick's home corner, which is inside the stick zone
+               on both hands and on this viewport. Headless Chromium reports no
+               insets, so the safe-area terms are zero. */
+            const from = {
+              x:
+                stickHand === 'right'
+                  ? VIEWPORT.width - tuning.stickFixedInsetPx
+                  : tuning.stickFixedInsetPx,
+              y: VIEWPORT.height - tuning.stickFixedInsetPx,
+            };
+
+            /* WHO OWNS THE PIXEL. A HUD panel left mounted over the stick half
+               swallows the touch before the input layer ever sees it, and the
+               failure then looks exactly like a broken stick. Reported rather
+               than asserted on, so the message below names the cause. */
+            const owner = (await page.evaluate(
+              (point) => document.elementFromPoint(point.x, point.y)?.className ?? '(nothing)',
+              from
+            )) as string;
+
+            /* `src/types/engine.ts` declares the global as the BASE
+               `IGameDiagnostics` on purpose — `src/types/` may not import from
+               `src/game/`, so the richer shape the game actually publishes
+               cannot be named there. The cast is that architectural rule
+               arriving here, not a shortcut. */
+            const before = (await page.evaluate(
+              () =>
+                (window.__GAME_DIAG__ as IIntegrationDiagnostics | undefined)?.world
+                  .playerPosition ?? null
+            )) as { x: number; y: number; z: number } | null;
+
+            /* `radiusX`/`radiusY`/`force` are not decoration: a touch point
+               without them is not the shape a real finger sends, and the
+               `touchEnd` below carries the LIFTED POINT rather than an empty
+               list. Measured: an empty list released the first gesture of the
+               run and none of the three after it, so the stick stayed pinned at
+               magnitude 1.000 with no finger on the glass. */
+            const finger = (x: number, y: number) => [
+              { x, y, radiusX: 3, radiusY: 3, force: 1, id: 1 },
+            ];
+            await cdp.send('Input.dispatchTouchEvent', {
+              type: 'touchStart',
+              touchPoints: finger(from.x, from.y),
+            });
+            for (let step = 1; step <= 8; step += 1) {
+              await cdp.send('Input.dispatchTouchEvent', {
+                type: 'touchMove',
+                touchPoints: finger(from.x, from.y - (reach * step) / 8),
+              });
+              await page.waitForTimeout(16);
+            }
+            // Held for 12 frames: long enough that acceleration cannot be the
+            // reason the number is small.
+            await waitFrames(12);
+
+            const held = (await page.evaluate(() => ({
+              move: window.__INPUT__?.snapshot().move ?? null,
+              device: window.__INPUT__?.device() ?? null,
+              position:
+                (window.__GAME_DIAG__ as IIntegrationDiagnostics | undefined)?.world
+                  .playerPosition ?? null,
+            }))) as {
+              move: { magnitude: number; active: boolean } | null;
+              device: string | null;
+              position: { x: number; y: number; z: number } | null;
+            };
+
+            await cdp.send('Input.dispatchTouchEvent', {
+              type: 'touchEnd',
+              touchPoints: finger(from.x, from.y - reach),
+            });
+            await waitFrames(3);
+
+            const rest = (await page.evaluate(
+              () => window.__INPUT__?.snapshot().move.magnitude ?? -1
+            )) as number;
+
+            const moved =
+              before && held.position
+                ? Math.hypot(held.position.x - before.x, held.position.z - before.z)
+                : Number.NaN;
+            const detail =
+              `${label}: moved ${Number.isFinite(moved) ? moved.toFixed(3) : '?'} m, ` +
+              `magnitude ${held.move?.magnitude.toFixed(3) ?? '?'}, device ${held.device ?? '?'}, ` +
+              `pixel owned by "${owner}"`;
+            console.log(`  ${detail}`);
+
+            if (!(moved > 1)) walkFailures.push(`a touch drag did not walk him — ${detail}`);
+            if (held.device !== 'touch') {
+              walkFailures.push(`the drag was not attributed to touch — ${detail}`);
+            }
+            if (rest > 0.001) {
+              walkFailures.push(
+                `${label}: the stick did not centre when the thumb lifted (${rest})`
+              );
+            }
+          }
+        }
+
+        // Back to the shipping defaults, so nothing after this reads a tuning
+        // this section left behind.
+        await page.evaluate(() => {
+          window.__INPUT__?.reset();
+          window.__INPUT__?.setConfig({ stickHand: 'left', floatingStick: false });
+        });
+      }
+
+      // Nothing has ever read this. A boot that collected three non-fatal
+      // errors and rendered anyway passed every assertion above.
+      const bootErrors = diag.errors ?? [];
+      if (bootErrors.length > 0) {
+        walkFailures.push(
+          `__GAME_DIAG__.errors is not empty: ${bootErrors.slice(0, 5).join(' | ')}`
+        );
+      }
+    }
+    console.log('\n──────── a real touch walks him ────────');
+    if (walkFailures.length === 0) console.log('  all four layout x hand combinations walked');
+    failures.push(...walkFailures);
 
     /* ------------------------------ report ------------------------------ */
     console.log('\n──────── __GAME_DIAG__ ────────');
