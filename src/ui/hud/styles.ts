@@ -336,10 +336,16 @@ ${CSS_NUMBER_STYLES}
      44 px floor intact at every rung below 100 %, so the guard in
      __tests__/styles.test.ts still has a number to stand on.
      It costs the register width, and the cost is stated rather than discovered:
-     .hud-top__right reserves this plus 6 px, so at 130 % the ledger loses
-     ~13 px of a row that closes 4.5 px above the hands. That is affordable
-     because the ledger's four cells are 165.67 px of a 187.67 px plate; it
-     would not be affordable if the reserve grew any faster than the type. */
+     .hud-top__right reserves this plus 6 px, so the ledger gives back whatever
+     the chip takes. That is affordable because the ledger's four cells are
+     165.67 px of a 187.67 px plate.
+     WHAT IS NOT AFFORDABLE IS THE FULL AFFINE VALUE ON THE PROFILE THAT SHIPS,
+     and the landscape block below caps it at 48 px for a reason measured there
+     rather than guessed here: a 390 px-tall screen leaves 129 px above the
+     hands, and 57.20 px of pause chip closed the band at y=138. Read that
+     block before touching this expression — this line states the RULE (never
+     below the tap floor, always affine) and that one states the CEILING the
+     shipping viewport can pay for. */
   --hud-pause-size:max(${MIN_TAP_PX}px,calc(${MIN_TAP_PX}px * var(--hud-scale)));
   /* ONE GAUGE FOR EVERY METER. The HUD shipped five meters at three
      thicknesses — the boss rule and the boredom meter at 5 px, the collateral
@@ -1047,13 +1053,21 @@ ${allPalettes()}
    the trailing-letter-space bug this plate used to have.
    The collateral track is full-bleed (flex:1 0 100%) and the last cell ends
    flush with it, which is the plate's third right edge closed.
+   'align-content:space-between' is what puts that track on the band's meter
+   line rather than half a pixel above it. A wrapped flex container defaults to
+   'align-content:normal', i.e. stretch, so the 1 px this plate has spare inside
+   row one was split between its two lines and the track landed at 52.5..57.5
+   against 53..58 on the two meters beside it. Anchoring the lines to the
+   plate's own edges spends that pixel between them, where nothing is aligned
+   to it. Inert when the collateral ticker is switched off and the plate is one
+   line.
    10 px between columns rather than 12, and the two pixels are not a taste
    change: three gaps at 130 % HUD scale is 6 px of a row that was 51 px over
    budget, and the register is the widest plate in it. Uniform is what makes a
    tally read as a tally; 12 was not load-bearing, evenness is. */
 .hud-ledger{
   --hud-edge:var(--hud-saved);
-  display:flex;flex-wrap:wrap;align-items:flex-start;flex:1 1 auto;
+  display:flex;flex-wrap:wrap;align-items:flex-start;align-content:space-between;flex:1 1 auto;
   column-gap:10px;row-gap:3px;
 }
 .hud-ledger[data-lost='true']{--hud-edge:var(--hud-lost)}
@@ -1847,9 +1861,21 @@ ${allPalettes()}
 
 /* ---- rank board -------------------------------------------------------- */
 .hud-standing{display:flex;align-items:flex-end;gap:14px;margin-bottom:12px}
+/* The same round-cap overshoot the boot title carries, and it IS needed here —
+   checked rather than assumed. This is the sheet's other --t-hero run opening
+   on a round C, and it sits on the body's left measure with two flat-sided runs
+   directly under it: measured off the shipping frame its ink opened at 86.33
+   against the "T" of THE LADDER at 85.00 and the "A" of the assessment note at
+   85.33, so the largest type on the screen was the one that read as indented.
+   PAID BACK ON THE RIGHT, which the boot title does not need to do: that one
+   heads a stack and has nothing beside it, while this one is the first item in
+   a flex row, so an uncompensated negative margin would drag the hero name and
+   its progress bar 1.32 px left with it. An optical correction should move ink,
+   not layout. The 1.32 px lands in a 14 px gap next to a flat "8". */
 .hud-standing__rank{
   font-family:${DISPLAY_FONT};font-size:var(--t-hero);line-height:.82;letter-spacing:.06em;
   color:var(--hud-class,var(--hud-accent));
+  margin-left:-.03em;margin-right:.03em;
 }
 .hud-standing__meta{flex:1 1 auto;min-width:0}
 .hud-standing__bar{height:var(--hud-meter-h);background:var(--hud-track);border-radius:var(--hud-radius);overflow:hidden;margin-top:6px}

@@ -33,6 +33,28 @@
  * fails on the day it is written rather than on the day somebody notices it
  * paints nothing.
  *
+ * ── AND THEY WERE MUTATION-TESTED, WHICH IS HOW THREE HOLES WERE FOUND ─────
+ * A guard nobody has tried to defeat is a guard with an unknown radius. Every
+ * assertion here was re-run against a mutated sheet, and three of them were
+ * matching a SHAPE where they claimed to enforce a RULE:
+ *
+ *   THE LITERAL SUBSTRING. Both completeness filters read `body.includes(…)`.
+ *   A fill written `transform: scaleX(var(--x))` with one space, or
+ *   `scaleX(calc(…))` with a wrapper, vanished from both halves of its own
+ *   guard. They are regexes now, declared once and shared by both halves.
+ *
+ *   THE EXACT SELECTOR. The tap-size loop read `ruleBodies(selector)`, which
+ *   matches by string equality, so `.hud-sheet__foot .hud-btn{min-height:30px}`
+ *   and `.hud-btn[data-compact]{min-height:28px}` both passed. It is a
+ *   containment scan now.
+ *
+ *   THE BLACKLISTED FUNCTION. "Never tints a panel" tested for `color-mix(…
+ *   var(--hud-accent…)` because both original bugs happened to be `color-mix`
+ *   washes — so `background:var(--hud-accent)` and `background:rgba(255,210,
+ *   48,.12)` walked through it, and nothing else in the repo would have caught
+ *   either. It is a whitelist now: neutral tokens and near-achromatic literals,
+ *   which needs no list of semantic names to keep up to date.
+ *
  * ── WHY THE SHEET IS PARSED WITH A REGEX ───────────────────────────────────
  * There is no CSS parser in this repo's dependency tree and adding one to run a
  * structural guard would be a larger change than the guard. The cost is a
