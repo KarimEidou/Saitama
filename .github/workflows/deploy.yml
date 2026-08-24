@@ -6,8 +6,10 @@
 # committed manifest and lockfile, then serves the result.
 #
 # Two jobs stand in front of the deploy:
-#   `checks`  the cheap gate -- typecheck, lint, tests, binary guard, attribution.
-#             No asset fetch, no build. Runs on every push and every pull request.
+#   `checks`  the cheap gate -- typecheck, lint, tests, binary guard, attribution,
+#             and the two browser harnesses that measure the HUD and the touch
+#             overlay. No asset fetch, no production build. Runs on every push
+#             and every pull request.
 #   `build`   the expensive publish path. `needs: checks`, and only runs for the
 #             repository's default branch or a manual dispatch.
 #
@@ -62,10 +64,12 @@ jobs:
 
       - run: npm ci
 
-      # The audio render suite (src/audio/__tests__/render.test.ts) drives real
-      # WebAudio in headless Chromium; vitest runs it like any other test, so
-      # the browser must exist before `npm test`. Cached on the playwright
-      # version so warm runs skip the ~100 MB download.
+      # THREE consumers now, not one. The audio render suite
+      # (src/audio/__tests__/render.test.ts) drives real WebAudio in headless
+      # Chromium and vitest runs it like any other test, so the browser must
+      # exist before `npm test`; and the two harnesses at the bottom of this job
+      # open real pages in it. Cached on the playwright version so warm runs skip
+      # the ~100 MB download.
       - name: Cache Playwright Chromium
         uses: actions/cache@v4
         with:
@@ -94,6 +98,54 @@ jobs:
       # in memory and diffs, exiting 1 on drift.
       - name: Attribution up to date
         run: npx tsx tools/attribution.ts --check
+
+      # ══════════════════════════════════════════════════════════════════════
+      #  THE 334 LAYOUT CHECKS THAT RAN NOWHERE
+      # ══════════════════════════════════════════════════════════════════════
+      # `harness/hud.verify.ts` (159 checks) and `harness/input.verify.ts` (175)
+      # are the only things in this repository that measure the HUD and the
+      # touch overlay in a REAL browser: safe-area containment, panels that must
+      # not paint on each other, the thumb reserves, the 130% HUD-scale sweep,
+      # and -- for the stick -- synthesised hardware touch events over CDP.
+      # Until now nothing invoked either of them. `npm test` does not; `npm run
+      # verify` does not, and is not in CI either. So the committed evidence
+      # (docs/screenshots/*.png, hud-report.json, input-harness.json) was a
+      # snapshot from one developer's machine that went stale the moment anyone
+      # edited styles.ts, with nothing anywhere to notice. Every layout
+      # guarantee this repository makes rested on a file's mtime.
+      #
+      # ── WHY THE CHEAP GATE AND NOT THE PUBLISH JOB ──────────────────────────
+      # Neither harness needs the 1.65 GB asset fetch. `hud.verify.ts` builds its
+      # page with `publicDir: false` -- the backdrop is drawn on a 2D canvas
+      # precisely so the HUD can be checked without a renderer's worth of moving
+      # parts -- and `input.verify.ts` serves the repo through a Vite DEV server
+      # whose only entry point pulls in `@/ui/input` and requests no asset at
+      # all. Neither needs `npm run build`. Putting them behind `build` would
+      # also mean they only ever ran on the default branch, which is the one
+      # place a layout regression has already shipped.
+      #
+      # ── MEASURED, so nothing here is a guess ────────────────────────────────
+      # Wall clock with the process pinned to two cores (`taskset -c 0,1`) to
+      # match this runner, warm Chromium, both suites green:
+      #     hud.verify.ts     47 s   (~1 s of it the Vite page build; the rest is
+      #                               Chromium across three device profiles)
+      #     input.verify.ts   44 s
+      # 91 s together, against a 20-minute budget that `npm ci`, the browser
+      # install and the five steps above spend well under half of. On four cores
+      # the same two take 31 s and 34 s, so the pair is CPU-bound but not
+      # steeply: there is no cliff waiting on a smaller runner.
+      #
+      # LAST in the job on purpose. A failure the type-checker could have caught
+      # in five seconds must not queue behind two browsers.
+      #
+      # Both write their PNGs and JSON back into docs/screenshots/. CI never
+      # commits them -- the RUN is the gate, and the committed images stay a
+      # human's deliberate refresh.
+      - name: HUD layout harness
+        run: npx tsx harness/hud.verify.ts
+
+      - name: Touch overlay harness
+        run: npx tsx harness/input.verify.ts
 
   build:
     needs: checks

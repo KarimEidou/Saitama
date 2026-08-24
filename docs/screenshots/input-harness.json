@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-23T22:04:25.357Z",
+  "generated": "2026-08-24T01:42:53.000Z",
   "viewport": {
     "width": 1024,
     "height": 640
@@ -22,7 +22,7 @@
     "stickBaseRadiusPx": 76,
     "stickFixedInsetPx": 96,
     "stickIdleOpacity": 0.5,
-    "stickCaptureRadiusPx": 122,
+    "stickCaptureRadiusPx": 12,
     "cameraDegPerPx": 0.18,
     "lookFullRateDegPerSec": 220,
     "lookSmoothing": 1e-7,
@@ -42,7 +42,7 @@
     "gamepadDeadZone": 0.15
   },
   "checks": {
-    "passed": 168,
+    "passed": 175,
     "failed": 0
   }
 }
