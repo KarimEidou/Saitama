@@ -101,10 +101,98 @@ describe('isStickZone', () => {
     // Where the anchored ring actually lives, on every shipping profile.
     for (const profile of PROFILES) {
       const anchor = fixedStickAnchor(T, profile.width, profile.height, profile.insets);
-      expect(isStickZone(anchor.x, anchor.y, profile.width, profile.height, T), profile.id).toBe(
-        true
-      );
+      expect(
+        isStickZone(anchor.x, anchor.y, profile.width, profile.height, T, profile.insets),
+        profile.id
+      ).toBe(true);
     }
+  });
+
+  /* ------------------------------------------------------------------------ */
+  /* ring-outside-zone                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * Viewports narrow enough for `stickZoneFraction` to fall short of the ring.
+   * The ring's inboard edge is `insets + stickFixedInsetPx + stickBaseRadiusPx`
+   * = 172px on an un-notched phone, a CONSTANT; 45% of the width passes under
+   * it at 382px and keeps falling. The first two entries are, between them,
+   * most of the phones this game will ever run on.
+   */
+  const NARROW = [
+    { id: '360x640 — Galaxy S / Pixel, the most common Android width', width: 360, height: 640 },
+    { id: '375x667 — iPhone SE and mini', width: 375, height: 667 },
+    { id: '320x568 — the narrowest phone still in the wild', width: 320, height: 568 },
+  ] as const;
+
+  /**
+   * The outermost PIXEL CENTRES of the painted ring: the band is exclusive at
+   * its edge, and the last pixel the ring actually paints is half a pixel
+   * inside the geometric outline.
+   */
+  function ringOutline(tuning: typeof T, width: number, height: number, insets: SafeAreaInsets) {
+    const anchor = fixedStickAnchor(tuning, width, height, insets);
+    const r = tuning.stickBaseRadiusPx - 0.5;
+    return Array.from({ length: 16 }, (_, i) => {
+      const angle = (i / 16) * Math.PI * 2;
+      return { x: anchor.x + Math.cos(angle) * r, y: anchor.y + Math.sin(angle) * r };
+    });
+  }
+
+  it('CONTAINS ITS OWN ARTWORK on a narrow phone, in either hand', () => {
+    // The regression: on a 360px Android the ring spans x 20..172 and the zone
+    // stopped at 162, so a 10px crescent of joystick — its inboard edge, the
+    // side the thumb pushes into to walk across the screen — was CAMERA. The
+    // player pressed the control they could see and the horizon swung instead.
+    for (const { id, width, height } of NARROW) {
+      for (const [hand, tuning] of [
+        ['left', T],
+        ['right', RIGHT_HANDED],
+      ] as const) {
+        for (const point of ringOutline(tuning, width, height, ZERO_SAFE_AREA)) {
+          expect(
+            isStickZone(point.x, point.y, width, height, tuning, ZERO_SAFE_AREA),
+            `${id} ${hand} (${point.x.toFixed(1)},${point.y.toFixed(1)})`
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('contains the artwork the SAFE AREA pushed inboard, not where the glass is', () => {
+    // A notch moves the ring further into the screen, so the zone has to move
+    // with it. Derived from the raw edge, the widening would be short by
+    // exactly the inset — on precisely the phones that have one.
+    const insets: SafeAreaInsets = { top: 0, right: 0, bottom: 34, left: 44 };
+    for (const point of ringOutline(T, 390, 844, insets)) {
+      expect(isStickZone(point.x, point.y, 390, 844, T, insets)).toBe(true);
+    }
+  });
+
+  it('widens only as far as the artwork, and not across the screen', () => {
+    // The fraction is the comfort margin and the ring is the floor; the floor
+    // must not become the ceiling. At 360 the zone reaches the ring's edge at
+    // 172 and stops, leaving the rest of a small screen to the camera.
+    const ringEdge = T.stickFixedInsetPx + T.stickBaseRadiusPx;
+    expect(isStickZone(ringEdge - 1, 544, 360, 640, T)).toBe(true);
+    expect(isStickZone(ringEdge, 544, 360, 640, T)).toBe(false);
+    expect(isStickZone(220, 544, 360, 640, T)).toBe(false);
+    // ...and the top band is untouched: nobody walks from up there.
+    expect(isStickZone(60, 640 * T.stickZoneTopFraction - 1, 360, 640, T)).toBe(false);
+  });
+
+  it('leaves the fraction in charge wherever the fraction is the wider of the two', () => {
+    // 382px is where the two cross. Above it nothing about this changed, which
+    // is the whole point of `max` rather than a re-tune of the fraction.
+    for (const { width, height, insets } of PROFILES) {
+      const band = Math.max(
+        width * T.stickZoneFraction,
+        fixedStickAnchor(T, width, height, insets).x + T.stickBaseRadiusPx
+      );
+      expect(isStickZone(band - 1, height * 0.9, width, height, T, insets)).toBe(true);
+      expect(isStickZone(band, height * 0.9, width, height, T, insets)).toBe(false);
+    }
+    expect(844 * T.stickZoneFraction).toBeGreaterThan(59 + 96 + 76);
   });
 });
 
@@ -195,6 +283,45 @@ describe('stickOriginFor', () => {
     expect(origin).toEqual({ x: anchor.x, y: anchor.y, captured: true });
   });
 
+  /* ------------------------------------------------------------------------ */
+  /* tap-without-drag                                                         */
+  /* ------------------------------------------------------------------------ */
+
+  it('ANCHORED gives a STATIONARY TOUCH nothing to be deflected from, anywhere', () => {
+    // The symptom: a finger that never moved commanded movement. Capture
+    // snapped the origin onto the anchor for anything within 122px, and the
+    // landing offset became deflection with no drag at all — 0.800 on the
+    // ring's painted edge, a flat 1.000 in the 92..122px annulus outside the
+    // artwork. Held, not a flicker: for as long as the thumb rested there.
+    //
+    // The invariant that kills it: wherever the origin ends up, the distance
+    // from it to the LANDING POINT is inside the dead zone. That is true of a
+    // touch-point origin trivially (distance 0) and of a captured one because
+    // `stickCaptureRadiusPx <= stickDeadZonePx`.
+    for (const radius of [0, 6, T.stickCaptureRadiusPx, 13, 40, 60, 76, 85, 92, 110, 122, 200]) {
+      for (const angle of [0, Math.PI / 3, Math.PI, -Math.PI / 2]) {
+        const x = anchor.x + Math.cos(angle) * radius;
+        const y = anchor.y + Math.sin(angle) * radius;
+        const origin = stickOriginFor(x, y, W, H, ZERO_SAFE_AREA, T);
+        expect(
+          Math.hypot(x - origin.x, y - origin.y),
+          `r=${radius} angle=${angle.toFixed(2)}`
+        ).toBeLessThanOrEqual(T.stickDeadZonePx);
+      }
+    }
+  });
+
+  it('ANCHORED hands a touch on the artwork the touch point, not the anchor', () => {
+    // The other half of the same fix, stated as geometry: everything from the
+    // aim tolerance outwards is a RELATIVE pad — wherever the thumb lands is
+    // that touch's neutral, exactly as the floating layout has always worked.
+    const onTheRing = { x: anchor.x + 60, y: anchor.y - 30 };
+    expect(stickOriginFor(onTheRing.x, onTheRing.y, W, H, ZERO_SAFE_AREA, T)).toEqual({
+      ...onTheRing,
+      captured: false,
+    });
+  });
+
   it('ANCHORED captures right up to the radius, and not past it', () => {
     const on = stickOriginFor(anchor.x, anchor.y - T.stickCaptureRadiusPx, W, H, ZERO_SAFE_AREA, T);
     expect(on.captured).toBe(true);
@@ -221,11 +348,24 @@ describe('stickOriginFor', () => {
   it('ANCHORED captures against the INSET corner, not the glass corner', () => {
     const insets: SafeAreaInsets = { top: 0, right: 34, bottom: 21, left: 59 };
     const shifted = fixedStickAnchor(T, W, H, insets);
-    // A touch on the un-inset anchor is 59+21 away from the real one, which is
-    // still inside the capture radius, but the ORIGIN must be the real anchor.
-    const origin = stickOriginFor(anchor.x, anchor.y, W, H, insets, T);
-    expect(origin).toEqual({ x: shifted.x, y: shifted.y, captured: true });
     expect(shifted.x).not.toBe(anchor.x);
+    // A thumb on the ring's real, inset centre is captured...
+    expect(stickOriginFor(shifted.x, shifted.y, W, H, insets, T)).toEqual({
+      x: shifted.x,
+      y: shifted.y,
+      captured: true,
+    });
+    // ...and one on the centre the GLASS corner would have given is 62px away
+    // from it, which is a miss. It reads as a touch of its own rather than
+    // being snapped to a ring that is nowhere near it.
+    expect(Math.hypot(anchor.x - shifted.x, anchor.y - shifted.y)).toBeGreaterThan(
+      T.stickCaptureRadiusPx
+    );
+    expect(stickOriginFor(anchor.x, anchor.y, W, H, insets, T)).toEqual({
+      x: anchor.x,
+      y: anchor.y,
+      captured: false,
+    });
   });
 });
 

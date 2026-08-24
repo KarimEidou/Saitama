@@ -340,6 +340,12 @@ export class Game {
   private civiliansLost = 0;
   private chunksDetached = 0;
   private alliesDown = 0;
+  /**
+   * Layer 2 of the safe area. Owned here because `onResize` is the only place
+   * the insets are published, and a second publisher is how two layers end up
+   * laid out against different notches.
+   */
+  private readonly nativeInset = new NativeStatusBarInset();
 
   private constructor(parts: IGameParts) {
     this.diagnostics = parts.diagnostics;
@@ -2704,10 +2710,34 @@ export class Game {
     //
     // Called on every resize AND on `orientationchange`, both of which land
     // here, and once from `start()` before the first frame.
-    const insets = readSafeAreaInsets(document);
+    //
+    // Published SYNCHRONOUSLY off `env()`, then again if and only if the native
+    // status-bar inset disagrees. The layout must not wait on a bridge
+    // round-trip: an inset that arrives one frame late is a HUD that settles,
+    // and an inset that never arrives — every desktop browser — must not be a
+    // HUD that never lays out at all.
+    this.publishSafeArea();
+    this.nativeInset.refresh(height >= width, () => this.publishSafeArea());
+  };
+
+  /**
+   * Compose the safe area from every source that exists and hand it to the two
+   * layers that lay themselves out against it.
+   *
+   * THE one publisher. `onResize` calls it with a fresh `env()` reading, and
+   * {@link NativeStatusBarInset.refresh} calls it again when the platform's own
+   * answer for the top edge turns out to differ — which is the case that layer
+   * exists for, and the case that never fired while the override was itself an
+   * `env()` reading. Reads the live window rather than taking an orientation
+   * argument, because the callback can land after a SECOND rotation and the
+   * shape on screen is the only one worth laying out for.
+   */
+  private publishSafeArea(): void {
+    const portrait = window.innerHeight >= window.innerWidth;
+    const insets = this.nativeInset.compose(readSafeAreaInsets(document), portrait);
     this.input.setSafeArea(insets);
     this.hud.refreshSafeArea(insets);
-  };
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2826,25 +2856,154 @@ function markerLabel(text: string): string {
     : `${trimmed.slice(0, MARKER_LABEL_CHARS - 1)}…`;
 }
 
+/** The one field of the one `@capacitor/status-bar` call used here. */
+interface IStatusBarInfoLike {
+  readonly height?: number;
+}
+
 /**
- * The device's safe-area insets, in CSS pixels.
+ * LAYER 2 OF THE SAFE AREA — the native inset, and exactly how much of it exists.
  *
- * ── WHY THIS READS CSS RATHER THAN A PLATFORM ADAPTER ──────────────────────
- * `IPlatformAdapter.safeArea` is the documented source (see the precedence list
- * in `src/ui/hud/safe-area.ts`) and this repository contains no implementation
- * of that interface — only the contract. So the browser's own `env()` is the
- * only source that exists, and it is read the one way that is reliable across
- * WebViews: a probe element whose PADDING is the four `env()` values, resolved
- * by `getComputedStyle`. Reading a custom property back instead returns
- * whatever the author wrote, `env()` call and all, on more than one engine.
+ * ── THE HOLE THIS FILLS ────────────────────────────────────────────────────
+ * `src/ui/hud/safe-area.ts` composes `max(env(), override, floor)` and names the
+ * override's reason outright: several Android WebViews report `env()` as 0 on
+ * devices that plainly have a cutout. The override was nonetheless filled by
+ * {@link readSafeAreaInsets}, which reads `env()`. So on exactly the engines
+ * layer 2 was written for it was 0 as well, the composition collapsed to
+ * `max(0, 0, 8px)`, and three layers were one layer and a typographic floor.
+ * That matters more than it used to: the anchored stick anchors off the
+ * safe-area CORNER, so a swallowed inset does not crowd a label, it paints the
+ * ring under the camera hole and reads the thumb from beside it.
  *
- * When a native adapter does arrive it replaces the body of this function and
- * nothing else: both consumers already come through here.
+ * ── WHAT THIS PROJECT ACTUALLY HAS, AND WHAT IT DOES NOT ───────────────────
+ * This is a Capacitor 8 build and the installed plugin list is the whole budget:
+ * `app`, `filesystem`, `haptics`, `preferences`, `screen-orientation` and
+ * `status-bar` (`@capacitor/ios` and `@capacitor/android` are platform shells
+ * and expose no API here). Exactly one of the six can see a window inset —
+ * `StatusBar.getInfo().height`, added in Capacitor 7. It is a genuine second
+ * source rather than another echo of `env()`: on Android it is
+ * `WindowInsets.Type.statusBars().top / density`, read out of the platform's own
+ * inset tree with the WebView's CSS engine nowhere in the path, and on iOS it is
+ * `statusBarManager.statusBarFrame.height` in points. A WebView that answers
+ * `env(safe-area-inset-top)` with 0 on a notched phone still answers this
+ * correctly, which is the failure the override exists for.
+ *
+ * It covers ONE EDGE. Nothing installed here can see the other three:
+ *   • left / right — the LANDSCAPE cutout. Android has it on
+ *     `WindowInsets.getDisplayCutout()`; no plugin in this project surfaces it,
+ *     and adding one means a Java file under `android/`, which is a GENERATED
+ *     directory that is deliberately not committed (see `capacitor.config.ts`).
+ *   • bottom — the gesture bar / home indicator. No plugin reports it either.
+ * Those three stay `max(env(), floor)` and nothing more. Stated plainly here
+ * rather than left as a contract the code does not keep.
+ *
+ * Two limits on the number itself, so nobody reads more into it than it holds:
+ *   • It is the STATUS BAR inset, not the cutout. In portrait Android sizes the
+ *     status bar to at least the cutout height, so it is a sound proxy there.
+ *     With the status bar HIDDEN the platform returns 0 and this degrades to the
+ *     `env()`-only behaviour that shipped before — never to something worse,
+ *     because the fold below is a `max`.
+ *   • It is ORIENTATION-SPECIFIC and must not survive a rotation. iOS reports 0
+ *     in landscape, and a portrait 59 replayed there would push the entire HUD
+ *     down 59 px for a notch that is now on the side. So each reading is stamped
+ *     with the viewport shape it was taken in and ignored in the other one until
+ *     a fresh answer lands. That last rule is the kind that is invisible until
+ *     somebody turns the phone, which is why it is pinned by a test rather than
+ *     only described here — and why this class is `export`ed at all. It is
+ *     deliberately NOT re-exported from `./index.ts`: `__tests__/` is a sibling
+ *     and can import it directly, so it stays private to the composition root.
+ */
+export class NativeStatusBarInset {
+  /** Last native answer, CSS px. Meaningless until `measured`. */
+  private topPx = 0;
+  /** The viewport shape `topPx` was measured in. */
+  private measuredPortrait = false;
+  private measured = false;
+  /**
+   * Set once asking has proved pointless — a web shell, or a native one whose
+   * plugin is missing. Neither changes on the next rotation, and `onResize` can
+   * fire many times a second while a soft keyboard animates.
+   */
+  private unavailable = false;
+  private inFlight = false;
+
+  /**
+   * Fold the native top into an `env()` reading.
+   *
+   * `max`, never replace. The two sources disagree in BOTH directions: `env()`
+   * is right and the native number is 0 when the status bar is hidden under a
+   * cutout the CSS engine can still see, and the native number is right and
+   * `env()` is 0 on the Android WebViews this whole layer exists for. Taking the
+   * larger is the same rule the stylesheet applies to the same three layers,
+   * applied here because only one of the four edges has a second opinion to
+   * take.
+   */
+  compose(env: SafeAreaInsets, portrait: boolean): SafeAreaInsets {
+    if (!this.measured || this.measuredPortrait !== portrait) return env;
+    return { ...env, top: Math.max(env.top, this.topPx) };
+  }
+
+  /**
+   * Ask the platform, and call back only when the answer CHANGED.
+   *
+   * Fire-and-forget. The caller has already published the `env()` reading, so a
+   * bridge round-trip that resolves late — or never — costs a promise and
+   * nothing else. `onChange` is handed no value and re-publishes instead,
+   * because a second rotation can land before this one's answer does, and the
+   * freshest reading of the LIVE window is always the right thing to publish.
+   */
+  refresh(portrait: boolean, onChange: () => void): void {
+    if (this.unavailable || this.inFlight) return;
+    if (!isCapacitorNative()) {
+      // A plain browser. `@capacitor/status-bar` registers no web implementation
+      // at all, so this would reject with UNIMPLEMENTED on every resize. Layer 2
+      // does not exist here, and that is correct rather than a degradation: the
+      // browsers that have a cutout to miss are the ones inside a native shell.
+      this.unavailable = true;
+      return;
+    }
+    this.inFlight = true;
+    // Dynamic, for the reason `bindNativeBackButton` and `ui/input/haptics.ts`
+    // are: a static import puts `@capacitor/status-bar` — and through it
+    // `@capacitor/core` — into the Node/vitest import graph and into the boot
+    // bundle, for a call that only ever happens inside a native shell.
+    void import('@capacitor/status-bar')
+      .then(async ({ StatusBar }) => {
+        const info: IStatusBarInfoLike = await StatusBar.getInfo();
+        const height = info.height ?? 0;
+        // The plugin returns an `int` on Android and a `CGFloat` on iOS, and
+        // both arrive over a JSON bridge that can hand back anything at all.
+        const top = Number.isFinite(height) ? Math.max(0, Math.round(height)) : 0;
+        const changed = !this.measured || top !== this.topPx || portrait !== this.measuredPortrait;
+        this.topPx = top;
+        this.measuredPortrait = portrait;
+        this.measured = true;
+        if (changed) onChange();
+      })
+      .catch((error: unknown) => {
+        this.unavailable = true;
+        log.debug('status-bar inset unavailable; env() is the only safe-area source', error);
+      })
+      .finally(() => {
+        this.inFlight = false;
+      });
+  }
+}
+
+/**
+ * The browser's own safe-area insets, in CSS pixels. LAYER 1.
+ *
+ * Read the one way that is reliable across WebViews: a probe element whose
+ * PADDING is the four `env()` values, resolved by `getComputedStyle`. Reading a
+ * custom property back instead returns whatever the author wrote, `env()` call
+ * and all, on more than one engine.
  *
  * Not free — it appends a node and forces a style resolve — and therefore
  * called only from `onResize`, which is a rotation-rate path, never a frame one.
- * Zeros are a perfectly good answer: the HUD and the touch overlay both compose
- * `max(env(), override, floor)`, so an override of 0 changes nothing.
+ * Zeros are a perfectly good answer on a device with no cutout: the HUD and the
+ * touch overlay both compose `max(env(), override, floor)`, so an override of 0
+ * changes nothing. Zeros on a device that HAS a cutout are the whole reason
+ * {@link NativeStatusBarInset} exists — see its header.
  */
 function readSafeAreaInsets(doc: Document): SafeAreaInsets {
   const probe = doc.createElement('div');

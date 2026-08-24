@@ -114,29 +114,127 @@ describe('virtual stick', () => {
     expect(rig.core.stick).toMatchObject({ originX: 402, originY: 190 });
   });
 
-  it('ANCHORED puts the origin ON the ring, so thumb position IS deflection', () => {
-    // This is what makes a painted ring mean anything. The origin does not
-    // follow the thumb, so where on the artwork the thumb sits is the stick's
-    // reading — land dead centre and you are centred, land 36px north-east and
-    // you are already walking north-east, exactly as the picture says.
+  it('ANCHORED aims a centred grab at the painted centre, to the pixel', () => {
+    // What the aim tolerance is for. A thumb that meant the middle of the ring
+    // gets the middle of the ring as its neutral, so the artwork's centre is
+    // the stick's centre and the knob starts exactly under the home pip.
     const rig = makeRig();
     const anchor = fixedStickAnchor(T, W, H, ZERO_SAFE_AREA);
 
-    rig.down(1, anchor.x, anchor.y);
+    rig.down(1, anchor.x + T.stickCaptureRadiusPx - 1, anchor.y);
     expect(rig.core.stick).toMatchObject({ originX: anchor.x, originY: anchor.y });
     expect(rig.frame().move.magnitude).toBe(0);
-    rig.up(1, anchor.x, anchor.y);
-    rig.frame();
+  });
 
-    const offset = 36;
-    rig.down(2, anchor.x + offset, anchor.y);
-    expect(rig.core.stick).toMatchObject({ originX: anchor.x, originY: anchor.y });
+  it('ANCHORED puts the origin under a thumb that landed off centre, and waits', () => {
+    // The reading is RELATIVE from there: the 36px the thumb landed off centre
+    // is not a direction the player asked for, and only the drag after it is.
+    // Anchored and floating therefore feel identical under the thumb, and the
+    // setting moves the artwork rather than re-teaching the control.
+    const rig = makeRig();
+    const anchor = fixedStickAnchor(T, W, H, ZERO_SAFE_AREA);
+    const landing = { x: anchor.x + 36, y: anchor.y };
+
+    rig.down(1, landing.x, landing.y);
+    expect(rig.core.stick).toMatchObject({ originX: landing.x, originY: landing.y });
+    expect(rig.frame().move.magnitude).toBe(0);
+
+    const drag = 36;
+    rig.move(1, landing.x + drag, landing.y);
     const f = rig.frame();
     expect(f.move.magnitude).toBeCloseTo(
-      (offset - T.stickDeadZonePx) / (T.stickFullDeflectionPx - T.stickDeadZonePx),
+      (drag - T.stickDeadZonePx) / (T.stickFullDeflectionPx - T.stickDeadZonePx),
       5
     );
     expect(f.move.x).toBeGreaterThan(0);
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* tap-without-drag                                                       */
+  /* ---------------------------------------------------------------------- */
+
+  it('ANCHORED: a stationary tap on the joystick commands NOTHING, at any radius', () => {
+    // The shipped defect: `stickCaptureRadiusPx` (122) was a third larger than
+    // full deflection (92), so capture snapped the origin onto the anchor and
+    // the distance the thumb LANDED from centre became deflection with no drag
+    // at all — 0.800 on the ring's painted edge, a flat 1.000 anywhere in the
+    // 30px annulus outside the artwork. A first-time player's instinct is to
+    // tap the control they can finally see, and the double-tap-to-jump gesture
+    // is a tap on this same surface, so both of the first two things anyone
+    // does to this stick ran the character off sideways.
+    const anchor = fixedStickAnchor(T, W, H, ZERO_SAFE_AREA);
+    for (const radius of [0, 12, 20, 40, 60, 76, 92, 110, 122]) {
+      const rig = makeRig();
+      const point = { x: anchor.x + radius, y: anchor.y };
+      rig.down(1, point.x, point.y);
+      // Ten frames, not one: the old reading was held for as long as the
+      // finger rested there, not a flicker on the down edge.
+      for (let i = 0; i < 10; i++) {
+        expect(rig.frame().move.magnitude, `r=${radius} frame ${i}`).toBe(0);
+      }
+      rig.up(1, point.x, point.y);
+    }
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* reverse-on-return                                                      */
+  /* ---------------------------------------------------------------------- */
+
+  it('ANCHORED: bringing the thumb back to the painted centre reads ZERO, not reverse', () => {
+    // The shipped default combined an anchored ring with `stickOriginFollows`,
+    // which walks the origin along behind the thumb past full deflection. That
+    // is correct while the stick FLOATS, because the overlay paints the ring
+    // from the origin and the artwork walks with it. The anchored ring is
+    // placed by CSS and never repainted, so the origin walked away from its own
+    // picture and stayed there for the rest of the touch: returning the thumb
+    // to the middle of the ring — where every player believes neutral is —
+    // commanded a FULL-SPEED SPRINT in the opposite direction.
+    const anchor = fixedStickAnchor(T, W, H, ZERO_SAFE_AREA);
+    for (const drag of [40, 92, 120, 150, 200, 300]) {
+      const rig = makeRig();
+      rig.down(1, anchor.x, anchor.y);
+      rig.frame();
+      rig.move(1, anchor.x, anchor.y - drag);
+      const out = rig.frame();
+      expect(out.move.magnitude, `drag ${drag}px out`).toBeCloseTo(
+        Math.min(1, (drag - T.stickDeadZonePx) / (T.stickFullDeflectionPx - T.stickDeadZonePx)),
+        5
+      );
+      expect(out.move.y, `drag ${drag}px is northward`).toBeGreaterThan(0);
+      expect(rig.core.stick, `origin stayed on the ring after ${drag}px`).toMatchObject({
+        originX: anchor.x,
+        originY: anchor.y,
+      });
+
+      rig.move(1, anchor.x, anchor.y);
+      expect(rig.frame().move.magnitude, `back on the ring centre after ${drag}px`).toBe(0);
+    }
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* ring-outside-zone                                                      */
+  /* ---------------------------------------------------------------------- */
+
+  it('a thumb on the painted ring is the STICK on a 360px phone, not the camera', () => {
+    // 360 CSS px is the most common Android width there is. The ring's inboard
+    // edge is a constant 172px and `stickZoneFraction` put the boundary at
+    // 162, so a 10px crescent of joystick — its inboard edge, the side the
+    // thumb pushes into to walk across the screen — belonged to the CAMERA.
+    // Press the control you can plainly see, and the horizon swings.
+    const rig = makeRig();
+    rig.core.setViewport(360, 640);
+    const anchor = fixedStickAnchor(T, 360, 640, ZERO_SAFE_AREA);
+    const edge = { x: anchor.x + T.stickBaseRadiusPx - 1, y: anchor.y };
+    expect(360 * T.stickZoneFraction).toBeLessThan(edge.x);
+
+    rig.down(1, edge.x, edge.y);
+    expect(rig.core.debugPointers()[0]!.role).toBe('stick');
+    rig.frame();
+    rig.move(1, edge.x, edge.y - T.stickFullDeflectionPx);
+    const f = rig.frame();
+    expect(f.move.magnitude).toBeCloseTo(1, 5);
+    expect(f.move.y).toBeCloseTo(1, 5);
+    expect(Math.abs(f.look.x) + Math.abs(f.look.y)).toBe(0);
   });
 
   it('ANCHORED falls back to the touch point for a thumb nowhere near it', () => {
@@ -203,8 +301,8 @@ describe('virtual stick', () => {
     expect(f.move.x).toBeCloseTo(1, 5);
   });
 
-  it('drags the origin along past full deflection so pulling back eases off', () => {
-    const rig = makeRig({ ...T });
+  it('FLOATING drags the origin along past full deflection so pulling back eases off', () => {
+    const rig = makeRig(FLOATING);
     rig.down(1, 300, 300);
     rig.frame();
     rig.move(1, 500, 300); // 200px right, well past full deflection
@@ -213,13 +311,34 @@ describe('virtual stick', () => {
 
     // The origin now trails exactly one full deflection behind the thumb, so
     // coming back that far LESS the dead zone re-centres immediately, rather
-    // than the player having to retrace the whole overshoot first.
+    // than the player having to retrace the whole overshoot first. It is only
+    // safe here because the overlay paints the FLOATING ring from this origin,
+    // so the picture walked with it.
     rig.move(1, 500 - (T.stickFullDeflectionPx - T.stickDeadZonePx + 1), 300);
     expect(rig.frame().move.magnitude).toBe(0);
   });
 
-  it('can be configured not to follow, for a strictly anchored stick', () => {
-    const rig = makeRig(resolveTuning({ stickOriginFollows: false }));
+  it('ANCHORED never walks its origin, whatever stickOriginFollows is set to', () => {
+    // `stickOriginFollows` is a FLOATING affordance and the layout is the gate:
+    // there is no ring under an anchored origin to walk with it, so the flag
+    // being on cannot be allowed to separate the two. It is reachable from
+    // `window.__INPUT__.setConfig` and reads like a free improvement.
+    for (const follows of [true, false]) {
+      const rig = makeRig(resolveTuning({ stickOriginFollows: follows }));
+      rig.down(1, 300, 300);
+      rig.frame();
+      rig.move(1, 500, 300);
+      rig.frame();
+      expect(rig.core.stick!.originX, `stickOriginFollows: ${follows}`).toBe(300);
+      // Anchored is absolute for the life of the touch: 64px back from the
+      // overshoot is still 136px out, which is still saturated.
+      rig.move(1, 500 - 64, 300);
+      expect(rig.frame().move.magnitude, `stickOriginFollows: ${follows}`).toBe(1);
+    }
+  });
+
+  it('FLOATING can be configured not to follow, for a stick bolted to the glass', () => {
+    const rig = makeRig(resolveTuning({ floatingStick: true, stickOriginFollows: false }));
     rig.down(1, 300, 300);
     rig.frame();
     rig.move(1, 500, 300);

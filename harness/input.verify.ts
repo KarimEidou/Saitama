@@ -331,9 +331,12 @@ async function main(): Promise<void> {
     const W = VIEWPORT.width;
     const H = VIEWPORT.height;
     const anchor = fixedStickAnchor(config, W, H, ZERO_SAFE_AREA);
-    /* A thumb 50px up-and-right of the anchor: INSIDE `stickCaptureRadiusPx`
-       (122), which is precisely what makes it the point that tells the two
-       layouts apart — anchored snaps the origin here, floating does not. */
+    /* A thumb 50px up-and-right of the anchor: ON the painted ring (76px) but
+       OUTSIDE the aim tolerance (`stickCaptureRadiusPx`, 12px). That is what
+       makes it the interesting landing — it is the one the shipped 122px
+       capture radius snapped onto the anchor and charged 0.48 of a sprint for
+       before the thumb had moved at all, and the one NEITHER layout may
+       deflect for now. */
     const NEAR = { x: anchor.x + 24, y: anchor.y - 44 };
 
     /* Touch point for every stick gesture below. It is in the stick zone but
@@ -445,10 +448,12 @@ async function main(): Promise<void> {
        pressed at three points and checked that a `FULL`-px drag read
        magnitude 1 at each. That section passed while proving none of it: the
        stick had become ANCHORED by default, its first probe point was 50px
-       from the anchor and therefore inside `stickCaptureRadiusPx`, so the
-       origin snapped to the anchor — and a drag ending `FULL` px from an
+       from the anchor and so inside the 122px capture radius of the day, so
+       the origin snapped to the anchor — and a drag ending `FULL` px from an
        origin still reads 1.0 no matter which of the two origins it was. The
-       assertion was green because the arithmetic works out either way.
+       assertion was green because the arithmetic works out either way. (That
+       radius is now the 12px AIM TOLERANCE 3b describes, so the same point
+       exercises the opposite branch; the lesson stands either way.)
 
        So each case gets its own section, each pressing where the answers
        differ, and each asserting on the origin itself rather than on a
@@ -509,7 +514,7 @@ async function main(): Promise<void> {
     }
 
     /* ==================================================================== */
-    group('3b. ANCHORED, thumb inside the capture radius: origin snaps to the ring');
+    group('3b. ANCHORED: the aim tolerance snaps, and cannot manufacture movement');
     /* ==================================================================== */
     await page.evaluate(`window.__INPUT__.setConfig({ floatingStick: false })`);
     await h.reset();
@@ -528,47 +533,65 @@ async function main(): Promise<void> {
       );
     }
 
-    const nearDistance = Math.hypot(NEAR.x - anchor.x, NEAR.y - anchor.y);
+    /* THE BOUND THIS SECTION EXISTS TO PROVE.
+
+       `stickCaptureRadiusPx` is an AIM TOLERANCE and nothing else: land within
+       it and the touch is taken to have meant the painted centre, so the origin
+       snaps there and the ring's middle is neutral to the pixel. It is held at
+       or below `stickDeadZonePx` — see `resolveTuning` — and that bound is what
+       makes "capture cannot manufacture movement" true by arithmetic instead of
+       by taste. The snap converts the LANDING OFFSET into deflection, and an
+       offset the dead zone already forgives cannot become movement.
+
+       Assert the relation, not the constant, so retuning either number has to
+       re-prove it here rather than quietly restoring what shipped: 122px, a
+       third larger than full deflection, under which a finger that never moved
+       commanded 0.800 on the ring's edge and a flat 1.000 in the annulus
+       beyond the artwork — in whatever direction the player happened to tap. */
     check(
-      nearDistance < config.stickCaptureRadiusPx,
-      'the near probe really is inside the capture radius',
-      `${nearDistance.toFixed(1)}px < ${config.stickCaptureRadiusPx}px`
+      config.stickCaptureRadiusPx <= DEAD,
+      'the aim tolerance cannot outrun the dead zone',
+      `capture=${config.stickCaptureRadiusPx}px <= dead=${DEAD}px`
     );
 
-    await touch.down(1, NEAR.x, NEAR.y);
+    /* A thumb aimed at the painted centre, landing a few px off it — which is
+       every real attempt to grab the middle of a 152px ring. */
+    const CENTRED = { x: anchor.x + 6, y: anchor.y - 6 };
+    const centredDistance = Math.hypot(CENTRED.x - anchor.x, CENTRED.y - anchor.y);
+    check(
+      centredDistance <= config.stickCaptureRadiusPx,
+      'the centred probe really is within the aim tolerance',
+      `${centredDistance.toFixed(1)}px <= ${config.stickCaptureRadiusPx}px`
+    );
+
+    await touch.down(1, CENTRED.x, CENTRED.y);
     await h.frames(2);
     probe = await h.stickProbe();
     s = await h.snapshot();
     if (probe.origin) {
-      close(probe.origin.x, anchor.x, 0.5, 'ANCHORED near touch: origin snapped to the anchor (x)');
-      close(probe.origin.y, anchor.y, 0.5, 'ANCHORED near touch: origin snapped to the anchor (y)');
+      close(
+        probe.origin.x,
+        anchor.x,
+        0.5,
+        'ANCHORED centred grab: origin snapped to the anchor (x)'
+      );
+      close(
+        probe.origin.y,
+        anchor.y,
+        0.5,
+        'ANCHORED centred grab: origin snapped to the anchor (y)'
+      );
     } else {
-      fail('ANCHORED near touch: origin snapped to the anchor', 'no stick origin reported');
+      fail('ANCHORED centred grab: origin snapped to the anchor', 'no stick origin reported');
     }
-    /* The thumb is 50px from the origin the instant it lands, so the stick is
-       ALREADY deflected — that is what "a thumb placed anywhere on the artwork
-       centres it" costs, and it is the observable difference from floating. */
-    const nearDeflection = (nearDistance - DEAD) / (FULL - DEAD);
-    close(
-      s.move.magnitude,
-      nearDeflection,
-      0.02,
-      'ANCHORED near touch: deflected on contact, by the anchor-to-thumb distance'
-    );
-    close(
-      (s.move.angle * 180) / Math.PI,
-      (Math.atan2(anchor.y - NEAR.y, NEAR.x - anchor.x) * 180) / Math.PI,
-      2,
-      'ANCHORED near touch: and pointing from the anchor towards the thumb'
-    );
-    if (probe.ring) {
-      close(probe.ring.x, anchor.x, 1.5, 'the ring did not move to meet the thumb (x)');
-      close(probe.ring.y, anchor.y, 1.5, 'the ring did not move to meet the thumb (y)');
-    }
+    /* Snapped, and still perfectly still. This is the bound above, observed:
+       the 8.5px the snap turned into deflection is inside the 12px the dead
+       zone forgives, so the character does not move until the thumb does. */
+    close(s.move.magnitude, 0, 0.0001, 'ANCHORED centred grab: a landing is not a deflection');
 
-    /* And the anchor really is the origin: a drag to exactly `FULL` px from
-       the ANCHOR reads 1.0, though the thumb travelled only 54px to get
-       there. Measured from the touch point that would be a third of full. */
+    /* And the anchor really is the origin the snap chose: a drag to exactly
+       `FULL` px from the ANCHOR reads 1.0, though the thumb travelled 6px less
+       than that to get there. */
     await touch.dragTo(1, anchor.x, anchor.y - FULL);
     await h.frames(3);
     s = await h.snapshot();
@@ -576,9 +599,63 @@ async function main(): Promise<void> {
       s.move.magnitude,
       1,
       0.03,
-      'ANCHORED near touch: full deflection is measured from the anchor'
+      'ANCHORED centred grab: full deflection is measured from the anchor'
     );
-    close(s.move.y, 1, 0.03, 'ANCHORED near touch: due north of the anchor reads due north');
+    close(s.move.y, 1, 0.03, 'ANCHORED centred grab: due north of the anchor reads due north');
+    await touch.up(1);
+    await h.frames(2);
+    s = await h.snapshot();
+    close(s.move.magnitude, 0, 0.0001, 'ANCHORED centred grab: centres when the thumb lifts');
+
+    /* THE OTHER SIDE OF THE TOLERANCE, and the case the whole retune is about.
+
+       50px out is still well inside the painted ring, so this is a thumb that
+       landed ON the artwork and simply missed its centre. The old radius
+       captured it and read 0.476 before it moved. Now it is a relative pad from
+       wherever it landed — the same physics floating has always had, which is
+       the point: the layout setting moves the ARTWORK, not the control, and a
+       player who switches it does not have to relearn anything. */
+    await h.reset();
+    const nearDistance = Math.hypot(NEAR.x - anchor.x, NEAR.y - anchor.y);
+    check(
+      nearDistance > config.stickCaptureRadiusPx && nearDistance < config.stickBaseRadiusPx,
+      'the near probe is outside the tolerance but still on the painted ring',
+      `${config.stickCaptureRadiusPx}px < ${nearDistance.toFixed(1)}px < ${config.stickBaseRadiusPx}px`
+    );
+
+    await touch.down(1, NEAR.x, NEAR.y);
+    await h.frames(2);
+    probe = await h.stickProbe();
+    s = await h.snapshot();
+    if (probe.origin) {
+      close(probe.origin.x, NEAR.x, 0.5, 'ANCHORED near touch: origin is the touch point (x)');
+      close(probe.origin.y, NEAR.y, 0.5, 'ANCHORED near touch: origin is the touch point (y)');
+    } else {
+      fail('ANCHORED near touch: origin is the touch point', 'no stick origin reported');
+    }
+    close(
+      s.move.magnitude,
+      0,
+      0.0001,
+      'ANCHORED near touch: landing off-centre on the artwork still reads zero'
+    );
+    /* The ring is the one thing that does NOT follow: it is painted by CSS at
+       the anchor and the per-frame path never touches it. */
+    if (probe.ring) {
+      close(probe.ring.x, anchor.x, 1.5, 'the ring did not move to meet the thumb (x)');
+      close(probe.ring.y, anchor.y, 1.5, 'the ring did not move to meet the thumb (y)');
+    }
+
+    await touch.dragTo(1, NEAR.x, NEAR.y - FULL);
+    await h.frames(3);
+    s = await h.snapshot();
+    close(
+      s.move.magnitude,
+      1,
+      0.03,
+      'ANCHORED near touch: full deflection is measured from the landing, not the anchor'
+    );
+    close(s.move.y, 1, 0.03, 'ANCHORED near touch: and in the direction the thumb moved');
     await touch.up(1);
     await h.frames(2);
     s = await h.snapshot();

@@ -48,9 +48,10 @@ export interface IStickPoint {
 /** Where the origin came from, so the overlay and the tests can tell them apart. */
 export interface IStickOrigin extends IStickPoint {
   /**
-   * True when the touch was close enough to the anchor to be treated as a grab
-   * OF the anchored stick. False means the thumb landed too far away and the
-   * origin fell back to the touch point (see `stickOriginFor`).
+   * True when the touch landed within the anchor's aim tolerance and the
+   * origin was snapped ONTO the painted centre. False means the origin is the
+   * touch point — which is every floating touch, and every anchored touch that
+   * landed further out than `stickCaptureRadiusPx` (see `stickOriginFor`).
    */
   readonly captured: boolean;
 }
@@ -114,16 +115,52 @@ export function stickReachPx(tuning: IInputTuning): number {
  * matters for the artwork: the input overlay paints UNDER the HUD, so a
  * floating origin that lands up there is drawn beneath the rank chip and
  * clipped by it.
+ *
+ * ── THE ZONE MUST CONTAIN ITS OWN ARTWORK ──────────────────────────────────
+ * Both constraints are widened, where they have to be, so that every painted
+ * pixel of the ring is inside the zone. A bare `0.45 * viewportW` does not
+ * know where the ring is: the ring's far edge is at
+ * `insets.left + stickFixedInsetPx + stickBaseRadiusPx` = 172px, a CONSTANT,
+ * while 45% of the width is 162px at 360 CSS px and 169 at 375. 360 is the
+ * most common Android width there is (every Galaxy S, every Pixel) and 375 is
+ * the iPhone SE and mini, so on the two most numerous phone widths in the
+ * world a 10px crescent of the visible joystick — its INBOARD edge, the side
+ * the thumb pushes into to walk across the screen — was CAMERA. The player put
+ * a thumb on the control they could plainly see and the horizon swung. That is
+ * the original bug report ("the character cannot be moved") arriving through a
+ * different door.
+ *
+ * So the zone is `max(fraction, the ring's far edge)` — the fraction is the
+ * COMFORT margin, generous on a wide screen, and the artwork is the FLOOR. The
+ * same reasoning applies to the top band on a very short viewport, where 28%
+ * of the height could in principle reach down over the ring; `min` keeps the
+ * camera's band above it. Neither `max` nor `min` binds on any shipping
+ * profile wider than 382px, so this costs the camera nothing where the camera
+ * was already fine.
+ *
+ * `insets` matters for the same reason `fixedStickAnchor` takes it: on a
+ * notched phone in landscape the ring is pushed 59px inboard, and a zone
+ * derived from the raw edge would be 59px short of it.
  */
 export function isStickZone(
   x: number,
   y: number,
   viewportW: number,
   viewportH: number,
-  tuning: IInputTuning
+  tuning: IInputTuning,
+  insets: SafeAreaInsets = ZERO_SAFE_AREA
 ): boolean {
-  if (y < viewportH * tuning.stickZoneTopFraction) return false;
-  const band = viewportW * tuning.stickZoneFraction;
+  const anchor = fixedStickAnchor(tuning, viewportW, viewportH, insets);
+  const ringTop = anchor.y - tuning.stickBaseRadiusPx;
+  if (y < Math.min(viewportH * tuning.stickZoneTopFraction, ringTop)) return false;
+  // How far in from the stick hand's edge the zone reaches: the fraction, or
+  // the ring's inboard edge, whichever is further in.
+  const band = Math.max(
+    viewportW * tuning.stickZoneFraction,
+    tuning.stickHand === 'right'
+      ? viewportW - (anchor.x - tuning.stickBaseRadiusPx)
+      : anchor.x + tuning.stickBaseRadiusPx
+  );
   return tuning.stickHand === 'right' ? x > viewportW - band : x < band;
 }
 
@@ -134,25 +171,42 @@ export function isStickZone(
  * exactly under the thumb.
  *
  * ANCHORED has to answer a question floating never had to. The ring is painted
- * at a fixed place, but the thumb does not always land on it — and neither
- * obvious answer is acceptable on its own:
+ * at a fixed place, but the thumb does not always land on it — and there are
+ * only two things the origin can be:
  *
- *   • Always use the anchor. A thumb landing 200px away is then already at
- *     full deflection the instant it touches down, and the character sprints
- *     off in whatever direction the player happened to tap. That is a sprint
- *     nobody asked for, and it is how a lot of anchored sticks actually feel.
- *   • Always use the touch point. Then the ring is decoration: it is painted
- *     over there while the stick reads from over here, and the player's thumb
- *     is being lied to.
+ *   • THE ANCHOR — an absolute pad. The ring's painted centre is neutral, and
+ *     where on the pad your thumb sits IS the reading. This is what shipped,
+ *     with a 122px capture radius, and it is why a stationary tap on the
+ *     joystick made the character run: a touch that never moved read 0.800 on
+ *     the ring's outer edge and a flat 1.000 anywhere in the 92..122px
+ *     annulus OUTSIDE the artwork, held for as long as the finger rested
+ *     there. A first-time player's instinct is to tap the control they can now
+ *     see, and the double-tap-to-jump gesture is *deliberately* a tap on this
+ *     same surface — so the two most likely first interactions with the stick
+ *     both sprinted the character sideways. That is a sprint nobody asked for,
+ *     which is precisely the failure this docblock used to claim it rejected.
  *
- * So: inside `stickCaptureRadiusPx` of the anchor the touch is a grab OF the
- * anchored stick and snaps to it — which is what makes the ring meaningful,
- * because a thumb placed anywhere on the artwork centres it. Beyond that
- * radius the touch is not a grab at all, and the origin falls back to the
- * touch point while the ring stays painted where it belongs, working as a
- * deflection gauge rather than a thumb-follower. The capture radius (122px) is
- * deliberately a little larger than the painted ring (76px), so the generous
- * miss that lands just outside the artwork still counts as grabbing it.
+ *   • THE TOUCH POINT — a relative pad. Wherever you put your thumb is
+ *     neutral, and you drag from there. Nothing can move until the thumb does,
+ *     which is the property that makes a tap a tap. It is also exactly how the
+ *     floating stick has always behaved, so the anchored/floating setting now
+ *     moves the ARTWORK and not the physics, and a player who switches it does
+ *     not have to relearn the control.
+ *
+ * The relative pad wins, and the cost is honest: after landing off-centre, the
+ * painted centre is no longer the neutral point for that touch. The knob still
+ * shows the true deflection (`sync()` draws it from the ring's centre by the
+ * vector gameplay receives), the thumb is covering the middle of the ring
+ * anyway, and the player's way of stopping is to LIFT — which always
+ * re-centres. Compare that with a control that walks off when you tap it.
+ *
+ * `stickCaptureRadiusPx` survives as the AIM TOLERANCE and nothing more: a
+ * thumb that lands within it is taken to have meant the exact centre, so the
+ * origin snaps to the anchor and the painted centre is then neutral to the
+ * pixel. `resolveTuning` holds it at or below `stickDeadZonePx`, which is the
+ * bound that makes "capture cannot manufacture movement" true by arithmetic
+ * rather than by taste: a landing the dead zone already forgives reads zero
+ * wherever the origin is put.
  */
 export function stickOriginFor(
   x: number,

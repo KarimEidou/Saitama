@@ -257,7 +257,11 @@ export class TouchCore {
    * assertable without synthesising a pointer.
    */
   isStickZone(x: number, y: number): boolean {
-    return isStickZone(x, y, this.viewportW, this.viewportH, this.tuning);
+    // The insets go in for the same reason they go into `stickOriginFor`: the
+    // zone has to contain the ring, the ring is placed from the SAFE-AREA
+    // corner, and a zone measured from the glass edge is short of it by the
+    // whole notch on exactly the phones that have one.
+    return isStickZone(x, y, this.viewportW, this.viewportH, this.tuning, this.safeArea);
   }
 
   /** Context-sensitive interact button visibility. */
@@ -491,7 +495,29 @@ export class TouchCore {
   /* ---------------------------------------------------------------------- */
 
   private updateStickOrigin(p: TrackedPointer): void {
-    if (!this.tuning.stickOriginFollows) return;
+    // FLOATING ONLY, and this is the gate that keeps the ring honest.
+    //
+    // Walking the origin is safe exactly when the ARTWORK walks with it, and
+    // that is true of one layout: `touch-overlay.ts` writes the floating
+    // ring's transform from `view.stick.originX/Y` every frame the origin
+    // moves. The anchored ring is positioned by CSS and the per-frame path
+    // deliberately never touches it, so an origin walking under an anchored
+    // ring produced the state `stick-geometry.ts`'s header calls the worst one
+    // this control has — a ring drawn in one place and a stick that reads from
+    // another — and it produced it as the SHIPPING DEFAULT, on any drag longer
+    // than 92px, for the rest of that touch. Measured with real touches: drag
+    // 200px north from the painted centre and bring the thumb straight back to
+    // it, where every player believes neutral is, and the origin is left a
+    // full 92px up the screen — so the stick reads magnitude 1.000 SOUTH with
+    // the knob pinned 41px against the bottom of its own ring. The character
+    // sprints backwards out of a control drawn dead centre. A 120px drag is
+    // enough to see it (drift 28px, 0.200 in reverse).
+    //
+    // The alternative was to publish the live origin and let the overlay move
+    // the anchored ring to it. That is not a fix, it is the floating layout
+    // with extra steps: the whole promise of anchored is that the control is
+    // in the same place every time you reach for it.
+    if (!this.tuning.stickOriginFollows || !this.tuning.floatingStick) return;
     const dx = p.x - this.stickOriginX;
     const dy = p.y - this.stickOriginY;
     const distance = Math.hypot(dx, dy);

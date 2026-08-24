@@ -51,6 +51,8 @@ export class SettingsScreen extends HudScreen {
   readonly name: HudScreenName = 'settings';
 
   private readonly body: HTMLElement;
+  /** The head's caption, which also carries the row count. See `render`. */
+  private readonly summary: HTMLElement;
   private readonly onClose: () => void;
   private readonly onChange: (settings: IHudSettings) => void;
   private current: IHudSettings | null = null;
@@ -60,6 +62,7 @@ export class SettingsScreen extends HudScreen {
     this.onClose = options.onClose;
     this.onChange = options.onChange;
     this.body = el(doc, 'div', { className: 'hud-sheet__body' });
+    this.summary = el(doc, 'div', { className: 'hud-sheet__sub', text: '' });
 
     this.element.appendChild(
       el(doc, 'div', {
@@ -70,7 +73,7 @@ export class SettingsScreen extends HudScreen {
             className: 'hud-sheet__head',
             children: [
               el(doc, 'div', { className: 'hud-sheet__title', text: 'Settings' }),
-              el(doc, 'div', { className: 'hud-sheet__sub', text: 'Applied immediately' }),
+              this.summary,
             ],
           }),
           this.body,
@@ -224,6 +227,33 @@ export class SettingsScreen extends HudScreen {
         ),
       ])
     );
+
+    /**
+     * A COUNT, BECAUSE THE FOLD CANNOT HIDE ONE.
+     *
+     * On the 844x390 profile this sheet is 851 px of content in a 232 px scroll
+     * port, so a player sees under a third of it — and HUD scale, the
+     * accessibility control, is below the fold. `styles.ts` gives the fold a
+     * band deep enough to read as a lip, but a lip says "there is more", not
+     * "there are eight more". The head is the one part of a scrolling sheet
+     * that is always on screen, so the number goes there.
+     *
+     * `querySelectorAll` is a tree query, not a layout read: it touches no
+     * geometry and forces no reflow, which is the difference between this and
+     * the obvious version that measures `scrollHeight` against `clientHeight`
+     * to print "8 below". That version would be a better sentence and a forced
+     * synchronous layout on every open, in a HUD whose stated claim is that it
+     * never reads geometry — and the answer it gives changes with the scroll
+     * position, so it would have to be recomputed on scroll as well.
+     *
+     * The other two reading sheets keep their captions. The rank board and the
+     * invoice put their headline — the standing, the verdict — at the TOP of
+     * the body, so what the fold hides there is detail. This screen is a flat
+     * list with no such ordering, which is exactly why the count earns its
+     * place here and would be noise there.
+     */
+    const rows = this.body.querySelectorAll('.hud-setting').length;
+    this.summary.textContent = `${rows} settings · applied immediately`;
   }
 
   private patch(patch: Partial<IHudSettings>): void {

@@ -57,11 +57,23 @@ export interface IInputTuning extends IInputConfig {
    */
   readonly stickFullDeflectionPx: number;
   /**
-   * When true the floating origin is dragged along behind the thumb once the
-   * thumb passes full deflection, so pulling back immediately eases off
-   * instead of having to retrace the whole overshoot. Costs nothing, and is
-   * the difference between a stick that feels attached to your thumb and one
-   * that feels attached to the glass.
+   * FLOATING ONLY. When true the floating origin is dragged along behind the
+   * thumb once the thumb passes full deflection, so pulling back immediately
+   * eases off instead of having to retrace the whole overshoot. Costs nothing,
+   * and is the difference between a stick that feels attached to your thumb
+   * and one that feels attached to the glass.
+   *
+   * "Floating only" is load-bearing, not decorative. What makes the walk safe
+   * is that `sync()` paints the floating ring FROM the origin, so the artwork
+   * walks with it and the ring's centre is still the truth. The anchored ring
+   * is placed by CSS and the per-frame path deliberately never writes to it —
+   * so an origin that walked while anchored left the ring behind, permanently,
+   * for the rest of that touch: after a 200px drag and a return to the painted
+   * centre the origin sat a full 92px away from it, and the stick read
+   * magnitude 1.000 in the OPPOSITE direction with the knob jammed against the
+   * ring's far edge. `TouchCore.updateStickOrigin` is where the layout gate
+   * lives; this note is here because the field is reachable from
+   * `window.__INPUT__.setConfig` and reads like a free improvement.
    */
   readonly stickOriginFollows: boolean;
   /**
@@ -113,9 +125,19 @@ export interface IInputTuning extends IInputConfig {
    */
   readonly stickIdleOpacity: number;
   /**
-   * Anchored layout only: how close to the anchor a touch must land to count as
-   * grabbing the stick rather than as a touch somewhere else in the stick zone.
-   * Beyond it the origin falls back to the touch point. See `stickOriginFor`.
+   * Anchored layout only: the AIM TOLERANCE for a touch meant for the painted
+   * centre. Land within it and the origin snaps onto the anchor, so the ring's
+   * centre is neutral to the pixel; land outside it and the origin is the
+   * touch point. See `stickOriginFor`.
+   *
+   * Must not exceed `stickDeadZonePx`, and `resolveTuning` holds it there.
+   * That bound is what makes a stationary touch read zero NO MATTER WHERE IT
+   * LANDS: snapping the origin turns the landing offset into deflection, and
+   * an offset the dead zone already forgives cannot become movement. 122px is
+   * what shipped — a third larger than full deflection — and it meant a finger
+   * that never moved commanded 0.800 on the ring's edge and a full sprint
+   * anywhere in the 30px annulus beyond the artwork, in whatever direction the
+   * player happened to tap.
    */
   readonly stickCaptureRadiusPx: number;
 
@@ -205,7 +227,12 @@ export const DEFAULT_INPUT_TUNING: IInputTuning = Object.freeze({
   stickBaseRadiusPx: 76,
   stickFixedInsetPx: 96,
   stickIdleOpacity: 0.5,
-  stickCaptureRadiusPx: 122,
+  // The aim tolerance, and no larger than the wobble the dead zone already
+  // forgives — the two are the same 12px for the same reason. It was 122,
+  // which snapped the origin onto the anchor for touches up to 46px OUTSIDE
+  // the painted ring and turned every one of them into deflection the player
+  // never dragged for. See the field's doc.
+  stickCaptureRadiusPx: 12,
 
   /* camera */
   cameraDegPerPx: 0.18,
@@ -268,12 +295,40 @@ export function resolveTuning(
   // clamp the denominator with an epsilon, which turns an inverted or zeroed
   // knob into a stick with no analogue band and a camera pinned at full rate.
   // Repair loudly rather than shipping a control that looks right and is not.
-  // (`!(a < b)` also rejects NaN.) Stays LAST so it repairs whatever the
-  // stickRadius mirror above produced.
-  if (!(merged.stickDeadZonePx < merged.stickFullDeflectionPx)) {
+  // (`!(a < b)` also rejects NaN.) Runs after the stickRadius mirror above, so
+  // it repairs whatever the mirror produced rather than what the patch said.
+  //
+  // `stickFullDeflectionPx` goes FIRST, and it is the one this block used to
+  // skip: it is the numerator's scale and half the denominator, so a bad value
+  // here is not a control that feels wrong, it is a control that does not
+  // exist. `NaN` gave a stick permanently dead in every direction; `0` and any
+  // negative gave magnitude 1.000 from the first pixel of travel — a character
+  // that only ever sprints. Worse, the dead-zone repair below then FIRED on
+  // the bad number and wrote `NaN * DEAD_ZONE_RATIO` into a second field,
+  // laundering one poisoned knob into two. Repairing the deflection first is
+  // what stops that, so the order of these two blocks is load-bearing.
+  const repairedFull = positive(
+    merged.stickFullDeflectionPx,
+    DEFAULT_INPUT_TUNING.stickFullDeflectionPx,
+    'stickFullDeflectionPx'
+  );
+  if (repairedFull !== merged.stickFullDeflectionPx) {
+    merged.stickFullDeflectionPx = repairedFull;
+    // The mirror above may have copied the bad value across under its other
+    // name; they are one distance and must not survive as two.
+    merged.stickRadius = repairedFull;
+  }
+  merged.stickRadius = positive(merged.stickRadius, merged.stickFullDeflectionPx, 'stickRadius');
+  // A dead zone must be a real, non-negative distance BELOW full deflection.
+  // Negative is not a setting anyone means — it is an anti-dead-zone, and it
+  // makes a resting thumb drift the character — and `>= 0` also rejects NaN,
+  // so the repair below can no longer be reached by a value that would make
+  // its own output non-finite. `stickFullDeflectionPx` is now known good, so
+  // the product is too.
+  if (!(merged.stickDeadZonePx >= 0 && merged.stickDeadZonePx < merged.stickFullDeflectionPx)) {
     log.warn(
-      `stickDeadZonePx (${merged.stickDeadZonePx}) must be below stickFullDeflectionPx ` +
-        `(${merged.stickFullDeflectionPx}); repairing to the default ratio`
+      `stickDeadZonePx (${merged.stickDeadZonePx}) must be at least 0 and below ` +
+        `stickFullDeflectionPx (${merged.stickFullDeflectionPx}); repairing to the default ratio`
     );
     merged.stickDeadZonePx = merged.stickFullDeflectionPx * DEAD_ZONE_RATIO;
   }
@@ -306,6 +361,23 @@ export function resolveTuning(
     DEFAULT_INPUT_TUNING.stickCaptureRadiusPx,
     'stickCaptureRadiusPx'
   );
+  // The one geometric invariant that IS a gameplay invariant, and the reason
+  // it is checked here rather than left to taste: capture snaps the origin
+  // onto the anchor, so the distance the thumb landed from the anchor becomes
+  // deflection with no drag at all. Bounded by the dead zone, that deflection
+  // is always zero and a stationary touch is always still. Unbounded, it was
+  // 122px against a 92px full deflection, and a tap anywhere on the joystick —
+  // the tap that a first-time player makes, and the tap that the double-tap
+  // jump gesture is built out of — ran the character off in whatever direction
+  // the thumb happened to be from centre. Runs after both radii are repaired
+  // so it clamps against a dead zone that is itself known good.
+  if (merged.stickCaptureRadiusPx > merged.stickDeadZonePx) {
+    log.warn(
+      `stickCaptureRadiusPx (${merged.stickCaptureRadiusPx}) must not exceed stickDeadZonePx ` +
+        `(${merged.stickDeadZonePx}), or a touch that never moves commands movement; clamping`
+    );
+    merged.stickCaptureRadiusPx = merged.stickDeadZonePx;
+  }
   // Silent, all three: a value outside its range is a clamp, not a mistake
   // worth a console line, and `0` is a legitimate setting for each of them.
   // (`stickIdleOpacity: 0` restores the invisible-at-rest stick on purpose.)
