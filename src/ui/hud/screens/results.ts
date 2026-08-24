@@ -52,6 +52,33 @@ export interface IResultsOptions {
   readonly onDismiss: () => void;
 }
 
+/**
+ * A figure and, if it has one, the unit that belongs to it.
+ *
+ * Kept apart because they are set differently: the figure is Bebas at
+ * --t-title and the unit is the sheet's own --t-micro caption, which is the
+ * only way a unit reads as a unit rather than as more of the number.
+ */
+interface IInvoiceFigure {
+  readonly figure: string;
+  readonly unit?: string;
+}
+
+/**
+ * A formatted value split into its figure and its trailing unit.
+ *
+ * `formatDuration` returns "1.4s", "42s" or "1:23" — a unit on two of the three
+ * branches and none on the clock — and `format.ts` is shared with three other
+ * screens that want the string whole. Splitting on the trailing letters at the
+ * point of USE keeps one formatter and still lets this screen set the unit as a
+ * caption. A value with no trailing letters (the clock) comes back unchanged,
+ * which is exactly right: "1:23" has no unit to demote.
+ */
+function splitUnit(value: string): IInvoiceFigure {
+  const match = /^([^A-Za-z]+)([A-Za-z]+)$/.exec(value);
+  return match ? { figure: match[1]!, unit: match[2]! } : { figure: value };
+}
+
 export class ResultsScreen extends HudScreen {
   readonly name: HudScreenName = 'results';
 
@@ -121,7 +148,7 @@ export class ResultsScreen extends HudScreen {
     this.subtitle.style.setProperty('color', TIER_COLOR[invoice.tier]);
 
     const rows: HTMLElement[] = [
-      this.line('Resolved in', formatDuration(invoice.timeToKill)),
+      this.line('Resolved in', [splitUnit(formatDuration(invoice.timeToKill))]),
       this.line('Hostiles down', String(invoice.kills)),
       this.line('Civilians saved', String(invoice.civiliansSaved), 'saved'),
       this.line(
@@ -134,7 +161,12 @@ export class ResultsScreen extends HudScreen {
       rows.push(
         this.line(
           'Allies standing',
-          `${invoice.alliesSaved} of ${invoice.alliesSaved + invoice.alliesDowned}`,
+          [
+            {
+              figure: String(invoice.alliesSaved),
+              unit: `of ${invoice.alliesSaved + invoice.alliesDowned}`,
+            },
+          ],
           invoice.alliesDowned > 0 ? 'lost' : 'saved'
         )
       );
@@ -158,7 +190,10 @@ export class ResultsScreen extends HudScreen {
       ),
       this.line(
         'Force committed',
-        `${invoice.seriousPunches} serious · ${invoice.normalPunches} normal`,
+        [
+          { figure: String(invoice.seriousPunches), unit: 'serious' },
+          { figure: String(invoice.normalPunches), unit: 'normal' },
+        ],
         undefined,
         invoice.longestChain > 1 ? `longest chain ${invoice.longestChain}` : undefined
       ),
@@ -254,7 +289,40 @@ export class ResultsScreen extends HudScreen {
     this.verdict.style.setProperty('--hud-verdict', colour);
   }
 
-  private line(key: string, value: string, tone?: string, sub?: string): HTMLElement {
+  /**
+   * One invoice row: caption on the left, figure column on the right.
+   *
+   * The value may be a plain string — a figure with no unit, which is most of
+   * them — or a list of LABELLED FIGURES, which is the construction the rest of
+   * this HUD uses everywhere a number has a unit on it (RANK 388, TIME 0:38,
+   * SAVED 6, 62% BAKING RADIANCE PROBES) and which this screen was the one
+   * place not to use. `.hud-invoice__val` is Bebas and Bebas has no lowercase,
+   * so a unit baked into the value string printed at figure size, in figure
+   * colour, with figure tracking, in caps: "1.4S" for 1.4 seconds, "1 OF 1"
+   * for one ally of one, "2 SERIOUS · 5 NORMAL" for a force breakdown. At 18 px
+   * in that face, S and 5 are a glance apart.
+   */
+  private line(
+    key: string,
+    value: string | readonly IInvoiceFigure[],
+    tone?: string,
+    sub?: string
+  ): HTMLElement {
+    const figures = typeof value === 'string' ? [{ figure: value }] : value;
+    /* Figures interleaved with a separator, each unit demoted to the sheet's
+       own caption primitive. The separator is a symbol rather than a word, so
+       it stays at figure size where it reads as punctuation between two
+       numbers. */
+    const parts: Node[] = [];
+    for (const part of figures) {
+      if (parts.length > 0) parts.push(this.doc.createTextNode(' · '));
+      parts.push(this.doc.createTextNode(part.figure));
+      if (part.unit !== undefined) {
+        parts.push(
+          el(this.doc, 'span', { className: 'hud-label hud-invoice__unit', text: part.unit })
+        );
+      }
+    }
     return el(this.doc, 'div', {
       className: 'hud-invoice__line',
       dataset: { line: key.toLowerCase().replace(/[^a-z]+/g, '-') },
@@ -269,7 +337,7 @@ export class ResultsScreen extends HudScreen {
           children: [
             el(this.doc, 'span', {
               className: `hud-invoice__val${tone ? ` hud-invoice__val--${tone}` : ''}`,
-              text: value,
+              children: parts,
             }),
             sub ? el(this.doc, 'div', { className: 'hud-invoice__sub', text: sub }) : null,
           ],

@@ -80,7 +80,7 @@
  * build DOM.
  */
 
-import type { LethalIntent } from '@/types';
+import type { HeroClass, LethalIntent } from '@/types';
 import { clamp01 } from '@/util';
 import { CssNumber, escapeCssString } from '../css-number';
 import { button, el, svg } from '../dom';
@@ -172,6 +172,7 @@ export class CombatHudScreen extends HudScreen {
   readonly name: HudScreenName = 'hud';
 
   /* the hero file */
+  private readonly rankChip: HTMLElement;
   private readonly rankClass: HTMLElement;
   private readonly rankNumber: CssNumber;
   private readonly boredomGain: HTMLElement;
@@ -200,6 +201,9 @@ export class CombatHudScreen extends HudScreen {
   private readonly costTrack: HTMLElement;
   private readonly costFill: HTMLElement;
 
+  /* the band itself, because the resting state is a different composition */
+  private readonly top: HTMLElement;
+
   /* the duty strip */
   private readonly tracker: HTMLElement;
   private readonly trackerPlate: HTMLElement;
@@ -217,6 +221,8 @@ export class CombatHudScreen extends HudScreen {
 
   /* diffed state — `render` only rebuilds when one of these actually moved */
   private lastMood = '';
+  private lastHeroClass: HeroClass | null = null;
+  private lastEncounterState = '';
   private lastIntent: LethalIntent | null = null;
   private lastEncounterId: string | null = null;
   private lastTrackerSignature = '';
@@ -243,7 +249,7 @@ export class CombatHudScreen extends HudScreen {
       dataset: { throttled: 'false' },
       children: [doc.createTextNode('GAIN '), this.boredomMult.element],
     });
-    const rankChip = el(doc, 'div', {
+    this.rankChip = el(doc, 'div', {
       className: 'hud-panel hud-rankchip',
       attrs: { 'data-hud': 'rank-chip' },
       children: [
@@ -487,21 +493,26 @@ export class CombatHudScreen extends HudScreen {
       children: [this.ledger],
     });
 
-    this.element.append(
-      el(doc, 'div', {
-        className: 'hud-top',
-        children: [
-          el(doc, 'div', { className: 'hud-top__left', children: [rankChip] }),
-          el(doc, 'div', { className: 'hud-top__centre', children: [this.encounterCard] }),
-          rightColumn,
-          // Placed by the stylesheet, not by its position in this list: row two
-          // of the band, spanning it, in every orientation. See `.hud-tracker`.
-          this.tracker,
-        ],
-      }),
-      pauseButton,
-      this.charge
-    );
+    // `data-encounter` is published on the band rather than on the root, which
+    // this screen does not own — and the band is the right element anyway,
+    // because every rule that reads it is a rule about the band's own columns.
+    // It is an ATTRIBUTE rather than a class so the stylesheet reads as a state
+    // machine ('none' | 'active') instead of a flag somebody has to remember to
+    // clear; `render` writes it, so it is off the 60 Hz path entirely.
+    this.top = el(doc, 'div', {
+      className: 'hud-top',
+      dataset: { encounter: 'none' },
+      children: [
+        el(doc, 'div', { className: 'hud-top__left', children: [this.rankChip] }),
+        el(doc, 'div', { className: 'hud-top__centre', children: [this.encounterCard] }),
+        rightColumn,
+        // Placed by the stylesheet, not by its position in this list: row two
+        // of the band, spanning it, in every orientation. See `.hud-tracker`.
+        this.tracker,
+      ],
+    });
+
+    this.element.append(this.top, pauseButton, this.charge);
   }
 
   /**
@@ -529,10 +540,30 @@ export class CombatHudScreen extends HudScreen {
   /* ---------------------------------------------------------------------- */
 
   override render(model: IHudModel): void {
-    /* rank */
-    if (this.rankClass.textContent !== model.rank.heroClass) {
+    /*
+     * THE CLASS COLOUR, ON THE ELEMENT THAT PUBLISHES IT TO EVERY CONSUMER.
+     *
+     * Two stacked defects shipped here and each one hid the other. The write
+     * was gated on `this.rankClass.textContent !== model.rank.heroClass`, and
+     * the span is BUILT with `text:'C'` — so for a C-class hero the branch
+     * never fired and `--hud-class` was never set at all. And when it did fire
+     * it landed on `.hud-rankchip__class`, a CHILD: the plate's ink rule
+     * (`.hud-rankchip{--hud-edge:var(--hud-class,…)}`) is on the PARENT and the
+     * seat number (`.hud-rankchip__rank`) is a SIBLING, and custom properties
+     * inherit downward only, so neither could ever see it. All three fell back
+     * to --hud-accent, which is literally CLASS_COLOR.S — a C-rank hero drawn
+     * in the S-rank hue on the combat HUD and correctly on the rank board, the
+     * same datum in two colours with one of them the wrong class.
+     * Set on the PLATE, and gated on the model rather than on the DOM: the
+     * seed is `null`, so the first render always writes, and the textContent
+     * assignment rides along instead of deciding. `.hud-standing__rank` on the
+     * rank board sets the property on the element that reads it, which is why
+     * that screen was right; this is the same shape.
+     */
+    if (model.rank.heroClass !== this.lastHeroClass) {
+      this.lastHeroClass = model.rank.heroClass;
       this.rankClass.textContent = model.rank.heroClass;
-      this.rankClass.style.setProperty('--hud-class', CLASS_COLOR[model.rank.heroClass]);
+      this.rankChip.style.setProperty('--hud-class', CLASS_COLOR[model.rank.heroClass]);
     }
     /* boredom band — word, colour and breath change on band crossings only */
     const band = boredomBand(model.boredom);
@@ -548,6 +579,16 @@ export class CombatHudScreen extends HudScreen {
     /* encounter */
     const encounter = model.encounter;
     const hasEncounter = encounter !== null;
+    // The resting band is a composition of its own — one plate that owns the
+    // row's measure — rather than the combat band with two plates deleted. See
+    // `.hud-top[data-encounter='none']` in `styles.ts`. Diffed because an
+    // attribute write is a style invalidation, and this runs on every model
+    // change rather than only on the ones that started or ended a fight.
+    const encounterState = hasEncounter ? 'active' : 'none';
+    if (encounterState !== this.lastEncounterState) {
+      this.lastEncounterState = encounterState;
+      this.top.dataset.encounter = encounterState;
+    }
     this.encounterCard.hidden = !hasEncounter;
     this.ledger.hidden = !hasEncounter;
     this.costVisible = hasEncounter && model.settings.showCollateralTicker;

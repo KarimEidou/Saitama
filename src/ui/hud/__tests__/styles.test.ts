@@ -73,6 +73,27 @@ const RULES: readonly { selector: string; body: string }[] = [
 ].map((match) => ({ selector: match[1]!.trim(), body: match[2]! }));
 
 /**
+ * How a FILL and a CONTROL identify themselves to the completeness guards.
+ *
+ * Both used to be `body.includes('…')` against literal text — `'transform:
+ * scaleX(var(--'` and `'pointer-events:auto'` — and a literal substring test is
+ * a guard with a spelling requirement nothing enforces. The sheet is a template
+ * literal, so neither prettier nor eslint normalises a byte of it; one space
+ * after a colon, or a `calc()` inside the `scaleX`, and the rule vanished from
+ * BOTH halves of its own guard. Mutation-tested against this suite:
+ * `transform: scaleX(var(--charge))` MISSED, `scaleX(calc(var(--charge) * 1))`
+ * MISSED, `pointer-events: auto` MISSED — a new meter with no `display:block`
+ * or a new control with no tap size landing green on the day it is written,
+ * which is the exact failure the completeness guards exist to end.
+ *
+ * Declared once and used by BOTH halves of each guard, because the other way
+ * this fails is the two halves disagreeing: a filter that finds a rule the
+ * per-selector assertion then does not recognise asserts nothing at all.
+ */
+const FILL_DECLARATION = /transform:\s*scaleX\(\s*(?:var|calc)\(/;
+const TOUCH_DECLARATION = /pointer-events:\s*auto/;
+
+/**
  * The declarations of every rule with exactly this selector.
  *
  * Returns all of them because the shipping landscape and portrait media queries
@@ -110,7 +131,7 @@ describe('the meters paint', () => {
   it('gives every scaleX fill a box that can be transformed', () => {
     for (const selector of FILLS) {
       const body = ruleBody(selector);
-      expect(body, selector).toMatch(/transform:scaleX\(var\(--/);
+      expect(body, selector).toMatch(FILL_DECLARATION);
       // `display:block` or `position:absolute` — either blockifies. Without one
       // the rule depends on the tag it happens to be put on, and two of these
       // are <span>s.
@@ -122,11 +143,40 @@ describe('the meters paint', () => {
     // The completeness half. A meter added without `display:block` used to be
     // invisible to this file entirely, because this file only knew the meters
     // somebody had remembered to type into the array above.
-    const found = RULES.filter((rule) => rule.body.includes('transform:scaleX(var(--')).map(
+    const found = RULES.filter((rule) => FILL_DECLARATION.test(rule.body)).map(
       (rule) => rule.selector
     );
     expect(found.length).toBeGreaterThan(0);
     for (const selector of found) expect(FILLS, `${selector} paints a fill`).toContain(selector);
+  });
+
+  it('draws every meter at one thickness, from one token', () => {
+    // The HUD shipped five meters at three thicknesses — 5 px on the boss rule
+    // and the boredom meter, 4 px plus a 2 px margin on the collateral track,
+    // 3 px on the rank board's seat sliver, 5 px on the boot bar — so on the
+    // boss screen, where three of them are visible in one band, the eye read a
+    // stepped stair rather than a line. A meter is the same instrument wherever
+    // it appears.
+    // Found by what a meter IS rather than by a list: a track is the box
+    // painted in `--hud-track`, which is the token whose whole job is to make a
+    // meter read as a container.
+    const tracks = RULES.filter((rule) => rule.body.includes('background:var(--hud-track)'));
+    expect(tracks.length, 'no meter tracks found at all').toBeGreaterThan(3);
+    for (const track of tracks) {
+      expect(track.body, `${track.selector} sets its own thickness`).toContain(
+        'height:var(--hud-meter-h)'
+      );
+    }
+  });
+
+  it('clips the breath to the fill it lives inside', () => {
+    // The sweep is a child of `.hud-boredom__fill`, and the fill declared no
+    // `overflow`, so `translateX(240%)` of the fill's width mapped through
+    // `scaleX(var(--boredom))` to 2.4 × b of the TRACK's width — the shimmer
+    // crossed the empty grey remainder at every reading except zero, and the
+    // only thing stopping it was the box the fix had moved it out of. The
+    // comment above the rule claimed the opposite.
+    expect(ruleBody('.hud-boredom__fill')).toContain('overflow:hidden');
   });
 
   it('registers --fill as INHERITED, because one consumer is a pseudo-element', () => {
@@ -227,25 +277,167 @@ describe('the palette reaches the panels', () => {
     expect(CSS.split('var(--hud-surface)').length - 1).toBeGreaterThan(0);
   });
 
+  it('gives every color-mix background a plain colour to fall back to', () => {
+    // A DECLARATION THE PARSER DOES NOT UNDERSTAND IS DROPPED, and whatever
+    // came before it in the same rule stands. That is the only fallback CSS
+    // has, and this HUD has now shipped the alternative twice: `--fill`'s
+    // `var(…, fallback)` that could never fire because the property was
+    // registered, and a CSS counter reading a custom property, which the
+    // shipping WebView rejected outright so every number on screen printed 0.
+    // Both times the element painted NOTHING rather than something plainer,
+    // and a meter that is not there is indistinguishable from a meter at zero.
+    //
+    // color-mix() is Chrome 111 / Safari 16.2 — most devices, not all — so a
+    // gradient that names it needs a flat declaration ahead of it. Enforced
+    // rather than remembered, because the rule is invisible in the one place
+    // it matters: on a device that supports color-mix, a missing fallback
+    // looks exactly like a present one.
+    for (const rule of RULES) {
+      const backgrounds = rule.body.match(/background(?:-color)?:[^;]*/g) ?? [];
+      const mixedAt = backgrounds.findIndex((declaration) => declaration.includes('color-mix'));
+      if (mixedAt < 0) continue;
+      const plain = backgrounds
+        .slice(0, mixedAt)
+        .some((declaration) => !declaration.includes('color-mix'));
+      expect(
+        plain,
+        `${rule.selector} paints with color-mix and has nothing to fall back to: ` +
+          backgrounds[mixedAt]!.trim()
+      ).toBe(true);
+    }
+  });
+
   it('never tints a panel with a semantic colour', () => {
     // COLOUR IS INK ON PAPER: it appears as the edge rule, the numeral, or the
     // meter fill, and nowhere else. `.hud-btn--primary` used to fill itself
     // with 26% of the accent and `.hud-row[data-selected]` with 10% of it, both
     // of which lower the panel contrast `palette.test.ts` measures in order to
     // say something a 3 px rule says louder.
+    //
+    // A WHITELIST, NOT A BLACKLIST, and the difference is the whole assertion.
+    // Both bugs this guard was written from happened to be `color-mix` washes,
+    // and the regex that replaced them encoded the SHAPE rather than the rule —
+    // so the two most obvious ways to reintroduce a tinted panel walked
+    // straight through it. Mutation-tested against this suite:
+    // `.hud-btn--primary{background:var(--hud-accent)}` MISSED, and
+    // `.hud-row{background:rgba(255,210,48,.12)}` MISSED. Nothing else in the
+    // repo would have caught either: `palette.test.ts` measures PALETTES, not
+    // the sheet, and a tint is precisely what lowers the panel contrast it
+    // measures.
+    //
+    // The rule, enforced directly: a background may name only NEUTRAL tokens
+    // and near-achromatic literals. That fails `var(--hud-accent)` on the token
+    // check and `rgba(255,210,48,.12)` on the chroma check without enumerating
+    // a single semantic name, so a sixth semantic token added to `tokens.ts`
+    // tomorrow is covered on the day it lands.
+    /** Structural paper. Everything else is ink. */
+    const NEUTRAL_TOKENS = [
+      '--hud-panel',
+      '--hud-surface',
+      '--hud-track',
+      '--hud-halftone',
+      '--hud-line',
+    ];
+    /**
+     * Words a background may contain that are not colours.
+     *
+     * Deliberately small: an identifier that is not here fails, so a colour
+     * KEYWORD — `red`, `gold`, `dodgerblue` — is caught by the same check that
+     * catches a function nobody vetted.
+     */
+    const GRAMMAR = new Set([
+      'none',
+      'transparent',
+      'linear-gradient',
+      'radial-gradient',
+      'repeating-linear-gradient',
+      'color-mix',
+      'in',
+      'srgb',
+      'var',
+      'rgb',
+      'rgba',
+      'circle',
+      'ellipse',
+      'at',
+      'to',
+      'top',
+      'bottom',
+      'left',
+      'right',
+      'center',
+      'no-repeat',
+      'repeat',
+      'deg',
+      'px',
+    ]);
+    /** How far from grey a literal may sit, out of 255. */
+    const MAX_CHROMA = 20;
+
+    function chroma(channels: readonly number[]): number {
+      return Math.max(...channels) - Math.min(...channels);
+    }
+
     for (const rule of RULES) {
       // A METER FILL is the one place a background may be semantic — it is the
       // third of the three permitted uses, alongside the edge rule and the
       // numeral. A fill identifies itself by being a fill.
-      if (rule.body.includes('transform:scaleX(var(--')) continue;
-      const backgrounds = rule.body.match(/background(?:-color)?:[^;]*/g) ?? [];
-      for (const declaration of backgrounds) {
-        expect(
-          /color-mix\([^)]*var\(--hud-(accent|tier|saved|lost|collateral|commit|rival|verdict|class)/.test(
-            declaration
-          ),
-          `${rule.selector} tints its panel: ${declaration}`
-        ).toBe(false);
+      if (FILL_DECLARATION.test(rule.body)) continue;
+      // Two legitimate semantic backgrounds, each exempted with its reason.
+      // `.hud-alert::after` is the speed-line hatch — a one-shot stamp sweep in
+      // the bulletin's own colour, painted UNDER the type at z-index -1, which
+      // is a motion cue rather than a fill. `.hud-swatch` is the palette
+      // preview chip on the settings screen: its entire content is the colour
+      // it is previewing.
+      if (rule.selector === '.hud-alert::after' || rule.selector === '.hud-swatch') continue;
+
+      for (const declaration of rule.body.match(/background(?:-color)?:[^;]*/g) ?? []) {
+        const value = declaration.replace(/^background(?:-color)?:/, '');
+
+        for (const [, token] of value.matchAll(/var\((--[a-z-]+)/g)) {
+          expect(
+            NEUTRAL_TOKENS,
+            `${rule.selector} paints its panel with ${token}: ${declaration.trim()}`
+          ).toContain(token);
+        }
+
+        for (const [, channels] of value.matchAll(/rgba?\(([^)]*)\)/g)) {
+          const parts = channels!.split(',').slice(0, 3).map(Number);
+          expect(
+            chroma(parts),
+            `${rule.selector} paints its panel with a colour: ${declaration.trim()}`
+          ).toBeLessThanOrEqual(MAX_CHROMA);
+        }
+
+        for (const [hex] of value.matchAll(/#([0-9a-f]{3}|[0-9a-f]{6})\b/gi)) {
+          const full =
+            hex.length === 4
+              ? hex
+                  .slice(1)
+                  .split('')
+                  .map((digit) => digit + digit)
+                  .join('')
+              : hex.slice(1);
+          const parts = [0, 2, 4].map((at) => Number.parseInt(full.slice(at, at + 2), 16));
+          expect(
+            chroma(parts),
+            `${rule.selector} paints its panel with a colour: ${declaration.trim()}`
+          ).toBeLessThanOrEqual(MAX_CHROMA);
+        }
+
+        // Whatever is left over after the colours and the custom-property names
+        // have been accounted for has to be grammar.
+        const words = value
+          .replace(/var\(--[a-z-]+/g, '')
+          .replace(/#[0-9a-f]{3,6}\b/gi, '')
+          .match(/[a-zA-Z][a-zA-Z-]*/g);
+        for (const word of words ?? []) {
+          expect(
+            GRAMMAR.has(word),
+            `${rule.selector} background names "${word}", which this guard has never vetted: ` +
+              declaration.trim()
+          ).toBe(true);
+        }
       }
     }
   });
@@ -306,6 +498,68 @@ describe('the type scale', () => {
   });
 });
 
+describe('one text edge', () => {
+  it('gives a stacked list a fixed stamp column', () => {
+    // `.hud-alert__chip` was given this for a bulletin STACK that shows one
+    // bulletin, and the two screens that stack six and seven of these rows did
+    // not get it: measured in the quest log the card titles started at 143.89 /
+    // 156.45 / 143.89 / 138.11 / 152.67 / 147.67, an 18.34 px rag down a list
+    // whose left edge the eye is tracking, and the rank ladder had the same bug
+    // at 5.78 px.
+    for (const selector of ['.hud-alert__chip', '.hud-row .hud-chip']) {
+      const body = ruleBody(selector);
+      expect(body, selector).toMatch(/min-width:calc\([^;]*var\(--hud-scale\)/);
+      expect(body, selector).toContain('text-align:center');
+    }
+    // And the objective marker inside a card, which is the same failure one
+    // level deeper: a count 7 px wide for a bullet and 29 px for "0/40" put the
+    // sentences of ONE quest card on three different x, a 22 px step in the
+    // middle of a four-line card.
+    const count = ruleBody('.hud-tracker__count');
+    expect(count).toMatch(/min-width:calc\([^;]*var\(--hud-scale\)/);
+    expect(count).toContain('text-align:right');
+  });
+
+  it('gives a tracked run its trailing letter-space back when it is right-aligned', () => {
+    // CSS adds letter-spacing after the FINAL glyph too, so a right-aligned
+    // tracked run stops one tracking unit short of the edge everything else is
+    // aligned to. `.hud-boredom__mult` carried the compensation and its comment
+    // claimed to be "the last right-aligned tracked run in the HUD"; it was
+    // not, and a claim like that is what stops the next person looking.
+    // The structural half: anything that declares both in one rule.
+    for (const rule of RULES) {
+      if (!/text-align:\s*right/.test(rule.body)) continue;
+      if (!/letter-spacing:\.\d+em/.test(rule.body)) continue;
+      expect(
+        /margin-right:\s*-/.test(rule.body),
+        `${rule.selector} is right-aligned and tracked but keeps its trailing space`
+      ).toBe(true);
+    }
+    // The named half, for the runs whose alignment comes from the box around
+    // them and which the structural half therefore cannot see.
+    for (const selector of ['.hud-boredom__mult', '.hud-row__value', '.hud-invoice__val']) {
+      expect(ruleBody(selector), selector).toMatch(/margin-right:-\.\d+em/);
+    }
+  });
+
+  it('never declares an ellipsis on something that wraps', () => {
+    // `text-overflow` only fires on content that overflows its line box in the
+    // INLINE direction; content that wraps does not. Two rules declared it
+    // against `white-space:normal` — `.hud-alert__title` and `.hud-row__title`,
+    // plus `.hud-alert__body` — so the declaration did nothing at all except
+    // tell the reader those strings were single-line and clipped when they are
+    // multi-line and complete. Either it is one line and clipped, or it wraps
+    // and says so.
+    for (const rule of RULES) {
+      if (!rule.body.includes('text-overflow:ellipsis')) continue;
+      expect(
+        /white-space:\s*nowrap/.test(rule.body) || rule.body.includes('-webkit-line-clamp'),
+        `${rule.selector} ellipsises content that wraps, which never fires`
+      ).toBe(true);
+    }
+  });
+});
+
 describe('tap targets', () => {
   /**
    * Everything the player is meant to hit.
@@ -334,17 +588,39 @@ describe('tap targets', () => {
     // `.hud-seg__opt` below the floor on the ONE profile that ships would have
     // passed this guard silently, which is the single failure mode it exists
     // to prevent.
-    for (const selector of CONTROLS) {
-      for (const body of ruleBodies(selector)) {
-        // Rebuilt per body rather than shared: a /g regex carries `lastIndex`,
-        // and the day this switches from `matchAll` to `exec` a shared literal
-        // starts skipping every other rule.
-        const sizes = /(?:^|[;\s])(min-width|min-height|width|height):(\d+(?:\.\d+)?)px/g;
-        for (const [, property, value] of body.matchAll(sizes)) {
-          expect(Number(value), `${selector} ${property}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
-        }
+    //
+    // EVERY RULE WHOSE SELECTOR MENTIONS A CONTROL, not every rule whose
+    // selector IS one, and that is the second half of the same hole. The loop
+    // read `ruleBodies(selector)`, which matches on string EQUALITY, so the
+    // guard saw `.hud-btn{…}` and nothing else — while the two most natural
+    // ways to write the override it was written to catch both slipped past.
+    // Mutation-tested against this suite: `@media (max-height:520px){
+    // .hud-sheet__foot .hud-btn{min-height:30px}}` MISSED, and
+    // `.hud-btn[data-compact]{min-height:28px}` MISSED, while the same
+    // shrinkage written on the control's own selector was CAUGHT. The
+    // completeness half below cannot cover it either — a descendant rule has no
+    // reason to re-declare `pointer-events:auto`, so it never enters `found`.
+    // A containment scan is the only shape that sees a control being resized by
+    // a selector that is not its own name.
+    const sized = RULES.filter((rule) =>
+      CONTROLS.some((control) => rule.selector.includes(control))
+    );
+    expect(sized.length, 'the containment scan found no control rules at all').toBeGreaterThan(
+      CONTROLS.length
+    );
+    for (const rule of sized) {
+      // Rebuilt per body rather than shared: a /g regex carries `lastIndex`,
+      // and the day this switches from `matchAll` to `exec` a shared literal
+      // starts skipping every other rule.
+      const sizes = /(?:^|[;\s])(min-width|min-height|width|height):(\d+(?:\.\d+)?)px/g;
+      for (const [, property, value] of rule.body.matchAll(sizes)) {
+        expect(Number(value), `${rule.selector} ${property}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
       }
     }
+    // And every control still has to EXIST, which the containment scan alone
+    // would not notice: a selector deleted outright matches nothing and passes
+    // a filter vacuously.
+    for (const selector of CONTROLS) ruleBodies(selector);
   });
 
   it('lists every rule that takes a touch, so a new control cannot skip it', () => {
@@ -352,7 +628,7 @@ describe('tap targets', () => {
     // that quietly claims `pointer-events:auto` in the wrong rectangle steals a
     // touch from the movement stick, which is invisible in every screenshot.
     // Anything added here has to be looked at.
-    const found = RULES.filter((rule) => rule.body.includes('pointer-events:auto')).map(
+    const found = RULES.filter((rule) => TOUCH_DECLARATION.test(rule.body)).map(
       (rule) => rule.selector
     );
     expect(found.length).toBeGreaterThan(0);
@@ -361,12 +637,47 @@ describe('tap targets', () => {
     }
   });
 
-  it('cuts the pause button and its reserve out of one token', () => {
-    expect(CSS).toContain(`--hud-pause-size:${MIN_TAP_PX}px`);
+  it('cuts the pause button and its reserve out of one token, and scales it', () => {
+    // THE TOKEN USED TO BE A BARE `${MIN_TAP_PX}px` and this assertion used to
+    // check for exactly that string, which encoded the bug rather than the
+    // rule. `--hud-band-row` beside it is affine, so the pause chip was the one
+    // control in the game that did not grow when a player raised HUD scale —
+    // the only escape hatch there is, frozen at the setting a low-vision player
+    // picks, next to a LOG button that grew with the type.
+    // What has to hold is invariant 5, stated as two things: the token is never
+    // below the floor, and it drives BOTH the button and the reserve.
+    // EVERY declaration of it, not the first: `.hud-root` is declared several
+    // times over — once by `safe-area.ts`, once here, and once per breakpoint —
+    // so a guard that reads only the first would pass an override that reset
+    // the token to a bare literal in the one media query that ships.
+    const tokens = [...allDeclarations('.hud-root').matchAll(/--hud-pause-size:([^;]*)/g)].map(
+      (match) => match[1]!
+    );
+    expect(tokens.length, 'nothing declares --hud-pause-size').toBeGreaterThan(0);
+    for (const token of tokens) {
+      expect(token, 'the pause size must scale with the type').toContain('var(--hud-scale)');
+      // AND IT NEEDS A CLAMPING FUNCTION, because --hud-scale goes DOWN as well
+      // as up: the settings screen offers 85 %, and `calc(44px * .85)` is
+      // 37.4 px. `max(44px, …)` is the floor invariant 5 asks for, stated in
+      // the declaration rather than trusted to the range of a setting.
+      expect(token, `--hud-pause-size:${token}`).toMatch(/max\(|clamp\(/);
+      const literals = [...token.matchAll(/(\d+(?:\.\d+)?)px/g)].map((match) => Number(match[1]));
+      expect(literals.length, `--hud-pause-size:${token}`).toBeGreaterThan(0);
+      for (const value of literals) {
+        expect(value, `--hud-pause-size:${token}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+      }
+    }
+
     expect(ruleBody('.hud-pausebtn')).toContain('width:var(--hud-pause-size)');
     // The right column keeps that much clear so the ledger cannot slide under
     // the button; the two numbers were separate literals and could drift.
     expect(ruleBody('.hud-top__right')).toContain('padding-right:calc(var(--hud-pause-size)');
+    // And the LOG button under it is the SAME square, from the same token, so
+    // the band's only control column cannot become a square over a rectangle —
+    // which is what `align-items:stretch` made of it in portrait, 44x44 above
+    // 44x65.19.
+    expect(ruleBody('.hud-tracker__open')).toContain('width:var(--hud-pause-size)');
+    expect(ruleBody('.hud-tracker__open')).toContain('height:var(--hud-pause-size)');
   });
 
   it('gives the only escape hatch in the game a plate to sit on', () => {
@@ -374,7 +685,20 @@ describe('tap targets', () => {
     // pause button as a 1 px hairline and an unshadowed glyph — about 1.2:1
     // over a lit building facade — and it is the only way out of a fight.
     expect(ruleBody('.hud-pausebtn')).not.toContain('background:none');
-    expect(ruleBody('.hud-btn::before')).toContain('background:var(--hud-panel)');
+    // The backing still composes from the palette's own panel, and now declares
+    // the surface under it as well. The plate was invisible on a SHEET —
+    // `--hud-panel` is the surface laid down three times, so over a `.hud-sheet`
+    // (whose fill IS that surface) it composited to the sheet's own colour and
+    // measured 1.00:1. Every button on every modal was a hairline and a clipped
+    // tick. The lift that fixes it is layered ABOVE `var(--hud-surface)`, which
+    // is invariant 4: five palettes fill that slot and a flat fill would make
+    // four of them dead data.
+    const backing = ruleBody('.hud-btn::before');
+    expect(backing).toContain('var(--hud-panel)');
+    expect(backing).toContain('background-color:var(--hud-surface)');
+    // A NEUTRAL lift, not a tint — the whitelist above enforces that for every
+    // background in the sheet; this names the one that had to change.
+    expect(backing).toMatch(/background:linear-gradient\(rgba\(255,255,255,/);
   });
 });
 
