@@ -443,6 +443,72 @@ describe('HUD scale', () => {
     }
   });
 
+  it('keeps the band budget affine AND readable by the gate that enforces it', () => {
+    // TWO HALVES OF ONE BUG, and the second half is the reason this is a test
+    // rather than a comment.
+    //
+    // AFFINE. `--hud-band-row` is row one's declared height and `.hud-top`
+    // makes it row one's MINIMUM height, so a flat value is a floor that binds
+    // at the HUD scales where it happens to exceed the content and is inert
+    // above them. It was flat, and row one's combat content runs 56.00 px at
+    // 100 % and 66.50 at 130 %, so the duty strip and its 44 px LOG button
+    // dropped exactly 3 px the moment a fight put a ledger in the row — at
+    // 115 % and 130 % only. `harness/hud.verify.ts` measures CLS inside a
+    // single scene and cannot see a jog between two.
+    const root = allDeclarations('.hud-root');
+    expect(root).toMatch(/--hud-band-row:calc\([^;]*var\(--hud-scale\)/);
+
+    // READABLE. The harness reads this token back off the root with
+    // `parseFloat`. An UNREGISTERED custom property computes to its token
+    // stream — var() substituted, calc() NOT evaluated — so the day the budget
+    // became affine, `parseFloat("calc(29px + 35px * 1)")` would have returned
+    // NaN and the harness would have printed `[skip] … declares no
+    // --hud-band-row` while still reporting every check passed. Registering it
+    // as `<length>` is what makes the computed value a resolved px length.
+    // A budget assertion that silently turns itself off is worse than none.
+    expect(CSS).toMatch(/@property --hud-band-row\{syntax:'<length>';inherits:true;/);
+  });
+
+  it('never lets an alarm animate a readout to where it cannot be read', () => {
+    // `hud-pulse` spends 39 % of every second at opacity .35, and
+    // `questUrgency` holds `critical` for the last 45 seconds of a quest — so
+    // on the clock itself that was up to forty-five continuous seconds of the
+    // most time-critical number on the HUD reading 1.65:1 two frames in five.
+    // The alarm belongs on something whose disappearance costs nothing: the
+    // TIME caption flashes, the digits do not.
+    const clock = ruleBody(`.hud-tracker[data-urgency='critical'] .hud-tracker__clock`);
+    expect(clock).toContain('color:var(--hud-lost)');
+    expect(clock, 'the readout itself must not blink').not.toContain('animation:');
+    expect(
+      ruleBody(`.hud-tracker[data-urgency='critical'] .hud-tracker__clock .hud-label`)
+    ).toContain('animation:hud-pulse');
+  });
+
+  it('gives the world markers a plate, because a shadow is not contrast', () => {
+    // The pins are the only "where do I go" element in the game and the only
+    // type in this HUD painted straight onto the world. Their whole protection
+    // was `text-shadow`, and a shadow cannot buy contrast when the background
+    // is BRIGHTER than the ink: measured against the game's own daytime sky
+    // fallback the distance run computes to 1.06:1. `harness/hud.html` renders
+    // a dusk street, so no committed shot has ever shown this.
+    for (const selector of ['.hud-marker__label', '.hud-marker__dist']) {
+      const body = ruleBody(selector);
+      expect(body, selector).toContain('background:var(--hud-panel)');
+      // Composed from the palette's own surface, so all five stay live.
+      expect(body, selector).toContain('background-color:var(--hud-surface)');
+    }
+  });
+
+  it('gives the bulletin stack one text edge', () => {
+    // A content-width stamp in a baseline row makes the headline's x origin a
+    // function of how many letters the tier word has, and an untiered bulletin
+    // used to carry no stamp and no gap at all — so a stack of three printed
+    // three headlines on three measures, up to ~60 px apart at 130 %.
+    const chip = ruleBody('.hud-alert__chip');
+    expect(chip).toMatch(/min-width:calc\([^;]*var\(--hud-scale\)/);
+    expect(chip).toContain('text-align:center');
+  });
+
   it('drives the whole loading card off one measure', () => {
     // The track and its row were min(62vw,320px) and the flavour line was
     // min(88vw,460px), so the line overhung the bar by 68 px on each side and

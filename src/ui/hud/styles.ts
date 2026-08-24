@@ -146,7 +146,13 @@
  * of a modal it has ever committed.
  *
  * All three are killed outright by `[data-reduced-motion='true']` at the bottom
- * of this file.
+ * of this file — which is why EVERY animated rule here declares the state it
+ * rests in. `animation:none` does not restore anything; it removes the
+ * animation and leaves the SPECIFIED style standing. A rule whose only
+ * invisibility came from a keyframe therefore becomes permanently visible for
+ * the players who asked for less motion, at full strength, which is exactly
+ * what `.hud-alert::after` did to a threat bulletin. If a keyframe is the only
+ * thing hiding something, the rule is wrong.
  *
  * ── HOW THIS FILE IS PARSED, AND WHAT THAT FORBIDS ─────────────────────────
  * `__tests__/styles.test.ts` reads this stylesheet with a REGULAR EXPRESSION,
@@ -244,6 +250,19 @@ export function hudStyles(): string {
 @property --charge{syntax:'<number>';inherits:true;initial-value:0}
 @property --fill{syntax:'<number>';inherits:true;initial-value:0}
 @property --collateral{syntax:'<number>';inherits:false;initial-value:0}
+/* AND ONE REGISTRATION THAT IS NOT ABOUT INTERPOLATION AT ALL. --hud-band-row  */
+/* is the top band's declared budget and harness/hud.verify.ts reads it back    */
+/* off the root with parseFloat, which is the whole reason it is "a promise     */
+/* rather than a comment". An UNREGISTERED custom property computes to its       */
+/* TOKEN STREAM: var() is substituted but calc() is not evaluated, so the moment */
+/* the budget became affine in --hud-scale the harness would have read           */
+/* "calc(29px + 35px * 1)", got NaN, and printed "[skip] … declares no           */
+/* --hud-band-row". A budget assertion that silently turns itself off is worse   */
+/* than none, because the report still says every check passed. Registering it   */
+/* as <length> makes the computed value a resolved px length — 64px at 100 %,    */
+/* 74.5px at 130 % — so the expression can scale and the gate can still read it. */
+/* --hud-band-h needs no such treatment: nothing outside CSS reads it.           */
+@property --hud-band-row{syntax:'<length>';inherits:true;initial-value:64px}
 
 ${SAFE_AREA_STYLES}
 ${CSS_NUMBER_STYLES}
@@ -284,18 +303,72 @@ ${CSS_NUMBER_STYLES}
   /* What ROW ONE of the combat band is allowed to cost, measured the way the
      harness measures it: from the top INSET, which on a landscape phone is 0
      while the band itself starts at the 8 px edge floor. So this is the tallest
-     plate — the hero file: micro caption row, 24 px readout, meter rule and
-     padding, 56 px — plus that floor. Measured at 64.0 against a 64 px budget,
-     with the grid's own 6 px gap as the slack.
-     harness/hud.verify.ts reads it off the root and fails if row one outgrows
-     it, which makes the number a promise rather than a comment. */
-  --hud-band-row:64px;
+     plate — the incident cost: micro label row, 24 px readout, the collateral
+     rule and padding, 56 px — plus that floor. Measured at 64.0 against a 64 px
+     budget, with the grid's own 6 px gap as the slack.
+     It is read THREE times now, and that is why it had to stop being a
+     constant: .hud-top makes it row one's MINIMUM height, .hud-pausebtn centres
+     the button on it, and the harness measures row one against it.
+     AFFINE, FOR THE SAME REASON --hud-band-h BELOW IS. A flat 64 px is a
+     statement about row one at exactly one HUD scale, and row one's content is
+     type: measured in combat on the shipping profile it runs 56.00 px at 100 %,
+     61.23 at 115 % and 66.50 at 130 %. The floor therefore bound at 85 % and
+     100 % and was INERT above, so the strip and its 44 px LOG button dropped
+     3.00 px the instant a fight put a ledger in the row, and came back up when
+     it ended — at 115 % and 130 % only. The comment on .hud-top claimed that
+     jog fixed; it was fixed at two of the four rungs of the one accessibility
+     control this game has, and nothing could see it, because the harness
+     measures CLS inside a SINGLE scene and 66.5 px is still inside the 64 px
+     budget plus the grid's 6 px gap.
+     29 + 35 x scale is the line through those measurements plus the 8 px edge
+     floor this token is measured from — 58.75 / 64 / 69.25 / 74.5 at the four
+     rungs — so the floor tracks the content instead of crossing it. At 100 % it
+     is still exactly 64 px, which is why every committed screenshot and the
+     harness's budget figure are unchanged at the shipping setting.
+     The 8 px is --hud-sa-t's own floor rather than a literal, and .hud-top
+     subtracts it straight back out: this token is measured from the raw INSET
+     because that is how the harness measures it, while the band starts at the
+     edge floor. On a portrait phone the inset is 59 px, the subtraction goes
+     negative, and max(0px,…) in .hud-top turns the floor off — which is right,
+     because row one there is one plate and has nothing to be level with. */
+  --hud-band-row:calc(29px + 35px * var(--hud-scale));
   /* And what the WHOLE band costs, every row and every gap. Nothing lays out
      against it; the alert stack hangs off the bottom of it, so a band that
      grows a row taller cannot push a bulletin onto a plate. Re-declared per
      breakpoint, because the band is two rows in landscape and four in
-     portrait. */
-  --hud-band-h:124px;
+     portrait — except in landscape, where the bulletin is anchored to the
+     charge arc at the BOTTOM of the screen instead and this token has no
+     consumer at all. It is not redeclared there for exactly that reason.
+     AFFINE, NOT A CONSTANT, and the constant was wrong in the direction that
+     matters. A band is plate padding and grid gaps, which are fixed, plus type,
+     which is not: measured on the tablet profile the band runs 112.94 px below
+     its own top at 100 % HUD scale and 134.53 at 130 %. The old flat 124 px
+     therefore put the bulletin's top edge at y=140 while the duty strip was
+     still running to 142.5 — a bulletin landing on a plate, which is the exact
+     failure the whole two-placement design exists to prevent, on the one
+     accessibility setting the game has. Portrait was worse: 219.94 growing to
+     260.03 against a token that said 216. 42 + 72 x scale is the line through
+     the two measurements, rounded up so it over-states by ~1 px rather than
+     under-stating by 19.
+     MEASURED FROM THE BAND'S OWN TOP, i.e. from --hud-sa-t, which is where
+     .hud-top starts and what its one consumer adds it to. --hud-band-row above
+     is measured from the raw INSET instead because the harness measures it that
+     way; the two origins differ by the 8 px edge floor on any screen whose
+     inset is smaller than it, and reading this one from the inset spent that
+     8 px twice on every tablet.
+     AND THE AFFINE TERM HAS A FLOOR UNDER IT, because a band is not type all
+     the way down. The duty strip carries min-height:${MIN_TAP_PX}px — a tap
+     target, which does not shrink when the type does — so BELOW 100 % the line
+     keeps falling while the band stops. Measured on the tablet at 85 % HUD
+     scale the bulletin cleared the band by 2.33 px against a design gap of 8:
+     a quarter of --hud-gap, on the accessibility setting's bottom rung, from a
+     token whose comment claims it over-states. The floor is the band restated
+     as what it is actually made of at that rung — row one, one gap, and a tap
+     target — so the two cannot disagree again. It is inert at 100 % and above,
+     and clears the affine term by 0.45 px at 85 %, which is precisely why it is
+     here: the margin the line has left at the bottom rung is half a pixel, and
+     a font fallback that makes the strip one pixel taller spends it. */
+  --hud-band-h:max(calc(42px + 72px * var(--hud-scale)),calc(var(--hud-band-row) - var(--hud-sa-t) + var(--hud-gap) + ${MIN_TAP_PX}px));
   /* The charge arc's box, so the alert stack can sit on top of it without
      either one knowing the other's markup. */
   --hud-arc-w:184px;
@@ -387,10 +460,50 @@ ${allPalettes()}
   font-variant-numeric:tabular-nums;
 }
 /* A classification stamp: the one place an all-round outline survives, because
-   a stamp is exactly what it is. Never rendered without its word inside it. */
+   a stamp is exactly what it is. Never rendered without its word inside it.
+
+   ── THE ONE MICRO CONSUMER PROMOTED TO --t-body, AND WHY IT IS THIS ONE ────
+   10 px is below the size a glance can read at arm's length, and the arithmetic
+   is not close: on a 6.1" phone showing an 844 px-wide viewport, 1 CSS px is
+   ~0.166 mm and Bebas's cap height is ~0.73em, so --t-micro subtends ~12.8
+   arcmin at 325 mm against the ~16 the eye wants for comfortable glance
+   reading. --t-body is 16.6, --t-title 23, --t-readout 30.6: the micro step is
+   the only one under the floor, and downscaling the committed shots to what the
+   device actually subtends turns every micro run into a smear while every other
+   step stays legible.
+   That matters most HERE, because of invariant 8. The tier word exists because
+   no five-hue ramp survives dichromacy as colour alone — colour is the
+   accelerator and the word is the message. Printed at 12.8 arcmin the word is
+   only readable if the player stops and stares, which leaves a deuteranope
+   mid-fight with a hue they cannot separate and a word they cannot read: the
+   invariant satisfied in letter and defeated in function. Meanwhile the
+   monster's proper name, which tells the player nothing they can act on, was
+   getting 18 px right beside it.
+   It costs nothing vertically. The stamp shares its row with .hud-encounter__
+   name at --t-title, which is taller at both sizes, so row one's height and
+   therefore --hud-band-row are untouched — measured 56.00 px at 100 % before
+   and after. It costs ~8 px of the incident plate's width, which comes out of
+   the enemy's name, and that is the trade stated in the right order.
+   NOT THE WHOLE STEP, and the other micro consumers stay where they are.
+   Raising --t-micro itself to 12 px would fix the ledger's captions too, and it
+   would also add ~2.9 px to row one at 130 % against a band that closes 4.5 px
+   above the hands there — spending the entire margin of the constraint this
+   whole layout is built on, to fix labels whose numerals are already at 24 px
+   and colour-coded. And .hud-boredom__mood cannot be promoted at all: "NOTHING
+   FEELS LIKE ANYTHING" is 27 characters in a plate capped at 26vw, and there is
+   no size at which that string is both complete and glance-legible. It is
+   captioning a coloured meter directly beneath it, and it is read between
+   fights rather than during one.
+   The tracking drops with the promotion because tracking is a function of size
+   in this sheet: .14em is for 10 px uppercase that needs the air, and
+   styles.test.ts fails any rule above the micro step that keeps it. The
+   padding-left correction is the same one three other rules carry — CSS adds
+   letter-spacing after the FINAL glyph too, so without it the word sits half a
+   tracking unit left of the centre of its own stamp, in both the content-sized
+   case and the fixed-column case the alert stack now uses. */
 .hud-chip{
-  font-family:${DISPLAY_FONT};font-size:var(--t-micro);letter-spacing:.14em;
-  padding:2px 6px 1px;border:1px solid currentColor;
+  font-family:${DISPLAY_FONT};font-size:var(--t-body);letter-spacing:.06em;
+  padding:2px 6px 1px calc(6px + .06em);border:1px solid currentColor;
   color:var(--hud-chip-color,var(--hud-ink-muted));flex:0 0 auto;
   clip-path:var(--hud-plate);--hud-chamfer:4px;
 }
@@ -434,20 +547,34 @@ ${allPalettes()}
    27 px of bare sky under it while its neighbours cleared the duty strip by 6.
    Three plates that start at the same y and end wherever their text runs out
    read as three unrelated widgets, not as one filed row.
-   'stretch' costs nothing — the row was already as tall as its tallest plate —
-   and it buys back something else for free: row one's height stops being
-   content-driven, so the ledger appearing when a fight starts no longer pushes
-   the duty strip and its LOG button down 3 px (idle tracker y=67, combat y=70).
-   The harness measures CLS inside a single scene and could never see that jog.
-   NOT a fixed height pinned to --hud-band-row: the ledger is 56 px at 100 % and
-   66.5 at 130 %, and a 64 px box would clip it at the setting a low-vision
-   player picks. */
+   'stretch' costs nothing — the row was already as tall as its tallest plate.
+   THE ROW ALSO HAS A FLOOR, which is the other half of the same complaint. With
+   the height driven purely by content, the ledger appearing when a fight starts
+   pushed the duty strip and its LOG button down 3 px (idle tracker y=67, combat
+   y=70), and the harness measures CLS inside a single scene, so no gate in this
+   repo can see a jog between two. The floor is the row's own declared budget,
+   measured the way --hud-band-row declares it — from the top INSET, while the
+   band itself starts at the edge floor, hence subtracting --hud-sa-t back out.
+   THE FLOOR ONLY WORKS IF IT TRACKS THE CONTENT, which is the correction this
+   comment used to be missing. A flat 64 px floor is 56 px of row, and row one's
+   combat content is 56 px at 100 % and 66.5 px at 130 % — so the floor bound at
+   85 % and 100 % and did nothing at all above, and the jog it claims to have
+   fixed came straight back at the two rungs a low-vision player is most likely
+   to be on. --hud-band-row is affine now for exactly this reason, and it is the
+   same line the content walks: at every rung the floor equals the combat row
+   and idle is lifted to meet it, so the strip does not move whether or not a
+   fight is on.
+   minmax and NOT a fixed height: the ledger is 56 px at 100 % and 66.5 at
+   130 %, and a 64 px box would clip it at the setting a low-vision player
+   picks. max(0px,...) so a top inset deeper than the budget — a portrait phone,
+   where row one is one plate and this floor means nothing — cannot produce a
+   negative track and invalidate the whole declaration. */
 .hud-top{
   position:absolute;
   top:var(--hud-sa-t);left:var(--hud-sa-l);right:var(--hud-sa-r);
   display:grid;
   grid-template-columns:auto minmax(0,1fr) auto;
-  grid-template-rows:auto auto;
+  grid-template-rows:minmax(max(0px,calc(var(--hud-band-row) - var(--hud-sa-t))),auto) auto;
   align-items:stretch;
   gap:var(--hud-gap);
   pointer-events:none;
@@ -634,7 +761,26 @@ ${allPalettes()}
   display:grid;row-gap:4px;align-content:center;flex:1 1 auto;
   width:min(calc(560px * var(--hud-scale)),100%);
 }
-.hud-encounter__head{display:flex;align-items:baseline;gap:8px;min-width:0}
+/* THE HEAD CLIPS, and the clip is on the head rather than on the plate because
+   the plate's backing LEANS. .hud-panel::before is skewed 3°, so overflow on
+   .hud-encounter would shave ~1.5 px off the lean at the top-right and
+   bottom-left — trading a collision for a rendering fault. Clipping the head
+   instead stops the overflow at the paper's own margin, one step earlier.
+   What it stops: the base grid gives the middle track minmax(0,1fr), so the
+   flanks hold their max-content and the incident plate is the box that
+   collapses. .hud-encounter__name is the only child with min-width:0, so it
+   went to clientWidth 0 first — the monster's name gone, with no ellipsis to
+   say so — and then the tier stamp and the fight clock, neither of which can
+   shrink, walked straight out of the plate and printed on the civilian ledger
+   beside it. Measured on a 461 px-wide portrait viewport: an 83 px clock
+   overlapping the ledger by 82.7 px. Type with no plate under it, landing on
+   another plate.
+   The breakpoint below is the real fix and covers every portrait phone. This is
+   the belt: on any screen the breakpoint does not anticipate — a 568 px-wide
+   landscape phone, where the band cannot go single-column without leaving the
+   121 px budget — the failure is now a legible truncation inside the plate
+   instead of a collision on the plate next door. */
+.hud-encounter__head{display:flex;align-items:baseline;gap:8px;min-width:0;overflow:hidden}
 /* Colour is the accelerator; the word is the message. No five-hue ramp survives
    dichromacy alone, so the tier NEVER appears without its word — as a
    classification stamp, which is what the Association would actually print.
@@ -732,29 +878,34 @@ ${allPalettes()}
    The edge rule carries urgency, which is what the old border-left did and
    what this whole language is generalised from.
 
-   THE LEADER IS A TICK, NOT A RULE. That one hairline used to span the whole
-   grid row, so what you actually SAW of it was whatever gap the pinned quest's
-   title happened to leave between the content-sized plate and the LOG button:
-   196 px on the shipping phone, 635 px on a tablet, and nothing at all if the
-   title ran long. An element whose length is set by a string is left-over, not
-   composed — and at 635 px it was the single longest graphic in the HUD, a
-   hairline carrying nothing, reading as a stray horizon across the frame. That
-   also contradicts this file's own opening doctrine: one 3 px rule down the
-   leading edge, and NO hairline round the rest.
-   20 px, terminating one 6 px gutter short of the LOG button's leading edge —
-   expressed against --hud-pause-size because the LOG button is deliberately
-   under the pause button on every profile, so the two share a leading edge and
-   should share the token that puts it there. It is a leader INTO the button,
-   which is what a leader is for. In portrait the plate and the button are 6 px
-   apart and the tick falls behind the plate: there is nothing to lead across
-   there, and a decoration that only appears when there is a gap to cross is the
-   right kind of conditional. */
+   AND THERE IS NO LEADER ACROSS THE GAP ANY MORE. There were two attempts. The
+   first was a hairline spanning the whole grid row, so what you actually SAW of
+   it was whatever gap the pinned quest's title happened to leave — 196 px on
+   the shipping phone, 635 px on a tablet, nothing at all if the title ran long
+   — an element whose length is set by a string, and at 635 px the single
+   longest graphic in the HUD, carrying nothing. The second was a 20x1 px tick
+   terminating one 6 px gutter short of the button. Both are gone, and the tick
+   is the one worth explaining, because it looked like a fix.
+   It was painted in --hud-line, rgba(255,255,255,.14) — a wash designed to sit
+   on a near-black plate — and this is the only ink in the HUD besides the world
+   markers with no plate under it. Sampled off the committed dusk shot it
+   measures 1.54:1 against the sky 14 px below it; over the daylight sky this
+   game actually ships (styles.ts:126, and src/game/game.ts's rgb(143,169,196)
+   fallback) 14 % white composes to a 1.01:1 difference, which is not a faint
+   line, it is no line. So on the shipping condition the player saw nothing, and
+   at dusk they saw a detached 20 px dash floating in the sky six pixels from a
+   button — a rendering artefact, not a leader. A leader that stops short of its
+   destination and disappears on bright backgrounds is not leading anything.
+   What it cost the player to delete: nothing they can name. The LOG button's
+   own 3 px ink rule already terminates that end of the row, and it is the only
+   thing there that has to be found. The gap it used to cross now shows the city,
+   which is the same argument the plate beside it already makes for being sized
+   to its content rather than spanning the band. */
 .hud-tracker{
   grid-area:2 / 1 / auto / -1;
   --hud-edge:var(--hud-accent);
   display:flex;align-items:stretch;justify-content:space-between;
   gap:6px;min-height:${MIN_TAP_PX}px;
-  background:linear-gradient(var(--hud-line),var(--hud-line)) right calc(var(--hud-pause-size) + 6px) top 50% / 20px 1px no-repeat;
 }
 /* The ROW spans the band so its button lands under the pause button on every
    profile; the PLATE inside it is sized to what it is SAYING, capped for
@@ -801,9 +952,32 @@ ${allPalettes()}
 .hud-tracker__plate .hud-tracker__obj{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hud-tracker__what{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .hud-tracker__clock{display:flex;align-items:baseline;gap:2px;flex:0 0 auto}
-/* PULSE. A hard flash, never a fade — a fade reads as a rendering artefact. */
-.hud-tracker[data-urgency='critical'] .hud-tracker__clock{
-  color:var(--hud-lost);
+/* PULSE. A hard flash, never a fade — a fade reads as a rendering artefact.
+   ON THE WORD, NOT ON THE NUMBER, and that is the whole of the fix. The flash
+   used to be on .hud-tracker__clock, which is the box holding the digits, and
+   hud-pulse spends 39 % of every second at opacity .35. questUrgency turns
+   critical below 45 s, so this was up to forty-five continuous seconds of the
+   most time-critical number on the HUD being unreadable two frames in five —
+   at exactly the moment it matters most, and with a ~2-in-5 chance that any
+   given glance lands on a frame the player cannot read. Measured in the dim
+   phase, no pixel of the readout exceeded 2.48:1 against the plate and the red
+   digits themselves composited to 1.65:1, against 6.17:1 in the bright phase.
+   Both phases are in the committed evidence, which is how you can tell nobody
+   chose it: the identical crop reads bright in hud-combat-phone-landscape.png
+   and dim in hud-idle-phone-landscape.png.
+   The alarm is kept and the number is not blinded, because the urgency was
+   already being carried twice without the keyframe — the digits go
+   var(--hud-lost) below, and the whole strip's ink rule goes red at
+   [data-urgency='critical'] above. The flash now lives on the TIME caption,
+   whose disappearance costs nothing at all: a two-digit-colon-two-digit run in
+   the alarm colour is legible as a clock without a word over it. Same keyframe,
+   same duty cycle, same alarm in the corner of the eye, and the readout stays
+   at opacity 1.
+   The keyframe is shared with the alert's classification stamp and is left
+   exactly as it was, so no committed bulletin shot moves. That stamp flashes
+   THREE times and stops; this one never stopped. */
+.hud-tracker[data-urgency='critical'] .hud-tracker__clock{color:var(--hud-lost)}
+.hud-tracker[data-urgency='critical'] .hud-tracker__clock .hud-label{
   animation:hud-pulse 1s steps(1,end) infinite;
 }
 @keyframes hud-pulse{0%,60%{opacity:1}61%,100%{opacity:.35}}
@@ -841,12 +1015,31 @@ ${allPalettes()}
    corridor that does not exist from deleting the panel. The portrait block
    below drops the corridor term entirely rather than flooring it, because on
    that shape of screen the honest statement is that the arc clears the hands
-   VERTICALLY — see --hud-arc-lift there. */
+   VERTICALLY — see --hud-arc-lift there.
+   THE FLOOR IS THE LABEL'S CORRIDOR, not a round number, and the difference is
+   what the panel does when the corridor is merely NARROW rather than absent.
+   120px was picked as "legible"; the thing that actually needs width here is
+   .hud-charge__label's own corridor between the arc's two legs, which the rule
+   below derives as 2 x .57 x the box height, i.e. 1.14 x --hud-arc-h x scale —
+   98px on this profile. Below that the label box is WIDER than the panel, and
+   .hud-charge does not clip, so the intent word starts painting outside the
+   gauge and into the hands: the exact failure the corridor is measured to
+   avoid, reached from inside. At the floor the word exactly fits and nothing
+   leaves the box.
+   ON A 568x320 LANDSCAPE PHONE THE FLOOR STILL COSTS SOMETHING, and it is
+   worth writing down rather than leaving to the next person to measure. The
+   corridor there is 87px against a 98px floor, so the gauge overhangs 5.5px
+   into each disc. It cannot be fixed by widening or narrowing anything: on a
+   320px-tall landscape screen the two reserves are 225 and 240 and the top band
+   alone runs 114px, so the BAND is already inside the hands and there is no
+   rectangle left that clears them. That is a statement about the minimum
+   viewport this HUD is designed for — 390px of height, per the arithmetic at
+   the top of this file — not about the arc. */
 .hud-charge{
   position:absolute;
   left:var(--hud-sa-l);right:var(--hud-sa-r);
   bottom:calc(var(--hud-sa-b) + var(--hud-arc-lift));
-  width:min(calc(var(--hud-arc-w) * var(--hud-scale)),max(calc(120px * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r) - var(--hud-reserve-l) - var(--hud-reserve-r))));
+  width:min(calc(var(--hud-arc-w) * var(--hud-scale)),max(calc(var(--hud-arc-h) * var(--hud-scale) * 1.14),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r) - var(--hud-reserve-l) - var(--hud-reserve-r))));
   height:calc(var(--hud-arc-h) * var(--hud-scale));margin:0 auto;
   translate:calc((var(--hud-reserve-l) - var(--hud-reserve-r)) / 2) 0;
   opacity:var(--hud-on,0);
@@ -937,9 +1130,14 @@ ${allPalettes()}
    that keeps the ledger out of its corner, and now the button's own y. The
    max() is a floor, not a preference: in portrait the inset is 59 px and the
    budget is smaller than it, and the unclamped expression would put the only
-   escape hatch in the game under the Dynamic Island. Row one at 130 % is 66.5
-   px against the 64 px budget, so the button sits 5 px above centre there —
-   inside the budget the harness enforces, and 13 px better than the orphan. */
+   escape hatch in the game under the Dynamic Island.
+   IT IS CENTRED AT EVERY RUNG NOW, and it was not. Against a flat 64 px budget
+   this expression centred the button on a row height that stopped existing
+   above 100 %: row one runs 66.5 px at 130 %, so the button hung 5.25 px high
+   and ragged the band's dominant horizontal line — the same edge the note at
+   the top of .hud-top argues is worth restructuring a grid to protect. Making
+   --hud-band-row affine fixes the button and the row together, because they
+   were always the same number. */
 .hud-pausebtn{
   position:absolute;right:var(--hud-sa-r);
   top:max(var(--hud-sa-t),calc(var(--hud-sa-t) + (var(--hud-band-row) - var(--hud-sa-t) - var(--hud-pause-size)) / 2));
@@ -1010,7 +1208,31 @@ ${allPalettes()}
   opacity:0;transform:skewX(var(--hud-skew)) scaleX(1);
   animation:hud-sweep .34s cubic-bezier(.2,.9,.3,1) forwards;
 }
-.hud-alert__chip{color:var(--hud-alert-color,var(--hud-accent));align-self:center}
+/* THE STAMP IS A COLUMN, so the stack has ONE text edge.
+   A content-width chip in a baseline flex row makes the headline's x origin a
+   function of how many letters the tier word happens to have, and an untiered
+   bulletin had no chip and no 9 px gap at all, so its headline started a whole
+   stamp further left. The plates are align-items:stretch and line up to the
+   pixel; the words inside them did not. Constructed on a tablet at 130 % — GOD,
+   DRAGON, and an untiered quest notice — three flush 442 px plates gave three
+   headlines three different measures, the widest rag being the missing stamp
+   entirely at roughly 60 px. This file already names that failure at half the
+   size: "two objects stacked in one rectangle, centred on two different axes
+   7.5 px apart, is the misalignment nobody can name and everybody sees."
+   The column is measured, not guessed: DRAGON is the longest word in
+   TIER_LABEL and DANGER the longest in the kind stamps below, and both set at
+   --t-body inside the chip's 14 px of chrome. The affine term is
+   var(--hud-scale) rather than an em because the chrome does not scale and the
+   type does; an em-based column over-provisions at 130 % out of the bulletin's
+   own reading width.
+   The other half of this lives in alerts.ts, which now emits a stamp for EVERY
+   bulletin — the kind word where there is no tier — rather than reserving an
+   empty outlined box. A blank stamp is a missing element; a filed notice that
+   says what kind of notice it is, is what the Association would print. */
+.hud-alert__chip{
+  color:var(--hud-alert-color,var(--hud-accent));align-self:center;
+  min-width:calc(62px * var(--hud-scale));text-align:center;
+}
 .hud-alert__main{min-width:0;display:flex;flex-direction:column;gap:1px}
 .hud-alert__title{
   font-family:${DISPLAY_FONT};font-size:var(--t-title);letter-spacing:.06em;
@@ -1066,13 +1288,44 @@ ${allPalettes()}
    2.00 px on the old boot title. A padding-left equal to the tracking puts the
    ink back on the axis exactly, and under a projected map pin that axis is the
    pin. Same fix on the charge arc's two centred lines. */
+/* EVERY MARKER GETS A PLATE, and this is the one place in the HUD where that
+   was not already true. A pin is the only "where do I go" element the game has
+   and the only type painted straight onto the world with nothing behind it; its
+   whole protection was text-shadow:0 1px 3px rgba(0,0,0,.95), and a shadow
+   cannot buy contrast when the background is BRIGHTER than the ink. Under 10 px
+   type a 3 px shadow is a smear, not a backing.
+   harness/hud.html renders a dusk street, so every committed marker shot
+   flatters this and nothing has ever measured the condition the game actually
+   ships: styles.ts:126 says the shipping game is DAYTIME and src/game/game.ts
+   confirms it with a rgb(143,169,196) sky fallback. Rendered against a bright
+   sky and read out of the raw pixels, the pins measured 1.45:1 (ROUTE 7 TUNNEL),
+   1.33:1 (SUPERMARKET), 1.69:1 (CIVILIAN) and 2.59:1 for every distance run —
+   and against the game's own daytime fallback the distance readout computes to
+   1.06:1, i.e. the same luminance as the sky. There is no shadow alpha that
+   fixes that; the measured one is already at .95 and buys about six levels.
+   The plate is the sheet's own idiom rather than a new one: --hud-panel over
+   --hud-surface, the same double declaration .hud-sheet uses to guarantee
+   opacity, so all five palettes compose it from their OWN surface value instead
+   of a literal. --hud-chamfer:4px because a 9 px cut on a box this small eats
+   the glyphs; it is the same 4 px the classification stamp uses.
+   The padding is written long-hand because both runs carry a padding-left of
+   one tracking unit — CSS adds letter-spacing after the final glyph, so a
+   CENTRED tracked run sits half a unit left of the axis it is centred on, and
+   under a projected pin that axis IS the pin. A plain 'padding:1px 5px' would
+   have silently deleted that correction. */
 .hud-marker__label{
-  font-size:var(--t-micro);padding-left:.14em;
+  font-size:var(--t-micro);
+  padding:1px 5px 1px calc(5px + .14em);
   color:var(--hud-marker-color,var(--hud-accent));
+  background:var(--hud-panel);background-color:var(--hud-surface);
+  clip-path:var(--hud-plate);--hud-chamfer:4px;
 }
 .hud-marker__dist{
-  font-size:var(--t-micro);letter-spacing:.14em;padding-left:.14em;
+  font-size:var(--t-micro);letter-spacing:.14em;
+  padding:1px 5px 1px calc(5px + .14em);
   color:var(--hud-ink-muted);
+  background:var(--hud-panel);background-color:var(--hud-surface);
+  clip-path:var(--hud-plate);--hud-chamfer:4px;
 }
 .hud-marker[data-far='true'] .hud-marker__label{display:none}
 
@@ -1153,20 +1406,36 @@ ${allPalettes()}
    structural wash in this file (--hud-line, --hud-track, --hud-halftone) is
    white at low alpha over near-black.
    The covers are the surface laid down TWICE for the same reason --hud-panel
-   lays it down three times: one 82 % layer leaves 18 % of a seventeen-level
-   band standing, which is a visible seam at rest; two compose to 96.7 % and
-   leave half a level. They are flat rather than fading, and exactly as tall as
-   the band, so the two edges end together and neither shows. */
+   lays it down three times: one 82 % layer leaves 18 % of the band standing,
+   which is a visible seam at rest; two compose to 96.7 % and leave half a
+   level. They are flat rather than fading, and exactly as tall as the band, so
+   the two edges end together and neither shows.
+   AND THE BAND HAS AUTHORITY NOW. The mechanism was right and the value was
+   not: .07 over a composed sheet reading luma 9.9 lands at 27, a
+   seventeen-level ramp under a headline that reads 202 — a signal seven times
+   dimmer than the cut it is explaining. Sampled straight down the quest log it
+   ramped 14 → 29 over 13.3 CSS px and then the row it was explaining was sawn
+   through its cap height with no fade, no scrollbar and no count. Against what
+   it is hiding — 232 of 601 px in the quest log, 232 of 851 in Settings, where
+   HUD SCALE, the accessibility control, is below the fold — that is not a
+   trade, it is a decoration.
+   .16 lands at 49, a thirty-nine-level move, which reads as the lip the next
+   row is going under; 22 px rather than 14 because at 14 the ramp was shorter
+   than the cap height of the type crossing it, so it read as a soft edge on one
+   glyph rather than as a fold under a row. It costs no extra layer, no
+   JavaScript and no layout read: the four covers are resized to match so the
+   two edges still end together, and the band still appears only when there is
+   something past it. */
 .hud-sheet__body{
   flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;
   padding:12px 16px;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   background:
-    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 0 / 100% 14px no-repeat,
-    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 0 / 100% 14px no-repeat,
-    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 100% / 100% 14px no-repeat,
-    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 100% / 100% 14px no-repeat,
-    linear-gradient(rgba(255,255,255,.07),transparent) 0 0 / 100% 14px no-repeat,
-    linear-gradient(transparent,rgba(255,255,255,.07)) 0 100% / 100% 14px no-repeat;
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 0 / 100% 22px no-repeat,
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 0 / 100% 22px no-repeat,
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 100% / 100% 22px no-repeat,
+    linear-gradient(var(--hud-surface),var(--hud-surface)) 0 100% / 100% 22px no-repeat,
+    linear-gradient(rgba(255,255,255,.16),transparent) 0 0 / 100% 22px no-repeat,
+    linear-gradient(transparent,rgba(255,255,255,.16)) 0 100% / 100% 22px no-repeat;
   background-attachment:local,local,local,local,scroll,scroll;
 }
 .hud-sheet__foot{
@@ -1400,9 +1669,16 @@ ${allPalettes()}
    this line had no consumer whatsoever, next to a comment upstream calling the
    token "a promise rather than a comment". A dead constant beside a live one is
    worse than no constant: the next person to reach for it gets a number that
-   was never checked against anything. */
+   was never checked against anything.
+   --hud-band-row is not redeclared here either, and for the same reason with
+   one extra turn. It USED to be, as the literal 64px — a second copy of the
+   base value, so the two could drift and one of them was already the only one
+   anybody edited. Now that the base is affine the copy would have had to be the
+   same expression written twice, which is the drift with the drift's excuse
+   attached. Row one holds the same plates on this profile as on any other; the
+   base line describes it. */
 @media (max-height:520px){
-  .hud-root{--hud-gap:6px;--hud-band-row:64px;--hud-arc-w:150px;--hud-arc-h:86px}
+  .hud-root{--hud-gap:6px;--hud-arc-w:150px;--hud-arc-h:86px}
   .hud-rankchip{width:min(calc(80px + 97px * var(--hud-scale)),26vw)}
   /* The reading sheets are 341 px tall on this profile and spend 109 of them on
      chrome — a 44 px head and a 65 px foot holding one 44 px button — so a
@@ -1447,20 +1723,47 @@ ${allPalettes()}
    over.
    The persistent plates come first and the TRANSIENT ones last: the incident
    and its cost appear and disappear together when a fight starts and ends, so
-   putting them at the bottom means nothing above them ever moves. */
-@media (orientation:portrait) and (max-width:460px){
-  /* 220px, not 216. The band's last plate closed 3.94px past the old figure, so
-     the token was eating half the 8px gap it exists to protect — and nothing in
-     the repo checks it, because the harness reads --hud-band-row off the root
-     and CORE_SCENES contains no alert scene, which means the top-anchored
-     bulletin placement that BOTH the portrait phone and the tablet use has
-     never been measured or screenshotted. See the harness spec in the report.
+   putting them at the bottom means nothing above them ever moves.
+
+   ── 669 px, AND WHY IT IS NOT A ROUND NUMBER ───────────────────────────────
+   The breakpoint was 460, which is roughly "a phone", and the two things this
+   block fixes both break well above it.
+     THE BAND. Above the breakpoint the base grid is three columns —
+     auto minmax(0,1fr) auto — and the two flanks keep their max-content while
+     the middle collapses. Swept at 20 px steps on a 900 px-tall portrait
+     viewport, the incident plate holds its content again at 674 px and is
+     already losing the monster's name at 669: 461 px gives it 22 px of width,
+     with the tier stamp and the fight clock printing on the civilian ledger
+     beside it. So the single column has to cover the whole range up to the
+     width at which three columns are honest, and that width is measured, not
+     chosen.
+     THE ARC. .hud-charge's own note works out that the corridor between the two
+     hands goes negative below 8 + 8 + 225 + 240 = 481 px, and this block is
+     what repairs it — by dropping the corridor term and lifting the gauge over
+     both quarter-discs instead. At 460 the repair stopped 21 px short of the
+     failure, and the floor under the width kept the panel legible in the gap
+     while laying it out at the very bottom of a screen that has no corridor at
+     all: measured at 480x800, the gauge sat 164.8 px from the stick corner
+     against a 225 px reserve, with the yen forecast under the JUMP button.
+     Above 481 the corridor exists but stays narrower than the floor until about
+     560 px, so the floored box overhung into both discs there too.
+   One breakpoint, both failures, because they are the same failure: a band and
+   a gauge sized for a rectangle the screen does not have. */
+@media (orientation:portrait) and (max-width:669px){
+  /* 222px at 100 %, not 216. The band's last plate closed 3.94px past the old
+     figure, so the token was eating half the 8px gap it exists to protect — and
+     at 130 % it closed 44px past it, which puts a threat bulletin on the
+     civilian ledger. Nothing in the repo checks either, because the harness
+     reads --hud-band-row off the root and CORE_SCENES contains no alert scene,
+     which means the top-anchored bulletin placement that BOTH the portrait
+     phone and the tablet use has never been measured or screenshotted. See the
+     harness spec in the report.
      --hud-arc-lift is the other number this shape of screen needs of its own:
      the two hands do not leave a corridor at 390px — 225 + 240 is wider than
      the whole viewport — so the arc cannot go BETWEEN them and has to clear
      them vertically instead. The deeper reserve plus one gap is the shallowest
      lift that puts the whole box outside both quarter-discs, corners included. */
-  .hud-root{--hud-band-h:220px;--hud-arc-lift:calc(var(--hud-thumb-reserve) + var(--hud-gap))}
+  .hud-root{--hud-band-h:calc(88px + 134px * var(--hud-scale));--hud-arc-lift:calc(var(--hud-thumb-reserve) + var(--hud-gap))}
   .hud-top{grid-template-columns:minmax(0,1fr);row-gap:6px}
   /* The hero file is the only plate sharing its row with the pause button here,
      so it is the only one that needs the button's own reserve — the same
@@ -1476,10 +1779,57 @@ ${allPalettes()}
   .hud-top__centre{grid-area:3 / 1;align-items:stretch}
   .hud-top__right{grid-area:4 / 1;padding-right:0}
   .hud-rankchip{width:100%}
+  /* THE STRIP WRAPS HERE. Clipping the duty line to one line is a landscape
+     argument — the band there is 121 px and the log is one tap away with the
+     width to print the objective properly — and in portrait it is buying
+     nothing: there are ~160 CSS px of empty sky under the band, and the
+     accessibility control that exists to make text easier to read was deleting
+     a third of the only instruction on screen. Measured on the 390x844 profile:
+     .hud-tracker__what wants 207 px against 199.4 available at 100 % HUD scale,
+     which loses the last word, and 267 against 178.5 at 130 % — 33 % gone — with
+     .hud-tracker__title clipping as well ("ROUTE 7 TUNNEL COLLAP…" over "6/9
+     Carry the trapped c…").
+     TWO LINES, NOT UNLIMITED. -webkit-line-clamp keeps the box content-sized so
+     a one-line title does not leave an empty second line, and caps the growth so
+     --hud-band-h — which the alert stack hangs off — describes a band with a
+     ceiling rather than one whose height is a function of a quest name. Two
+     lines holds every string the quest table can produce at 130 %; a third
+     would be a paragraph in a strip, and that is what the log is for. */
+  .hud-tracker__title{
+    white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  }
+  .hud-tracker__plate .hud-tracker__obj{white-space:normal}
+  .hud-tracker__what{
+    white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+  }
   /* No corridor term. It describes a rectangle that does not exist at 390px,
      and min() taking its negative branch is what collapsed this panel to
-     width:0 on every portrait phone. */
-  .hud-charge{width:min(calc(var(--hud-arc-w) * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r)))}
+     width:0 on every portrait phone.
+     AND THE LIFT IS FLOORED AGAINST THE BAND, in the band's own tokens, so the
+     two objects in this corridor cannot drift into each other. --hud-arc-lift
+     raises the gauge 248px to clear the two overlapping quarter-discs; on a
+     SHORT portrait phone that lift pushes it back up into the band, and the arc
+     has no plate and no clip, so it drew its stroke, its two ticks, the intent
+     word and the yen forecast straight across the ledger's numerals. Measured
+     at 320x568 and 130 % HUD scale: 82.2px of overlap, with the gauge crossing
+     "LOST 2" and the right leg running down through the collateral figure. Two
+     elements, one rectangle — reached by the other object in the corridor.
+     min() of the two, so the lift wins wherever there is room for it: on the
+     390x844 profile the first branch is 282 and the second 451, i.e. today's
+     value untouched. On 320x568 the second branch pins the gauge one gap under
+     the band instead.
+     WHAT THAT COSTS, said plainly: on a portrait phone that short the pinned
+     box is inside the thumb's quarter-disc — 187px from the corner against a
+     240px reserve. There is no third option. The band alone is 262px of a 568px
+     screen at 130 %, so the free rectangle the gauge wants does not exist, and
+     between drawing the gauge where a hand may cover it and drawing it on the
+     ledger, the ledger wins: a hand moves, and a player can move it. Below this
+     shape of screen the honest answer is to stop drawing the gauge, and that is
+     a decision about a minimum supported viewport rather than about the arc. */
+  .hud-charge{
+    width:min(calc(var(--hud-arc-w) * var(--hud-scale)),calc(100vw - var(--hud-sa-l) - var(--hud-sa-r)));
+    bottom:min(calc(var(--hud-sa-b) + var(--hud-arc-lift)),calc(100% - var(--hud-sa-t) - var(--hud-band-h) - var(--hud-gap) - var(--hud-arc-h) * var(--hud-scale)));
+  }
   .hud-sheet{max-width:100%}
 }
 
