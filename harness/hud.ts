@@ -60,8 +60,17 @@ import {
   type IQuestRow,
   type IRivalRow,
 } from '@/ui/hud';
-import { THUMB_ARC, THUMB_PIVOT_PX, createTouchOverlay, thumbArcOffset } from '@/ui/input';
-import { DEFAULT_INPUT_TUNING } from '@/ui/input';
+import {
+  DEFAULT_INPUT_TUNING,
+  THUMB_ARC,
+  THUMB_PIVOT_PX,
+  createTouchOverlay,
+  fixedStickAnchor,
+  isStickZone,
+  resolveTuning,
+  thumbArcOffset,
+  type IInputTuning,
+} from '@/ui/input';
 
 /* -------------------------------------------------------------------------- */
 /* Instrumentation — installed BEFORE the HUD exists                          */
@@ -723,7 +732,7 @@ interface IHitSample {
 }
 
 interface IHitOwnership {
-  /** The band the lattice swept, in viewport px. */
+  /** Bounding box of the lattice points actually probed, in viewport px. */
   zone: { x: number; y: number; width: number; height: number };
   sampled: number;
   /** Probes the input overlay did NOT own. Must be empty. */
@@ -801,6 +810,18 @@ const bus: IEventBus = createEventBus() as EventBus;
    document and the verifier asserts it. */
 for (const layer of [uiRoot, overlays, banner]) document.body.appendChild(layer);
 const touch = createTouchOverlay(document.body, DEFAULT_INPUT_TUNING);
+
+/**
+ * The tuning the overlay is currently drawn with — the input layer's half of
+ * the settings bridge, kept here so `hitOwnership()` asks the same object the
+ * controls were built from rather than the module default.
+ *
+ * It moves in `setSettings`, which is where the bridge lives. Before that
+ * existed this was a constant, and the consequence was quiet: the HUD mirrored
+ * on `stickHand` and the controls did not, so the harness's own mirrored sweep
+ * probed a configuration the game cannot produce.
+ */
+let currentTuning: IInputTuning = DEFAULT_INPUT_TUNING;
 
 let currentInsets: SafeAreaInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 let modalOpen = false;
@@ -1253,17 +1274,36 @@ const HIT_GRID_PX = 40;
  * for the same reason the thumb-reserve assertion reads them: a retuned arc must
  * fail this test, not quietly move out from under it.
  *
- * ── THE ONE SHAPE THAT IS NOT ASKED FOR ────────────────────────────────────
- * The BAND below is described here instead of being asked for, because
- * `src/ui/input`'s public surface has no function to ask. Every NUMBER still
- * comes out of `DEFAULT_INPUT_TUNING`, so retuning the fraction moves the sweep
- * with it; what is written here is only the shape — the stick's fraction of the
- * width, full height. That is deliberately a slightly WIDER claim than the
- * stick alone makes: `.opm-input-root` is full-bleed and takes the camera drags
- * too, so a HUD panel intercepting any point in that band costs the player an
- * input whichever one it was. If `src/ui/input/stick-geometry.ts`'s
- * `isStickZone` and `fixedStickAnchor` ever reach the barrel, delete the two
- * derivations below and call them.
+ * ── NOTHING HERE DESCRIBES A SHAPE ANY MORE ────────────────────────────────
+ * This used to carry a note ending "if `isStickZone` and `fixedStickAnchor`
+ * ever reach the barrel, delete the two derivations below and call them". They
+ * have (`src/ui/input/index.ts` exports the whole of `stick-geometry.ts`), and
+ * they are called. Two hand-written shapes went with them:
+ *
+ *   THE ANCHOR was probed one full deflection in from the bottom-left safe
+ *   corner, under a comment saying the stick FLOATS and has no fixed origin.
+ *   `DEFAULT_INPUT_TUNING.floatingStick` is `false` — the anchored ring is what
+ *   ships — so that probed a point the ring is not at, in a corner the ring
+ *   need not be in. `fixedStickAnchor` answers both questions, hand included.
+ *
+ *   THE BAND was `width * stickZoneFraction`, full height, pinned to the LEFT
+ *   edge, and it over-claimed in two directions at once. It missed the widening
+ *   `isStickZone` applies so the ring's own artwork cannot fall outside its
+ *   zone; and its full height asserted that the stick band's top belongs to the
+ *   controls, which is the opposite of what `stickZoneTopFraction` exists to
+ *   say — the top of the screen is handed BACK to the camera and to the HUD, and
+ *   `[data-hud="pause-button"]`, `[data-hud="quest-log-button"]` and the tracker
+ *   plate are HUD controls that are SUPPOSED to take a touch up there. That
+ *   over-claim passed only by luck of position: those three sit in the top
+ *   RIGHT and the band was nailed to the left. Point the band at the right-hand
+ *   layout the settings screen can now produce and it lands squarely on all
+ *   three. So the band is `isStickZone`'s answer, whole — width, height and
+ *   hand — and it is the same claim on both hands.
+ *
+ * Every point is now the input layer's own arithmetic. What is still chosen
+ * here is one bit: WHICH CORNER the arc hangs off, because `thumbArcOffset`
+ * reports a corner-relative offset and the corner is picked by the
+ * `[data-hand]` rules in `touch-overlay.ts`, not by an exported function.
  */
 function hitOwnership(): IHitOwnership {
   const width = window.innerWidth;
@@ -1282,42 +1322,62 @@ function hitOwnership(): IHitOwnership {
     stolen.push({ label, x: Math.round(px), y: Math.round(py), owner: describeElement(element) });
   };
 
-  /* The anchor. The stick FLOATS, so there is no fixed origin to probe; what
-     can be named is the innermost resting place, one full deflection in from
-     the bottom-left safe corner, which is the closest a thumb can grab it with
-     the whole ring still on screen. Nothing is painted there, and it is still
-     the most expensive single point on the display to lose to a HUD panel. */
-  probe(
-    'stick-anchor',
-    currentInsets.left + DEFAULT_INPUT_TUNING.stickFullDeflectionPx,
-    height - currentInsets.bottom - DEFAULT_INPUT_TUNING.stickFullDeflectionPx
-  );
+  /* The anchor — the ring's painted centre, which is also the origin a thumb
+     landing on it reads from. `fixedStickAnchor` measures it from the SAFE-AREA
+     corner and picks the corner from `stickHand`, so this follows the setting
+     instead of being nailed to the bottom left. It is the single most expensive
+     point on the display to lose to a HUD panel. */
+  const anchor = fixedStickAnchor(currentTuning, width, height, currentInsets);
+  probe('stick-anchor', anchor.x, anchor.y);
 
   /* Button centres. `.opm-btn` is offset from the safe corner and then pulled
      back by `translate(50%,50%)`, so the centre lands exactly on the arc offset
-     — the same number `inputGeometry()` reports. */
+     — the same number `inputGeometry()` reports. The arc hangs off the hand
+     OPPOSITE the stick: `[data-hand='right']` trades `.opm-btn`'s `right` for a
+     `left`, so the CORNER swaps with the setting while every distance stays
+     `thumbArcOffset`'s. */
+  const arcFromLeftEdge = currentTuning.stickHand === 'right';
   for (const slot of THUMB_ARC) {
     const offset = thumbArcOffset(slot);
     probe(
       `slot:${slot.id}`,
-      width - currentInsets.right - offset.right,
+      arcFromLeftEdge
+        ? currentInsets.left + offset.right
+        : width - currentInsets.right - offset.right,
       height - currentInsets.bottom - offset.bottom
     );
   }
 
-  /* The band: `stickZoneFraction` of the RAW viewport width, insets included,
-     because a touch on the notch strip still drives the character. */
-  const zone = {
-    x: 0,
-    y: 0,
-    width: width * DEFAULT_INPUT_TUNING.stickZoneFraction,
-    height,
-  };
-  for (let x = zone.x; x < zone.x + zone.width; x += HIT_GRID_PX) {
-    for (let y = zone.y; y < zone.y + zone.height; y += HIT_GRID_PX) {
+  /* The band: every lattice point `isStickZone` claims.
+     The WHOLE viewport is swept and the predicate filters it, rather than a
+     rectangle being derived and swept — the zone is a rectangle today, but the
+     day it stops being one (the ring's artwork already widens it on a narrow
+     phone) a derived rectangle would quietly stop covering it. Insets are
+     passed because a touch on the notch strip still drives the character, and
+     the anchor the zone is widened around moves with them. */
+  let left = Number.POSITIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+  for (let x = 0; x < width; x += HIT_GRID_PX) {
+    for (let y = 0; y < height; y += HIT_GRID_PX) {
+      if (!isStickZone(x, y, width, height, currentTuning, currentInsets)) continue;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
       probe('grid', x, y);
     }
   }
+
+  /* Reported as the box the lattice actually covered rather than as the zone's
+     own bounds. The two differ by up to one grid step at each edge, and it is
+     the probed box a human needs when they go looking for a stolen point. An
+     empty sweep reports a zero box, which is what `sampled` in the verifier's
+     floor check is there to catch. */
+  const zone = Number.isFinite(left)
+    ? { x: left, y: top, width: right - left, height: bottom - top }
+    : { x: 0, y: 0, width: 0, height: 0 };
 
   return { zone, sampled, stolen };
 }
@@ -1446,8 +1506,42 @@ const api: IHarnessApi = {
     resize();
   },
 
+  /**
+   * Both halves of the settings bridge, because the shipping one has two.
+   *
+   * `src/game/game.ts`'s `applySettings` (the `configure({…})` call around
+   * :1560-1571) hands the input layer `floatingStick` and `stickHand` in the
+   * same breath as it hands the HUD its own patch. Only the HUD half used to
+   * be reproduced here, and the missing half was not a rounding error: the HUD
+   * root took `data-stick-hand='right'` and swapped its two bottom reserves
+   * while `.opm-input-root` kept `data-hand='left'`, so every mirrored probe
+   * measured a mirrored HUD wrapped around an unmirrored control — the exact
+   * frame `game.ts` was changed to stop producing.
+   *
+   * `applySettings` returns the RESOLVED settings rather than the patch, so a
+   * caller that sends `{palette}` alone still re-states the stick knobs from
+   * the model instead of dropping them back to the defaults; and the tuning
+   * goes through `resolveTuning` with the live tuning as its base, which is
+   * the same door `IInputManager.configure` uses.
+   */
   setSettings(patch: Partial<IHudSettings>): void {
-    hud.applySettings(patch);
+    const settings = hud.applySettings(patch);
+    const next = resolveTuning(
+      {
+        floatingStick: settings.stickLayout === 'floating',
+        stickHand: settings.stickHand,
+      },
+      currentTuning
+    );
+    // `setTuning` regenerates the overlay's whole stylesheet and re-parks the
+    // ring, so it is called when something it draws actually moved.
+    if (
+      next.stickHand !== currentTuning.stickHand ||
+      next.floatingStick !== currentTuning.floatingStick
+    ) {
+      currentTuning = next;
+      touch?.setTuning(currentTuning);
+    }
     step(2);
   },
 

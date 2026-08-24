@@ -53,16 +53,16 @@
   },
   "regions": {
     "whole": {
-      "meanLuma": 36.51934728341682,
-      "stdDev": 32.007675006872354,
-      "colours": 1156,
+      "meanLuma": 36.51983948828847,
+      "stdDev": 32.00769250590646,
+      "colours": 1157,
       "width": 2532,
       "height": 1170
     },
     "band": {
-      "meanLuma": 36.55312636282695,
-      "stdDev": 42.74674620844539,
-      "colours": 608,
+      "meanLuma": 36.554726028659815,
+      "stdDev": 42.74678750783816,
+      "colours": 609,
       "width": 2532,
       "height": 360
     },
@@ -95,13 +95,13 @@
     "writerSkipped": 1429
   },
   "snapshot.phone-landscape": {
-    "scene": "combat",
+    "scene": "combat-charging",
     "activeScreen": "hud",
     "stack": [
       "hud"
     ],
     "modalOpen": false,
-    "boredom": 0.33314317733382603,
+    "boredom": 0.31360904418708657,
     "rank": {
       "heroName": "Caped Baldy",
       "heroClass": "C",
@@ -125,9 +125,9 @@
       "elapsed": 6.60000000000008,
       "civiliansSaved": 6,
       "civiliansLost": 2,
-      "collateralYen": 5500229984.72177,
-      "collateralScore": 0.6100402473263098,
-      "debrisPieces": 1454,
+      "collateralYen": 5431213192.150185,
+      "collateralScore": 0.5979623086262822,
+      "debrisPieces": 1455,
       "debrisMassKg": 91400,
       "witnesses": 9
     },
@@ -155,7 +155,7 @@
       "width": 844,
       "height": 390
     },
-    "cumulativeLayoutShift": 0.03933170642039639
+    "cumulativeLayoutShift": 2.155695805861423
   },
   "snapshot.phone-portrait": {
     "scene": "pause",
@@ -218,7 +218,7 @@
       "width": 390,
       "height": 844
     },
-    "cumulativeLayoutShift": 0.0009228034998177178
+    "cumulativeLayoutShift": 0.30588274677637
   },
   "snapshot.tablet": {
     "scene": "combat-charging",
@@ -227,7 +227,7 @@
       "hud"
     ],
     "modalOpen": false,
-    "boredom": 0.6366896291272142,
+    "boredom": 0.6649605322238354,
     "rank": {
       "heroName": "Caped Baldy",
       "heroClass": "C",
@@ -251,9 +251,9 @@
       "elapsed": 6.533333333333331,
       "civiliansSaved": 6,
       "civiliansLost": 2,
-      "collateralYen": 5686345981.247634,
-      "collateralScore": 0.642610546718336,
-      "debrisPieces": 1407,
+      "collateralYen": 5770625888.171158,
+      "collateralScore": 0.6573595304299527,
+      "debrisPieces": 1409,
       "debrisMassKg": 91400,
       "witnesses": 9
     },
@@ -281,27 +281,34 @@
       "width": 1024,
       "height": 768
     },
-    "cumulativeLayoutShift": 0.020074671522403754
+    "cumulativeLayoutShift": 0.4047723224697014
   },
   "shots": {
     "hud-loading-phone-landscape.png": {
-      "meanLuma": 14.478147635114265,
-      "stdDev": 26.44419423526018,
+      "meanLuma": 14.478286117784053,
+      "stdDev": 26.44415444768146,
       "colours": 154,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-phone-landscape.png": {
-      "meanLuma": 36.51934728341682,
-      "stdDev": 32.007675006872354,
-      "colours": 1156,
+      "meanLuma": 36.51983948828847,
+      "stdDev": 32.00769250590646,
+      "colours": 1157,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-combat-alert-phone-landscape.png": {
+      "meanLuma": 36.707349150476524,
+      "stdDev": 32.27475614330598,
+      "colours": 1196,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-boss-phone-landscape.png": {
-      "meanLuma": 36.94269938689159,
-      "stdDev": 32.27742790440422,
-      "colours": 1214,
+      "meanLuma": 36.96205520020665,
+      "stdDev": 32.32593736266665,
+      "colours": 1222,
       "width": 2532,
       "height": 1170
     },
@@ -320,16 +327,16 @@
       "height": 1170
     },
     "hud-results-phone-landscape.png": {
-      "meanLuma": 13.859565027786878,
-      "stdDev": 23.476562407357623,
+      "meanLuma": 13.859600615073042,
+      "stdDev": 23.476577564410356,
       "colours": 429,
       "width": 2532,
       "height": 1170
     },
     "hud-pause-phone-landscape.png": {
-      "meanLuma": 13.96431151662892,
-      "stdDev": 23.337677541131463,
-      "colours": 292,
+      "meanLuma": 13.96395268539521,
+      "stdDev": 23.33752548039769,
+      "colours": 294,
       "width": 2532,
       "height": 1170
     },
@@ -347,23 +354,16 @@
       "width": 2532,
       "height": 1170
     },
-    "hud-combat-alert-phone-landscape.png": {
-      "meanLuma": 36.755812346391025,
-      "stdDev": 32.41520785157924,
-      "colours": 1199,
-      "width": 2532,
-      "height": 1170
-    },
     "hud-combat-charging-phone-landscape.png": {
-      "meanLuma": 36.954773471711675,
-      "stdDev": 32.468691667325565,
-      "colours": 1423,
+      "meanLuma": 36.844511407478585,
+      "stdDev": 32.23780358341496,
+      "colours": 1294,
       "width": 2532,
       "height": 1170
     },
     "hud-combat-bored-phone-landscape.png": {
-      "meanLuma": 36.49554952611442,
-      "stdDev": 31.67840711431421,
+      "meanLuma": 36.47919148085541,
+      "stdDev": 31.643885649250084,
       "colours": 1174,
       "width": 2532,
       "height": 1170
@@ -376,37 +376,44 @@
       "height": 1170
     },
     "hud-palette-deuteranopia.png": {
-      "meanLuma": 36.57912225006778,
-      "stdDev": 32.35292796596039,
-      "colours": 1143,
+      "meanLuma": 36.63491953399605,
+      "stdDev": 32.37271364564565,
+      "colours": 1161,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-protanopia.png": {
-      "meanLuma": 36.6182473817047,
-      "stdDev": 32.67929305282376,
-      "colours": 1128,
+      "meanLuma": 36.6348435807152,
+      "stdDev": 32.713347933773356,
+      "colours": 1126,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-tritanopia.png": {
-      "meanLuma": 36.40362963540569,
-      "stdDev": 31.860043633895877,
-      "colours": 1205,
+      "meanLuma": 36.39221185249715,
+      "stdDev": 31.84608393109347,
+      "colours": 1206,
       "width": 2532,
       "height": 1170
     },
     "hud-palette-highContrast.png": {
-      "meanLuma": 35.32731190713205,
-      "stdDev": 35.16954591325853,
-      "colours": 1203,
+      "meanLuma": 35.32199893579769,
+      "stdDev": 35.151257059483,
+      "colours": 1198,
+      "width": 2532,
+      "height": 1170
+    },
+    "hud-combat-charging-mirrored-phone-landscape.png": {
+      "meanLuma": 36.97305864524956,
+      "stdDev": 32.61773188955139,
+      "colours": 1407,
       "width": 2532,
       "height": 1170
     },
     "hud-loading-phone-portrait.png": {
-      "meanLuma": 12.888122473608973,
-      "stdDev": 20.11243069362737,
-      "colours": 153,
+      "meanLuma": 12.88715524821355,
+      "stdDev": 20.112647328352928,
+      "colours": 151,
       "width": 1170,
       "height": 2532
     },
@@ -417,10 +424,17 @@
       "width": 1170,
       "height": 2532
     },
+    "hud-combat-alert-phone-portrait.png": {
+      "meanLuma": 46.793650824208456,
+      "stdDev": 40.59044956605113,
+      "colours": 1078,
+      "width": 1170,
+      "height": 2532
+    },
     "hud-combat-boss-phone-portrait.png": {
-      "meanLuma": 48.05397883919161,
-      "stdDev": 40.73694447812976,
-      "colours": 1073,
+      "meanLuma": 48.07995846807645,
+      "stdDev": 40.79090465291146,
+      "colours": 1074,
       "width": 1170,
       "height": 2532
     },
@@ -446,8 +460,8 @@
       "height": 2532
     },
     "hud-pause-phone-portrait.png": {
-      "meanLuma": 13.502624454122929,
-      "stdDev": 23.531444733103786,
+      "meanLuma": 13.502882987021444,
+      "stdDev": 23.531700715848253,
       "colours": 294,
       "width": 1170,
       "height": 2532
@@ -467,16 +481,23 @@
       "height": 1536
     },
     "hud-combat-tablet.png": {
-      "meanLuma": 43.321204525355846,
-      "stdDev": 30.483977518502055,
-      "colours": 926,
+      "meanLuma": 43.32137845247209,
+      "stdDev": 30.48402024957701,
+      "colours": 925,
+      "width": 2048,
+      "height": 1536
+    },
+    "hud-combat-alert-tablet.png": {
+      "meanLuma": 43.13130951407433,
+      "stdDev": 30.711771753403227,
+      "colours": 969,
       "width": 2048,
       "height": 1536
     },
     "hud-combat-boss-tablet.png": {
-      "meanLuma": 43.67376273251043,
-      "stdDev": 30.746058357966852,
-      "colours": 959,
+      "meanLuma": 43.67684052130611,
+      "stdDev": 30.75765221537867,
+      "colours": 966,
       "width": 2048,
       "height": 1536
     },
@@ -502,9 +523,9 @@
       "height": 1536
     },
     "hud-pause-tablet.png": {
-      "meanLuma": 11.167290850992096,
-      "stdDev": 15.680383110583039,
-      "colours": 296,
+      "meanLuma": 11.167372502234675,
+      "stdDev": 15.68049199227811,
+      "colours": 297,
       "width": 2048,
       "height": 1536
     },
@@ -639,6 +660,140 @@
         "width": 141,
         "height": 80.83999633789062,
         "text": ""
+      }
+    ],
+    "combat-alert@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
+        "x": 59,
+        "y": 8,
+        "width": 177,
+        "height": 56,
+        "text": "CRANKGAIN RESTLESS"
+      },
+      {
+        "id": "boredom",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 104,
+        "y": 53,
+        "width": 121,
+        "height": 5,
+        "text": ""
+      },
+      {
+        "id": "encounter",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 242,
+        "y": 8,
+        "width": 324.328125,
+        "height": 56,
+        "text": "DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 572.328125,
+        "y": 8,
+        "width": 187.671875,
+        "height": 56,
+        "text": "SAVEDLOSTEYESCOST"
+      },
+      {
+        "id": "tracker",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 751,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 523.4375,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
+      },
+      {
+        "id": "pause-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
+        "x": 766,
+        "y": 20,
+        "width": 44,
+        "height": 44,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/2",
+        "occluded": false,
+        "x": 356.5,
+        "y": 285.58001708984375,
+        "width": 141,
+        "height": 80.83999633789062,
+        "text": ""
+      },
+      {
+        "id": "alerts",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "8/0",
+        "occluded": false,
+        "x": 297.53125,
+        "y": 235,
+        "width": 258.921875,
+        "height": 32,
+        "text": "DEMONThreat to an entire city"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "8/0/0",
+        "occluded": false,
+        "x": 297.53125,
+        "y": 235,
+        "width": 258.921875,
+        "height": 32,
+        "text": "DEMONThreat to an entire city"
       }
     ],
     "combat-boss@phone-landscape": [
@@ -1591,140 +1746,6 @@
         "text": ""
       }
     ],
-    "combat-alert@phone-landscape": [
-      {
-        "id": "rank-chip",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/0/0/0",
-        "occluded": false,
-        "x": 59,
-        "y": 8,
-        "width": 177,
-        "height": 56,
-        "text": "CRANKGAIN RESTLESS"
-      },
-      {
-        "id": "boredom",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/0/0/0/1/2",
-        "occluded": false,
-        "x": 104,
-        "y": 53,
-        "width": 121,
-        "height": 5,
-        "text": ""
-      },
-      {
-        "id": "encounter",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/0/1/0",
-        "occluded": false,
-        "x": 242,
-        "y": 8,
-        "width": 324.328125,
-        "height": 56,
-        "text": "DEMONMosquito Girl:"
-      },
-      {
-        "id": "ledger",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/0/2/0",
-        "occluded": false,
-        "x": 572.328125,
-        "y": 8,
-        "width": 187.671875,
-        "height": 56,
-        "text": "SAVEDLOSTEYESCOST"
-      },
-      {
-        "id": "tracker",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/0/3",
-        "occluded": false,
-        "x": 59,
-        "y": 70,
-        "width": 751,
-        "height": 44,
-        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
-      },
-      {
-        "id": "hud-panel",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/0/3/0",
-        "occluded": false,
-        "x": 59,
-        "y": 70,
-        "width": 523.4375,
-        "height": 44,
-        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
-      },
-      {
-        "id": "quest-log-button",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/0/3/1",
-        "occluded": false,
-        "x": 766,
-        "y": 70,
-        "width": 44,
-        "height": 44,
-        "text": "LOG"
-      },
-      {
-        "id": "pause-button",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/1",
-        "occluded": false,
-        "x": 766,
-        "y": 20,
-        "width": 44,
-        "height": 44,
-        "text": "❚❚"
-      },
-      {
-        "id": "charge",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "2/2",
-        "occluded": false,
-        "x": 356.5,
-        "y": 285.58001708984375,
-        "width": 141,
-        "height": 80.83999633789062,
-        "text": ""
-      },
-      {
-        "id": "alerts",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "8/0",
-        "occluded": false,
-        "x": 297.53125,
-        "y": 235,
-        "width": 258.921875,
-        "height": 32,
-        "text": "DEMONThreat to an entire city"
-      },
-      {
-        "id": "hud-panel",
-        "kind": "panel",
-        "screen": "hud",
-        "path": "8/0/0",
-        "occluded": false,
-        "x": 297.53125,
-        "y": 235,
-        "width": 258.921875,
-        "height": 32,
-        "text": "DEMONThreat to an entire city"
-      }
-    ],
     "combat-charging@phone-landscape": [
       {
         "id": "rank-chip",
@@ -2115,6 +2136,226 @@
         "text": ""
       }
     ],
+    "combat@phone-landscape@scale-130": [
+      {
+        "id": "rank-chip",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
+        "x": 59,
+        "y": 8,
+        "width": 206.09375,
+        "height": 66.5,
+        "text": "CRANKGAIN RESTLESS"
+      },
+      {
+        "id": "boredom",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 107,
+        "y": 63.5,
+        "width": 147.09375,
+        "height": 5,
+        "text": ""
+      },
+      {
+        "id": "encounter",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 271.09375,
+        "y": 8,
+        "width": 260.359375,
+        "height": 66.5,
+        "text": "DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 537.453125,
+        "y": 8,
+        "width": 218.546875,
+        "height": 66.5,
+        "text": "SAVEDLOSTEYESCOST"
+      },
+      {
+        "id": "tracker",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 80.5,
+        "width": 751,
+        "height": 48,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 80.5,
+        "width": 651.828125,
+        "height": 48,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 762,
+        "y": 80.5,
+        "width": 48,
+        "height": 48,
+        "text": "LOG"
+      },
+      {
+        "id": "pause-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
+        "x": 762,
+        "y": 26.5,
+        "width": 48,
+        "height": 48,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/2",
+        "occluded": false,
+        "x": 335.3500061035156,
+        "y": 260.5570373535156,
+        "width": 183.30001831054688,
+        "height": 105.08908081054688,
+        "text": ""
+      }
+    ],
+    "combat-charging-mirrored@phone-landscape": [
+      {
+        "id": "rank-chip",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
+        "x": 59,
+        "y": 8,
+        "width": 177,
+        "height": 56,
+        "text": "CRANKGAIN RESTLESS"
+      },
+      {
+        "id": "boredom",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 104,
+        "y": 53,
+        "width": 121,
+        "height": 5,
+        "text": ""
+      },
+      {
+        "id": "encounter",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 242,
+        "y": 8,
+        "width": 324.328125,
+        "height": 56,
+        "text": "DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 572.328125,
+        "y": 8,
+        "width": 187.671875,
+        "height": 56,
+        "text": "SAVEDLOSTEYESCOST"
+      },
+      {
+        "id": "tracker",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 751,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 59,
+        "y": 70,
+        "width": 523.4375,
+        "height": 44,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 766,
+        "y": 70,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
+      },
+      {
+        "id": "pause-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
+        "x": 766,
+        "y": 20,
+        "width": 44,
+        "height": 44,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/2",
+        "occluded": false,
+        "x": 367,
+        "y": 273,
+        "width": 150,
+        "height": 86,
+        "text": ""
+      }
+    ],
     "loading@phone-portrait": [
       {
         "id": "loading-track",
@@ -2237,6 +2478,140 @@
         "width": 172.96002197265625,
         "height": 97.760009765625,
         "text": ""
+      }
+    ],
+    "combat-alert@phone-portrait": [
+      {
+        "id": "rank-chip",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
+        "x": 8,
+        "y": 59,
+        "width": 324,
+        "height": 53,
+        "text": "CRANKGAIN RESTLESS"
+      },
+      {
+        "id": "boredom",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 53,
+        "y": 101,
+        "width": 268,
+        "height": 5,
+        "text": ""
+      },
+      {
+        "id": "encounter",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 8,
+        "y": 189.1875,
+        "width": 324,
+        "height": 32,
+        "text": "DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 8,
+        "y": 227.1875,
+        "width": 324,
+        "height": 55,
+        "text": "SAVEDLOSTEYESCOST"
+      },
+      {
+        "id": "tracker",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 8,
+        "y": 118,
+        "width": 374,
+        "height": 65.1875,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 8,
+        "y": 118,
+        "width": 324,
+        "height": 65.1875,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 338,
+        "y": 118,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
+      },
+      {
+        "id": "pause-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
+        "x": 338,
+        "y": 59,
+        "width": 44,
+        "height": 44,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/2",
+        "occluded": false,
+        "x": 108.5199966430664,
+        "y": 471.1199951171875,
+        "width": 172.96002197265625,
+        "height": 97.760009765625,
+        "text": ""
+      },
+      {
+        "id": "alerts",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "8/0",
+        "occluded": false,
+        "x": 65.53125,
+        "y": 300,
+        "width": 258.921875,
+        "height": 32,
+        "text": "DEMONThreat to an entire city"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "8/0/0",
+        "occluded": false,
+        "x": 65.53125,
+        "y": 300,
+        "width": 258.921875,
+        "height": 32,
+        "text": "DEMONThreat to an entire city"
       }
     ],
     "combat-boss@phone-portrait": [
@@ -3371,6 +3746,140 @@
         "text": ""
       }
     ],
+    "combat-alert@tablet": [
+      {
+        "id": "rank-chip",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0",
+        "occluded": false,
+        "x": 8,
+        "y": 8,
+        "width": 177,
+        "height": 56,
+        "text": "CRANKGAIN RESTLESS"
+      },
+      {
+        "id": "boredom",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/0/0/1/2",
+        "occluded": false,
+        "x": 53,
+        "y": 53,
+        "width": 121,
+        "height": 5,
+        "text": ""
+      },
+      {
+        "id": "encounter",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/1/0",
+        "occluded": false,
+        "x": 193,
+        "y": 8,
+        "width": 560,
+        "height": 56,
+        "text": "DEMONMosquito Girl:"
+      },
+      {
+        "id": "ledger",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/2/0",
+        "occluded": false,
+        "x": 778.328125,
+        "y": 8,
+        "width": 187.671875,
+        "height": 56,
+        "text": "SAVEDLOSTEYESCOST"
+      },
+      {
+        "id": "tracker",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3",
+        "occluded": false,
+        "x": 8,
+        "y": 72,
+        "width": 1008,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/0",
+        "occluded": false,
+        "x": 8,
+        "y": 72,
+        "width": 340.59375,
+        "height": 48.9375,
+        "text": "Route 7 Tunnel Collapse6/9Carry the trapped commuters outTIM"
+      },
+      {
+        "id": "quest-log-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/0/3/1",
+        "occluded": false,
+        "x": 972,
+        "y": 72,
+        "width": 44,
+        "height": 44,
+        "text": "LOG"
+      },
+      {
+        "id": "pause-button",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/1",
+        "occluded": false,
+        "x": 972,
+        "y": 20,
+        "width": 44,
+        "height": 44,
+        "text": "❚❚"
+      },
+      {
+        "id": "charge",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "2/2",
+        "occluded": false,
+        "x": 418.0199890136719,
+        "y": 659.1199951171875,
+        "width": 172.95999145507812,
+        "height": 97.760009765625,
+        "text": ""
+      },
+      {
+        "id": "alerts",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "8/0",
+        "occluded": false,
+        "x": 382.53125,
+        "y": 130,
+        "width": 258.921875,
+        "height": 32,
+        "text": "DEMONThreat to an entire city"
+      },
+      {
+        "id": "hud-panel",
+        "kind": "panel",
+        "screen": "hud",
+        "path": "8/0/0",
+        "occluded": false,
+        "x": 382.53125,
+        "y": 130,
+        "width": 258.921875,
+        "height": 32,
+        "text": "DEMONThreat to an entire city"
+      }
+    ],
     "combat-boss@tablet": [
       {
         "id": "rank-chip",
@@ -4499,7 +5008,7 @@
     {
       "name": "combat @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.0, colours 1156"
+      "detail": "stdDev 32.0, colours 1157"
     },
     {
       "name": "combat @ phone-landscape respects the safe area",
@@ -4529,12 +5038,47 @@
     {
       "name": "combat @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "150 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..360, right x480..840)"
+    },
+    {
+      "name": "combat-alert @ phone-landscape is a real frame",
+      "pass": true,
+      "detail": "stdDev 32.3, colours 1196"
+    },
+    {
+      "name": "combat-alert @ phone-landscape respects the safe area",
+      "pass": true,
+      "detail": "11 panels inside the safe box"
+    },
+    {
+      "name": "combat-alert @ phone-landscape has no panel painting on another",
+      "pass": true,
+      "detail": "11 panels, no pair sharing more than 4px²"
+    },
+    {
+      "name": "combat-alert @ phone-landscape keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-alert @ phone-landscape keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=129"
+    },
+    {
+      "name": "combat-alert @ phone-landscape row 1 fits its declared budget",
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "combat-alert @ phone-landscape lets the controls own every touch they need",
+      "pass": true,
+      "detail": "150 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..360, right x480..840)"
     },
     {
       "name": "combat-boss @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.3, colours 1214"
+      "detail": "stdDev 32.3, colours 1222"
     },
     {
       "name": "combat-boss @ phone-landscape respects the safe area",
@@ -4564,7 +5108,7 @@
     {
       "name": "combat-boss @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "150 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..360, right x480..840)"
     },
     {
       "name": "quests @ phone-landscape is a real frame",
@@ -4614,7 +5158,7 @@
     {
       "name": "pause @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 23.3, colours 292"
+      "detail": "stdDev 23.3, colours 294"
     },
     {
       "name": "pause @ phone-landscape respects the safe area",
@@ -4674,47 +5218,12 @@
     {
       "name": "idle @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
-    },
-    {
-      "name": "combat-alert @ phone-landscape is a real frame",
-      "pass": true,
-      "detail": "stdDev 32.4, colours 1199"
-    },
-    {
-      "name": "combat-alert @ phone-landscape respects the safe area",
-      "pass": true,
-      "detail": "11 panels inside the safe box"
-    },
-    {
-      "name": "combat-alert @ phone-landscape has no panel painting on another",
-      "pass": true,
-      "detail": "11 panels, no pair sharing more than 4px²"
-    },
-    {
-      "name": "combat-alert @ phone-landscape keeps the thumb corners clear",
-      "pass": true,
-      "detail": "no readable panel inside either hand"
-    },
-    {
-      "name": "combat-alert @ phone-landscape keeps the top band above the hands",
-      "pass": true,
-      "detail": "nothing above the halfway line reaches past y=129"
-    },
-    {
-      "name": "combat-alert @ phone-landscape row 1 fits its declared budget",
-      "pass": true,
-      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 6px gap (rank-chip, boredom, encounter, ledger)"
-    },
-    {
-      "name": "combat-alert @ phone-landscape lets the controls own every touch they need",
-      "pass": true,
-      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "150 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..360, right x480..840)"
     },
     {
       "name": "combat-charging @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 32.5, colours 1423"
+      "detail": "stdDev 32.2, colours 1294"
     },
     {
       "name": "combat-charging @ phone-landscape respects the safe area",
@@ -4744,12 +5253,12 @@
     {
       "name": "combat-charging @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "150 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..360, right x480..840)"
     },
     {
       "name": "combat-bored @ phone-landscape is a real frame",
       "pass": true,
-      "detail": "stdDev 31.7, colours 1174"
+      "detail": "stdDev 31.6, colours 1174"
     },
     {
       "name": "combat-bored @ phone-landscape respects the safe area",
@@ -4779,7 +5288,7 @@
     {
       "name": "combat-bored @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "150 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..360, right x480..840)"
     },
     {
       "name": "markers @ phone-landscape is a real frame",
@@ -4814,7 +5323,7 @@
     {
       "name": "markers @ phone-landscape lets the controls own every touch they need",
       "pass": true,
-      "detail": "210 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "150 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..360, right x480..840)"
     },
     {
       "name": "the region crop actually crops",
@@ -4854,27 +5363,32 @@
     {
       "name": "deuteranopia palette renders",
       "pass": true,
-      "detail": "stdDev 32.4, colours 1143"
+      "detail": "stdDev 32.4, colours 1161"
     },
     {
       "name": "protanopia palette renders",
       "pass": true,
-      "detail": "stdDev 32.7, colours 1128"
+      "detail": "stdDev 32.7, colours 1126"
     },
     {
       "name": "tritanopia palette renders",
       "pass": true,
-      "detail": "stdDev 31.9, colours 1205"
+      "detail": "stdDev 31.8, colours 1206"
     },
     {
       "name": "highContrast palette renders",
       "pass": true,
-      "detail": "stdDev 35.2, colours 1203"
+      "detail": "stdDev 35.2, colours 1198"
     },
     {
       "name": "the layout survives HUD scale at 130%",
       "pass": true,
-      "detail": "nothing overflows the safe box"
+      "detail": "9 panels inside the safe box on all four edges"
+    },
+    {
+      "name": "no panel paints on another at HUD scale 130%",
+      "pass": true,
+      "detail": "9 panels, no pair sharing more than 4px²"
     },
     {
       "name": "the top band still clears the hands at HUD scale 130%",
@@ -4882,9 +5396,34 @@
       "detail": "nothing above the halfway line reaches past y=129"
     },
     {
+      "name": "the mirrored combat HUD is a real frame",
+      "pass": true,
+      "detail": "stdDev 32.6, colours 1407"
+    },
+    {
+      "name": "the mirrored layout actually moves the charge arc",
+      "pass": true,
+      "detail": "x 352.0 -> 367.0 (15.0px, half the 15px reserve difference either way)"
+    },
+    {
+      "name": "the mirrored layout respects the safe area",
+      "pass": true,
+      "detail": "9 panels inside the safe box"
+    },
+    {
+      "name": "no panel paints on another in the mirrored layout",
+      "pass": true,
+      "detail": "9 panels, no pair sharing more than 4px²"
+    },
+    {
+      "name": "the mirrored layout keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel within 240px of the bottom-left or 225px of the bottom-right"
+    },
+    {
       "name": "loading @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 20.1, colours 153"
+      "detail": "stdDev 20.1, colours 151"
     },
     {
       "name": "loading @ phone-portrait respects the safe area",
@@ -4929,12 +5468,47 @@
     {
       "name": "combat @ phone-portrait lets the controls own every touch they need",
       "pass": true,
-      "detail": "230 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "154 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..160, right x240..360)"
+    },
+    {
+      "name": "combat-alert @ phone-portrait is a real frame",
+      "pass": true,
+      "detail": "stdDev 40.6, colours 1078"
+    },
+    {
+      "name": "combat-alert @ phone-portrait respects the safe area",
+      "pass": true,
+      "detail": "11 panels inside the safe box"
+    },
+    {
+      "name": "combat-alert @ phone-portrait has no panel painting on another",
+      "pass": true,
+      "detail": "11 panels, no pair sharing more than 4px²"
+    },
+    {
+      "name": "combat-alert @ phone-portrait keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-alert @ phone-portrait keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=570"
+    },
+    {
+      "name": "combat-alert @ phone-portrait row 1 fits its declared budget",
+      "pass": true,
+      "detail": "row 1 runs 53.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom)"
+    },
+    {
+      "name": "combat-alert @ phone-portrait lets the controls own every touch they need",
+      "pass": true,
+      "detail": "154 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..160, right x240..360)"
     },
     {
       "name": "combat-boss @ phone-portrait is a real frame",
       "pass": true,
-      "detail": "stdDev 40.7, colours 1073"
+      "detail": "stdDev 40.8, colours 1074"
     },
     {
       "name": "combat-boss @ phone-portrait respects the safe area",
@@ -4964,7 +5538,7 @@
     {
       "name": "combat-boss @ phone-portrait lets the controls own every touch they need",
       "pass": true,
-      "detail": "230 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "154 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..160, right x240..360)"
     },
     {
       "name": "quests @ phone-portrait is a real frame",
@@ -5114,7 +5688,7 @@
     {
       "name": "combat @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 30.5, colours 926"
+      "detail": "stdDev 30.5, colours 925"
     },
     {
       "name": "combat @ tablet respects the safe area",
@@ -5144,12 +5718,47 @@
     {
       "name": "combat @ tablet lets the controls own every touch they need",
       "pass": true,
-      "detail": "490 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "332 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..440, right x600..1000)"
+    },
+    {
+      "name": "combat-alert @ tablet is a real frame",
+      "pass": true,
+      "detail": "stdDev 30.7, colours 969"
+    },
+    {
+      "name": "combat-alert @ tablet respects the safe area",
+      "pass": true,
+      "detail": "11 panels inside the safe box"
+    },
+    {
+      "name": "combat-alert @ tablet has no panel painting on another",
+      "pass": true,
+      "detail": "11 panels, no pair sharing more than 4px²"
+    },
+    {
+      "name": "combat-alert @ tablet keeps the thumb corners clear",
+      "pass": true,
+      "detail": "no readable panel inside either hand"
+    },
+    {
+      "name": "combat-alert @ tablet keeps the top band above the hands",
+      "pass": true,
+      "detail": "nothing above the halfway line reaches past y=528"
+    },
+    {
+      "name": "combat-alert @ tablet row 1 fits its declared budget",
+      "pass": true,
+      "detail": "row 1 runs 64.0px from the top inset against a 64px budget + 8px gap (rank-chip, boredom, encounter, ledger)"
+    },
+    {
+      "name": "combat-alert @ tablet lets the controls own every touch they need",
+      "pass": true,
+      "detail": "332 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..440, right x600..1000)"
     },
     {
       "name": "combat-boss @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 30.7, colours 959"
+      "detail": "stdDev 30.8, colours 966"
     },
     {
       "name": "combat-boss @ tablet respects the safe area",
@@ -5179,7 +5788,7 @@
     {
       "name": "combat-boss @ tablet lets the controls own every touch they need",
       "pass": true,
-      "detail": "490 probes across the arc and the stick band, all into .opm-input-root"
+      "detail": "332 probes across the arc and the stick band, all into .opm-input-root (bands swept: left x0..440, right x600..1000)"
     },
     {
       "name": "quests @ tablet is a real frame",
@@ -5229,7 +5838,7 @@
     {
       "name": "pause @ tablet is a real frame",
       "pass": true,
-      "detail": "stdDev 15.7, colours 296"
+      "detail": "stdDev 15.7, colours 297"
     },
     {
       "name": "pause @ tablet respects the safe area",
@@ -5262,5 +5871,5 @@
       "detail": "clean"
     }
   ],
-  "generatedAt": "2026-08-24T02:39:41.341Z"
+  "generatedAt": "2026-08-24T03:05:13.165Z"
 }

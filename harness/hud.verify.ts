@@ -46,6 +46,13 @@
  *      and stack where the shipping page stacks them, so these screenshots are
  *      frames the game can actually produce.
  *
+ *   9. BOTH HANDS. `stickHand` moves the HUD's two bottom reserves AND the
+ *      controls, because `game.ts` forwards the setting; so the mirrored layout
+ *      gets a screenshot a human can look at and the same overlap, safe-area
+ *      and thumb assertions the upright one gets. Everything else in this file
+ *      runs right-handed, and the mirrored block proves the swap took rather
+ *      than assuming it.
+ *
  * ── THE `sharp` TRAP, HANDLED ──────────────────────────────────────────────
  * `sharp(file).extract(region).stats()` does NOT crop. `stats()` reads the
  * INPUT image and ignores everything queued in the pipeline, so a region
@@ -152,6 +159,15 @@ const PROFILES: readonly IProfile[] = [
 const CORE_SCENES = [
   'loading',
   'combat',
+  // `combat-alert` is core rather than a variant because the bulletin is placed
+  // by a DIFFERENT RULE on each shape. `styles.ts` hangs `.hud-alerts` under the
+  // band on portrait and tablet (`top: sa-t + --hud-band-h + gap`) and moves it
+  // into the corridor above the charge arc under `@media (max-height:520px)`, so
+  // the landscape shot exercised one of two placements. Portrait is where the
+  // band stacks into FOUR rows and the alert is the tallest transient thing the
+  // HUD draws, which makes it the shape most likely to land a bulletin on a
+  // stacked plate — the one collision the landscape-only shot could never see.
+  'combat-alert',
   'combat-boss',
   'quests',
   'rank',
@@ -160,14 +176,35 @@ const CORE_SCENES = [
   'settings',
 ] as const;
 
-/** Variants shot only at the shipping profile. */
-const VARIANT_SCENES = [
-  'idle',
-  'combat-alert',
-  'combat-charging',
-  'combat-bored',
-  'markers',
-] as const;
+/**
+ * Variants shot ONLY at the shipping profile — a KNOWN, DELIBERATE GAP.
+ *
+ * `idle`, `combat-charging`, `combat-bored` and `markers` run at
+ * `phone-landscape` and nowhere else. Their portrait and tablet variants are
+ * therefore UNOBSERVED: no screenshot exists of them, and no safe-area, overlap,
+ * band-fit or hit-ownership assertion has ever been evaluated against them. That
+ * is a decision on the record here, not an accident of the ternary that
+ * implements it further down.
+ *
+ * Why these four are the affordable ones to lose:
+ *
+ *   `idle` and `combat-bored` are `combat` with two custom properties moved —
+ *     the boredom meter's fill and the drift copy — over the same boxes, so the
+ *     geometry a second profile would measure is `combat`'s, already measured.
+ *   `combat-charging` moves the charge arc, which is exempt from the thumb
+ *     assertion by design (it lives in the corridor between the hands) and is
+ *     the one panel the 130% and mirrored blocks below both re-measure.
+ *   `markers` is world-space pins, excluded from the overlap and thumb checks
+ *     for reasons `findOverlaps` sets out — a second profile would mostly
+ *     re-run the exclusions.
+ *
+ * Every one of them is still a real cost: a portrait-only clip of the drift copy
+ * or a tablet-only charge-arc collision would not be caught here. The reason the
+ * gap is tolerable and not merely convenient is runtime — each promoted scene
+ * costs two profiles' worth of screenshot, panel read and a two-hand hit sweep,
+ * and this suite runs in CI.
+ */
+const VARIANT_SCENES = ['idle', 'combat-charging', 'combat-bored', 'markers'] as const;
 
 /* -------------------------------------------------------------------------- */
 /* Build + serve                                                              */
@@ -522,6 +559,56 @@ function describeOverlaps(overlaps: readonly IOverlap[]): string {
 }
 
 /**
+ * Readable panels sitting inside the quarter-disc either hand covers.
+ *
+ * ── THE CORNERS ARE NOT FIXED ──────────────────────────────────────────────
+ * `stickHand` decides which reserve guards which corner. `styles.ts` swaps
+ * `--hud-reserve-l` and `--hud-reserve-r` on `[data-stick-hand='right']`, so
+ * the deeper ARC reserve moves to the bottom-left and the shallower STICK
+ * reserve to the bottom-right — and `harness/hud.ts` now moves the controls
+ * with it. A version of this that hard-coded left=stick measured the mirrored
+ * layout against the two corners it does not use, and measured the shallower
+ * of the two reserves against the hand that needs the deeper one.
+ *
+ * Two exemptions, both load-bearing and both older than this function:
+ *
+ *   THE CHARGE ARC lives in the corridor BETWEEN the two thumbs on purpose. It
+ *   is transient and it is the one element the player is watching while both
+ *   thumbs are down.
+ *
+ *   WORLD-SPACE MARKERS are projected, not laid out. A pin's position is a
+ *   world point through the camera, so the only way to keep one out of a thumb
+ *   quadrant is to detach it from the thing it points at. `THUMB_RESERVE_PX`
+ *   scopes its claim to HUD chrome and this has to scope itself the same way
+ *   or it is unsatisfiable by any HUD change.
+ */
+function thumbIntruders(
+  panels: readonly IPanelRect[],
+  profile: IProfile,
+  geometry: IInputGeometry,
+  stickHand: 'left' | 'right'
+): IPanelRect[] {
+  const floor = profile.height - profile.insets.bottom;
+  const leftPivot = { x: profile.insets.left, y: floor };
+  const rightPivot = { x: profile.width - profile.insets.right, y: floor };
+  const leftReserve = stickHand === 'right' ? geometry.hudReserve : geometry.stickReserve;
+  const rightReserve = stickHand === 'right' ? geometry.stickReserve : geometry.hudReserve;
+
+  /** Distance from `pivot` to the nearest point of `panel`'s rectangle. */
+  const gap = (panel: IPanelRect, pivot: { x: number; y: number }): number =>
+    Math.hypot(
+      Math.max(panel.x, Math.min(pivot.x, panel.x + panel.width)) - pivot.x,
+      Math.max(panel.y, Math.min(pivot.y, panel.y + panel.height)) - pivot.y
+    );
+
+  return panels.filter((panel) => {
+    if (panel.id === 'charge') return false;
+    if (panel.kind === 'marker') return false;
+    return gap(panel, leftPivot) < leftReserve || gap(panel, rightPivot) < rightReserve;
+  });
+}
+
+/**
  * Panels that start in the top half and reach down into a hand.
  *
  * The thumb assertion measures a quarter-DISC struck from each bottom corner,
@@ -716,35 +803,12 @@ async function main(): Promise<void> {
 
         /* ---- thumb reserve, only for the non-modal combat HUD ---- */
         if (scene.startsWith('combat') || scene === 'idle' || scene === 'markers') {
-          const rightPivot = {
-            x: profile.width - profile.insets.right,
-            y: profile.height - profile.insets.bottom,
-          };
-          const leftPivot = { x: profile.insets.left, y: profile.height - profile.insets.bottom };
-          const intruders = panels.filter((panel) => {
-            const nearestRight = {
-              x: Math.max(panel.x, Math.min(rightPivot.x, panel.x + panel.width)),
-              y: Math.max(panel.y, Math.min(rightPivot.y, panel.y + panel.height)),
-            };
-            const nearestLeft = {
-              x: Math.max(panel.x, Math.min(leftPivot.x, panel.x + panel.width)),
-              y: Math.max(panel.y, Math.min(leftPivot.y, panel.y + panel.height)),
-            };
-            const dRight = Math.hypot(nearestRight.x - rightPivot.x, nearestRight.y - rightPivot.y);
-            const dLeft = Math.hypot(nearestLeft.x - leftPivot.x, nearestLeft.y - leftPivot.y);
-            // The charge arc is EXEMPT and deliberately so: it lives in the
-            // corridor between the two thumbs, is transient, and is the one
-            // element the player is looking at while both thumbs are down.
-            if (panel.id === 'charge') return false;
-            // World-space markers are exempt for a different reason: they are
-            // not LAID OUT. A pin's position is a world point projected through
-            // the camera, so the only way to keep one out of a thumb quadrant
-            // is to detach it from the thing it points at. THUMB_RESERVE_PX
-            // scopes its claim to HUD chrome, and this assertion has to scope
-            // itself the same way or it is unsatisfiable by any HUD change.
-            if (panel.kind === 'marker') return false;
-            return dRight < geometry.hudReserve || dLeft < geometry.stickReserve;
-          });
+          // 'left' is not an assumption, it is where this loop stands: the hand
+          // sweep further down is the only thing in the file that moves
+          // `stickHand`, it runs after this, and it puts the setting back. The
+          // MIRRORED layout is measured once, in its own block at the bottom of
+          // the phone-landscape section.
+          const intruders = thumbIntruders(panels, profile, geometry, 'left');
           check(
             `${scene} @ ${profile.id} keeps the thumb corners clear`,
             intruders.length === 0,
@@ -800,17 +864,28 @@ async function main(): Promise<void> {
           }
 
           /* ---- who owns the touch ---- */
-          // Both hands, though today neither value moves anything.
-          // `IHudSettings.stickHand` exists and the settings screen writes it,
-          // and nothing carries it across to the input layer: the settings
-          // bridge in `game.ts` forwards look sensitivity, invert, haptics and
-          // the stick LAYOUT, and not the hand. So the swept band is the same
-          // one whichever value is set, and it is left that way ON PURPOSE — a
-          // harness that forwarded the setting itself would be asserting a
-          // behaviour the game does not have. The loop stays because the day
-          // that bridge learns the field, the mirrored layout is already
-          // covered rather than needing to be remembered.
+          // BOTH HANDS, AND BOTH NOW MEAN SOMETHING.
+          //
+          // This loop used to carry a comment saying `IHudSettings.stickHand`
+          // was written by the settings screen and carried across to nothing —
+          // that `game.ts` forwarded look sensitivity, invert, haptics and the
+          // stick LAYOUT but not the hand — and that the sweep was therefore
+          // left non-forwarding on purpose, because a harness that forwarded
+          // the setting itself would assert a behaviour the game did not have.
+          //
+          // That is no longer true. `src/game/game.ts`'s `applySettings` (the
+          // `configure({…})` call at :1560-1571) now ends
+          // `floatingStick: settings.stickLayout === 'floating', stickHand:
+          // settings.stickHand`, so the shipping app mirrors the controls with
+          // the HUD. While the comment stood, `harness/hud.ts`'s `setSettings`
+          // still only called `hud.applySettings`, so this sweep probed "HUD
+          // mirrored, controls still in the left corner" — a frame the app can
+          // no longer produce — and never probed the one it can. `setSettings`
+          // now drives the overlay's tuning too, which is what makes the
+          // `hand === 'right'` pass a real second configuration: the anchor,
+          // the arc's corner and `isStickZone`'s band all move with it.
           const stolen: string[] = [];
+          const bands: string[] = [];
           let sampled = 0;
           for (const hand of ['left', 'right'] as const) {
             await page.evaluate((value) => {
@@ -820,6 +895,9 @@ async function main(): Promise<void> {
               window.__HUD_HARNESS__!.hitOwnership()
             )) as IHitOwnership;
             sampled += ownership.sampled;
+            bands.push(
+              `${hand} x${ownership.zone.x.toFixed(0)}..${(ownership.zone.x + ownership.zone.width).toFixed(0)}`
+            );
             for (const sample of ownership.stolen) {
               stolen.push(`${hand}/${sample.label}@${sample.x},${sample.y} -> ${sample.owner}`);
             }
@@ -829,13 +907,25 @@ async function main(): Promise<void> {
           });
 
           if (stolen.length > 0) hitReports[`${scene}@${profile.id}`] = stolen;
+          // A SWEEP THAT PROBES NOTHING IS NOT A PASS. `hitOwnership` builds its
+          // lattice by filtering the viewport through `isStickZone`, so a zone
+          // that collapsed — a zeroed fraction, an anchor thrown off-screen by a
+          // bad inset — would report zero stolen touches and read as green. The
+          // floor is the smallest honest sweep any of the three profiles
+          // produces (phone-landscape, 75 probes per hand) less a margin, so it
+          // can only fire on a collapse and never on a retune.
+          const SWEEP_FLOOR = 100;
           check(
             `${scene} @ ${profile.id} lets the controls own every touch they need`,
-            stolen.length === 0,
-            stolen.length === 0
-              ? `${sampled} probes across the arc and the stick band, all into .opm-input-root`
-              : stolen.slice(0, 4).join('; ') +
+            stolen.length === 0 && sampled >= SWEEP_FLOOR,
+            stolen.length > 0
+              ? stolen.slice(0, 4).join('; ') +
                   (stolen.length > 4 ? `; +${stolen.length - 4} more` : '')
+              : sampled < SWEEP_FLOOR
+                ? `only ${sampled} probes over both hands (floor ${SWEEP_FLOOR}) — the stick zone collapsed, ` +
+                  `so nothing was actually asserted: swept ${bands.join(', ')}`
+                : `${sampled} probes across the arc and the stick band, all into .opm-input-root ` +
+                  `(bands swept: ${bands.join(', ')})`
           );
         }
       }
@@ -1074,17 +1164,47 @@ async function main(): Promise<void> {
         const scaledPanels = (await page.evaluate(() =>
           window.__HUD_HARNESS__!.panels()
         )) as IPanelRect[];
-        const overflow = scaledPanels.filter(
+        panelReports['combat@phone-landscape@scale-130'] = scaledPanels;
+
+        // ALL FOUR EDGES, not two. This filter used to test `x` alone, under
+        // the reading that height is the band check's business — but the band
+        // check measures the RESERVE line, not the safe box, and a panel that
+        // grew up under the notch or down past the home indicator satisfies it
+        // while sitting outside the safe area. The vertical terms are the same
+        // ones the per-scene safe-area filter applies at 100%; the only reason
+        // 130% had two of the four is that this block was written as an
+        // overflow probe rather than as a safe-area one.
+        const outsideScaled = scaledPanels.filter(
           (panel) =>
             panel.x < profile.insets.left - 0.5 ||
-            panel.x + panel.width > profile.width - profile.insets.right + 0.5
+            panel.y < profile.insets.top - 0.5 ||
+            panel.x + panel.width > profile.width - profile.insets.right + 0.5 ||
+            panel.y + panel.height > profile.height - profile.insets.bottom + 0.5
         );
         check(
           'the layout survives HUD scale at 130%',
-          overflow.length === 0,
-          overflow.length === 0
-            ? 'nothing overflows the safe box'
-            : overflow.map((p) => p.id).join(', ')
+          outsideScaled.length === 0,
+          outsideScaled.length === 0
+            ? `${scaledPanels.length} panels inside the safe box on all four edges`
+            : outsideScaled.slice(0, 3).map(describeRect).join(' ')
+        );
+
+        /* ---- and nothing lands on anything else at 130% ----
+           THE CHECK THIS SCENE WENT WITHOUT. 130% is the single most likely
+           scale to produce a collision — it is where rows tuned to the pixel at
+           100% grow into each other — and it is the setting a low-vision player
+           picks, so it is the one scale where an overlap is both most likely and
+           most costly. The array was already materialised two statements above
+           and `findOverlaps` was two hundred lines up in the same file; nothing
+           but ordering kept them apart. Same machinery as every other scene,
+           unchanged: no separate tolerance, no allow-list of its own. */
+        const scaledOverlaps = findOverlaps(scaledPanels);
+        check(
+          'no panel paints on another at HUD scale 130%',
+          scaledOverlaps.length === 0,
+          scaledOverlaps.length === 0
+            ? `${scaledPanels.length} panels, no pair sharing more than ${OVERLAP_TOLERANCE_PX2}px²`
+            : describeOverlaps(scaledOverlaps)
         );
 
         /* The VERTICAL half of the same question, and the half that actually
@@ -1106,6 +1226,124 @@ async function main(): Promise<void> {
 
         await page.evaluate(() => {
           window.__HUD_HARNESS__!.setSettings({ hudScale: 1 as never });
+        });
+
+        /* ══════════════════════════════════════════════════════════════════
+           THE LEFT-HANDED PLAYER'S FRAME
+           ══════════════════════════════════════════════════════════════════
+           Until this block existed, every one of the 41 PNGs in
+           docs/screenshots/ and every geometry assertion in this file described
+           the RIGHT-handed layout, and ordering is the whole reason: the
+           overlap, safe-area and band-fit checks and all the `shoot()` calls
+           live inside the scene loop, which finishes before the hand sweep is
+           reached, and the hand sweep puts `stickHand` back to 'left' on its
+           way out. So the mirrored layout existed in the settings model, in the
+           stylesheet and in nothing a human had ever looked at.
+
+           The swap is not cosmetic. `src/ui/hud/styles.ts` exchanges
+           `--hud-reserve-l` and `--hud-reserve-r` on `[data-stick-hand='right']`
+           (225px against 240px), and `.hud-charge` slides by half their
+           difference to stay centred on the corridor BETWEEN the hands rather
+           than on the safe box — so the charge arc moves 15px sideways. The
+           assertion below measures exactly that displacement against the
+           left-handed rect captured by the scene loop, because a mirrored check
+           that silently ran on an unmirrored layout would pass for the wrong
+           reason, and that failure has already happened once in this file (see
+           the hit-ownership comment above).
+
+           THE SCENE IS `combat-charging` AND NOT `combat`, because the point of
+           the artefact is that a human can SEE it. `combat` lays the charge box
+           out but paints nothing in it, so a mirrored `combat` shot shows the
+           swapped controls and gives no sign of the 15px slide at all — the one
+           displacement worth looking at would have been measurable and
+           invisible. `combat-charging` lights the gauge in the corridor between
+           the hands, which is where the difference lives.
+
+           `harness/hud.ts`'s `setSettings` now drives the input overlay too, so
+           the artefact shows the whole mirrored frame — stick in the right
+           corner, arc under the left thumb — and not a mirrored HUD wrapped
+           around an unmirrored control. */
+        const mirroredScene = 'combat-charging';
+        await setScene(page, mirroredScene);
+        await page.evaluate(() => {
+          window.__HUD_HARNESS__!.setSettings({ stickHand: 'right' as never });
+        });
+        await page.evaluate(
+          () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        );
+        const mirroredFile = `hud-${mirroredScene}-mirrored-${profile.id}.png`;
+        const mirroredPath = await shoot(page, mirroredFile);
+        const mirroredStats = await analyse(mirroredPath);
+        shots[mirroredFile] = mirroredStats;
+        check(
+          'the mirrored combat HUD is a real frame',
+          mirroredStats.stdDev > 10 && mirroredStats.colours > 100,
+          `stdDev ${mirroredStats.stdDev.toFixed(1)}, colours ${mirroredStats.colours}`
+        );
+
+        const mirroredPanels = (await page.evaluate(() =>
+          window.__HUD_HARNESS__!.panels()
+        )) as IPanelRect[];
+        panelReports[`${mirroredScene}-mirrored@${profile.id}`] = mirroredPanels;
+
+        // DID IT ACTUALLY MIRROR? Everything below is worthless if it did not.
+        const upright = panelReports[`${mirroredScene}@${profile.id}`] ?? [];
+        const chargeBefore = upright.find((panel) => panel.id === 'charge');
+        const chargeAfter = mirroredPanels.find((panel) => panel.id === 'charge');
+        const slid =
+          chargeBefore !== undefined &&
+          chargeAfter !== undefined &&
+          Math.abs(chargeAfter.x - chargeBefore.x) > 1;
+        check(
+          'the mirrored layout actually moves the charge arc',
+          slid,
+          chargeBefore === undefined || chargeAfter === undefined
+            ? 'no charge arc in one of the two frames — nothing was compared'
+            : `x ${chargeBefore.x.toFixed(1)} -> ${chargeAfter.x.toFixed(1)} ` +
+                `(${(chargeAfter.x - chargeBefore.x).toFixed(1)}px, half the 15px reserve difference either way)`
+        );
+
+        const mirroredOutside = mirroredPanels.filter(
+          (panel) =>
+            panel.x < profile.insets.left - 0.5 ||
+            panel.y < profile.insets.top - 0.5 ||
+            panel.x + panel.width > profile.width - profile.insets.right + 0.5 ||
+            panel.y + panel.height > profile.height - profile.insets.bottom + 0.5
+        );
+        check(
+          'the mirrored layout respects the safe area',
+          mirroredOutside.length === 0,
+          mirroredOutside.length === 0
+            ? `${mirroredPanels.length} panels inside the safe box`
+            : mirroredOutside.slice(0, 3).map(describeRect).join(' ')
+        );
+
+        const mirroredOverlaps = findOverlaps(mirroredPanels);
+        check(
+          'no panel paints on another in the mirrored layout',
+          mirroredOverlaps.length === 0,
+          mirroredOverlaps.length === 0
+            ? `${mirroredPanels.length} panels, no pair sharing more than ${OVERLAP_TOLERANCE_PX2}px²`
+            : describeOverlaps(mirroredOverlaps)
+        );
+
+        // The corners have SWAPPED, which is the point of `thumbIntruders`
+        // taking the hand: the 240px arc reserve is now the bottom-LEFT one and
+        // the 225px stick reserve the bottom-right. Measured with the corners
+        // the other way round this would be checking the mirrored frame against
+        // the layout it is not in.
+        const mirroredIntruders = thumbIntruders(mirroredPanels, profile, geometry, 'right');
+        check(
+          'the mirrored layout keeps the thumb corners clear',
+          mirroredIntruders.length === 0,
+          mirroredIntruders.length === 0
+            ? `no readable panel within ${geometry.hudReserve}px of the bottom-left or ` +
+                `${geometry.stickReserve}px of the bottom-right`
+            : mirroredIntruders.map(describeRect).join(', ')
+        );
+
+        await page.evaluate(() => {
+          window.__HUD_HARNESS__!.setSettings({ stickHand: 'left' as never });
         });
       }
 

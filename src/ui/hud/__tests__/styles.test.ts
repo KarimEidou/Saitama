@@ -46,7 +46,11 @@
  *   THE EXACT SELECTOR. The tap-size loop read `ruleBodies(selector)`, which
  *   matches by string equality, so `.hud-sheet__foot .hud-btn{min-height:30px}`
  *   and `.hud-btn[data-compact]{min-height:28px}` both passed. It is a
- *   containment scan now.
+ *   containment scan now — and so, as of this pass, is the HUD-scale width
+ *   guard, which had the identical hole and was the one place this file
+ *   applied its own standard unevenly. The width guard scans on `rulesUsing`,
+ *   which is stricter than the tap-size loop's plain substring test; see the
+ *   note on that helper for what a class token does and does not cover.
  *
  *   THE BLACKLISTED FUNCTION. "Never tints a panel" tested for `color-mix(…
  *   var(--hud-accent…)` because both original bugs happened to be `color-mix`
@@ -136,6 +140,37 @@ function ruleBody(selector: string): string {
 /** Every declaration a selector makes anywhere in the sheet, as one string. */
 function allDeclarations(selector: string): string {
   return ruleBodies(selector).join(';');
+}
+
+/**
+ * Every rule whose selector names this class as a CLASS TOKEN, in source order.
+ *
+ * The containment counterpart to `ruleBodies`. That one matches by string
+ * EQUALITY, which is the right shape for "what does this rule declare" and the
+ * wrong shape for "what is done to this element anywhere in the sheet": an
+ * override written as a compound (`.hud-btn[data-compact]`) or a descendant
+ * (`.hud-sheet__foot .hud-btn`) selector is invisible to equality, and this
+ * sheet already writes overrides both ways.
+ *
+ * A CLASS TOKEN RATHER THAN A SUBSTRING, and the two BEM suffixes are split on
+ * purpose:
+ *
+ *   `--` IS IN. A modifier is a variant of the SAME box, so a declaration on
+ *   `.hud-rankchip--wide` is a declaration on `.hud-rankchip`; excluding it
+ *   would leave a one-hyphen bypass round every guard that calls this.
+ *   `__` IS OUT. An element is a DIFFERENT box with its own layout contract.
+ *   `.hud-rankchip__seat` is not the rank chip, and sweeping the children in
+ *   would silently change a caller's subject from "the panel" to "everything
+ *   inside it".
+ *
+ * A DESCENDANT of a named element — `.hud-charge svg` — is in, because the
+ * token really is there in the selector. That is the same distinction read off
+ * the selector rather than off a naming convention.
+ */
+function rulesUsing(selector: string): readonly { selector: string; body: string }[] {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const token = new RegExp(`${escaped}(?:--[a-z0-9-]+)?(?![\\w-])`);
+  return RULES.filter((rule) => token.test(rule.selector));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -689,6 +724,18 @@ describe('tap targets', () => {
         expect(value, `--hud-pause-size:${token}`).toBeGreaterThanOrEqual(MIN_TAP_PX);
       }
     }
+    // AND ONE PROFILE PUTS A CEILING ON IT, which passes everything above and
+    // is recorded here so it is not mistaken for a number somebody picked. The
+    // shipping landscape block, `@media (max-height:520px)`, caps the chip at
+    // 48px — so a player at 130 % gets type 30 % larger and the escape hatch
+    // only 9 % larger, on the one profile where that trade is worst. The
+    // ceiling is a SUBTRACTION, argued in the sheet: on 844x390 the hands and
+    // the top inset leave 129 px of band, row one and its gap spend 80.5 at
+    // 130 %, and the 57.20 px the affine token wanted closed the band at y=138
+    // — 9 px inside the hands, at the top rung of this game's one accessibility
+    // control. So it relaxes the day the band gains height rather than being
+    // held on principle; raise it by re-running that arithmetic against the
+    // profile, which is written out on the media query in `styles.ts`.
 
     expect(ruleBody('.hud-pausebtn')).toContain('width:var(--hud-pause-size)');
     // The right column keeps that much clear so the ledger cannot slide under
@@ -769,22 +816,44 @@ describe('HUD scale', () => {
     // inside the plates they belong to — and the duty strip is listed as its
     // PLATE, because the row around it spans the band by grid stretch and has
     // no width of its own to scale.
+    //
+    // EVERY RULE WHOSE SELECTOR NAMES A PANEL, not every rule whose selector IS
+    // one. This read `ruleBodies(selector)`, i.e. string EQUALITY, which is the
+    // exact hole the tap-size guard above was rewritten to close — and this
+    // guard did not get the same upgrade in the same pass, which made it the
+    // one place the suite failed its own stated standard. It is not
+    // hypothetical here either: the sheet ALREADY ships
+    // `.hud-top[data-encounter='none'] .hud-rankchip{width:100%}` a few lines
+    // below this guard's own subject, so the next person to add a width
+    // override writes one in a shape equality cannot see, and the completeness
+    // half that covers the fill and touch guards has no counterpart here — a
+    // width is not a declaration a new panel announces itself with.
+    // Mutation-tested against this suite: `.hud-top[data-encounter='none']
+    // .hud-rankchip{width:184px}` MISSED under equality, CAUGHT as a
+    // containment scan. `rulesUsing` states which selectors count as the panel
+    // and which do not.
     for (const selector of [
       '.hud-rankchip',
       '.hud-encounter',
       '.hud-tracker__plate',
       '.hud-charge',
     ]) {
-      const declarations = ruleBodies(selector).flatMap((body) => [
-        ...body.matchAll(/(?:^|[;\s])(?:max-)?width:([^;]*)/g),
-      ]);
-      expect(declarations.length, selector).toBeGreaterThan(0);
-      for (const [, value] of declarations) {
+      const declarations = rulesUsing(selector).flatMap((rule) =>
+        [...rule.body.matchAll(/(?:^|[;\s])(?:max-)?width:([^;]*)/g)].map((match) => ({
+          where: rule.selector,
+          value: match[1]!,
+        }))
+      );
+      // PER LISTED SELECTOR, because a containment scan is the one shape that
+      // can pass by finding nothing: a panel renamed or deleted out from under
+      // this list matches no rule, and a loop over no rules asserts nothing.
+      expect(declarations.length, `nothing declares a width for ${selector}`).toBeGreaterThan(0);
+      for (const { where, value } of declarations) {
         // An INTRINSIC width states "I have no size of my own, ask the box
         // around me" and carries nothing that could go stale at 130 %. Anything
         // that does name a size has to name --hud-scale with it.
-        if (/^(?:100%|auto|max-content|min-content|fit-content)$/.test(value!.trim())) continue;
-        expect(value, selector).toContain('var(--hud-scale)');
+        if (/^(?:100%|auto|max-content|min-content|fit-content)$/.test(value.trim())) continue;
+        expect(value, `${where} sizes ${selector}`).toContain('var(--hud-scale)');
       }
     }
   });

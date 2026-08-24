@@ -27,7 +27,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { INTENT_COLOR, PALETTES, PALETTE_NAMES, TIER_COLOR, TIER_ORDER } from '../tokens';
+import {
+  INTENT_COLOR,
+  PALETTES,
+  PALETTE_NAMES,
+  TIER_COLOR,
+  TIER_LABEL,
+  TIER_ORDER,
+} from '../tokens';
 
 /* -------------------------------------------------------------------------- */
 /* Colour maths                                                               */
@@ -128,6 +135,20 @@ const SURFACE = '#060a0f';
 
 /** OKLab ×100. Below 6 is indistinguishable; 8 is the target. */
 const SEPARATION_TARGET = 8;
+
+/**
+ * The floor the target sits above: two marks this close ARE the same colour.
+ *
+ * Named because the threat ramp is measured against both numbers and they mean
+ * different things. 8 is "a player can tell these apart at a glance"; 6 is
+ * "there is any difference at all". A ramp that clears 6 and not 8 is a ramp
+ * whose colour is an accelerator for a word, which is exactly what the threat
+ * ramp is and is not what SAVED/LOST is.
+ */
+const INDISTINGUISHABLE = 6;
+
+/** The three dichromacies, for the checks that run under all of them. */
+const DICHROMACIES: readonly CvdKind[] = ['deutan', 'protan', 'tritan'];
 
 /* -------------------------------------------------------------------------- */
 /* The maths itself                                                           */
@@ -231,12 +252,37 @@ function chroma(hex: string): number {
 
 describe('the threat ramp is ordered, and never carries meaning alone', () => {
   /**
+   * ── ORDERED ──────────────────────────────────────────────────────────────
    * The ramp is NOT claimed to be monotonic in hue, and the tests do not
    * pretend otherwise: it runs calm grey-blue -> yellow -> orange -> red and
    * then steps OFF the warm scale entirely for `god`, exactly the way real
    * hazard scales reserve an off-scale colour for the case that has no ordinary
    * comparison. What is asserted is what the player actually relies on: wolf
    * reads as "not really a threat", and no two adjacent tiers can be confused.
+   *
+   * ── AND NEVER CARRIES MEANING ALONE ──────────────────────────────────────
+   * This half of the name used to be prose. Every assertion in the block was
+   * about colour, so the block delivered the first clause of its own title and
+   * not the second — and `TIER_LABEL` appeared in no test in this directory at
+   * all, which meant the combat HUD could have stopped printing the tier word
+   * entirely and every colour check here would still have been green.
+   *
+   * It is delivered now, in two places and at two levels:
+   *
+   *   HERE               `pairs every tier with a WORD…`. The tokens hold a
+   *                      distinct, non-empty word for every tier in the ramp.
+   *                      This is the invariant enforced against the PALETTE.
+   *   tier-word.test.ts  Renders the combat HUD's encounter row for each tier
+   *                      and asserts the element actually PRINTS that word
+   *                      beside that colour. That is the invariant enforced
+   *                      against the CODE, which is where it can be lost.
+   *
+   * And the reason the word is mandatory is now measured rather than asserted:
+   * `does not survive dichromacy as colour alone` runs the ramp through the
+   * same simulation the rest of the file uses and finds pairs a dichromat
+   * cannot tell apart. Before that check the ramp was measured ONLY in normal
+   * vision — in a file whose entire premise is that normal vision is not the
+   * case that matters.
    */
   it('makes wolf visibly calmer than everything above it', () => {
     const wolf = chroma(TIER_COLOR.wolf);
@@ -259,6 +305,93 @@ describe('the threat ramp is ordered, and never carries meaning alone', () => {
   it('separates the two tiers a player must never confuse', () => {
     // Demon (a city) and dragon (several cities) are the decision boundary.
     expect(separation(TIER_COLOR.demon, TIER_COLOR.dragon)).toBeGreaterThan(SEPARATION_TARGET);
+  });
+
+  it('keeps every adjacent step apart under all three dichromacies too', () => {
+    /*
+     * The check the two above were missing. They measure NORMAL VISION, in the
+     * one file in the tree whose stated premise is that normal vision is not
+     * the case that decides anything — a ramp could have collapsed completely
+     * for a deuteranope and both of them would have passed.
+     *
+     * The bar here is INDISTINGUISHABLE and not SEPARATION_TARGET, and the
+     * difference is the finding, not a fudge: the tightest adjacent step is
+     * demon/dragon under deuteranopia at ΔE 8.0, which sits ON the target and
+     * would make this assertion a coin toss against a rounding change. What the
+     * ramp genuinely holds is "still visibly two colours", and that is the
+     * correct requirement for a scale whose identity is carried by a word.
+     */
+    for (const kind of DICHROMACIES) {
+      for (let i = 1; i < TIER_ORDER.length; i++) {
+        const previous = TIER_ORDER[i - 1]!;
+        const tier = TIER_ORDER[i]!;
+        const value = separation(TIER_COLOR[previous], TIER_COLOR[tier], kind);
+        expect(value, `${previous} vs ${tier} under ${kind} = ${value.toFixed(1)}`).toBeGreaterThan(
+          INDISTINGUISHABLE
+        );
+      }
+    }
+  });
+
+  it('does not survive dichromacy as colour alone, which is why the word exists', () => {
+    /*
+     * THE MEASUREMENT BEHIND THE INVARIANT, rather than a sentence asserting it.
+     *
+     * Adjacent steps hold (above). The RAMP does not: it is five hues, and the
+     * pairs a player reads across — not only the ones next to each other —
+     * include two that a dichromat cannot separate at all.
+     *
+     *   deuteranopia   wolf/god    ΔE 4.6   a nuisance and the end of the world
+     *   tritanopia     demon/god   ΔE 5.6
+     *   protanopia     wolf/god    ΔE 12.7  the one vision the ramp survives
+     *
+     * If this assertion ever FAILS, the ramp has been improved and that is good
+     * news — but the invariant does not lapse with it, because five hues on one
+     * panel cannot be made safe for every vision at once. Re-derive this comment
+     * from the new numbers; do not delete the check.
+     */
+    const worstPair = (kind: CvdKind): { pair: string; value: number } => {
+      let pair = '';
+      let value = Infinity;
+      for (let i = 0; i < TIER_ORDER.length; i++) {
+        for (let j = i + 1; j < TIER_ORDER.length; j++) {
+          const a = TIER_ORDER[i]!;
+          const b = TIER_ORDER[j]!;
+          const candidate = separation(TIER_COLOR[a], TIER_COLOR[b], kind);
+          if (candidate < value) {
+            value = candidate;
+            pair = `${a}/${b}`;
+          }
+        }
+      }
+      return { pair, value };
+    };
+
+    for (const kind of ['deutan', 'tritan'] as const) {
+      const worst = worstPair(kind);
+      expect(
+        worst.value,
+        `${kind} worst pair ${worst.pair} = ${worst.value.toFixed(1)}`
+      ).toBeLessThan(INDISTINGUISHABLE);
+    }
+  });
+
+  it('pairs every tier with a WORD, which is the channel that always survives', () => {
+    /*
+     * The second half of this block's name, at the token level. The RENDERED
+     * half — that the combat HUD's encounter row actually prints this word
+     * beside this colour, for every tier — is `tier-word.test.ts`, which builds
+     * the screen and reads the element. Both are needed: this one fails if a
+     * tier is added to the ramp without a word, that one fails if the word
+     * stops reaching the screen.
+     */
+    const words = TIER_ORDER.map((tier) => TIER_LABEL[tier]);
+    for (let i = 0; i < TIER_ORDER.length; i++) {
+      expect(words[i]!.trim(), `${TIER_ORDER[i]!} has no word`).not.toBe('');
+    }
+    // Distinct, because a word shared by two tiers carries no more than the
+    // colour they collapse to.
+    expect(new Set(words).size, `words: ${words.join(', ')}`).toBe(TIER_ORDER.length);
   });
 
   it('has every tier readable on the panel', () => {
